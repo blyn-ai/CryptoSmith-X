@@ -1,0 +1,24 @@
+/* CryptoSmith X — element defaults. Deliberately thin. */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--surface-page);color:var(--text-body);font:var(--type-body);text-wrap:pretty;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;color:var(--text-heading);font-family:var(--font-display);text-wrap:balance}
+h1{font:var(--type-h1);letter-spacing:var(--track-h1)}
+h2{font:var(--type-h2);letter-spacing:var(--track-h2)}
+h3{font:var(--type-h3)}
+h4{font:var(--type-h4)}
+p{margin:0}
+a{color:var(--link);text-decoration:none;transition:var(--transition-color)}
+a:hover{color:var(--link-hover)}
+small{font-size:var(--fs-caption)}
+code,kbd,samp{font-family:var(--font-mono)}
+img{display:block;max-width:100%}
+button{font:inherit}
+table{border-collapse:collapse}
+::selection{background:rgba(161,138,255,.35);color:var(--lilac-100)}
+:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+/* Gradient headline treatment — one clause per page, never a whole heading. */
+.csx-grad{font-style:normal;color:var(--gold-400);background:var(--gradient-text);-webkit-background-clip:text;background-clip:text}
+@supports ((-webkit-background-clip:text) or (background-clip:text)){.csx-grad{color:transparent}}
+/* The gradient rule — brand/content separator, page top or section break. */
+.csx-rule{height:var(--rule-h);background:var(--gradient-rule)}

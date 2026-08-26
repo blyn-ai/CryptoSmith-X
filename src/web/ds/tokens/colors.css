@@ -1,0 +1,77 @@
+/* CryptoSmith X — colour system. Dark-only ("forge") theme.
+   Two brand axes inherited from BlynAI: VIOLET (AI / action) leads on ink,
+   GOLD (signal / brand) is reserved for the mark, live states and key numbers.
+   Market colours (green/red) exist ONLY for PnL and direction — never decorative. */
+:root{
+/* --- base: violet axis --- */
+--violet-100:#EFEAF7;--violet-200:#DCD3F5;--violet-300:#BDB2D6;--violet-400:#A18AFF;--violet-500:#8C6BC9;--violet-600:#8360C4;--violet-700:#6B4EDB;--violet-800:#5B3FC4;
+/* --- base: gold axis (brand signal) --- */
+--gold-200:#F7E6C1;--gold-300:#FFD987;--gold-400:#F5B84F;--gold-600:#C8963B;--gold-700:#B97F2E;
+/* --- base: ink (violet-tinted blacks) --- */
+--ink-950:#050408;--ink-900:#07060B;--ink-850:#0A0812;--ink-800:#0D0B14;--ink-700:#12101C;--ink-600:#1A1726;
+/* --- base: neutral text on violet ink --- */
+--lilac-100:#EFEAF7;--lilac-200:#DCD3F5;--lilac-300:#BDB2D6;--lilac-500:#7C7391;--lilac-700:#4A4358;
+--sand-200:#C8BBA6; /* warm mono data, the one warm neutral */
+/* --- base: market direction --- */
+--up-300:#7FE0B5;--up-500:#41C98F;--up-700:#2E9A6C;
+--down-300:#FF8A97;--down-500:#EF5D6F;--down-700:#C23D4E;
+
+/* --- semantic: surfaces --- */
+--surface-page:var(--ink-900);
+--surface-card:var(--ink-800);
+--surface-raised:var(--ink-700);
+--surface-sunken:var(--ink-950);
+--surface-overlay:rgba(5,4,8,.78);
+--surface-glass:rgba(161,138,255,.06);
+--surface-plate:var(--ink-850); /* logo plate, coin */
+/* --- semantic: text --- */
+--text-heading:var(--lilac-100);
+--text-body:var(--lilac-300);
+--text-muted:var(--lilac-500);
+--text-faint:var(--lilac-700);
+--text-data:var(--sand-200);
+--text-on-action:#FFFFFF;
+--text-on-gold:var(--ink-900);
+/* --- semantic: accents & actions --- */
+--accent:var(--violet-400);
+--accent-strong:var(--violet-700);
+--accent-gold:var(--gold-400);
+--action-primary:var(--violet-700);
+--action-primary-hover:var(--violet-800);
+--live:var(--gold-400);
+--eyebrow:var(--lilac-500);
+/* --- semantic: links --- */
+--link:var(--violet-400);
+--link-hover:var(--violet-200);
+/* --- semantic: borders --- */
+--border-hairline:rgba(161,138,255,.11);
+--border-card:rgba(161,138,255,.13);
+--border-strong:rgba(161,138,255,.28);
+--border-input:rgba(161,138,255,.22);
+--border-gold:rgba(245,184,79,.3);
+/* --- semantic: market --- */
+--pnl-up:var(--up-500);
+--pnl-down:var(--down-500);
+--long:var(--up-500);
+--short:var(--down-500);
+--tint-up:rgba(65,201,143,.11);
+--tint-down:rgba(239,93,111,.11);
+/* --- semantic: tints (badge/tag fills) --- */
+--tint-violet:rgba(161,138,255,.13);
+--tint-gold:rgba(245,184,79,.11);
+--tint-neutral:rgba(124,115,145,.15);
+/* --- semantic: status --- */
+--status-ok:var(--up-500);
+--status-warn:var(--gold-400);
+--status-error:var(--down-500);
+--status-off:var(--lilac-700);
+
+/* --- gradients: the brand's one recurring device, gold meets violet --- */
+--gradient-rule:linear-gradient(90deg,#F5B84F,#C98F63 42%,#8C6BC9 74%,#6B4EDB); /* @kind color */
+--gradient-text:linear-gradient(96deg,#F5B84F,#A18AFF); /* @kind color */
+--gradient-curve:linear-gradient(to right,#F5B84F,#C98F63 55%,#6B4EDB); /* @kind color */
+--gradient-divider-v:linear-gradient(180deg,rgba(245,184,79,.5),rgba(107,78,219,.45)); /* @kind color */
+/* --- washes: soft field light, gold NW / violet SE, always faint --- */
+--wash-gold:radial-gradient(820px 520px at 2% 0%,rgba(245,184,79,.10),transparent 66%); /* @kind color */
+--wash-violet:radial-gradient(820px 620px at 100% 100%,rgba(107,78,219,.22),transparent 70%); /* @kind color */
+}

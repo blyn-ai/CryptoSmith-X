@@ -1,0 +1,29 @@
+<!-- @dsCard group="Components" viewport="700x310" name="Core" subtitle="Button, Tag, SideBadge, Tabs, Card, KpiTile" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+</head><body style="padding:16px;background:var(--surface-page)"><div id="root"></div>
+<script type="text/babel">
+function Demo(){
+  const { Button, Tag, SideBadge, Tabs, Card, KpiTile } = window.CryptoSmithXDesignSystem_d88f99;
+  const [tab, setTab] = React.useState('1W');
+  return <div style={{display:'flex',flexDirection:'column',gap:14}}>
+    <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+      <Button>New strategy</Button><Button variant="ghost">Backtest</Button><Button variant="gold">Go live</Button><Button variant="quiet" size="sm">Duplicate</Button><Button variant="danger" size="sm">Stop</Button><Button disabled>Disabled</Button>
+    </div>
+    <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+      <Tag tone="gold">Running</Tag><Tag tone="violet">AI watchlist</Tag><Tag tone="neutral">Paused</Tag><Tag tone="up">Filled</Tag><Tag tone="down">Rejected</Tag>
+      <SideBadge side="long" /><SideBadge side="short" />
+      <Tabs items={['1D','1W','1M','ALL']} value={tab} onChange={setTab} />
+    </div>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 2fr',gap:14}}>
+      <KpiTile label="Equity" value="$128,430" delta="↑ +$1,284.10 · 24h" deltaTone="up" />
+      <KpiTile label="Exposure" value="42%" delta="limit 60%" />
+      <Card title="Card title" actions={<Tabs items={['A','B']} value="A" />}>Card body on ink with violet hairline.</Card>
+    </div>
+  </div>;
+}
+(function mount(){ const ns = window.CryptoSmithXDesignSystem_d88f99; if (!ns || !ns.KpiTile) { setTimeout(mount, 60); return; } ReactDOM.createRoot(document.getElementById('root')).render(<Demo />); })();
+</script></body></html>

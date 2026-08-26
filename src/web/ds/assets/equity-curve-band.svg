@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 190" width="1200" height="190">
+  <defs>
+    <linearGradient id="eq" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#F5B84F"></stop><stop offset=".55" stop-color="#C98F63"></stop><stop offset="1" stop-color="#6B4EDB"></stop></linearGradient>
+    <linearGradient id="eqf" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="rgba(245,184,79,.22)"></stop><stop offset="1" stop-color="rgba(107,78,219,.18)"></stop></linearGradient>
+  </defs>
+  <path d="M0 150 L100 140 L190 156 L290 120 L380 134 L480 96 L570 112 L670 72 L760 88 L860 50 L950 66 L1060 26 L1130 40 L1200 8 L1200 190 L0 190 Z" fill="url(#eqf)"></path>
+  <path d="M0 150 L100 140 L190 156 L290 120 L380 134 L480 96 L570 112 L670 72 L760 88 L860 50 L950 66 L1060 26 L1130 40 L1200 8" fill="none" stroke="url(#eq)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"></path>
+</svg>

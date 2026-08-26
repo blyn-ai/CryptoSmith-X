@@ -5,51 +5,26 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>404 — CryptoSmith X</title>
 <meta name="robots" content="noindex">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=IBM+Plex+Sans:wght@400&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="icon" href="/ds/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/ds/styles.css">
+<link rel="stylesheet" href="/assets/site.css">
 <style>
-  :root{
-    --ink-950:#050408; --ink-900:#07060B;
-    --gold-400:#F5B84F; --violet-400:#A18AFF;
-    --lilac-100:#EFEAF7; --lilac-300:#BDB2D6; --lilac-500:#7C7391;
-    --font-display:"Space Grotesk","Helvetica Neue",Arial,sans-serif;
-    --font-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
-    --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  body{min-height:100dvh}
+  .nf{
+    width:min(560px,100%); padding:56px 44px; text-align:center;
+    background:var(--wash-gold),var(--wash-violet),var(--surface-page);
+    border:1px solid var(--border-card); border-radius:var(--radius-lg); overflow:hidden;
   }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    margin:0; padding:24px; display:grid; place-items:center; text-align:center;
-    background:var(--ink-900); color:var(--lilac-300);
-    font:400 14.5px/1.6 var(--font-body); -webkit-font-smoothing:antialiased;
-  }
-  body::before{
-    content:""; position:fixed; inset:0; pointer-events:none;
-    background:
-      radial-gradient(820px 520px at 2% 0%,rgba(245,184,79,.10),transparent 66%),
-      radial-gradient(820px 620px at 100% 100%,rgba(107,78,219,.22),transparent 70%);
-  }
-  main{position:relative; max-width:440px}
-  .code{
-    margin:0; font:500 11px/1 var(--font-mono); letter-spacing:.20em;
-    text-transform:uppercase; color:var(--gold-400);
-  }
-  h1{
-    margin:16px 0 0; font:600 clamp(30px,6vw,42px)/1.1 var(--font-display);
-    letter-spacing:-.03em; color:var(--lilac-100);
-  }
-  p{margin:16px 0 0; color:var(--lilac-500)}
-  a{
-    display:inline-block; margin:26px 0 0; color:var(--violet-400);
-    text-decoration:none; border-bottom:1px solid rgba(161,138,255,.3);
-  }
-  a:hover{color:#DCD3F5; border-bottom-color:#DCD3F5}
-  a:focus-visible{outline:2px solid var(--violet-400); outline-offset:3px}
+  .nf img{width:44px; height:44px; margin:0 auto 18px}
+  .nf .code{font:600 10px/1 var(--font-mono); letter-spacing:.18em; text-transform:uppercase; color:var(--eyebrow)}
+  .nf h1{max-width:none; margin:14px 0 0}
+  .nf p{margin:14px 0 0; color:var(--text-muted)}
+  .nf a{display:inline-block; margin-top:26px; border-bottom:1px solid rgba(161,138,255,.3)}
 </style>
 </head>
 <body>
-  <main>
+  <main class="nf">
+    <img src="/ds/assets/cryptosmith-mark.svg" width="44" height="44" alt="">
     <p class="code">404</p>
     <h1>Puslapis nerastas</h1>
     <p>Tokio puslapio nėra arba jis buvo perkeltas.</p>

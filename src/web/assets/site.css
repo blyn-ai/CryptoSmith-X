@@ -1,0 +1,279 @@
+/* CryptoSmith X — public sign-in page (screen 2a: split login, icon socials).
+   Tokens, fonts and the reset come from ../ds/styles.css. Numbers here are the
+   ones measured off the approved mockup, not re-derived. */
+
+[hidden]{display:none !important}   /* иначе display у .live/.alert перебивает атрибут */
+
+body{
+  margin:0; padding:14px;
+  display:grid; place-items:center;
+  background:var(--surface-sunken);
+}
+
+/* ── рамка ───────────────────────────────────────────────── */
+.shell{
+  width:1240px; max-width:100%;
+  background:var(--surface-page);
+  border:1px solid var(--border-card);
+  border-radius:var(--radius-lg);
+  overflow:hidden;
+  display:flex; flex-direction:column;
+}
+.rule{height:var(--rule-h); background:var(--gradient-rule); flex:none}
+.split{
+  min-height:760px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 428px;
+  grid-template-rows:auto 1fr;
+  grid-template-areas:
+    "brand auth"
+    "data  auth";
+  position:relative;
+  background:var(--surface-page);
+}
+/* Подсветки лежат слоем ровно под левой колонкой: золото в её левом верхнем
+   углу, фиолет — в правом нижнем. Если положить их на всю сетку, точка
+   100% 100% окажется под непрозрачной плитой входа и фиолет пропадёт. */
+.split::before{
+  content:""; position:absolute; inset:0 428px 0 0; z-index:0; pointer-events:none;
+  background:var(--wash-gold),var(--wash-violet);
+}
+.pane,.auth{position:relative; z-index:1}
+
+/* ── левая колонка ───────────────────────────────────────── */
+.pane{display:flex; flex-direction:column; gap:22px; min-width:0}
+.pane--brand{grid-area:brand; padding:48px 52px 0}
+.pane--data{grid-area:data; padding:30px 52px 40px; align-content:start}
+.brand{display:flex; align-items:center; gap:16px}
+.brand img{width:44px; height:44px; flex:none}
+.wordmark{margin:0; font:600 26px/1 var(--font-display); letter-spacing:-.02em; color:var(--text-heading)}
+.wordmark span{color:var(--violet-400)}
+.tagline{
+  margin:6px 0 0; display:flex; justify-content:space-between; gap:16px;
+  font:500 10.5px/1 var(--font-mono); letter-spacing:.1em;
+  color:var(--text-muted); text-transform:uppercase;
+}
+
+.tags{display:flex; flex-wrap:wrap; gap:9px; margin-top:6px}
+.tag{
+  font:600 10px/1 var(--font-mono); letter-spacing:.14em; text-transform:uppercase;
+  padding:6px 10px; border-radius:var(--radius-xs); border:1px solid;
+}
+.tag--gold{color:var(--gold-400); border-color:var(--border-gold); background:var(--tint-gold)}
+.tag--violet{color:var(--violet-400); border-color:var(--border-strong); background:var(--tint-violet)}
+
+h1{
+  margin:6px 0 0; max-width:560px;
+  font:600 36px/1.15 var(--font-display); letter-spacing:-.01em;
+  color:var(--text-heading);
+}
+h1 em{
+  font-style:normal; color:var(--gold-400);
+  background:var(--gradient-text); -webkit-background-clip:text; background-clip:text;
+}
+@supports ((-webkit-background-clip:text) or (background-clip:text)){h1 em{color:transparent}}
+
+.prose{
+  display:flex; flex-direction:column; gap:12px; max-width:580px;
+  font:400 14px/1.65 var(--font-body); color:var(--text-body);
+}
+.prose p{margin:0}
+
+/* ── карточки ────────────────────────────────────────────── */
+.cards{display:grid; grid-template-columns:1fr 1fr; gap:14px; max-width:640px; margin-top:8px}
+.card{
+  background:var(--surface-sunken); border:1px solid var(--border-hairline);
+  border-radius:var(--radius-md); overflow:hidden;
+  display:flex; flex-direction:column;
+}
+.card__head{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:10px 14px; border-bottom:1px solid var(--border-hairline);
+  font:600 10px/1 var(--font-mono); letter-spacing:.18em;
+  text-transform:uppercase; color:var(--eyebrow);
+}
+.card__head .meta{font-weight:500; letter-spacing:.13em; color:var(--text-muted)}
+.live{display:inline-flex; align-items:center; gap:6px; font-weight:600; letter-spacing:.13em; color:var(--live)}
+.live::before{
+  content:""; width:6px; height:6px; border-radius:var(--radius-circle);
+  background:var(--live); box-shadow:var(--shadow-live);
+}
+.live.is-paused{color:var(--text-muted)}
+.live.is-paused::before{background:var(--text-muted); box-shadow:var(--shadow-none)}
+
+.spark{display:block; width:100%; height:74px}
+.spark-empty{height:74px; display:grid; place-items:center; font:500 12px var(--font-mono); color:var(--text-faint)}
+.card__foot{
+  padding:9px 12px; border-top:1px solid var(--border-hairline);
+  font:500 10px/1.4 var(--font-mono); color:var(--text-data);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+.pos{
+  display:grid; grid-template-columns:1fr auto auto; gap:14px;
+  padding:9px 14px; border-bottom:1px solid var(--border-hairline);
+  font:500 11.5px/1 var(--font-mono);
+}
+.pos__pair{color:var(--lilac-200)}
+.pos__side{color:var(--short)}
+.pos__side.is-long{color:var(--long)}
+.pos__pnl{color:var(--pnl-up)}
+.pos__pnl.is-down{color:var(--pnl-down)}
+.pos--empty{
+  display:flex; flex-direction:column; gap:6px; padding:12px 14px; border-bottom:0;
+  font:400 12.5px/1.4 var(--font-body); color:var(--text-muted);
+}
+.pos--empty .mono{font:500 10.5px/1.4 var(--font-mono); letter-spacing:.06em; color:var(--text-data)}
+.pos--empty .mono.muted{color:var(--text-muted)}
+.pos-loading{padding:14px; text-align:center; font:500 12px var(--font-mono); color:var(--text-faint)}
+
+.venues{font:500 10px/1.6 var(--font-mono); letter-spacing:.15em; text-transform:uppercase; color:var(--text-faint)}
+
+/* ── правая колонка: вход ────────────────────────────────── */
+.auth{
+  grid-area:auth;
+  border-left:1px solid var(--border-hairline);
+  background:var(--surface-plate);
+  padding:48px 40px;
+  display:flex; flex-direction:column; justify-content:center; gap:16px;
+}
+.auth__label{
+  margin-bottom:4px; font:600 10px/1 var(--font-mono); letter-spacing:.18em;
+  text-transform:uppercase; color:var(--eyebrow);
+}
+.field label{
+  display:block; margin:0 0 8px;
+  font:500 10.5px/1 var(--font-mono); letter-spacing:.15em;
+  text-transform:uppercase; color:var(--text-muted);
+}
+.field input{
+  width:100%; height:var(--control-h-lg); padding:var(--pad-input);
+  background:var(--surface-sunken); color:var(--text-heading);
+  border:1px solid var(--border-input); border-radius:var(--radius-sm);
+  font:400 15px/1 var(--font-body);
+  transition:var(--transition-color);
+}
+.field input::placeholder{color:var(--text-faint)}
+.field input:hover{border-color:var(--border-strong)}
+
+.row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+.check{display:inline-flex; align-items:center; gap:10px; cursor:pointer; color:var(--lilac-200); font-size:14px}
+.check input{
+  appearance:none; -webkit-appearance:none; margin:0; flex:none;
+  width:18px; height:18px; border-radius:var(--radius-xs);
+  border:1px solid var(--border-input); background:var(--surface-sunken);
+  display:grid; place-content:center; cursor:pointer;
+}
+.check input::before{
+  content:""; width:10px; height:10px;
+  clip-path:polygon(14% 46%,0 60%,39% 100%,100% 22%,86% 8%,38% 71%);
+  background:var(--text-on-action); transform:scale(0);
+  transition:transform var(--dur-fast) var(--ease-out);
+}
+.check input:checked{background:var(--action-primary); border-color:var(--action-primary)}
+.check input:checked::before{transform:scale(1)}
+.row a{font:400 12.5px var(--font-body)}
+
+.btn{
+  width:100%; height:var(--control-h-lg); border:0; border-radius:var(--radius-sm);
+  background:var(--action-primary); color:var(--text-on-action);
+  font:var(--type-button); font-size:14px; cursor:pointer;
+  transition:var(--transition-color);
+}
+.btn:hover{background:var(--action-primary-hover)}
+
+.alert{
+  padding:12px 14px; border-radius:var(--radius-sm);
+  background:var(--tint-down); border:1px solid rgba(239,93,111,.35);
+  color:var(--down-300); font:400 13px/1.5 var(--font-body);
+}
+
+.or{
+  display:flex; align-items:center; gap:14px; margin:2px 0;
+  font:var(--type-eyebrow); letter-spacing:.24em; text-transform:uppercase; color:var(--text-faint);
+}
+.or::before,.or::after{content:""; flex:1; height:1px; background:var(--border-hairline)}
+
+.socials{display:grid; grid-template-columns:repeat(5,1fr); gap:10px}
+.socials button{
+  height:48px; display:grid; place-items:center; cursor:pointer; padding:0;
+  background:var(--surface-sunken); border:1px solid var(--border-input);
+  border-radius:var(--radius-sm); color:var(--text-heading);
+  transition:var(--transition-color);
+}
+.socials button:hover{background:var(--surface-raised); border-color:var(--border-strong)}
+.socials svg{width:19px; height:19px; fill:currentColor}
+.socials__msg{
+  text-align:center; color:var(--gold-400);
+  font:600 10px/1.5 var(--font-mono); letter-spacing:.16em; text-transform:uppercase;
+}
+
+.auth__note{
+  margin-top:6px; padding-top:18px; border-top:1px solid var(--border-hairline);
+  font:400 13.5px/1.55 var(--font-body); color:var(--text-body); text-align:center;
+}
+.auth__fine{
+  font:500 10px/1.6 var(--font-mono); letter-spacing:.14em;
+  text-transform:uppercase; color:var(--text-faint); text-align:center;
+}
+
+/* ── подвал ──────────────────────────────────────────────── */
+footer{
+  display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
+  padding:16px 52px; border-top:1px solid var(--border-hairline);
+  font:400 12.5px/1.5 var(--font-body); color:var(--text-faint);
+}
+footer p{margin:0; max-width:78ch}
+.copy{font:500 10px/1 var(--font-mono); letter-spacing:.15em; text-transform:uppercase; white-space:nowrap}
+
+.linkish{
+  background:0; border:0; padding:0; cursor:pointer; font:inherit;
+  color:var(--link); border-bottom:1px solid rgba(161,138,255,.3);
+  transition:var(--transition-color);
+}
+.linkish:hover{color:var(--link-hover); border-bottom-color:var(--link-hover)}
+.link-u{border-bottom:1px solid rgba(161,138,255,.3)}
+
+/* ── модалка дисклеймера ─────────────────────────────────── */
+.modal{
+  width:min(680px,calc(100vw - 32px)); max-height:86dvh; padding:0; overflow:auto;
+  background:var(--surface-card); color:var(--text-body);
+  border:1px solid var(--border-card); border-radius:var(--radius-lg);
+}
+.modal::backdrop{background:var(--surface-overlay)}
+.modal__in{padding:30px 32px 34px}
+.modal h2{margin:0 0 6px}
+.modal h3{
+  margin:24px 0 8px; font:var(--type-eyebrow); font-size:11px;
+  letter-spacing:.15em; text-transform:uppercase; color:var(--gold-400);
+}
+.modal p{margin:0 0 12px; font-size:14px; line-height:1.65}
+.modal ul{margin:0 0 12px; padding-left:20px}
+.modal li{margin:0 0 6px; font-size:14px; line-height:1.6}
+.modal__close{
+  position:sticky; top:0; float:right; margin:14px 14px 0 0;
+  width:34px; height:34px; display:grid; place-items:center; cursor:pointer;
+  background:var(--surface-plate); border:1px solid var(--border-input);
+  border-radius:var(--radius-sm); color:var(--text-body); font:400 18px/1 var(--font-body);
+}
+.modal__close:hover{color:var(--text-heading); border-color:var(--border-strong)}
+
+/* ── мобильная раскладка: знак → вход → карточки ─────────── */
+@media (max-width:960px){
+  body{padding:8px}
+  .split{
+    min-height:0;
+    grid-template-columns:1fr; grid-template-rows:none;
+    grid-template-areas:"brand" "auth" "data";
+  }
+  .split::before{inset:0}
+  .pane{align-items:center; text-align:center; gap:18px}
+  .pane--brand{padding:32px 20px 0}
+  .pane--data{padding:24px 20px 0}
+  .auth{border-left:0; background:transparent; padding:24px 20px 0}
+  h1,.prose,.venues,.auth__label{display:none}
+  .cards{grid-template-columns:1fr; width:100%; max-width:420px; margin:0 0 28px}
+  .card__head,.card__foot,.pos{text-align:left}
+  footer{padding:16px 20px 20px; justify-content:center; text-align:center}
+  .copy{width:100%; text-align:center}
+}

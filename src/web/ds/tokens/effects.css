@@ -1,0 +1,30 @@
+/* CryptoSmith X — radii, borders, shadows, motion. */
+:root{
+/* --- radii: sober; nothing pill-shaped except status dots --- */
+--radius-xs:4px;   /* tabs, badges, table chips */
+--radius-sm:6px;   /* buttons, inputs */
+--radius-md:8px;   /* cards, panels — the default */
+--radius-lg:12px;  /* modals, hero plates */
+--radius-circle:50%;
+
+/* --- rules --- */
+--rule-h:2px; /* @kind spacing */--rule-h-lg:3px; /* @kind spacing */
+--hairline:1px solid var(--border-hairline); /* @kind other */
+--hairline-card:1px solid var(--border-card); /* @kind other */
+
+/* --- shadows: sparse; ink barely casts. The only glow belongs to LIVE + the mark --- */
+--shadow-card:0 2px 12px rgba(0,0,0,.35);
+--shadow-modal:0 16px 48px rgba(0,0,0,.55);
+--shadow-live:0 0 8px rgba(245,184,79,.7);
+--shadow-mark:0 0 22px rgba(245,184,79,.14);
+--shadow-none:none; /* @kind shadow */
+
+/* --- focus --- */
+--focus-ring:2px solid var(--violet-400); /* @kind other */
+
+/* --- motion: short, linear-ish, no bounce; nothing moves for decoration --- */
+--dur-fast:120ms; /* @kind other */--dur:180ms; /* @kind other */--dur-slow:280ms; /* @kind other */
+--ease:cubic-bezier(.2,.6,.2,1); /* @kind other */
+--ease-out:cubic-bezier(0,0,.2,1); /* @kind other */
+--transition-color:color var(--dur-fast) var(--ease),background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease); /* @kind other */
+}

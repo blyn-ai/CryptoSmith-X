@@ -1,0 +1,57 @@
+/* CryptoSmith X — typography.
+   Three faces, three jobs: Space Grotesk = display, headings, buttons, nav.
+   IBM Plex Sans = running prose. IBM Plex Mono = every eyebrow, label and number. */
+:root{
+--font-display:"Space Grotesk","Helvetica Neue",Arial,sans-serif;
+--font-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+--font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+/* --- size scale --- */
+--fs-micro:10px; /* @kind font */     /* mono eyebrow, badges */
+--fs-eyebrow:11px; /* @kind font */   /* mono eyebrow, nav */
+--fs-caption:12px; /* @kind font */
+--fs-data:12.5px; /* @kind font */    /* table cells */
+--fs-meta:13px; /* @kind font */
+--fs-body:14px; /* @kind font */
+--fs-body-md:14.5px; /* @kind font */
+--fs-ui:15px; /* @kind font */        /* card titles sm */
+--fs-h4:16px; /* @kind font */
+--fs-h3:18px; /* @kind font */
+--fs-h2:21px; /* @kind font */
+--fs-stat:25px; /* @kind font */      /* KPI value */
+--fs-h1:32px; /* @kind font */
+--fs-hero:48px; /* @kind font */
+--fs-display:64px; /* @kind font */
+
+/* --- weights --- */
+--fw-light:300; /* @kind font */--fw-regular:400; /* @kind font */--fw-medium:500; /* @kind font */--fw-semibold:600; /* @kind font */--fw-bold:700; /* @kind font */
+
+/* --- line heights --- */
+--lh-display:1.04; /* @kind font */--lh-h1:1.1; /* @kind font */--lh-h2:1.2; /* @kind font */--lh-flat:1; /* @kind font */
+--lh-body:1.55; /* @kind font */--lh-lead:1.6; /* @kind font */--lh-mono:1.7; /* @kind font */
+
+/* --- tracking --- */
+--track-display:-.03em; /* @kind font */--track-h1:-.02em; /* @kind font */--track-h2:-.015em; /* @kind font */--track-stat:-.02em; /* @kind font */
+--track-eyebrow:.18em; /* @kind font */--track-nav:.13em; /* @kind font */--track-badge:.12em; /* @kind font */
+
+/* --- measures --- */
+--measure-heading:24ch; /* @kind spacing */--measure-lead:56ch; /* @kind spacing */--measure-body:64ch; /* @kind spacing */
+
+/* --- composed roles --- */
+--type-display:var(--fw-medium) var(--fs-display)/var(--lh-display) var(--font-display); /* @kind font */
+--type-hero:var(--fw-medium) var(--fs-hero)/var(--lh-display) var(--font-display); /* @kind font */
+--type-h1:var(--fw-semibold) var(--fs-h1)/var(--lh-h1) var(--font-display); /* @kind font */
+--type-h2:var(--fw-medium) var(--fs-h2)/var(--lh-h2) var(--font-display); /* @kind font */
+--type-h3:var(--fw-medium) var(--fs-h3)/var(--lh-h2) var(--font-display); /* @kind font */
+--type-h4:var(--fw-medium) var(--fs-h4)/var(--lh-h2) var(--font-display); /* @kind font */
+--type-card-title:var(--fw-medium) var(--fs-ui)/1.3 var(--font-display); /* @kind font */
+--type-stat:var(--fw-medium) var(--fs-stat)/var(--lh-flat) var(--font-display); /* @kind font */
+--type-lead:var(--fw-regular) var(--fs-body-md)/var(--lh-lead) var(--font-body); /* @kind font */
+--type-body:var(--fw-regular) var(--fs-body)/var(--lh-body) var(--font-body); /* @kind font */
+--type-eyebrow:var(--fw-medium) var(--fs-micro)/1.2 var(--font-mono); /* @kind font */
+--type-nav:var(--fw-medium) var(--fs-eyebrow)/1.2 var(--font-mono); /* @kind font */
+--type-data:var(--fw-regular) var(--fs-data)/var(--lh-mono) var(--font-mono); /* @kind font */
+--type-mono:var(--fw-regular) var(--fs-meta)/var(--lh-mono) var(--font-mono); /* @kind font */
+--type-badge:var(--fw-semibold) 9px/1 var(--font-mono); /* @kind font */
+--type-button:var(--fw-semibold) 13px/1 var(--font-display); /* @kind font */
+}

@@ -1,0 +1,26 @@
+/* CryptoSmith X — spacing & layout. Balanced density: tighter than a marketing
+   page, looser than a raw terminal. Odd values are intentional; use the names. */
+:root{
+--space-1:4px; /* @kind spacing */--space-2:6px; /* @kind spacing */--space-3:9px; /* @kind spacing */--space-4:12px; /* @kind spacing */--space-5:14px; /* @kind spacing */--space-6:18px; /* @kind spacing */
+--space-7:22px; /* @kind spacing */--space-8:28px; /* @kind spacing */--space-9:34px; /* @kind spacing */--space-10:44px; /* @kind spacing */--space-11:56px; /* @kind spacing */--space-12:72px; /* @kind spacing */
+
+/* --- component padding --- */
+--pad-header-y:15px; /* @kind spacing */--pad-header-x:30px; /* @kind spacing */
+--pad-card:18px; /* @kind spacing */--pad-card-x:20px; /* @kind spacing */--pad-card-h:16px 20px; /* @kind spacing */
+--pad-cell:12px 20px; /* @kind spacing */
+--pad-button:11px 22px; /* @kind spacing */--pad-button-sm:7px 14px; /* @kind spacing */
+--pad-input:10px 14px; /* @kind spacing */
+--pad-page:24px 30px; /* @kind spacing */
+
+/* --- gaps --- */
+--gap-inline-xs:6px; /* @kind spacing */--gap-inline:9px; /* @kind spacing */--gap-stack:12px; /* @kind spacing */--gap-card:14px; /* @kind spacing */--gap-grid:20px; /* @kind spacing */
+--gap-nav:24px; /* @kind spacing */--gap-col:32px; /* @kind spacing */--gap-section:44px; /* @kind spacing */
+
+/* --- controls --- */
+--control-h:40px; /* @kind spacing */--control-h-sm:32px; /* @kind spacing */--control-h-lg:46px; /* @kind spacing */--tap-min:44px; /* @kind spacing */
+--mark-size:28px; /* @kind spacing */--mark-size-lg:42px; /* @kind spacing */--coin-size:20px; /* @kind spacing */
+
+/* --- layout --- */
+--sidebar-w:340px; /* @kind spacing */--page-max:1440px; /* @kind spacing */--auth-max:400px; /* @kind spacing */--prose-max:720px; /* @kind spacing */
+--grid-console:minmax(0,1fr) 340px; /* @kind other */
+}

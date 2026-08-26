@@ -1,0 +1,17 @@
+<!-- @dsCard group="Colors" viewport="700x170" name="Market direction" subtitle="Green/red for PnL and side ONLY — never decorative" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>body{display:flex;gap:14px;padding:16px;background:var(--surface-page);align-items:stretch}
+.sw{flex:1;border-radius:var(--radius-sm);padding:8px;display:flex;flex-direction:column;justify-content:flex-end}
+.sw b{font:500 10px var(--font-mono);color:rgba(7,6,11,.8)}
+.demo{flex:1.4;display:flex;flex-direction:column;gap:9px;justify-content:center;font:var(--type-data)}
+.badge{font:var(--type-badge);letter-spacing:var(--track-badge);padding:3px 8px;border-radius:var(--radius-xs);display:inline-block}
+.row{display:flex;align-items:center;gap:10px}</style></head><body>
+<div class="sw" style="background:var(--up-300)"><b>up-300</b></div>
+<div class="sw" style="background:var(--up-500)"><b>up-500 #41C98F</b></div>
+<div class="sw" style="background:var(--down-500)"><b>down-500 #EF5D6F</b></div>
+<div class="sw" style="background:var(--down-300)"><b>down-300</b></div>
+<div class="demo">
+<div class="row"><span class="badge" style="background:var(--tint-up);color:var(--long)">LONG</span><span style="color:var(--pnl-up)">+$710.85</span></div>
+<div class="row"><span class="badge" style="background:var(--tint-down);color:var(--short)">SHORT</span><span style="color:var(--pnl-down)">−$441.00</span></div>
+</div>
+</body></html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>CryptoSmith X — V1 Forge</title><link rel="stylesheet" href="fonts.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-width:1280px;background:#07060B;color:#BDB2D6;font:400 14px/1.55 'IBM Plex Sans',sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#A18AFF;text-decoration:none;transition:color 120ms}a:hover{color:#DCD3F5}
+.mono{font-family:'IBM Plex Mono',monospace}
+.rule{height:2px;background:linear-gradient(90deg,#F5B84F,#C98F63 42%,#8C6BC9 74%,#6B4EDB)}
+header{display:flex;align-items:center;gap:28px;padding:15px 30px;border-bottom:1px solid rgba(161,138,255,.13)}
+.brand{display:flex;align-items:center;gap:11px}
+.brand b{font:600 16px 'Space Grotesk',sans-serif;color:#EFEAF7;letter-spacing:-.01em}
+.brand b i{font-style:normal;color:#A18AFF}
+nav{display:flex;gap:24px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.13em;text-transform:uppercase}
+nav a{color:#7C7391;padding:4px 0}nav a.on{color:#EFEAF7;border-bottom:2px solid #F5B84F}
+.hd-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.live{display:flex;align-items:center;gap:7px;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.18em;color:#F5B84F}
+.live s{width:7px;height:7px;border-radius:50%;background:#F5B84F;box-shadow:0 0 8px rgba(245,184,79,.7);text-decoration:none}
+.acct{display:flex;align-items:center;gap:9px;padding:6px 12px 6px 7px;border:1px solid rgba(161,138,255,.2);border-radius:6px;font:500 12px 'IBM Plex Mono',monospace;color:#DCD3F5}
+main{padding:24px 30px;display:grid;gap:20px}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.kpi{padding:16px 18px;background:#0D0B14;border:1px solid rgba(161,138,255,.11);border-radius:8px}
+.kpi u{display:block;text-decoration:none;font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.18em;text-transform:uppercase;color:#7C7391;margin-bottom:8px}
+.kpi b{display:block;font:500 25px/1 'Space Grotesk',sans-serif;color:#EFEAF7;letter-spacing:-.02em}
+.kpi span{font:500 12px 'IBM Plex Mono',monospace;margin-top:6px;display:block}
+.up{color:#F5B84F}.dn{color:#A18AFF}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px}
+.card{background:#0D0B14;border:1px solid rgba(161,138,255,.11);border-radius:8px}
+.card-h{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(161,138,255,.09)}
+.card-h h2{margin:0;font:500 16px 'Space Grotesk',sans-serif;color:#EFEAF7}
+.tabs{margin-left:auto;display:flex;gap:4px;font:500 11px 'IBM Plex Mono',monospace}
+.tabs a{padding:4px 9px;border-radius:4px;color:#7C7391}.tabs a.on{background:rgba(161,138,255,.13);color:#DCD3F5}
+.venues{display:flex;gap:12px;padding:14px 20px;border-top:1px solid rgba(161,138,255,.09)}
+.venue{flex:1;display:flex;align-items:center;gap:8px;font:500 11.5px 'IBM Plex Mono',monospace;color:#BDB2D6}
+.venue s{width:6px;height:6px;border-radius:50%;background:#F5B84F;text-decoration:none}
+.venue s.off{background:#4A4358}
+.venue em{font-style:normal;color:#7C7391;margin-left:auto}
+.strat{padding:16px 18px;border-bottom:1px solid rgba(161,138,255,.09)}
+.strat:last-child{border-bottom:0}
+.strat-t{display:flex;align-items:baseline;gap:9px}
+.strat-t b{font:500 14.5px 'Space Grotesk',sans-serif;color:#EFEAF7}
+.tag{font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.14em;padding:3px 7px;border-radius:4px;background:rgba(161,138,255,.13);color:#A18AFF}
+.tag.run{background:rgba(245,184,79,.11);color:#F5B84F}
+.tag.pause{background:rgba(124,115,145,.15);color:#7C7391}
+.strat-m{display:flex;gap:16px;margin-top:9px;font:400 11.5px 'IBM Plex Mono',monospace;color:#7C7391}
+.strat-m b{color:#C8BBA6;font-weight:500}
+.btn{display:inline-block;font:600 13px 'Space Grotesk',sans-serif;padding:11px 22px;border-radius:6px;background:#6B4EDB;color:#fff;transition:background 120ms}
+.btn:hover{background:#5B3FC4;color:#fff}
+.btn.ghost{background:none;border:1px solid rgba(161,138,255,.3);color:#DCD3F5}
+.btn.ghost:hover{border-color:#A18AFF}
+table{width:100%;border-collapse:collapse;font:400 12.5px 'IBM Plex Mono',monospace}
+th{font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:#7C7391;text-align:left;padding:12px 20px;border-bottom:1px solid rgba(161,138,255,.09)}
+td{padding:12px 20px;border-bottom:1px solid rgba(161,138,255,.06);color:#BDB2D6}
+tr:last-child td{border-bottom:0}
+td b{color:#EFEAF7;font-weight:500}
+.side{font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;padding:3px 8px;border-radius:4px}
+.side.l{background:rgba(245,184,79,.11);color:#F5B84F}
+.side.s{background:rgba(161,138,255,.13);color:#A18AFF}
+.num{text-align:right}
+</style></head><body>
+<div class="rule"></div>
+<header>
+<div class="brand"><img src="../assets/cryptosmith-mark.svg" width="28" height="28" alt=""><b>CryptoSmith <i>X</i></b></div>
+<nav><a class="on" href="#">Overview</a><a href="#">Strategies</a><a href="#">Positions</a><a href="#">Markets</a><a href="#">Settings</a></nav>
+<div class="hd-right"><span class="live"><s></s>LIVE · KRAKEN+3</span><span class="acct"><img src="../assets/cryptosmith-coin.svg" width="20" height="20" alt="">d.bykovas</span></div>
+</header>
+<main>
+<section class="kpis">
+<div class="kpi"><u>Equity</u><b>$128,430</b><span class="up">↑ +$1,284.10 · 24h</span></div>
+<div class="kpi"><u>Unrealized PnL</u><b class="up">+$842.55</b><span class="up">↑ +0.66%</span></div>
+<div class="kpi"><u>Open positions</u><b>7</b><span>4 long · 3 short</span></div>
+<div class="kpi"><u>Exposure</u><b>42%</b><span>limit 60%</span></div>
+<div class="kpi"><u>Win rate · 30d</u><b>61.4%</b><span>212 trades</span></div>
+</section>
+<div class="cols">
+<section class="card">
+<div class="card-h"><h2>Equity curve</h2><div class="tabs"><a href="#">1D</a><a class="on" href="#">1W</a><a href="#">1M</a><a href="#">ALL</a></div></div>
+<svg viewBox="0 0 800 240" style="display:block;width:100%;padding:14px 20px 0" preserveAspectRatio="none">
+<defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F5B84F"/><stop offset=".55" stop-color="#C98F63"/><stop offset="1" stop-color="#6B4EDB"/></linearGradient>
+<linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8C6BC9" stop-opacity=".22"/><stop offset="1" stop-color="#8C6BC9" stop-opacity="0"/></linearGradient></defs>
+<path d="M0 200 L60 190 120 196 180 170 240 176 300 150 360 158 420 130 480 140 540 108 600 118 660 84 720 92 800 60 L800 240 0 240 Z" fill="url(#g2)"/>
+<path d="M0 200 L60 190 120 196 180 170 240 176 300 150 360 158 420 130 480 140 540 108 600 118 660 84 720 92 800 60" fill="none" stroke="url(#g1)" stroke-width="2.5"/>
+</svg>
+<div class="venues">
+<span class="venue"><s></s>KRAKEN<em>142ms</em></span>
+<span class="venue"><s></s>BINANCE<em>96ms</em></span>
+<span class="venue"><s class="off"></s>WEEX<em>—</em></span>
+<span class="venue"><s></s>HYPERLIQUID<em>88ms</em></span>
+</div>
+</section>
+<section class="card">
+<div class="card-h"><h2>Strategies</h2><div class="tabs"><a class="on" href="#">3 active</a></div></div>
+<div class="strat"><div class="strat-t"><b>Momentum Perps v3</b><span class="tag run">RUNNING</span><span class="tag">AI WATCHLIST</span></div><div class="strat-m"><span>PnL 30d <b class="up">+4.8%</b></span><span>DD <b>−2.1%</b></span><span>trades <b>96</b></span></div></div>
+<div class="strat"><div class="strat-t"><b>Grid BTC/USD</b><span class="tag run">RUNNING</span></div><div class="strat-m"><span>PnL 30d <b class="up">+1.9%</b></span><span>DD <b>−0.8%</b></span><span>trades <b>301</b></span></div></div>
+<div class="strat"><div class="strat-t"><b>Funding Harvest</b><span class="tag pause">PAUSED</span></div><div class="strat-m"><span>PnL 30d <b class="dn">−0.3%</b></span><span>DD <b>−1.2%</b></span><span>trades <b>44</b></span></div></div>
+<div style="display:flex;gap:10px;padding:16px 18px"><a class="btn" href="#">New strategy</a><a class="btn ghost" href="#">Backtest</a></div>
+</section>
+</div>
+<section class="card">
+<div class="card-h"><h2>Open positions</h2></div>
+<table>
+<thead><tr><th>Market</th><th>Venue</th><th>Side</th><th class="num">Size</th><th class="num">Entry</th><th class="num">Mark</th><th class="num">uPnL</th></tr></thead>
+<tbody>
+<tr><td><b>BTC-PERP</b></td><td>Hyperliquid</td><td><span class="side l">LONG</span></td><td class="num">0.42 BTC</td><td class="num">96,410.00</td><td class="num">98,102.50</td><td class="num up">+$710.85</td></tr>
+<tr><td><b>ETH-PERP</b></td><td>Hyperliquid</td><td><span class="side s">SHORT</span></td><td class="num">6.0 ETH</td><td class="num">4,821.00</td><td class="num">4,760.20</td><td class="num up">+$364.80</td></tr>
+<tr><td><b>SOL/USD</b></td><td>Kraken</td><td><span class="side l">LONG</span></td><td class="num">180 SOL</td><td class="num">231.40</td><td class="num">228.95</td><td class="num dn">−$441.00</td></tr>
+<tr><td><b>XRP/USDT</b></td><td>Binance</td><td><span class="side l">LONG</span></td><td class="num">9,400 XRP</td><td class="num">2.841</td><td class="num">2.863</td><td class="num up">+$206.80</td></tr>
+</tbody>
+</table>
+</section>
+</main>
+</body></html>

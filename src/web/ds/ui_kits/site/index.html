@@ -1,0 +1,75 @@
+<!-- @dsCard group="Site" viewport="1440x900" name="About page" subtitle="Marketing / product page — dark, static" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>CryptoSmith X — Perps &amp; crypto trade bot</title>
+<link rel="icon" href="../../assets/favicon.svg">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+body{min-width:1280px;background:var(--wash-gold),var(--wash-violet),var(--surface-page)}
+.wrap{max-width:1160px;margin:0 auto;padding:0 34px}
+header{display:flex;align-items:center;gap:28px;padding:18px 0}
+.lock{display:flex;align-items:center;gap:11px}
+.lock b{font:600 17px/1 var(--font-display);color:var(--text-heading);letter-spacing:-.01em}
+.lock b i{font-style:normal;color:var(--violet-400)}
+header nav{margin-left:auto;display:flex;gap:24px;align-items:center;font:var(--type-nav);letter-spacing:var(--track-nav);text-transform:uppercase}
+header nav a{color:var(--text-muted)}header nav a:hover{color:var(--lilac-100)}
+.cta{display:inline-block;font:var(--type-button);padding:var(--pad-button);border-radius:var(--radius-sm);background:var(--action-primary);color:var(--text-on-action)}
+.cta:hover{background:var(--action-primary-hover);color:var(--text-on-action)}
+.cta.ghost{background:none;border:1px solid var(--border-strong);color:var(--lilac-200)}
+.cta.ghost:hover{border-color:var(--violet-400);color:var(--lilac-100)}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:56px;align-items:center;padding:70px 0 56px}
+.hero-lock b{display:block;font:600 58px/1.05 var(--font-display);color:var(--text-heading);letter-spacing:-.02em}
+.hero-lock b i{font-style:normal;color:var(--violet-400)}
+.hero-lock span{display:flex;justify-content:space-between;font:500 21px var(--font-mono);letter-spacing:.1em;color:var(--text-muted);margin-top:8px}
+.hero p{font:var(--type-lead);font-size:17px;color:var(--text-body);max-width:52ch;margin-top:22px}
+.hero-ctas{display:flex;gap:12px;margin-top:28px}
+.plate{background:var(--surface-plate);border:1px solid var(--border-gold);border-radius:var(--radius-lg);box-shadow:var(--shadow-mark);padding:28px;display:flex;flex-direction:column;gap:18px}
+.plate .row{display:flex;justify-content:space-between;font:400 12px var(--font-mono);color:var(--text-muted)}
+.plate .row b{color:var(--text-data);font-weight:500}
+.eyebrow{font:var(--type-eyebrow);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-muted)}
+.venues{display:flex;gap:14px;padding:22px 0;border-top:1px solid var(--border-hairline);border-bottom:1px solid var(--border-hairline)}
+.venue{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;font:500 12px var(--font-mono);letter-spacing:.1em;color:var(--text-body)}
+.venue s{width:6px;height:6px;border-radius:50%;background:var(--status-ok);text-decoration:none}
+.method{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;padding:56px 0}
+.step u{display:block;text-decoration:none;font:500 11px var(--font-mono);letter-spacing:.18em;color:var(--accent-gold);margin-bottom:12px}
+.step h3{font:var(--type-h3);color:var(--text-heading)}
+.step p{margin-top:9px;color:var(--text-muted);font:var(--type-body)}
+.byline{display:flex;align-items:center;gap:18px;padding:44px 0;border-top:1px solid var(--border-hairline)}
+.byline p{color:var(--text-muted);max-width:60ch}
+footer{padding:26px 0 44px;border-top:1px solid var(--border-hairline);display:flex;gap:24px;align-items:baseline;font:400 11px var(--font-mono);letter-spacing:.08em;color:var(--text-faint)}
+footer a{color:var(--text-muted)}
+</style></head><body>
+<div class="csx-rule"></div>
+<div class="wrap">
+<header>
+<span class="lock"><img src="../../assets/cryptosmith-mark.svg" width="30" height="30" alt=""><b>CryptoSmith <i>X</i></b></span>
+<nav><a href="#">Method</a><a href="#">Venues</a><a href="#">Docs</a><a href="#">Open source</a><a class="cta" href="#">Open console</a></nav>
+</header>
+<section class="hero">
+<div>
+<div class="hero-lock"><b>CryptoSmith <i>X</i></b><span><span>PERPS &amp; CRYPTO</span><span>TRADE BOT</span></span></div>
+<p>An algorithmic trading bot for Kraken, Binance, WEEX and Hyperliquid. Multi-user, <span class="csx-grad" style="font-weight:600">every decision logged</span>, every result published — including the wrong ones.</p>
+<div class="hero-ctas"><a class="cta" href="#">Open console</a><a class="cta ghost" href="#">Read the docs</a></div>
+</div>
+<div class="plate">
+<span class="eyebrow">LIVE TELEMETRY</span>
+<img src="../../assets/equity-curve-full.svg" alt="" style="width:100%">
+<div class="row"><span>markets watched</span><b>154</b></div>
+<div class="row"><span>cycle</span><b>120 s</b></div>
+<div class="row"><span>decisions to date</span><b>18,402</b></div>
+</div>
+</section>
+<section class="venues">
+<span class="venue"><s></s>KRAKEN</span><span class="venue"><s></s>BINANCE</span><span class="venue"><s></s>WEEX</span><span class="venue"><s></s>HYPERLIQUID</span>
+</section>
+<section class="method">
+<div class="step"><u>01 · WATCH</u><h3>Every market, every cycle</h3><p>150+ markets scanned on a fixed cycle. The AI picks the watchlist; the rules pick the trades.</p></div>
+<div class="step"><u>02 · DECIDE</u><h3>Rules, not moods</h3><p>Dozens of signals, hundreds of parameters — set by you, applied without exception.</p></div>
+<div class="step"><u>03 · EXECUTE</u><h3>On four venues</h3><p>Spot and perps across Kraken, Binance, WEEX and Hyperliquid, each with its own keys and limits.</p></div>
+<div class="step"><u>04 · PUBLISH</u><h3>Nothing hidden</h3><p>Every decision journaled. Failed experiments published the same way successful ones are.</p></div>
+</section>
+<section class="byline">
+<img src="../../assets/cryptosmith-coin.svg" width="44" height="44" alt="">
+<p>CryptoSmith X is built by <a href="https://blynai.eu">BlynAI</a> — a two-member finance lab that runs its software on its own money and open-sources the result.</p>
+</section>
+<footer><span>© 2026 MB „BlynAI“</span><a href="#">GitHub · open source</a><a href="#">Disclaimer</a><span style="margin-left:auto">NOT INVESTMENT ADVICE · OWN FUNDS ONLY</span></footer>
+</div>
+</body></html>
