@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CryptoSmith X</title>
+<meta name="description" content="CryptoSmith X — algoritminės prekybos programinė įranga. MB „BlynAI“ produktas. Šiuo metu veikia uždaro testavimo režimu.">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="CryptoSmith X">
+<meta property="og:description" content="Netikėk. Patikrink pats. Kiekvienas sprendimas įrašomas ir jį galima atkartoti.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="lt_LT">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink-900:#07060B; --ink-850:#0A0812; --ink-800:#0D0B14;
+    --gold-400:#F5B84F; --violet-400:#A18AFF; --violet-700:#6B4EDB;
+    --lilac-100:#EFEAF7; --lilac-300:#BDB2D6; --lilac-500:#7C7391; --lilac-700:#4A4358;
+    --up-500:#41C98F;
+    --font-display:"Space Grotesk","Helvetica Neue",Arial,sans-serif;
+    --font-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --border-hairline:rgba(161,138,255,.11);
+    --border-card:rgba(161,138,255,.13);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--ink-900); color:var(--lilac-300);
+    font:400 14.5px/1.6 var(--font-body);
+    -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column; min-height:100dvh;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(820px 520px at 2% 0%,rgba(245,184,79,.10),transparent 66%),
+      radial-gradient(820px 620px at 100% 100%,rgba(107,78,219,.22),transparent 70%);
+  }
+  .wrap{position:relative; z-index:1; flex:1; display:flex; align-items:center; justify-content:center; padding:40px 24px}
+  main{width:100%; max-width:660px}
+
+  .eyebrow{
+    font:500 11px/1.2 var(--font-mono); letter-spacing:.18em;
+    color:var(--gold-400); text-transform:uppercase; margin:0;
+    display:flex; align-items:center; gap:10px;
+  }
+  .dot{
+    width:6px;height:6px;border-radius:50%;background:var(--up-500);
+    box-shadow:0 0 8px rgba(65,201,143,.7); flex:none;
+  }
+  h1{
+    margin:18px 0 0;
+    font:600 clamp(34px,7vw,58px)/1.06 var(--font-display);
+    letter-spacing:-.03em; color:var(--lilac-100);
+    background:linear-gradient(96deg,#F5B84F,#A18AFF);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .rule{
+    height:2px; margin:26px 0; border:0; border-radius:2px;
+    background:linear-gradient(90deg,#F5B84F,#C98F63 42%,#8C6BC9 74%,#6B4EDB);
+  }
+  .lead{margin:0; font-size:16px; line-height:1.6; color:var(--lilac-300); max-width:56ch}
+  .lead strong{color:var(--lilac-100); font-weight:500}
+  .sub{margin:14px 0 0; color:var(--lilac-500); max-width:56ch}
+
+  .meta{
+    margin:26px 0 0; padding:13px 16px;
+    background:var(--ink-800); border:1px solid var(--border-card); border-radius:8px;
+    font:400 12.5px/1.7 var(--font-mono); letter-spacing:.04em; color:#C8BBA6;
+  }
+  .access{margin:22px 0 0; color:var(--lilac-300)}
+
+  a{color:var(--violet-400); text-decoration:none; border-bottom:1px solid rgba(161,138,255,.3)}
+  a:hover{color:#DCD3F5; border-bottom-color:#DCD3F5}
+  a:focus-visible{outline:2px solid var(--violet-400); outline-offset:3px; border-radius:2px}
+
+  nav{margin:30px 0 0; display:flex; flex-wrap:wrap; gap:10px 26px;
+      font:500 11px/1.2 var(--font-mono); letter-spacing:.13em; text-transform:uppercase}
+  nav a{border-bottom:0; color:var(--lilac-500)}
+  nav a:hover{color:var(--gold-400)}
+
+  footer{
+    position:relative; z-index:1;
+    border-top:1px solid var(--border-hairline); padding:20px 24px;
+    font-size:12px; color:var(--lilac-700);
+  }
+  footer div{max-width:660px; margin:0 auto}
+  footer p{margin:0 0 6px}
+  footer p:last-child{margin:0}
+
+  @media (max-width:520px){
+    .wrap{padding:32px 20px}
+    nav{gap:8px 18px}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <main>
+      <p class="eyebrow"><span class="dot" aria-hidden="true"></span>CryptoSmith X · Uždaras testavimas</p>
+
+      <h1>Netikėk.<br>Patikrink pats.</h1>
+
+      <hr class="rule">
+
+      <p class="lead">
+        <strong>CryptoSmith X</strong> — algoritminės prekybos programinė įranga,
+        šiuo metu veikianti uždaro testavimo režimu. MB „BlynAI“ produktas.
+      </p>
+      <p class="sub">
+        Kiekvienas sprendimas įrašomas — kodėl įėjo, kurie signalai svėrė,
+        kokia buvo rizika. Viską galima atkartoti.
+      </p>
+
+      <p class="meta">~150 PORŲ · KAS 60 s · VISKAS ĮRAŠOMA</p>
+
+      <p class="access">
+        Paskyros kuriamos tik pakvietus. Registracija į alfą —
+        <a href="mailto:alfa@blynai.eu">alfa@blynai.eu</a>
+      </p>
+
+      <nav>
+        <a href="https://blynai.eu">blynai.eu</a>
+        <a href="https://blynai.meetluko.eu">Žurnalas</a>
+        <a href="https://github.com/blyn-ai/CryptoSmith-X">Kodas</a>
+        <a href="mailto:info@blynai.eu">Kontaktai</a>
+      </nav>
+    </main>
+  </div>
+
+  <footer>
+    <div>
+      <p>MB „BlynAI“ nėra finansų įstaiga, investicijų valdytojas ar finansinių
+         paslaugų teikėja. Prekiaujama tik bendrijos ir jos narių lėšomis;
+         klientų lėšų — nėra ir nebus.</p>
+      <p>MB „BlynAI“ · <a href="https://blynai.eu">blynai.eu</a></p>
+    </div>
+  </footer>
+</body>
+</html>
