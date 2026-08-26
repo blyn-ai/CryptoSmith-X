@@ -30,7 +30,7 @@ TestResults/
 
 # Editors
 .vscode/
-.claude/settings.local.json
+.claude/
 .idea/
 *.swp
 
