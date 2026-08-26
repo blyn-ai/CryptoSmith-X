@@ -515,7 +515,11 @@ footer p{margin:0; max-width:78ch}
   async function getJSON(path){
     try {
       const r = await fetch(CFG.apiBase + path, { headers: { accept: 'application/json' } });
-      return r.ok ? await r.json() : null;
+      if (!r.ok) return null;
+      /* Пока API нет, статика может ответить 200 и HTML — это не данные. */
+      const ct = r.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) return null;
+      return await r.json();
     } catch (_) { return null; }
   }
 
