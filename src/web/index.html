@@ -30,15 +30,18 @@
   --radius:12px;
 }
 *{box-sizing:border-box}
+[hidden]{display:none !important}   /* иначе display у .live/.alert перебивает атрибут */
 html,body{height:100%}
 body{
   margin:0; padding:14px;
+  display:grid; place-items:center;
   background:var(--ink-950); color:var(--lilac-300);
   font:400 14.5px/1.6 var(--font-body);
   -webkit-font-smoothing:antialiased;
 }
 .shell{
   position:relative; overflow:hidden;
+  width:min(1240px,100%);
   min-height:calc(100dvh - 28px);
   display:flex; flex-direction:column;
   background:var(--ink-900);
@@ -56,7 +59,7 @@ body{
 }
 .grid{
   position:relative; z-index:1; flex:1; display:grid;
-  grid-template-columns:minmax(0,1fr) 400px;
+  grid-template-columns:minmax(0,1fr) 428px;
   grid-template-rows:auto 1fr;
   grid-template-areas:
     "brand auth"
@@ -66,6 +69,7 @@ body{
 .pane--brand{grid-area:brand; padding:44px 46px 0}
 .pane--data{grid-area:data; padding:34px 46px 30px}
 .pane--auth{grid-area:auth; padding:44px 40px 30px; justify-content:center;
+            background:var(--ink-850);
             border-left:1px solid var(--border-hairline)}
 
 /* ── шапка ─────────────────────────────────────────────── */
@@ -73,11 +77,12 @@ body{
 .mark{flex:none}
 .wordmark{margin:0; font:600 33px/1 var(--font-display); letter-spacing:-.02em; color:var(--lilac-100)}
 .wordmark span{color:var(--violet-400)}
+.brand__text{display:inline-block}
 .tagline{
-  margin:7px 0 0; font:500 11px/1 var(--font-mono); letter-spacing:.20em;
+  margin:8px 0 0; display:flex; justify-content:space-between; gap:18px;
+  font:500 11px/1 var(--font-mono); letter-spacing:.20em;
   color:var(--lilac-500); text-transform:uppercase;
 }
-.tagline i{font-style:normal; padding:0 14px}
 
 .badges{display:flex; flex-wrap:wrap; gap:10px; margin:26px 0 0}
 .badge{
@@ -102,7 +107,7 @@ h1 em{
 .prose p:last-child{margin:0}
 
 /* ── карточки ──────────────────────────────────────────── */
-.cards{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px}
+.cards{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; max-width:640px}
 .card{background:var(--ink-800); border:1px solid var(--border-card); border-radius:8px; overflow:hidden}
 .card__head{
   display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -128,6 +133,8 @@ h1 em{
 .pos__sym{color:var(--lilac-100); letter-spacing:.03em}
 .pos__side{color:var(--down-500); letter-spacing:.1em; margin-left:auto; padding-right:18px}
 .pos__pnl{color:var(--up-500)}
+.pos--empty{color:var(--lilac-500); justify-content:flex-start; font-weight:400}
+.pos--note{color:var(--lilac-700); justify-content:flex-start; font-size:11.5px; border-top:0; padding-top:0}
 .card--pos{display:flex; flex-direction:column}
 .card--pos .filler{flex:1; min-height:52px}
 
@@ -207,6 +214,59 @@ h1 em{
   letter-spacing:.14em; text-transform:uppercase; color:var(--lilac-700);
 }
 
+/* заглушка: ошибка входа, недоступные соц-входы, модалка дисклеймера */
+.alert{
+  margin:16px 0 0; padding:12px 14px; border-radius:8px;
+  background:rgba(239,93,111,.11); border:1px solid rgba(239,93,111,.35);
+  color:#FF8A97; font-size:13.5px; line-height:1.5;
+}
+.socials__msg{
+  margin:14px 0 0; text-align:center; color:var(--gold-400);
+  font:600 10.5px/1.5 var(--font-mono); letter-spacing:.16em; text-transform:uppercase;
+}
+.socials button{
+  height:52px; display:grid; place-items:center; cursor:pointer;
+  background:var(--ink-850); border:1px solid var(--border-input); border-radius:8px;
+  color:var(--lilac-100); padding:0;
+  transition:border-color 120ms cubic-bezier(.2,.6,.2,1),background-color 120ms cubic-bezier(.2,.6,.2,1);
+}
+.socials button:hover{background:var(--ink-700); border-color:rgba(161,138,255,.38)}
+.socials button:focus-visible{outline:2px solid var(--violet-400); outline-offset:2px}
+
+.linkish{
+  background:0; border:0; padding:0; cursor:pointer; font:inherit;
+  color:var(--violet-400); border-bottom:1px solid rgba(161,138,255,.3);
+}
+.linkish:hover{color:var(--lilac-200); border-bottom-color:var(--lilac-200)}
+.linkish:focus-visible{outline:2px solid var(--violet-400); outline-offset:3px; border-radius:2px}
+
+.modal{
+  width:min(680px,calc(100vw - 32px)); max-height:86dvh; padding:0; overflow:auto;
+  background:var(--ink-800); color:var(--lilac-300);
+  border:1px solid var(--border-card); border-radius:var(--radius);
+}
+.modal::backdrop{background:rgba(5,4,8,.78)}
+.modal__in{padding:30px 32px 34px}
+.modal h2{
+  margin:0 0 6px; font:600 21px/1.2 var(--font-display);
+  letter-spacing:-.015em; color:var(--lilac-100);
+}
+.modal h3{
+  margin:24px 0 8px; font:600 11px/1.2 var(--font-mono);
+  letter-spacing:.15em; text-transform:uppercase; color:var(--gold-400);
+}
+.modal p{margin:0 0 12px; font-size:14px; line-height:1.65}
+.modal ul{margin:0 0 12px; padding-left:20px}
+.modal li{margin:0 0 6px; font-size:14px; line-height:1.6}
+.modal__close{
+  position:sticky; top:0; float:right; margin:14px 14px 0 0;
+  width:34px; height:34px; display:grid; place-items:center; cursor:pointer;
+  background:var(--ink-850); border:1px solid var(--border-input); border-radius:8px;
+  color:var(--lilac-300); font:400 18px/1 var(--font-body);
+}
+.modal__close:hover{color:var(--lilac-100); border-color:rgba(161,138,255,.38)}
+.modal__close:focus-visible{outline:2px solid var(--violet-400); outline-offset:2px}
+
 a{color:var(--violet-400); text-decoration:none}
 a:hover{color:var(--lilac-200)}
 .link-u{border-bottom:1px solid rgba(161,138,255,.3)}
@@ -232,7 +292,7 @@ footer p{margin:0; max-width:78ch}
   }
   .pane{align-items:center; text-align:center}
   .pane--brand{padding:34px 22px 0}
-  .pane--auth{padding:28px 22px 0; border-left:0}
+  .pane--auth{padding:28px 22px 0; border-left:0; background:transparent}
   .pane--data{padding:26px 22px 26px}
   .brand{flex-direction:column; gap:14px}
   .badges{justify-content:center}
@@ -264,9 +324,11 @@ footer p{margin:0; max-width:78ch}
           <path d="M17 6 L26 14 L35 6 L39 10.5 L30.5 17 L39 23.5 L35 28 L26 20 L17 28 L13 23.5 L21.5 17 L13 10.5 Z"
                 fill="#F5B84F"/>
         </svg>
-        <div>
+        <div class="brand__text">
+          <!-- ВРЕМЕННО: собственная отрисовка знака.
+               Заменить на cryptosmith-mark.svg из брендбука — знак не перерисовывается. -->
           <p class="wordmark">CryptoSmith <span>X</span></p>
-          <p class="tagline">Perps &amp; Crypto<i>·</i>Trade Bot</p>
+          <p class="tagline"><span>Perps &amp; Crypto</span><span>Trade Bot</span></p>
         </div>
       </div>
 
@@ -297,7 +359,7 @@ footer p{margin:0; max-width:78ch}
     <section class="pane pane--data">
       <div class="cards">
         <div class="card">
-          <div class="card__head"><span>Telemetrija</span><span class="live">Live</span></div>
+          <div class="card__head"><span>Telemetrija</span><span class="live" id="live" hidden>Live</span></div>
           <svg class="spark" viewBox="0 0 300 104" preserveAspectRatio="none" aria-hidden="true">
             <defs>
               <linearGradient id="sl" x1="0" y1="0" x2="1" y2="0">
@@ -309,20 +371,16 @@ footer p{margin:0; max-width:78ch}
                 <stop offset="100%" stop-color="#6B4EDB" stop-opacity="0"/>
               </linearGradient>
             </defs>
-            <path d="M0 82 L46 66 L92 62 L118 36 L152 20 L196 27 L214 30 L238 62 L268 50 L300 38 L300 104 L0 104 Z" fill="url(#sf)"/>
-            <path d="M0 82 L46 66 L92 62 L118 36 L152 20 L196 27 L214 30 L238 62 L268 50 L300 38"
-                  fill="none" stroke="url(#sl)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            <path id="sparkFill" d="" fill="url(#sf)"/>
+            <path id="sparkLine" d="" fill="none" stroke="url(#sl)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            <text id="sparkEmpty" x="150" y="58" text-anchor="middle" fill="#4A4358" font-size="15" font-family="IBM Plex Mono, monospace">—</text>
           </svg>
-          <div class="card__foot">Porų 180 · Ciklas 120 s · Sprendimų 2 964 107</div>
+          <div class="card__foot" id="stats">Porų — · Ciklas — s · Sprendimų —</div>
         </div>
 
         <div class="card card--pos">
-          <div class="card__head"><span>Pozicijos</span><span>1 atvira</span></div>
-          <div class="pos">
-            <span class="pos__sym">ETH/USD</span>
-            <span class="pos__side">Short</span>
-            <span class="pos__pnl">+0.55%</span>
-          </div>
+          <div class="card__head"><span>Pozicijos</span><span id="posCount">—</span></div>
+          <div id="posList"></div>
           <div class="filler"></div>
         </div>
       </div>
@@ -351,27 +409,29 @@ footer p{margin:0; max-width:78ch}
           </div>
 
           <button class="btn" type="submit">Prisijungti</button>
+          <p class="alert" id="loginError" hidden role="alert">Tokio naudotojo nėra. Prieiga šiuo metu suteikiama tik uždaro testavimo dalyviams.</p>
         </form>
 
         <p class="or">Arba</p>
 
         <div class="socials">
-          <a href="mailto:alfa@blynai.eu" aria-label="Google">
+          <button type="button" data-name="Google" aria-label="Google">
             <svg viewBox="0 0 24 24"><path d="M21.35 11.1H12v2.98h5.35c-.23 1.4-1.66 4.1-5.35 4.1-3.22 0-5.85-2.67-5.85-5.95S8.78 6.28 12 6.28c1.83 0 3.06.78 3.76 1.45l2.56-2.47C16.68 3.72 14.53 2.8 12 2.8 6.92 2.8 2.8 6.92 2.8 12s4.12 9.2 9.2 9.2c5.31 0 8.83-3.73 8.83-8.99 0-.6-.06-1.06-.15-1.51z"/></svg>
-          </a>
-          <a href="mailto:alfa@blynai.eu" aria-label="Apple">
+          </button>
+          <button type="button" data-name="Apple" aria-label="Apple">
             <svg viewBox="0 0 24 24"><path d="M16.36 12.72c-.02-2.2 1.8-3.26 1.88-3.31-1.02-1.5-2.62-1.7-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.87-.76-1.48.02-2.84.86-3.6 2.18-1.53 2.66-.39 6.6 1.1 8.76.73 1.06 1.6 2.25 2.74 2.2 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.87.69 1.19-.02 1.94-1.08 2.66-2.14.84-1.23 1.19-2.42 1.2-2.48-.03-.01-2.3-.88-2.3-3.5zM14.2 6.3c.6-.74 1.01-1.76.9-2.78-.87.04-1.93.58-2.56 1.31-.56.65-1.06 1.7-.93 2.7.97.08 1.97-.49 2.59-1.23z"/></svg>
-          </a>
-          <a href="https://github.com/blyn-ai/CryptoSmith-X" aria-label="GitHub">
+          </button>
+          <button type="button" data-name="GitHub" aria-label="GitHub">
             <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85 0 1.34-.01 2.42-.01 2.75 0 .27.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10z"/></svg>
-          </a>
-          <a href="mailto:alfa@blynai.eu" aria-label="Facebook">
+          </button>
+          <button type="button" data-name="Facebook" aria-label="Facebook">
             <svg viewBox="0 0 24 24"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.52 1.49-3.91 3.77-3.91 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57v1.89h2.78l-.45 2.91h-2.33V22c4.78-.76 8.44-4.92 8.44-9.94z"/></svg>
-          </a>
-          <a href="mailto:alfa@blynai.eu" aria-label="X">
+          </button>
+          <button type="button" data-name="X" aria-label="X">
             <svg viewBox="0 0 24 24"><path d="M17.53 3h3.02l-6.6 7.54L21.75 21h-5.9l-4.62-6.04L5.94 21H2.92l7.06-8.07L2.5 3h6.05l4.18 5.52L17.53 3zm-1.06 16.2h1.67L7.6 4.72H5.81l10.66 14.48z"/></svg>
-          </a>
+          </button>
         </div>
+        <p class="socials__msg" id="socialMsg" hidden aria-live="polite"></p>
 
         <p class="auth__note">
           Paskyros kuriamos tik pakvietus. Registracija į alfą —
@@ -384,14 +444,180 @@ footer p{margin:0; max-width:78ch}
 
   <footer>
     <p>MB „BlynAI“ nėra finansų įstaiga, investicijų valdytojas ar finansinių paslaugų teikėja.
-       <a class="link-u" href="https://blynai.eu">Skaityti plačiau</a></p>
+       <button type="button" class="linkish" id="openLegal">Skaityti plačiau</button></p>
     <p class="copy">blynai.eu · © 2026 MB „BlynAI“</p>
   </footer>
 </div>
 
+<dialog class="modal" id="legal" aria-labelledby="legalTitle">
+  <button class="modal__close" type="button" id="closeLegal" aria-label="Uždaryti">&times;</button>
+  <div class="modal__in">
+    <h2 id="legalTitle">MB „BlynAI“</h2>
+    <p>MB „BlynAI“ nėra finansų įstaiga, investicijų valdytojas ar finansinių paslaugų
+       teikėja. Bendrija neteikia investavimo rekomendacijų, nepriima ir nesaugo trečiųjų
+       asmenų pinigų ar kriptoturto ir nevaldo trečiųjų asmenų biržos sąskaitų.
+       Prekiaujama tik savo lėšomis; skelbiami rezultatai yra tyrimo duomenys, o ne
+       pasiūlymas ar prognozė.</p>
+
+    <h3>Prekyba savo lėšomis</h3>
+    <p>Programinė įranga veikia dviem nepriklausomomis instancijomis — LUKO ir BYKO.
+       Tas pats kodas, atskiros paskyros, atskiri žurnalai.</p>
+    <ul>
+      <li>prekiaujama tik bendrijos ir jos narių lėšomis;</li>
+      <li>kiekviena instancija veikia savo biržos paskyroje ir su savo API raktais;</li>
+      <li>strategiją, rizikos ribas ir parametrus nustato patys nariai;</li>
+      <li>klientų lėšų — nėra ir nebus.</li>
+    </ul>
+
+    <h3>Jokio trečiųjų asmenų turto</h3>
+    <p>Bendrija:</p>
+    <ul>
+      <li>nepriima ir nesaugo trečiųjų asmenų pinigų ar kriptoturto;</li>
+      <li>nevaldo trečiųjų asmenų biržos sąskaitų;</li>
+      <li>neturi ir neprašo API teisių, leidžiančių disponuoti kitų asmenų lėšomis;</li>
+      <li>nepriima investicijų ir neteikia individualių investavimo rekomendacijų.</li>
+    </ul>
+
+    <h3>Skelbiami rezultatai</h3>
+    <p>Skelbiami duomenys yra konkrečios instancijos ir konkretaus laikotarpio istoriniai
+       tyrimo duomenys. Jie negarantuoja būsimų rezultatų ir nėra pasiūlymas, prognozė ar
+       individuali investavimo rekomendacija. Nepavykę eksperimentai skelbiami taip pat,
+       kaip pavykę.</p>
+
+    <h3>Bendrijos statusas</h3>
+    <p>MB „BlynAI“ — mažoji bendrija Lietuvos Respublikoje. Nariai — Lukas Peciukonis ir
+       Denisas Bykovas. Vadovas — Lukas Peciukonis. Kontaktas —
+       <a href="mailto:info@blynai.eu">info@blynai.eu</a>.</p>
+  </div>
+</dialog>
+
 <script>
-  /* Бэкенда пока нет — форма ничего никуда не отправляет. */
-  document.getElementById('login').addEventListener('submit', function (e) { e.preventDefault(); });
+(() => {
+  'use strict';
+
+  /* Данные тянутся из platform. Пока его нет, каждый запрос падает и
+     остаётся em dash — лучше пустое поле, чем выдуманное число. */
+  const CFG = { apiBase: '', botInstanceId: 'futures-lukas-live' };
+  const DASH = '\u2014';
+  const $ = (id) => document.getElementById(id);
+
+  const num = (n) => (typeof n === 'number' && isFinite(n)) ? n.toLocaleString('lt-LT') : DASH;
+
+  /* лит. склонение: 1 atvira · 2–9 atviros · 0, 10+, 11–19 atvirų */
+  function atvira(n){
+    if (typeof n !== 'number') return DASH;
+    const d10 = n % 10, d100 = n % 100;
+    if (d10 === 1 && d100 !== 11) return n + ' atvira';
+    if (d10 >= 2 && d10 <= 9 && (d100 < 11 || d100 > 19)) return n + ' atviros';
+    return n + ' atvirų';
+  }
+
+  async function getJSON(path){
+    try {
+      const r = await fetch(CFG.apiBase + path, { headers: { accept: 'application/json' } });
+      return r.ok ? await r.json() : null;
+    } catch (_) { return null; }
+  }
+
+  /* ── телеметрия ── */
+  function drawSpark(points){
+    const line = $('sparkLine'), fill = $('sparkFill'), empty = $('sparkEmpty');
+    const ys = Array.isArray(points)
+      ? points.map(p => typeof p === 'number' ? p : Number(p && (p.value ?? p.y))).filter(isFinite)
+      : [];
+    if (ys.length < 2){ line.setAttribute('d',''); fill.setAttribute('d',''); empty.removeAttribute('hidden'); return; }
+    empty.setAttribute('hidden','');
+    const W = 300, H = 104, PAD = 12;
+    const lo = Math.min(...ys), hi = Math.max(...ys), span = (hi - lo) || 1;
+    const pts = ys.map((v,i) => [
+      (i / (ys.length - 1)) * W,
+      H - PAD - ((v - lo) / span) * (H - PAD * 2)
+    ]);
+    const d = pts.map(([x,y],i) => (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1)).join(' ');
+    line.setAttribute('d', d);
+    fill.setAttribute('d', d + ' L' + W + ' ' + H + ' L0 ' + H + ' Z');
+  }
+
+  async function loadStats(){
+    const d = await getJSON('/api/public-stats');
+    $('stats').textContent =
+      'Porų ' + num(d && d.pairs) + ' \u00b7 Ciklas ' + num(d && d.cycleSeconds) +
+      ' s \u00b7 Sprendimų ' + num(d && d.decisions);
+  }
+
+  async function loadStatus(){
+    const d = await getJSON('/api/bot-status');
+    const live = $('live');
+    if (!d || !d.state) { live.setAttribute('hidden',''); return; }
+    live.textContent = d.label || (d.state === 'live' ? 'Live' : d.state);
+    live.removeAttribute('hidden');
+  }
+
+  async function loadDashboard(){
+    const d = await getJSON('/api/dashboard?botInstanceId=' + encodeURIComponent(CFG.botInstanceId));
+    drawSpark(d && d.curve);
+
+    const open = (d && Array.isArray(d.positions)) ? d.positions : null;
+    $('posCount').textContent = open ? atvira(open.length) : DASH;
+
+    const list = $('posList');
+    list.textContent = '';
+
+    if (open && open.length){
+      for (const p of open){
+        const row = document.createElement('div'); row.className = 'pos';
+        const sym  = document.createElement('span'); sym.className  = 'pos__sym';  sym.textContent = p.symbol || DASH;
+        const side = document.createElement('span'); side.className = 'pos__side'; side.textContent = (p.side || '').toUpperCase() || DASH;
+        const pnl  = document.createElement('span'); pnl.className  = 'pos__pnl';
+        const v = Number(p.pnlPercent);
+        if (isFinite(v)){
+          pnl.textContent = (v > 0 ? '+' : '') + v.toFixed(2) + '%';
+          if (v < 0) pnl.style.color = 'var(--down-500)';
+        } else pnl.textContent = DASH;
+        if (String(p.side).toLowerCase() === 'long') side.style.color = 'var(--up-500)';
+        row.append(sym, side, pnl);
+        list.append(row);
+      }
+      return;
+    }
+
+    /* позиций нет — показываем это прямо, плюс последнее закрытие за сегодня */
+    const row = document.createElement('div'); row.className = 'pos pos--empty';
+    row.textContent = 'Nėra atvirų pozicijų';
+    list.append(row);
+
+    const trades = d && d.today && Array.isArray(d.today.trades) ? d.today.trades : [];
+    const last = trades[trades.length - 1];
+    if (last){
+      const note = document.createElement('div'); note.className = 'pos pos--note';
+      const v = Number(last.pnlPercent);
+      note.textContent = 'Paskutinis uždarymas: ' + (last.symbol || DASH) +
+        (isFinite(v) ? '  ' + (v > 0 ? '+' : '') + v.toFixed(2) + '%' : '');
+      list.append(note);
+    }
+  }
+
+  /* ── заглушки интерфейса ── */
+  $('login').addEventListener('submit', (e) => {
+    e.preventDefault();
+    $('loginError').removeAttribute('hidden');
+  });
+
+  const msg = $('socialMsg');
+  document.querySelectorAll('.socials button').forEach((b) => {
+    b.addEventListener('click', () => {
+      msg.textContent = b.dataset.name + ' \u2014 currently disabled';
+      msg.removeAttribute('hidden');
+    });
+  });
+
+  const legal = $('legal');
+  $('openLegal').addEventListener('click', () => legal.showModal());
+  $('closeLegal').addEventListener('click', () => legal.close());
+  legal.addEventListener('click', (e) => { if (e.target === legal) legal.close(); });
+
+  loadStats(); loadStatus(); loadDashboard();
+})();
 </script>
 </body>
 </html>
