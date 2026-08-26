@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>CryptoSmithX.MarketData</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CryptoSmithX.Exchanges\CryptoSmithX.Exchanges.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="9.0.3" />
+    <PackageReference Include="Dapper" Version="2.1.66" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Storage\Migrations\*.sql" />
+  </ItemGroup>
+
+  <!-- The design system is linked into the output, never copied into the repository.
+       wwwroot/ds is a build artefact and is gitignored. -->
+  <ItemGroup>
+    <Content Include="..\web\ds\**"
+             Link="wwwroot\ds\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,19 @@
+# Host build output must never enter the image: it overwrites the restore done in the
+# earlier layer and the publish then fails looking for packages it cannot see.
+**/bin/
+**/obj/
+**/TestResults/
+
+# Linked at build time from src/web/ds, never copied in.
+**/wwwroot/ds/
+
+# Nothing here belongs in a build context.
+.git/
+.github/
+.local/
+.ai/
+.claude/
+.vs/
+.idea/
+**/.DS_Store
+deploy/.env

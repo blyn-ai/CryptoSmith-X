@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Market data — CryptoSmith X</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="ds/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="ds/styles.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="csx-rule"></div>
+
+  <header class="head">
+    <div class="brand">
+      <img src="ds/assets/cryptosmith-mark.svg" width="28" height="28" alt="">
+      <p class="wordmark">CryptoSmith <span>X</span></p>
+      <p class="unit">Market data</p>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button type="button" class="tab is-active" data-tab="health">Health</button>
+      <button type="button" class="tab" data-tab="instruments">Instruments</button>
+      <button type="button" class="tab" data-tab="snapshot">Snapshot</button>
+    </nav>
+    <p class="asof" id="asOf">—</p>
+  </header>
+
+  <main>
+    <section class="panel is-active" id="panel-health">
+      <div class="kpis" id="kpis"></div>
+      <div class="card">
+        <div class="card__head"><span>Collectors</span><span class="meta" id="healthState">—</span></div>
+        <div class="scroll"><table id="collectors"></table></div>
+      </div>
+      <div class="card" id="staleCard" hidden>
+        <div class="card__head"><span>Stale instruments</span><span class="meta" id="staleCount">—</span></div>
+        <div class="scroll"><table id="stale"></table></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-instruments">
+      <div class="card">
+        <div class="card__head"><span>Instruments</span><span class="meta" id="instrumentCount">—</span></div>
+        <div class="scroll"><table id="instruments"></table></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-snapshot">
+      <div class="card">
+        <div class="card__head"><span>Snapshot</span><span class="meta" id="snapshotCount">—</span></div>
+        <div class="scroll"><table id="snapshot"></table></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

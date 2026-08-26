@@ -1,0 +1,99 @@
+/* Market data console. Tokens come from ds/styles.css; nothing here invents a colour or a size.
+   Same approach as src/web/assets/site.css — one stylesheet, no build. */
+
+body{
+  margin:0; padding:0 0 40px;
+  background:var(--surface-page); color:var(--text-body);
+  -webkit-font-smoothing:antialiased;
+}
+
+.head{
+  display:flex; align-items:center; gap:var(--gap-nav); flex-wrap:wrap;
+  padding:var(--pad-header-y) var(--pad-header-x);
+  border-bottom:var(--hairline);
+}
+.brand{display:flex; align-items:center; gap:var(--gap-inline)}
+.brand img{width:var(--mark-size); height:var(--mark-size)}
+.wordmark{margin:0; font:600 18px/1 var(--font-display); color:var(--text-heading); letter-spacing:-.02em}
+.wordmark span{color:var(--violet-400)}
+.unit{
+  margin:0 0 0 var(--gap-inline); padding-left:var(--gap-inline);
+  border-left:var(--hairline);
+  font:var(--type-nav); letter-spacing:var(--track-nav);
+  text-transform:uppercase; color:var(--text-muted);
+}
+
+.tabs{display:flex; gap:var(--gap-nav); margin-left:auto}
+.tab{
+  background:0; border:0; padding:6px 0; cursor:pointer;
+  font:var(--type-nav); letter-spacing:var(--track-nav); text-transform:uppercase;
+  color:var(--text-muted); border-bottom:var(--rule-h) solid transparent;
+  transition:var(--transition-color);
+}
+.tab:hover{color:var(--text-heading)}
+.tab.is-active{color:var(--text-heading); border-bottom-color:var(--gold-400)}
+
+.asof{margin:0; font:var(--type-data); color:var(--text-faint); white-space:nowrap}
+
+main{padding:var(--pad-page); max-width:var(--page-max); margin:0 auto}
+
+.panel{display:none; flex-direction:column; gap:var(--gap-grid)}
+.panel.is-active{display:flex}
+
+.kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap-grid)}
+.kpi{
+  background:var(--surface-card); border:var(--hairline-card); border-radius:var(--radius-md);
+  padding:var(--pad-card);
+}
+.kpi__label{
+  margin:0 0 var(--space-2);
+  font:var(--type-eyebrow); letter-spacing:var(--track-eyebrow);
+  text-transform:uppercase; color:var(--eyebrow);
+}
+.kpi__value{margin:0; font:var(--type-stat); letter-spacing:var(--track-stat); color:var(--text-heading)}
+.kpi__note{margin:var(--space-2) 0 0; font:var(--type-data); color:var(--text-faint)}
+
+.card{
+  background:var(--surface-card); border:var(--hairline-card);
+  border-radius:var(--radius-md); overflow:hidden;
+}
+.card__head{
+  display:flex; align-items:center; justify-content:space-between; gap:var(--gap-inline);
+  padding:var(--pad-card-h); border-bottom:var(--hairline);
+  font:var(--type-eyebrow); letter-spacing:var(--track-eyebrow);
+  text-transform:uppercase; color:var(--eyebrow);
+}
+.card__head .meta{color:var(--text-muted)}
+
+.scroll{overflow-x:auto}
+table{width:100%; border-collapse:collapse; font:var(--type-data)}
+th{
+  text-align:left; padding:var(--pad-cell); white-space:nowrap;
+  font:var(--type-eyebrow); letter-spacing:var(--track-eyebrow);
+  text-transform:uppercase; color:var(--text-muted);
+  border-bottom:var(--hairline);
+}
+td{padding:var(--pad-cell); border-bottom:var(--hairline); white-space:nowrap; color:var(--text-data)}
+tr:last-child td{border-bottom:0}
+td.name{color:var(--lilac-200)}
+td.num{text-align:right; font-variant-numeric:tabular-nums}
+td.muted{color:var(--text-faint)}
+
+/* Green and red carry market direction only. Everything operational is neutral or gold. */
+.up{color:var(--pnl-up)}
+.down{color:var(--pnl-down)}
+
+.state{display:inline-flex; align-items:center; gap:var(--gap-inline-xs)}
+.state::before{content:""; width:6px; height:6px; border-radius:var(--radius-circle); background:currentColor}
+.state--ok{color:var(--status-ok)}
+.state--warn{color:var(--status-warn)}
+.state--down{color:var(--status-error)}
+.state--off{color:var(--status-off)}
+
+.empty{padding:var(--pad-card); color:var(--text-faint); font:var(--type-data)}
+
+@media (max-width:900px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tabs{width:100%; margin-left:0}
+  .asof{width:100%}
+}
