@@ -116,6 +116,8 @@ h1 em{
   color:var(--lilac-500);
 }
 .live{display:inline-flex; align-items:center; gap:7px; color:var(--gold-400)}
+.live.is-paused{color:var(--lilac-500)}
+.live.is-paused::before{background:var(--lilac-500); box-shadow:none}
 .live::before{
   content:""; width:6px; height:6px; border-radius:50%; background:var(--gold-400);
   box-shadow:0 0 8px rgba(245,184,79,.7);
@@ -492,15 +494,13 @@ footer p{margin:0; max-width:78ch}
 </dialog>
 
 <script>
-(() => {
+((() => {
   'use strict';
 
-  /* Данные тянутся из platform. Пока его нет, каждый запрос падает и
-     остаётся em dash — лучше пустое поле, чем выдуманное число. */
-  const CFG = { apiBase: '', botInstanceId: 'futures-lukas-live' };
+  /* Живой API бота. CORS открыт (access-control-allow-origin: *). */
+  const CFG = { apiBase: 'https://blynai.meetluko.eu', botInstanceId: 'futures-lukas-live' };
   const DASH = '\u2014';
   const $ = (id) => document.getElementById(id);
-
   const num = (n) => (typeof n === 'number' && isFinite(n)) ? n.toLocaleString('lt-LT') : DASH;
 
   /* лит. склонение: 1 atvira · 2–9 atviros · 0, 10+, 11–19 atvirų */
@@ -516,22 +516,18 @@ footer p{margin:0; max-width:78ch}
     try {
       const r = await fetch(CFG.apiBase + path, { headers: { accept: 'application/json' } });
       if (!r.ok) return null;
-      /* Пока API нет, статика может ответить 200 и HTML — это не данные. */
       const ct = r.headers.get('content-type') || '';
       if (!ct.includes('application/json')) return null;
       return await r.json();
     } catch (_) { return null; }
   }
 
-  /* ── телеметрия ── */
-  function drawSpark(points){
+  function drawSpark(values){
     const line = $('sparkLine'), fill = $('sparkFill'), empty = $('sparkEmpty');
-    const ys = Array.isArray(points)
-      ? points.map(p => typeof p === 'number' ? p : Number(p && (p.value ?? p.y))).filter(isFinite)
-      : [];
+    const ys = (values || []).filter((v) => typeof v === 'number' && isFinite(v));
     if (ys.length < 2){ line.setAttribute('d',''); fill.setAttribute('d',''); empty.removeAttribute('hidden'); return; }
     empty.setAttribute('hidden','');
-    const W = 300, H = 104, PAD = 12;
+    const W = 300, H = 104, PAD = 14;
     const lo = Math.min(...ys), hi = Math.max(...ys), span = (hi - lo) || 1;
     const pts = ys.map((v,i) => [
       (i / (ys.length - 1)) * W,
@@ -544,22 +540,44 @@ footer p{margin:0; max-width:78ch}
 
   async function loadStats(){
     const d = await getJSON('/api/public-stats');
+    const since = d && d.liveSinceUtc ? new Date(d.liveSinceUtc).toISOString().slice(0,10) : DASH;
     $('stats').textContent =
-      'Porų ' + num(d && d.pairs) + ' \u00b7 Ciklas ' + num(d && d.cycleSeconds) +
-      ' s \u00b7 Sprendimų ' + num(d && d.decisions);
+      'Porų ' + num(d && d.marketsNow) +
+      ' \u00b7 Sprendimų ' + num(d && d.decisionsTotal) +
+      ' \u00b7 Gyvai nuo ' + since;
   }
 
   async function loadStatus(){
     const d = await getJSON('/api/bot-status');
     const live = $('live');
-    if (!d || !d.state) { live.setAttribute('hidden',''); return; }
-    live.textContent = d.label || (d.state === 'live' ? 'Live' : d.state);
+    if (!d){ live.setAttribute('hidden',''); return; }
+    if (d.entryBlackout && d.entryBlackout.isActive){
+      live.textContent = 'Įėjimai pristabdyti';
+      live.classList.add('is-paused');
+    } else if (d.runtimeState === 'running' && !d.isStale){
+      live.textContent = 'Live';
+      live.classList.remove('is-paused');
+    } else {
+      live.textContent = d.isStale ? 'Duomenys pasenę' : (d.runtimeState || DASH);
+      live.classList.add('is-paused');
+    }
     live.removeAttribute('hidden');
+  }
+
+  function pnlSpan(v){
+    const el = document.createElement('span');
+    el.className = 'pos__pnl';
+    if (typeof v === 'number' && isFinite(v)){
+      el.textContent = (v > 0 ? '+' : '') + v.toFixed(2) + '%';
+      if (v < 0) el.style.color = 'var(--down-500)';
+    } else el.textContent = DASH;
+    return el;
   }
 
   async function loadDashboard(){
     const d = await getJSON('/api/dashboard?botInstanceId=' + encodeURIComponent(CFG.botInstanceId));
-    drawSpark(d && d.curve);
+
+    drawSpark(d && d.equity && Array.isArray(d.equity.days) ? d.equity.days.map((x) => x.close) : null);
 
     const open = (d && Array.isArray(d.positions)) ? d.positions : null;
     $('posCount').textContent = open ? atvira(open.length) : DASH;
@@ -569,23 +587,16 @@ footer p{margin:0; max-width:78ch}
 
     if (open && open.length){
       for (const p of open){
-        const row = document.createElement('div'); row.className = 'pos';
-        const sym  = document.createElement('span'); sym.className  = 'pos__sym';  sym.textContent = p.symbol || DASH;
+        const row  = document.createElement('div'); row.className = 'pos';
+        const sym  = document.createElement('span'); sym.className  = 'pos__sym';  sym.textContent = p.pair || DASH;
         const side = document.createElement('span'); side.className = 'pos__side'; side.textContent = (p.side || '').toUpperCase() || DASH;
-        const pnl  = document.createElement('span'); pnl.className  = 'pos__pnl';
-        const v = Number(p.pnlPercent);
-        if (isFinite(v)){
-          pnl.textContent = (v > 0 ? '+' : '') + v.toFixed(2) + '%';
-          if (v < 0) pnl.style.color = 'var(--down-500)';
-        } else pnl.textContent = DASH;
-        if (String(p.side).toLowerCase() === 'long') side.style.color = 'var(--up-500)';
-        row.append(sym, side, pnl);
+        if (String(p.side).toUpperCase() === 'LONG') side.style.color = 'var(--up-500)';
+        row.append(sym, side, pnlSpan(p.unrealizedPnlPercent));
         list.append(row);
       }
       return;
     }
 
-    /* позиций нет — показываем это прямо, плюс последнее закрытие за сегодня */
     const row = document.createElement('div'); row.className = 'pos pos--empty';
     row.textContent = 'Nėra atvirų pozicijų';
     list.append(row);
@@ -594,18 +605,12 @@ footer p{margin:0; max-width:78ch}
     const last = trades[trades.length - 1];
     if (last){
       const note = document.createElement('div'); note.className = 'pos pos--note';
-      const v = Number(last.pnlPercent);
-      note.textContent = 'Paskutinis uždarymas: ' + (last.symbol || DASH) +
-        (isFinite(v) ? '  ' + (v > 0 ? '+' : '') + v.toFixed(2) + '%' : '');
+      note.textContent = 'Paskutinis \u2014 ' + (last.pair || DASH) + ' ' + (last.side || '');
       list.append(note);
     }
   }
 
-  /* ── заглушки интерфейса ── */
-  $('login').addEventListener('submit', (e) => {
-    e.preventDefault();
-    $('loginError').removeAttribute('hidden');
-  });
+  $('login').addEventListener('submit', (e) => { e.preventDefault(); $('loginError').removeAttribute('hidden'); });
 
   const msg = $('socialMsg');
   document.querySelectorAll('.socials button').forEach((b) => {
@@ -620,8 +625,10 @@ footer p{margin:0; max-width:78ch}
   $('closeLegal').addEventListener('click', () => legal.close());
   legal.addEventListener('click', (e) => { if (e.target === legal) legal.close(); });
 
-  loadStats(); loadStatus(); loadDashboard();
-})();
+  function refresh(){ loadStats(); loadStatus(); loadDashboard(); }
+  refresh();
+  setInterval(refresh, 60000);
+})());
 </script>
 </body>
 </html>
