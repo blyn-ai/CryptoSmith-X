@@ -6,13 +6,14 @@
 
 body{
   margin:0; padding:14px;
-  display:grid; place-items:center;
+  display:flex; justify-content:center;
   background:var(--surface-sunken);
 }
 
 /* ── рамка ───────────────────────────────────────────────── */
 .shell{
-  width:1240px; max-width:100%;
+  width:min(1240px,100%);
+  min-height:calc(100dvh - 28px);
   background:var(--surface-page);
   border:1px solid var(--border-card);
   border-radius:var(--radius-lg);
@@ -21,7 +22,7 @@ body{
 }
 .rule{height:var(--rule-h); background:var(--gradient-rule); flex:none}
 .split{
-  min-height:760px;
+  flex:none; min-height:760px;
   display:grid;
   grid-template-columns:minmax(0,1fr) 428px;
   grid-template-rows:auto 1fr;
@@ -219,6 +220,7 @@ h1 em{
 
 /* ── подвал ──────────────────────────────────────────────── */
 footer{
+  margin-top:auto;          /* прибивает подвал к низу рамки */
   display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
   padding:16px 52px; border-top:1px solid var(--border-hairline);
   font:400 12.5px/1.5 var(--font-body); color:var(--text-faint);
@@ -261,8 +263,9 @@ footer p{margin:0; max-width:78ch}
 /* ── мобильная раскладка: знак → вход → карточки ─────────── */
 @media (max-width:960px){
   body{padding:8px}
+  .shell{min-height:calc(100dvh - 16px)}
   .split{
-    min-height:0;
+    flex:none; min-height:0;
     grid-template-columns:1fr; grid-template-rows:none;
     grid-template-areas:"brand" "auth" "data";
   }
