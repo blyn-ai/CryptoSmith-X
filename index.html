@@ -54,9 +54,19 @@ body{
     radial-gradient(820px 520px at 2% 0%,rgba(245,184,79,.10),transparent 66%),
     radial-gradient(820px 620px at 100% 100%,rgba(107,78,219,.22),transparent 70%);
 }
-.grid{position:relative; z-index:1; flex:1; display:grid; grid-template-columns:minmax(0,1fr) 400px}
-.pane{padding:44px 46px 30px; display:flex; flex-direction:column; min-width:0}
-.pane--auth{border-left:1px solid var(--border-hairline); padding:44px 40px 30px; justify-content:center}
+.grid{
+  position:relative; z-index:1; flex:1; display:grid;
+  grid-template-columns:minmax(0,1fr) 400px;
+  grid-template-rows:auto 1fr;
+  grid-template-areas:
+    "brand auth"
+    "data  auth";
+}
+.pane{display:flex; flex-direction:column; min-width:0}
+.pane--brand{grid-area:brand; padding:44px 46px 0}
+.pane--data{grid-area:data; padding:34px 46px 30px}
+.pane--auth{grid-area:auth; padding:44px 40px 30px; justify-content:center;
+            border-left:1px solid var(--border-hairline)}
 
 /* ── шапка ─────────────────────────────────────────────── */
 .brand{display:flex; align-items:center; gap:16px}
@@ -92,7 +102,7 @@ h1 em{
 .prose p:last-child{margin:0}
 
 /* ── карточки ──────────────────────────────────────────── */
-.cards{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin:34px 0 0}
+.cards{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px}
 .card{background:var(--ink-800); border:1px solid var(--border-card); border-radius:8px; overflow:hidden}
 .card__head{
   display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -216,18 +226,22 @@ footer p{margin:0; max-width:78ch}
 @media (max-width:960px){
   body{padding:8px}
   .shell{min-height:calc(100dvh - 16px)}
-  .grid{grid-template-columns:1fr}
-  .pane{padding:34px 22px 0; align-items:center; text-align:center}
-  .pane--auth{border-left:0; padding:26px 22px 0; order:-1}
+  .grid{
+    grid-template-columns:1fr; grid-template-rows:none;
+    grid-template-areas:"brand" "auth" "data";
+  }
+  .pane{align-items:center; text-align:center}
+  .pane--brand{padding:34px 22px 0}
+  .pane--auth{padding:28px 22px 0; border-left:0}
+  .pane--data{padding:26px 22px 26px}
   .brand{flex-direction:column; gap:14px}
   .badges{justify-content:center}
   h1,.prose,.venues{display:none}
-  .cards{grid-template-columns:1fr; margin:22px 0 0; width:100%; max-width:420px}
+  .cards{grid-template-columns:1fr; width:100%; max-width:420px}
   .card__head,.pos,.card__foot{text-align:left}
   .auth{max-width:420px}
   .auth__label{display:none}
   .auth__note{text-align:center}
-  .pane--brand{padding-bottom:26px}
   footer{padding:18px 22px 22px; justify-content:center; text-align:center}
   .copy{width:100%; text-align:center}
 }
@@ -277,6 +291,10 @@ footer p{margin:0; max-width:78ch}
            rizika. Viską galima atkartoti.</p>
       </div>
 
+    </section>
+
+    <!-- ─── карточки: на десктопе под текстом, на мобиле после логина ─── -->
+    <section class="pane pane--data">
       <div class="cards">
         <div class="card">
           <div class="card__head"><span>Telemetrija</span><span class="live">Live</span></div>
