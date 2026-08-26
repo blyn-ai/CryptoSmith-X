@@ -1,0 +1,54 @@
+flowchart LR
+  %% Стрелка = кто инициирует вызов (всегда HTTP, инициатор → адресат).
+  %% В бота никто не звонит. Общих таблиц между компонентами нет.
+  %% Цвета текста заданы явно, чтобы схема читалась и в тёмной, и в светлой теме.
+
+  LEG["Легенда<br/>Стрелка = кто кого вызывает (инициатор → адресат), всё по HTTP<br/>В бота никто не звонит: он только сам ходит наружу<br/>Общих таблиц нет: у каждого своя БД, обмен только через API"]
+
+  subgraph CALLERS["Кто принимает решения"]
+    direction TB
+    B1["bot — 1 контейнер на биржевой аккаунт, × N<br/>Стратегия + риск: чистые функции → TargetPosition<br/>OrderPlanner → Executor: журнал до отправки, client order id<br/>BlynAI.Exchanges внутри: адаптеры Kraken / Hyperliquid / Paper<br/>Ledger: позиции, cost basis, reconcile с биржей<br/>Outbox событий, heartbeat<br/>Хранит: SQLite, 1 файл на инстанс"]
+    B3["bot self-hosted — тот же образ на чужом сервере<br/>свои ключи, свой SQLite<br/>platform опционален"]
+    U["Оператор / пользователь<br/>браузер"]
+  end
+
+  subgraph OURS["Наш хостинг — docker compose"]
+    direction TB
+    MD["marketdata — 1 процесс<br/>Собирает: тикеры каждые 10 с, свечи 1m 5m 15m 1h 4h 12h 1d<br/>Ведёт: реестр инструментов (точность, минимумы), retention по таймфрейму<br/>Intelligence раз в 12 ч: кластеры, режим, ликвидность, риск (правила, LLM позже)<br/>Отдаёт: read-only HTTP API, asOf в каждом ответе<br/>Хранит: Postgres marketdata"]
+    PL["platform — 1 процесс<br/>Реестр тенантов и ботов, токены<br/>Политики: кому торговать, какие рынки, лимиты, TTL<br/>Приём событий идемпотентно, heartbeat, silent-bot alert<br/>История сделок всех ботов, проекции, dashboard<br/>Уведомления: Telegram, другие каналы позже<br/>Хранит: Postgres platform"]
+  end
+
+  subgraph EXT["Внешние системы"]
+    direction TB
+    KS["Kraken Spot"]
+    KF["Kraken Futures"]
+    HL["Hyperliquid"]
+    LLM["LLM API"]
+    TG["Telegram"]
+  end
+
+  MD -->|"public REST: тикеры, свечи, инструменты"| KS
+  MD -->|"public REST"| KF
+  MD -->|"public REST"| HL
+  MD -.->|"раз в 12 ч, позже"| LLM
+
+  B1 -->|"GET snapshot, candles, instruments, intelligence"| MD
+  B1 -->|"private REST со своими ключами: ордера, балансы, позиции, fills"| KF
+  B1 -->|"POST heartbeat + events, в ответе policy"| PL
+
+  B3 -->|"GET snapshot, candles, ..."| MD
+  B3 -->|"private REST со своими ключами"| HL
+  B3 -.->|"POST heartbeat + events, опционально"| PL
+
+  U -->|"dashboard, admin API: создать бота, политика, стоп"| PL
+  PL -->|"sendMessage"| TG
+  PL -.->|"только GET /health, watchdog свежести"| MD
+
+  classDef ours fill:#dbe9ff,stroke:#2b6cb0,stroke-width:2px,color:#111111
+  classDef ext fill:#eeeeee,stroke:#777777,stroke-width:1.5px,color:#111111
+  classDef plain fill:#ffffff,stroke:#555555,stroke-width:1.5px,color:#111111
+  classDef leg fill:#fff6cc,stroke:#b8860b,stroke-width:1.5px,stroke-dasharray:4 3,color:#111111
+  class MD,PL,B1,B3 ours
+  class KS,KF,HL,LLM,TG ext
+  class U plain
+  class LEG leg

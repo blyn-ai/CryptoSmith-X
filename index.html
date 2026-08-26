@@ -4,8 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CryptoSmith X</title>
-<meta name="description" content="CryptoSmith X — algoritminės prekybos programinė įranga. MB „BlynAI“ produktas. Šiuo metu veikia uždaro testavimo režimu.">
-<meta name="robots" content="index,follow">
+<meta name="description" content="CryptoSmith X — perps &amp; crypto trade bot. MB „BlynAI“ produktas. Uždaras testavimas.">
 <meta property="og:title" content="CryptoSmith X">
 <meta property="og:description" content="Netikėk. Patikrink pats. Kiekvienas sprendimas įrašomas ir jį galima atkartoti.">
 <meta property="og:type" content="website">
@@ -14,130 +13,367 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --ink-900:#07060B; --ink-850:#0A0812; --ink-800:#0D0B14;
-    --gold-400:#F5B84F; --violet-400:#A18AFF; --violet-700:#6B4EDB;
-    --lilac-100:#EFEAF7; --lilac-300:#BDB2D6; --lilac-500:#7C7391; --lilac-700:#4A4358;
-    --up-500:#41C98F;
-    --font-display:"Space Grotesk","Helvetica Neue",Arial,sans-serif;
-    --font-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
-    --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-    --border-hairline:rgba(161,138,255,.11);
-    --border-card:rgba(161,138,255,.13);
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    margin:0; background:var(--ink-900); color:var(--lilac-300);
-    font:400 14.5px/1.6 var(--font-body);
-    -webkit-font-smoothing:antialiased;
-    display:flex; flex-direction:column; min-height:100dvh;
-  }
-  body::before{
-    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
-    background:
-      radial-gradient(820px 520px at 2% 0%,rgba(245,184,79,.10),transparent 66%),
-      radial-gradient(820px 620px at 100% 100%,rgba(107,78,219,.22),transparent 70%);
-  }
-  .wrap{position:relative; z-index:1; flex:1; display:flex; align-items:center; justify-content:center; padding:40px 24px}
-  main{width:100%; max-width:660px}
+:root{
+  --ink-950:#050408; --ink-900:#07060B; --ink-850:#0A0812; --ink-800:#0D0B14; --ink-700:#12101C;
+  --gold-400:#F5B84F; --gold-300:#FFD987;
+  --violet-400:#A18AFF; --violet-500:#8C6BC9; --violet-700:#6B4EDB; --violet-800:#5B3FC4;
+  --lilac-100:#EFEAF7; --lilac-200:#DCD3F5; --lilac-300:#BDB2D6; --lilac-500:#7C7391; --lilac-700:#4A4358;
+  --sand-200:#C8BBA6;
+  --up-500:#41C98F; --down-500:#EF5D6F;
+  --font-display:"Space Grotesk","Helvetica Neue",Arial,sans-serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --border-hairline:rgba(161,138,255,.11);
+  --border-card:rgba(161,138,255,.13);
+  --border-input:rgba(161,138,255,.22);
+  --border-gold:rgba(245,184,79,.30);
+  --radius:12px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; padding:14px;
+  background:var(--ink-950); color:var(--lilac-300);
+  font:400 14.5px/1.6 var(--font-body);
+  -webkit-font-smoothing:antialiased;
+}
+.shell{
+  position:relative; overflow:hidden;
+  min-height:calc(100dvh - 28px);
+  display:flex; flex-direction:column;
+  background:var(--ink-900);
+  border:1px solid var(--border-hairline); border-radius:var(--radius);
+}
+.shell::before{               /* верхняя градиентная кромка */
+  content:""; position:absolute; inset:0 0 auto; height:2px; z-index:3;
+  background:linear-gradient(90deg,#F5B84F,#C98F63 42%,#8C6BC9 74%,#6B4EDB);
+}
+.shell::after{                /* золотая и фиолетовая подсветки */
+  content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(820px 520px at 2% 0%,rgba(245,184,79,.10),transparent 66%),
+    radial-gradient(820px 620px at 100% 100%,rgba(107,78,219,.22),transparent 70%);
+}
+.grid{position:relative; z-index:1; flex:1; display:grid; grid-template-columns:minmax(0,1fr) 400px}
+.pane{padding:44px 46px 30px; display:flex; flex-direction:column; min-width:0}
+.pane--auth{border-left:1px solid var(--border-hairline); padding:44px 40px 30px; justify-content:center}
 
-  .eyebrow{
-    font:500 11px/1.2 var(--font-mono); letter-spacing:.18em;
-    color:var(--gold-400); text-transform:uppercase; margin:0;
-    display:flex; align-items:center; gap:10px;
-  }
-  .dot{
-    width:6px;height:6px;border-radius:50%;background:var(--up-500);
-    box-shadow:0 0 8px rgba(65,201,143,.7); flex:none;
-  }
-  h1{
-    margin:18px 0 0;
-    font:600 clamp(34px,7vw,58px)/1.06 var(--font-display);
-    letter-spacing:-.03em; color:var(--lilac-100);
-    background:linear-gradient(96deg,#F5B84F,#A18AFF);
-    -webkit-background-clip:text; background-clip:text; color:transparent;
-  }
-  .rule{
-    height:2px; margin:26px 0; border:0; border-radius:2px;
-    background:linear-gradient(90deg,#F5B84F,#C98F63 42%,#8C6BC9 74%,#6B4EDB);
-  }
-  .lead{margin:0; font-size:16px; line-height:1.6; color:var(--lilac-300); max-width:56ch}
-  .lead strong{color:var(--lilac-100); font-weight:500}
-  .sub{margin:14px 0 0; color:var(--lilac-500); max-width:56ch}
+/* ── шапка ─────────────────────────────────────────────── */
+.brand{display:flex; align-items:center; gap:16px}
+.mark{flex:none}
+.wordmark{margin:0; font:600 33px/1 var(--font-display); letter-spacing:-.02em; color:var(--lilac-100)}
+.wordmark span{color:var(--violet-400)}
+.tagline{
+  margin:7px 0 0; font:500 11px/1 var(--font-mono); letter-spacing:.20em;
+  color:var(--lilac-500); text-transform:uppercase;
+}
+.tagline i{font-style:normal; padding:0 14px}
 
-  .meta{
-    margin:26px 0 0; padding:13px 16px;
-    background:var(--ink-800); border:1px solid var(--border-card); border-radius:8px;
-    font:400 12.5px/1.7 var(--font-mono); letter-spacing:.04em; color:#C8BBA6;
-  }
-  .access{margin:22px 0 0; color:var(--lilac-300)}
+.badges{display:flex; flex-wrap:wrap; gap:10px; margin:26px 0 0}
+.badge{
+  font:600 10px/1 var(--font-mono); letter-spacing:.14em; text-transform:uppercase;
+  padding:7px 11px; border-radius:4px; border:1px solid;
+}
+.badge--gold{color:var(--gold-400); border-color:var(--border-gold); background:rgba(245,184,79,.06)}
+.badge--violet{color:var(--violet-400); border-color:rgba(161,138,255,.28); background:rgba(161,138,255,.06)}
 
-  a{color:var(--violet-400); text-decoration:none; border-bottom:1px solid rgba(161,138,255,.3)}
-  a:hover{color:#DCD3F5; border-bottom-color:#DCD3F5}
-  a:focus-visible{outline:2px solid var(--violet-400); outline-offset:3px; border-radius:2px}
+h1{
+  margin:30px 0 0; font:600 clamp(32px,4vw,46px)/1.12 var(--font-display);
+  letter-spacing:-.03em; color:var(--lilac-100);
+}
+h1 em{
+  font-style:normal;
+  background:linear-gradient(96deg,#F5B84F,#A18AFF);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
 
-  nav{margin:30px 0 0; display:flex; flex-wrap:wrap; gap:10px 26px;
-      font:500 11px/1.2 var(--font-mono); letter-spacing:.13em; text-transform:uppercase}
-  nav a{border-bottom:0; color:var(--lilac-500)}
-  nav a:hover{color:var(--gold-400)}
+.prose{margin:26px 0 0; max-width:64ch}
+.prose p{margin:0 0 17px; line-height:1.72}
+.prose p:last-child{margin:0}
 
-  footer{
-    position:relative; z-index:1;
-    border-top:1px solid var(--border-hairline); padding:20px 24px;
-    font-size:12px; color:var(--lilac-700);
-  }
-  footer div{max-width:660px; margin:0 auto}
-  footer p{margin:0 0 6px}
-  footer p:last-child{margin:0}
+/* ── карточки ──────────────────────────────────────────── */
+.cards{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin:34px 0 0}
+.card{background:var(--ink-800); border:1px solid var(--border-card); border-radius:8px; overflow:hidden}
+.card__head{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:13px 16px;
+  font:600 10.5px/1 var(--font-mono); letter-spacing:.15em; text-transform:uppercase;
+  color:var(--lilac-500);
+}
+.live{display:inline-flex; align-items:center; gap:7px; color:var(--gold-400)}
+.live::before{
+  content:""; width:6px; height:6px; border-radius:50%; background:var(--gold-400);
+  box-shadow:0 0 8px rgba(245,184,79,.7);
+}
+.spark{display:block; width:100%; height:104px}
+.card__foot{
+  padding:11px 16px; border-top:1px solid var(--border-hairline);
+  font:400 11.5px/1.5 var(--font-mono); letter-spacing:.05em; color:var(--sand-200);
+}
+.pos{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:14px 16px; border-top:1px solid var(--border-hairline);
+  font:500 13px/1 var(--font-mono);
+}
+.pos__sym{color:var(--lilac-100); letter-spacing:.03em}
+.pos__side{color:var(--down-500); letter-spacing:.1em; margin-left:auto; padding-right:18px}
+.pos__pnl{color:var(--up-500)}
+.card--pos{display:flex; flex-direction:column}
+.card--pos .filler{flex:1; min-height:52px}
 
-  @media (max-width:520px){
-    .wrap{padding:32px 20px}
-    nav{gap:8px 18px}
-  }
+.venues{
+  margin:auto 0 0; padding:30px 0 0;
+  font:400 11px/1.6 var(--font-mono); letter-spacing:.16em; text-transform:uppercase; color:var(--lilac-700);
+}
+
+/* ── форма входа ───────────────────────────────────────── */
+.auth{width:100%; max-width:360px; margin:0 auto}
+.auth__label{
+  margin:0 0 20px; font:600 10.5px/1 var(--font-mono); letter-spacing:.18em;
+  text-transform:uppercase; color:var(--lilac-500);
+}
+.field{margin:0 0 15px}
+.field label{
+  display:block; margin:0 0 8px;
+  font:500 10.5px/1 var(--font-mono); letter-spacing:.15em; text-transform:uppercase; color:var(--lilac-500);
+}
+.field input{
+  width:100%; height:46px; padding:0 14px;
+  background:var(--ink-850); color:var(--lilac-100);
+  border:1px solid var(--border-input); border-radius:8px;
+  font:400 15px/1 var(--font-body);
+  transition:border-color 120ms cubic-bezier(.2,.6,.2,1);
+}
+.field input::placeholder{color:var(--lilac-700)}
+.field input:hover{border-color:rgba(161,138,255,.34)}
+.field input:focus{outline:2px solid var(--violet-400); outline-offset:2px; border-color:transparent}
+
+.row{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:18px 0 22px}
+.check{display:inline-flex; align-items:center; gap:10px; cursor:pointer; color:var(--lilac-200); font-size:14.5px}
+.check input{
+  appearance:none; -webkit-appearance:none; margin:0; flex:none;
+  width:19px; height:19px; border-radius:5px;
+  border:1px solid var(--border-input); background:var(--ink-850);
+  display:grid; place-content:center; cursor:pointer;
+}
+.check input::before{
+  content:""; width:10px; height:10px;
+  clip-path:polygon(14% 46%,0 60%,39% 100%,100% 22%,86% 8%,38% 71%);
+  background:#fff; transform:scale(0); transition:transform 120ms cubic-bezier(0,0,.2,1);
+}
+.check input:checked{background:var(--violet-700); border-color:var(--violet-700)}
+.check input:checked::before{transform:scale(1)}
+.check input:focus-visible{outline:2px solid var(--violet-400); outline-offset:2px}
+
+.btn{
+  width:100%; height:52px; border:0; border-radius:8px; cursor:pointer;
+  background:var(--violet-700); color:#fff;
+  font:600 15px/1 var(--font-display); letter-spacing:.01em;
+  transition:background-color 120ms cubic-bezier(.2,.6,.2,1);
+}
+.btn:hover{background:var(--violet-800)}
+.btn:focus-visible{outline:2px solid var(--violet-400); outline-offset:3px}
+
+.or{
+  display:flex; align-items:center; gap:16px; margin:26px 0 18px;
+  font:500 10px/1 var(--font-mono); letter-spacing:.24em; text-transform:uppercase; color:var(--lilac-700);
+}
+.or::before,.or::after{content:""; flex:1; height:1px; background:var(--border-hairline)}
+
+.socials{display:grid; grid-template-columns:repeat(5,1fr); gap:10px}
+.socials a{
+  height:52px; display:grid; place-items:center;
+  background:var(--ink-850); border:1px solid var(--border-input); border-radius:8px;
+  color:var(--lilac-100);
+  transition:border-color 120ms cubic-bezier(.2,.6,.2,1),background-color 120ms cubic-bezier(.2,.6,.2,1);
+}
+.socials a:hover{background:var(--ink-700); border-color:rgba(161,138,255,.38)}
+.socials a:focus-visible{outline:2px solid var(--violet-400); outline-offset:2px}
+.socials svg{width:20px; height:20px; fill:currentColor}
+
+.auth__note{margin:26px 0 0; padding:22px 0 0; border-top:1px solid var(--border-hairline); color:var(--lilac-300)}
+.auth__fine{
+  margin:12px 0 0; font:400 10.5px/1.6 var(--font-mono);
+  letter-spacing:.14em; text-transform:uppercase; color:var(--lilac-700);
+}
+
+a{color:var(--violet-400); text-decoration:none}
+a:hover{color:var(--lilac-200)}
+.link-u{border-bottom:1px solid rgba(161,138,255,.3)}
+.link-u:hover{border-bottom-color:var(--lilac-200)}
+
+/* ── подвал ────────────────────────────────────────────── */
+footer{
+  position:relative; z-index:1;
+  display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
+  padding:18px 46px; border-top:1px solid var(--border-hairline);
+  font-size:12.5px; color:var(--lilac-700);
+}
+footer p{margin:0; max-width:78ch}
+.copy{font:400 10.5px/1 var(--font-mono); letter-spacing:.15em; text-transform:uppercase; white-space:nowrap}
+
+/* ── мобильная раскладка: логин впереди, длинный текст скрыт ── */
+@media (max-width:960px){
+  body{padding:8px}
+  .shell{min-height:calc(100dvh - 16px)}
+  .grid{grid-template-columns:1fr}
+  .pane{padding:34px 22px 0; align-items:center; text-align:center}
+  .pane--auth{border-left:0; padding:26px 22px 0; order:-1}
+  .brand{flex-direction:column; gap:14px}
+  .badges{justify-content:center}
+  h1,.prose,.venues{display:none}
+  .cards{grid-template-columns:1fr; margin:22px 0 0; width:100%; max-width:420px}
+  .card__head,.pos,.card__foot{text-align:left}
+  .auth{max-width:420px}
+  .auth__label{display:none}
+  .auth__note{text-align:center}
+  .pane--brand{padding-bottom:26px}
+  footer{padding:18px 22px 22px; justify-content:center; text-align:center}
+  .copy{width:100%; text-align:center}
+}
+@media (max-width:420px){
+  .socials{gap:8px}
+  .socials a{height:46px}
+}
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <main>
-      <p class="eyebrow"><span class="dot" aria-hidden="true"></span>CryptoSmith X · Uždaras testavimas</p>
+<div class="shell">
+  <div class="grid">
 
-      <h1>Netikėk.<br>Patikrink pats.</h1>
+    <!-- ─── левая колонка ─── -->
+    <section class="pane pane--brand">
+      <div class="brand">
+        <svg class="mark" width="52" height="34" viewBox="0 0 52 34" aria-hidden="true">
+          <circle cx="5" cy="17" r="2.6" fill="#F5B84F" opacity=".75"/>
+          <circle cx="47" cy="17" r="2.6" fill="#F5B84F" opacity=".75"/>
+          <path d="M17 6 L26 14 L35 6 L39 10.5 L30.5 17 L39 23.5 L35 28 L26 20 L17 28 L13 23.5 L21.5 17 L13 10.5 Z"
+                fill="#F5B84F"/>
+        </svg>
+        <div>
+          <p class="wordmark">CryptoSmith <span>X</span></p>
+          <p class="tagline">Perps &amp; Crypto<i>·</i>Trade Bot</p>
+        </div>
+      </div>
 
-      <hr class="rule">
+      <div class="badges">
+        <span class="badge badge--gold">Uždaras testavimas</span>
+        <span class="badge badge--violet">Alfa — netrukus</span>
+      </div>
 
-      <p class="lead">
-        <strong>CryptoSmith X</strong> — algoritminės prekybos programinė įranga,
-        šiuo metu veikianti uždaro testavimo režimu. MB „BlynAI“ produktas.
-      </p>
-      <p class="sub">
-        Kiekvienas sprendimas įrašomas — kodėl įėjo, kurie signalai svėrė,
-        kokia buvo rizika. Viską galima atkartoti.
-      </p>
+      <h1>Netikėk. <em>Patikrink pats.</em></h1>
 
-      <p class="meta">~150 PORŲ · KAS 60 s · VISKAS ĮRAŠOMA</p>
+      <div class="prose">
+        <p>Euristikų rinkinys ir dirbtinis intelektas dirba kartu. Sistema kas 120 sekundžių
+           nuskaito daugiau kaip pusantro šimto Kraken porų — gyvas skaičius telemetrijoje.
+           Kiekviena pora vertinama pagal šimtus parametrų: EMA sankirtas, RSI, momentum,
+           ATR volatilumą, spread'ą, 24 h apimtis, order-book gylį, koreliaciją su BTC,
+           rinkos režimą ir visą kainų istoriją.</p>
+        <p>Iš viso to gimsta vienas balas — o iš balo sprendimas. Pozicijas atidaro pati,
+           dydį parenka pagal rizikos limitus, stop-loss ir tikslus nustato pati, uždaro
+           anksčiau, nei nuosmukis įsibėgėja, ir užfiksuoja rezultatą. Viskas automatiškai:
+           be rankinio įsikišimo ir be jūsų dalyvavimo.</p>
+        <p>Kiekvienas sprendimas įrašomas — kodėl įėjo, kurie signalai svėrė, kokia buvo
+           rizika. Viską galima atkartoti.</p>
+      </div>
 
-      <p class="access">
-        Paskyros kuriamos tik pakvietus. Registracija į alfą —
-        <a href="mailto:alfa@blynai.eu">alfa@blynai.eu</a>
-      </p>
+      <div class="cards">
+        <div class="card">
+          <div class="card__head"><span>Telemetrija</span><span class="live">Live</span></div>
+          <svg class="spark" viewBox="0 0 300 104" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="sl" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#F5B84F"/><stop offset="55%" stop-color="#C98F63"/>
+                <stop offset="100%" stop-color="#6B4EDB"/>
+              </linearGradient>
+              <linearGradient id="sf" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#F5B84F" stop-opacity=".18"/>
+                <stop offset="100%" stop-color="#6B4EDB" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0 82 L46 66 L92 62 L118 36 L152 20 L196 27 L214 30 L238 62 L268 50 L300 38 L300 104 L0 104 Z" fill="url(#sf)"/>
+            <path d="M0 82 L46 66 L92 62 L118 36 L152 20 L196 27 L214 30 L238 62 L268 50 L300 38"
+                  fill="none" stroke="url(#sl)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+          <div class="card__foot">Porų 180 · Ciklas 120 s · Sprendimų 2 964 107</div>
+        </div>
 
-      <nav>
-        <a href="https://blynai.eu">blynai.eu</a>
-        <a href="https://blynai.meetluko.eu">Žurnalas</a>
-        <a href="https://github.com/blyn-ai/CryptoSmith-X">Kodas</a>
-        <a href="mailto:info@blynai.eu">Kontaktai</a>
-      </nav>
-    </main>
+        <div class="card card--pos">
+          <div class="card__head"><span>Pozicijos</span><span>1 atvira</span></div>
+          <div class="pos">
+            <span class="pos__sym">ETH/USD</span>
+            <span class="pos__side">Short</span>
+            <span class="pos__pnl">+0.55%</span>
+          </div>
+          <div class="filler"></div>
+        </div>
+      </div>
+
+      <p class="venues">Kraken · Binance · WEEX · Hyperliquid</p>
+    </section>
+
+    <!-- ─── правая колонка: вход ─── -->
+    <section class="pane pane--auth">
+      <div class="auth">
+        <p class="auth__label">Prisijungimas</p>
+
+        <form id="login" novalidate>
+          <div class="field">
+            <label for="email">El. paštas</label>
+            <input id="email" name="email" type="email" autocomplete="email" placeholder="vardas@pastas.lt">
+          </div>
+          <div class="field">
+            <label for="pw">Slaptažodis</label>
+            <input id="pw" name="password" type="password" autocomplete="current-password" placeholder="••••••••">
+          </div>
+
+          <div class="row">
+            <label class="check"><input type="checkbox" checked> Prisiminti mane</label>
+            <a href="mailto:alfa@blynai.eu?subject=Slapta%C5%BEodis">Pamiršai?</a>
+          </div>
+
+          <button class="btn" type="submit">Prisijungti</button>
+        </form>
+
+        <p class="or">Arba</p>
+
+        <div class="socials">
+          <a href="mailto:alfa@blynai.eu" aria-label="Google">
+            <svg viewBox="0 0 24 24"><path d="M21.35 11.1H12v2.98h5.35c-.23 1.4-1.66 4.1-5.35 4.1-3.22 0-5.85-2.67-5.85-5.95S8.78 6.28 12 6.28c1.83 0 3.06.78 3.76 1.45l2.56-2.47C16.68 3.72 14.53 2.8 12 2.8 6.92 2.8 2.8 6.92 2.8 12s4.12 9.2 9.2 9.2c5.31 0 8.83-3.73 8.83-8.99 0-.6-.06-1.06-.15-1.51z"/></svg>
+          </a>
+          <a href="mailto:alfa@blynai.eu" aria-label="Apple">
+            <svg viewBox="0 0 24 24"><path d="M16.36 12.72c-.02-2.2 1.8-3.26 1.88-3.31-1.02-1.5-2.62-1.7-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.87-.76-1.48.02-2.84.86-3.6 2.18-1.53 2.66-.39 6.6 1.1 8.76.73 1.06 1.6 2.25 2.74 2.2 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.87.69 1.19-.02 1.94-1.08 2.66-2.14.84-1.23 1.19-2.42 1.2-2.48-.03-.01-2.3-.88-2.3-3.5zM14.2 6.3c.6-.74 1.01-1.76.9-2.78-.87.04-1.93.58-2.56 1.31-.56.65-1.06 1.7-.93 2.7.97.08 1.97-.49 2.59-1.23z"/></svg>
+          </a>
+          <a href="https://github.com/blyn-ai/CryptoSmith-X" aria-label="GitHub">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85 0 1.34-.01 2.42-.01 2.75 0 .27.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10z"/></svg>
+          </a>
+          <a href="mailto:alfa@blynai.eu" aria-label="Facebook">
+            <svg viewBox="0 0 24 24"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.52 1.49-3.91 3.77-3.91 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57v1.89h2.78l-.45 2.91h-2.33V22c4.78-.76 8.44-4.92 8.44-9.94z"/></svg>
+          </a>
+          <a href="mailto:alfa@blynai.eu" aria-label="X">
+            <svg viewBox="0 0 24 24"><path d="M17.53 3h3.02l-6.6 7.54L21.75 21h-5.9l-4.62-6.04L5.94 21H2.92l7.06-8.07L2.5 3h6.05l4.18 5.52L17.53 3zm-1.06 16.2h1.67L7.6 4.72H5.81l10.66 14.48z"/></svg>
+          </a>
+        </div>
+
+        <p class="auth__note">
+          Paskyros kuriamos tik pakvietus. Registracija į alfą —
+          <a class="link-u" href="mailto:alfa@blynai.eu">alfa@blynai.eu</a>
+        </p>
+        <p class="auth__fine">Not investment advice · Own funds only</p>
+      </div>
+    </section>
   </div>
 
   <footer>
-    <div>
-      <p>MB „BlynAI“ nėra finansų įstaiga, investicijų valdytojas ar finansinių
-         paslaugų teikėja. Prekiaujama tik bendrijos ir jos narių lėšomis;
-         klientų lėšų — nėra ir nebus.</p>
-      <p>MB „BlynAI“ · <a href="https://blynai.eu">blynai.eu</a></p>
-    </div>
+    <p>MB „BlynAI“ nėra finansų įstaiga, investicijų valdytojas ar finansinių paslaugų teikėja.
+       <a class="link-u" href="https://blynai.eu">Skaityti plačiau</a></p>
+    <p class="copy">blynai.eu · © 2026 MB „BlynAI“</p>
   </footer>
+</div>
+
+<script>
+  /* Бэкенда пока нет — форма ничего никуда не отправляет. */
+  document.getElementById('login').addEventListener('submit', function (e) { e.preventDefault(); });
+</script>
 </body>
 </html>
