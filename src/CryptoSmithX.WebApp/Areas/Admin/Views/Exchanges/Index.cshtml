@@ -1,62 +1,53 @@
 @model IReadOnlyList<ExchangeListItem>
+@using CryptoSmithX.WebApp.Data
 @{
     ViewData["Title"] = "Exchanges";
+    // ExchangeStore.Health returns ok/warning/error/none; map to the design vocabulary.
+    string Health(ExchangeListItem e) => ExchangeStore.Health(e) switch { "error" => "failing", "warning" => "degraded", "ok" => "ok", _ => "none" };
+    string Dot(string h) => h switch { "ok" => "ok", "degraded" => "warn", "failing" => "fail", _ => "none" };
+    var collecting = Model.Where(e => e.Status == "enabled").ToList();
+    var quiet = Model.Where(e => e.Status != "enabled").ToList();
 }
-@section head {
-    <meta http-equiv="refresh" content="10">
-}
-<main>
-    <div class="page-head">
-        <div>
-            <p class="eyebrow">Admin · integrations</p>
-            <h1>Exchanges</h1>
-        </div>
-        <span class="who">refreshes 10 s</span>
-    </div>
+@section head { <meta http-equiv="refresh" content="10"> }
+@section live { <span class="live">refreshes 10 s</span> }
 
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>Lifecycle</th><th>Exchange</th><th>Connection</th>
-                    <th class="num">Avg ms</th><th class="num">Instruments</th>
-                    <th class="num">Discovery</th><th class="num">Failures</th>
-                </tr>
-            </thead>
-            <tbody>
-            @if (Model.Count == 0)
-            {
-                <tr><td colspan="7" class="dash">No exchanges.</td></tr>
-            }
-            @foreach (var e in Model)
-            {
-                var health = CryptoSmithX.WebApp.Data.ExchangeStore.Health(e);
-                var enabled = e.Status == "enabled";
-                <tr>
-                    <td>
-                        <span class="badge @(e.Status switch { "enabled" => "badge-on", "maintenance" => "badge-warn", _ => "badge-off" })">@e.Status</span>
-                    </td>
-                    <td>
-                        <a href="/Admin/Exchanges/Details/@e.Code">@e.Name</a>
-                        <span class="muted">@e.Code</span>
-                    </td>
-                    <td>
-                        @if (health == "none")
-                        {
-                            <span class="muted">@Format.Dash</span>
-                        }
-                        else
-                        {
-                            <span class="@(health switch { "error" => "down", "warning" => "warn", _ => "" })">@health</span>
-                        }
-                    </td>
-                    <td class="num muted">@(enabled ? Format.Num(e.AvgDurationMs, 0) : Format.Dash)</td>
-                    <td class="num">@(enabled ? $"{e.TradingInstruments} / {e.KnownInstruments}" : Format.Dash)</td>
-                    <td class="num muted">@(enabled ? Format.Age(e.DiscoveryAgeSeconds) : Format.Dash)</td>
-                    <td class="num @((e.MaxFailures ?? 0) > 0 ? "down" : "muted")">@(enabled ? (e.MaxFailures ?? 0).ToString() : Format.Dash)</td>
-                </tr>
-            }
-            </tbody>
-        </table>
+<div class="page-head">
+    <div class="t"><p class="eyebrow">Admin · integrations</p><h1>Exchanges</h1></div>
+    <p class="page-note">Lifecycle is what a human decided. Health is observed on every render and never stored.</p>
+</div>
+
+<div class="section-h"><b>Collecting</b><i>@collecting.Count</i><hr></div>
+@if (collecting.Count == 0)
+{
+    <div class="panel"><div class="empty"><h3>Nothing enabled</h3><p>Enable an exchange from its detail page to start collecting.</p></div></div>
+}
+<div class="ex-list">
+@foreach (var e in collecting)
+{
+    var h = Health(e);
+    <a class="ex-card @(h == "failing" ? "is-fail" : "")" href="/Admin/Exchanges/Details/@e.Code">
+        <span class="ex-main">
+            <span class="ex-title"><span class="dot @Dot(h) lg @(h == "ok" ? "fresh" : "")"></span><span class="n">@e.Name</span><span class="tag enabled">enabled</span><span class="sev @Dot(h)">@(h == "ok" ? "ok" : h)</span></span>
+            <span class="ex-meta">@e.Code@(string.IsNullOrEmpty(e.Description) ? "" : " · " + e.Description)</span>
+        </span>
+        <span class="ex-stat"><i>Instruments</i><b>@e.TradingInstruments / @e.KnownInstruments</b></span>
+        <span class="ex-stat"><i>Avg ms</i><b>@Format.Num(e.AvgDurationMs, 0)</b></span>
+        <span class="ex-stat"><i>Discovery</i><b class="@(h == "failing" ? "" : "")" style="@(h == "failing" ? "color:var(--gold-300)" : h == "degraded" ? "color:var(--gold-400)" : "")">@Format.Age(e.DiscoveryAgeSeconds)</b></span>
+    </a>
+}
+</div>
+
+@if (quiet.Count > 0)
+{
+    <div class="section-h"><b style="color:var(--text-muted)">Not collecting</b><i>@quiet.Count</i><hr></div>
+    <div class="ex-quiet">
+    @foreach (var e in quiet)
+    {
+        <a class="tr" href="/Admin/Exchanges/Details/@e.Code">
+            <span class="tag @(e.Status == "maintenance" ? "maintenance" : "")">@e.Status</span>
+            <span class="cell"><span class="n">@e.Name</span><span class="code">@e.Code@(string.IsNullOrEmpty(e.Description) ? "" : " · " + e.Description)</span></span>
+        </a>
+    }
     </div>
-</main>
+    <p class="panel-note" style="padding:11px 0 0;max-width:70ch">These exchanges have no health, no latency and no freshness — not an em dash in a column, but no column at all. A planned integration is not a broken one.</p>
+}

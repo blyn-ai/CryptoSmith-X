@@ -68,3 +68,35 @@ public sealed record ExchangeCollectorRow(
 public sealed record ExchangeDetails(
     ExchangeListItem Exchange,
     IReadOnlyList<ExchangeCollectorRow> Collectors);
+
+// ── Admin dashboard ───────────────────────────────────────────────────────
+public sealed record DashExchange(
+    string Code, string Name, string Status, string Health,
+    int TradingInstruments, int KnownInstruments, double? WorstAgeSeconds,
+    IReadOnlyList<double> Spark);
+
+public sealed record DashCollector(
+    string ExchangeCode, string Collector, double? LastSuccessAgeSeconds,
+    int ConsecutiveFailures, int? AvgDurationMs, string? LastError, string Health);
+
+public sealed record DashBot(
+    string TenantCode, string BotInstanceId, double? LastHeartbeatAgeSeconds, bool Online);
+
+public sealed record DashEvent(DateTime Utc, string Type, string TenantCode, string BotInstanceId, bool IsError);
+
+public sealed record DashTenant(string Code, int BotCount, DateTime CreatedAt);
+
+public sealed record Dashboard(
+    int ExchangesEnabled, int ExchangesTotal, int ExchangesMaintenance, int ExchangesPlanned,
+    int CollectorsOk, int CollectorsTotal, int CollectorsFailing,
+    int InstrumentsTrading, int InstrumentsKnown,
+    int BotsOnline, int BotsTotal, string? SilentBotNote,
+    int EventsLastHour,
+    int Failing, int Degraded, string Verdict,
+    IReadOnlyList<DashExchange> Exchanges,
+    IReadOnlyList<DashCollector> Collectors,
+    IReadOnlyList<DashBot> Bots,
+    IReadOnlyList<DashEvent> Events,
+    IReadOnlyList<DashTenant> Tenants,
+    IReadOnlyList<double> IngestBuckets, int IngestPeak,
+    DateTime AsOf);

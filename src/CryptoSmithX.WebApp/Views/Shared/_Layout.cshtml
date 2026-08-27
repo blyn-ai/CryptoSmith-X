@@ -1,14 +1,9 @@
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnv
 @{
     var isAuth = User.Identity?.IsAuthenticated == true;
     var isAdmin = User.IsInRole("admin");
     var name = User.Identity?.Name;
-    string Active(string area, string controller)
-    {
-        var a = (ViewContext.RouteData.Values["area"] as string) ?? "";
-        var c = (ViewContext.RouteData.Values["controller"] as string) ?? "";
-        return string.Equals(a, area, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(c, controller, StringComparison.OrdinalIgnoreCase) ? "is-active" : "";
-    }
+    var env = HostEnv.IsDevelopment() ? "Local" : HostEnv.EnvironmentName;
 }
 <!doctype html>
 <html lang="en" data-theme="dark">
@@ -17,36 +12,49 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>@(ViewData["Title"] ?? "CryptoSmith X")</title>
     <link rel="icon" href="~/ds/assets/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="~/ds/styles.css">
-    <link rel="stylesheet" href="~/app.css">
+    <link rel="stylesheet" href="~/ds/styles.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/app.css" asp-append-version="true">
     @await RenderSectionAsync("head", required: false)
 </head>
 <body>
     <div class="top-rule"></div>
     @if (isAuth)
     {
-        <header class="top">
-            <a class="wordmark" href="@(isAdmin ? "/Admin" : "/My")">CryptoSmith <span>X</span></a>
-            <nav class="nav">
-                @if (isAdmin)
-                {
-                    <a class="@Active("Admin", "Exchanges")" href="/Admin/Exchanges">Exchanges</a>
-                    <a class="@Active("Admin", "Bots")" href="/Admin/Bots">Bots</a>
-                    <a class="@Active("Admin", "Tenants")" href="/Admin/Tenants">Tenants</a>
-                    <a class="@Active("Admin", "MarketData")" href="/Admin/MarketData">Market data</a>
-                }
-                else
-                {
-                    <a class="@Active("My", "Bots")" href="/My/Bots">My bots</a>
-                }
-            </nav>
-            <span class="who"><b>@name</b> · @(isAdmin ? "ADMIN" : "USER")</span>
-            <form method="post" action="/auth/logout">
-                @Html.AntiForgeryToken()
-                <button class="linkbtn" type="submit">Sign out</button>
-            </form>
-        </header>
+        <div class="shell">
+            <aside class="side">
+                <div class="side-brand">
+                    <img src="~/ds/assets/cryptosmith-mark.svg" alt="">
+                    <div>
+                        <span class="wordmark">CryptoSmith <span>X</span></span>
+                        <span class="side-sub">@(isAdmin ? "Admin console" : "Trader")</span>
+                    </div>
+                </div>
+                @await Component.InvokeAsync("SideNav")
+            </aside>
+            <div class="col">
+                <header class="head">
+                    <span class="env">@env</span>
+                    @await RenderSectionAsync("live", required: false)
+                    <span class="who"><b>@name</b> · @(isAdmin ? "ADMIN" : "USER")</span>
+                    <form method="post" action="/auth/logout">
+                        @Html.AntiForgeryToken()
+                        <button class="linkbtn" type="submit">Sign out</button>
+                    </form>
+                </header>
+                <main class="main">
+                    @RenderBody()
+                </main>
+                <footer class="foot">
+                    <span>CryptoSmith X · @env</span>
+                    <span class="sp"></span>
+                    <a href="https://blynai.eu">blynai.eu</a>
+                </footer>
+            </div>
+        </div>
     }
-    @RenderBody()
+    else
+    {
+        @RenderBody()
+    }
 </body>
 </html>
