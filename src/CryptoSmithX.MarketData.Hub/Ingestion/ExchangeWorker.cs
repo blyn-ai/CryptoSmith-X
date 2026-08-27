@@ -38,9 +38,8 @@ public sealed class ExchangeWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        // Migrations run only in CryptoSmithX.Database; here we just refuse to start on a schema
-        // that is missing or behind. Partitions stay with the Hub — it owns the writes.
-        await Migrator.VerifyAsync(_db, ct);
+        // Schema is verified in Program.cs before the host runs (a failure there exits non-zero).
+        // Partitions stay with the Hub — it owns the writes.
         await Partitions.EnsureCurrentAndNextAsync(_db, _clock, ct);
 
         var adapters = new List<(IExchangeMarketData Adapter, ExchangeOptions Config)>();

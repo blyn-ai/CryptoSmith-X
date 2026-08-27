@@ -77,7 +77,10 @@ public static class IngestEndpoints
                 {
                     BotId = botId.Value,
                     e.EventId,
-                    e.Utc,
+                    // Bots stamp events in local time (Europe/Vilnius = +02:00/+03:00). Npgsql only
+                    // writes offset-0 DateTimeOffset to timestamptz, so normalise here — otherwise a
+                    // single non-UTC event 500s and jams the outbox on a batch it can never ack.
+                    Utc = e.Utc.ToUniversalTime(),
                     e.Type,
                     Payload = e.Payload.GetRawText(),
                 },
@@ -91,7 +94,8 @@ public static class IngestEndpoints
     private static async Task<int?> AuthenticateAsync(HttpContext ctx, System.Data.Common.DbConnection conn, CancellationToken ct)
     {
         var header = ctx.Request.Headers.Authorization.ToString();
-        if (!header.StartsWith("Bearer ", StringComparison.Ordinal))
+        // The scheme is case-insensitive per RFC 7235; "bearer <t>" is as valid as "Bearer <t>".
+        if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }

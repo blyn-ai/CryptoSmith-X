@@ -3,6 +3,7 @@ name: cryptosmithx-marketdata
 services:
   postgres:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-marketdata}
       POSTGRES_USER: ${POSTGRES_USER:-marketdata}

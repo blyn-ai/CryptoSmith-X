@@ -15,4 +15,10 @@ builder.Services.AddSingleton(_ => new Db(
 builder.Services.AddHostedService<ExchangeWorker>();
 
 var host = builder.Build();
+
+// The schema is owned by CryptoSmithX.Database; refuse to start on one that is missing or behind.
+// Done here (not inside the worker) so a failure exits the process non-zero — inside ExecuteAsync
+// it would stop the host but still return 0, and compose would restart it in a silent loop.
+await Migrator.VerifyAsync(host.Services.GetRequiredService<Db>(), CancellationToken.None);
+
 await host.RunAsync();

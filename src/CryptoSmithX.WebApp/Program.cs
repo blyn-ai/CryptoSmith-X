@@ -2,8 +2,20 @@ using CryptoSmithX.Database;
 using CryptoSmithX.WebApp.Api;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// TLS is terminated by an upstream proxy (traefik) that sets X-Forwarded-Proto. Honour it so
+// Request.IsHttps is true behind the proxy and the auth cookie's SameAsRequest policy marks it
+// Secure. Inert on http://localhost, which browsers already treat as a secure context. The proxy
+// is not loopback inside the compose network, so trust it explicitly.
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.KnownIPNetworks.Clear();
+    o.KnownProxies.Clear();
+});
 
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
@@ -39,6 +51,7 @@ var app = builder.Build();
 // The schema is owned by CryptoSmithX.Database; refuse to serve on one that is missing or behind.
 await Migrator.VerifyAsync(app.Services.GetRequiredService<Db>(), CancellationToken.None);
 
+app.UseForwardedHeaders();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
