@@ -9,6 +9,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-marketdata}
       POSTGRES_USER: ${POSTGRES_USER:-marketdata}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-marketdata}
+    ports:
+      # Loopback only: for DataGrip/psql on this machine, never for the LAN.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       # Postgres data on the host, under CSX_DATA_ROOT (an external disk locally; see .env).
       # Defaults to deploy/data so a bare checkout still runs without configuration.
