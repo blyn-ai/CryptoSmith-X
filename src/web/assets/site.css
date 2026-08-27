@@ -57,9 +57,15 @@ body{
 
 .tags{display:flex; flex-wrap:wrap; gap:9px; margin-top:6px}
 .tag{
+  display:inline-block;
   font:600 10px/1 var(--font-mono); letter-spacing:.14em; text-transform:uppercase;
   padding:6px 10px; border-radius:var(--radius-xs); border:1px solid;
+  transition:var(--transition-color);
 }
+a.tag{text-decoration:none}
+a.tag--gold:hover{color:var(--gold-300); border-color:var(--gold-400); background:rgba(245,184,79,.14)}
+a.tag--violet:hover{color:var(--violet-200); border-color:var(--violet-400); background:rgba(161,138,255,.18)}
+a.tag:focus-visible{outline:var(--focus-ring); outline-offset:2px}
 .tag--gold{color:var(--gold-400); border-color:var(--border-gold); background:var(--tint-gold)}
 .tag--violet{color:var(--violet-400); border-color:var(--border-strong); background:var(--tint-violet)}
 

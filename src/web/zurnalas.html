@@ -1,0 +1,3247 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CryptoSmith X — botas, kuris prekiauja pats. Gyvas žurnalas.</title>
+  <meta name="description" content="Kiekvienas sprendimas įrašomas — kodėl įėjo, kurie signalai svėrė, kokia buvo rizika. Viską galima atkartoti.">
+  <link rel="canonical" href="https://cryptosmithx.blynai.eu/zurnalas">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="lt_LT">
+  <meta property="og:url" content="https://cryptosmithx.blynai.eu/zurnalas">
+  <meta property="og:site_name" content="CryptoSmith X">
+  <meta property="og:title" content="CryptoSmith X — gyvas žurnalas">
+  <meta property="og:description" content="Kiekvienas sprendimas įrašomas — kodėl įėjo, kurie signalai svėrė, kokia buvo rizika. Viską galima atkartoti.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="CryptoSmith X — gyvas žurnalas">
+  <meta name="twitter:description" content="Kiekvienas sprendimas įrašomas — kodėl įėjo, kurie signalai svėrė, kokia buvo rizika. Viską galima atkartoti.">
+  <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" type="image/svg+xml" href="/ds/assets/favicon.svg">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="stylesheet" href="/ds/tokens/fonts.css">
+  <style>
+/* ============================================================
+   BlynAI Capital — portfelio dashboard
+   ONE stylesheet drives BOTH desktop and mobile.
+   Breakpoint is a CONTAINER query on .bc-shell at 900px.
+   Wide  (>=900px container) = desktop layout
+   Narrow (<900px container) = mobile layout
+   Swap @container for @media (width:...) if you prefer, but then
+   .bc-shell must be full-viewport width. Do not change the 900px value.
+   ============================================================ */
+:root{
+  --bg-void:#07060B; --bg-1:#0D0B14; --surface:rgba(13,11,20,.9); --surface-2:#12101C;
+  --hairline:rgba(161,138,255,.13); --hairline-soft:rgba(161,138,255,.08);
+  --ink:#EFEAF7; --cream:#EFEAF7; --ink-soft:#c8bba6;
+  --muted:#9C93AE; --muted-2:#7C7391; --muted-3:#665E79; --muted-4:#554E66;
+  --gold:#f5b84f; --gold-soft:#ffd987; --purple:#A18AFF;
+  --green:#41C98F; --red:#EF5D6F; --amber:#f0a63a; --blue:#6faeff; --blue-deep:#2f5d8a;
+  --luko:#c9a86a; --byko:#7ccbff;
+  --font-display:"Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r-sm:6px; --r:8px; --r-md:11px; --r-lg:12px; --pill:999px;
+  --shadow:0 22px 60px rgba(0,0,0,.28);
+}
+@keyframes bcBlink{0%,100%{opacity:1;box-shadow:0 0 12px currentColor}50%{opacity:.28;box-shadow:0 0 2px currentColor}}
+
+.bc-shell{container-type:inline-size;position:relative;box-sizing:border-box;width:100%;background:
+  linear-gradient(120deg,rgba(7,6,11,.98),rgba(13,11,20,.96) 52%,rgba(10,8,18,.94)),#07060B;
+  color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.bc-shell *,.bc-shell *::before,.bc-shell *::after{box-sizing:border-box}
+/* (0,1,1) — outranks every single-class .bc-* rule, so margin-top on a <p> class
+   is silently dead. Space paragraphs with the parent's gap, or use padding. */
+.bc-shell p{margin:0}
+.bc-shell a{color:var(--purple);text-decoration:none}
+.bc-shell a:hover{color:#DCD3F5}
+.bc-shell summary{list-style:none;cursor:pointer}
+.bc-shell summary::-webkit-details-marker{display:none}
+.bc-dot{width:7px;height:7px;flex:none;border-radius:50%;background:var(--green);color:var(--green);animation:bcBlink 1.6s ease-in-out infinite}
+
+/* tone helpers */
+.bc-t-green{color:var(--green)} .bc-t-red{color:var(--red)} .bc-t-cream{color:var(--cream)}
+.bc-t-soft{color:var(--ink-soft)} .bc-t-gold{color:var(--gold)} .bc-t-blue{color:var(--blue)}
+
+/* --- topbar --- */
+.bc-topbar{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:20px 24px;
+  padding:18px 22px;border-bottom:1px solid var(--hairline)}
+.bc-brand{display:inline-flex;align-items:center;gap:12px;color:inherit}
+.bc-mark{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:var(--r-lg);
+  background:rgba(0,0,0,.28);border:1px solid rgba(245,184,79,.28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 0 22px rgba(245,184,79,.14)}
+.bc-mark svg{width:31px;height:31px}
+.bc-brand-txt{display:flex;flex-direction:column;gap:2px}
+.bc-brand-txt b{font:600 17px/1.05 var(--font-display);letter-spacing:.01em;color:var(--cream);white-space:nowrap}
+.bc-brand-txt b i{font-style:normal;color:var(--purple)}
+/* The name wherever it appears in running text or a legend, split the same way as in
+   the header. It inherits the size and weight of whatever it sits in - a headline is
+   not a topbar - and carries only the two colours, which is what makes it the name. */
+/* The colon after each owner's name, and the "Aš:" that answers it. They carry the
+   grouping the frames already draw, so a reader who scans one legend entry still
+   knows whose it is. */
+.bc-blynai{font-family:var(--font-display);color:var(--cream)}
+.bc-blynai i{font-style:normal;color:var(--purple)}
+.bc-brand-txt small{font:10px var(--font-mono);text-transform:uppercase;letter-spacing:.14em;color:var(--purple);white-space:nowrap}
+.bc-topbar-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+/* Page chrome, not a data control — deliberately quieter than the tenant switch
+   next to it, so two pill pairs never read as one four-state toggle. */
+/* The document link and the language switch share one line and one type size:
+   both are meta, neither is the page. */
+.bc-meta{display:flex;align-items:baseline}
+.bc-aktas{font:10px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted-3);text-decoration:none}
+.bc-aktas:hover{color:var(--cream)}
+.bc-aktas::after{content:" · ";color:var(--muted-4)}
+.bc-lang{margin:0;display:flex;font:10px var(--font-mono);letter-spacing:.14em;text-transform:uppercase}
+.bc-lang b{font-weight:500;color:#DCD3F5}
+.bc-lang a{color:var(--muted-3);text-decoration:none}
+.bc-lang a:hover{color:var(--cream)}
+.bc-lang-x{color:var(--muted-4)}
+.bc-tenant{display:flex;align-items:center;gap:8px}
+.bc-tenant-l{font:10px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted-3)}
+.bc-seg{display:inline-flex;gap:3px;padding:3px;border:1px solid rgba(161,138,255,.14);border-radius:var(--r);background:rgba(13,11,20,.82)}
+.bc-seg button{min-height:28px;padding:0 15px;border:0;border-radius:var(--r-sm);background:transparent;
+  color:var(--muted-2);font:600 12px var(--font-mono);letter-spacing:.06em;cursor:pointer}
+.bc-seg button.is-active{background:rgba(161,138,255,.16);color:#DCD3F5;box-shadow:inset 0 0 0 1px rgba(161,138,255,.35)}
+.bc-status-chips{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.bc-status{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 11px;white-space:nowrap;
+  border:1px solid rgba(161,138,255,.12);border-radius:7px;background:rgba(13,11,20,.82);font:11.5px var(--font-mono)}
+.bc-status-l{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-2)}
+.bc-status-v{color:var(--green);font-weight:500}
+.bc-status-m{color:var(--muted-4)}
+.bc-status-line{display:none;align-items:center;gap:9px;width:100%;height:34px;padding:0;border:0;background:none;
+  font:11.5px var(--font-mono);color:var(--muted);cursor:pointer}
+.bc-status-line .bc-chev{margin-left:auto;color:var(--muted-4)}
+
+/* --- hero --- */
+.bc-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,552px);gap:30px 44px;
+  padding:34px 22px 30px;border-bottom:1px solid var(--hairline)}
+.bc-eyebrow{font:600 11px var(--font-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.bc-h1{margin:13px 0 0;font:700 clamp(27px,4.4cqw,40px)/1.08 var(--font-display);letter-spacing:-.028em;color:var(--cream);text-wrap:pretty}
+.bc-h1 .bc-h1-a{display:block}
+.bc-lead{margin:16px 0 0;font-size:clamp(15.5px,1.7cqw,17.5px);line-height:1.5;color:#D5CFE4;text-wrap:pretty}
+.bc-coins{grid-row:1;grid-column:2;align-self:start;padding:18px;border:1px solid var(--hairline);border-radius:var(--r-lg);background:rgba(0,0,0,.25)}
+.bc-coins-l{font:10px var(--font-mono);letter-spacing:.13em;text-transform:uppercase;color:var(--muted-3)}
+.bc-coins-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+.bc-coin{display:flex;align-items:center;gap:13px;min-width:0;padding:13px 14px;border-radius:var(--r-md)}
+.bc-coin--luko{border:1px solid rgba(201,168,106,.28);background:rgba(201,168,106,.06)}
+.bc-coin--byko{border:1px solid rgba(124,203,255,.28);background:rgba(124,203,255,.06)}
+.bc-coin-ic{flex:none;display:block}
+.bc-coin-ic svg{width:40px;height:40px;display:block}
+.bc-coin-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.bc-coin-txt b{font:600 16px var(--font-display);letter-spacing:.02em}
+.bc-coin-txt small{font:11.5px var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Each coin's live bot instance. Dimmer than the coin domain: it is a pointer,
+   not the brand. Hidden on narrow along with the other small lines. */
+
+.bc-coin--luko b{color:#e8d5ac} .bc-coin--luko small{color:#9a8f7d}
+.bc-coin--byko b{color:#bfe2ff} .bc-coin--byko small{color:#7f8b96}
+/* Each coin's live bot instance. Dimmer than the coin domain: it is a pointer,
+   not the brand. Selector matches the coin colours' specificity and sits after
+   them, so no !important is needed. Hidden on narrow with the other small lines. */
+.bc-coin--luko .bc-coin-algo,.bc-coin--byko .bc-coin-algo{
+  margin-top:3px;padding-top:3px;border-top:1px solid rgba(161,138,255,.1);color:var(--muted-3)}
+/* Cross rate, opposite the label on the same baseline. Each figure takes the
+   colour of the coin it is denominated in, so it ties back to the cards below. */
+.bc-coins-hd{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.bc-rate{margin:0;font:11px/1.4 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--muted-3);white-space:nowrap}
+.bc-rate b{font-weight:500}
+.bc-rate .bc-rate-b{color:#bfe2ff}
+.bc-rate .bc-rate-l{color:#e8d5ac}
+.bc-rate-x{color:var(--muted-4)}
+.bc-hero-wide{grid-column:1/-1;min-width:0}
+/* Mobile-only "this is not the end" cue. The splash finishes inside one screen,
+   which is exactly why it reads as a complete page: CTA, then pills, then what
+   looks like footer prose. The cue sits ABOVE the coin pills (order 4, pills 5)
+   because that is the only slot left where the fold still cuts it — a half-visible
+   section heading is the one unambiguous signal that scrolling pays off, and it is
+   worth more on the first screen than the brand pills. Re-measure if the hero grows. */
+.bc-next{display:none;grid-column:1/-1;min-width:0}
+@keyframes bcNudge{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+@media (prefers-reduced-motion:reduce){.bc-next-ar{animation:none}}
+.bc-heur{grid-column:1/-1;min-width:0}
+.bc-cta-wrap{grid-column:1/-1;min-width:0}
+.bc-proof{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:1px;
+  border:1px solid rgba(65,201,143,.22);border-radius:var(--r-lg);overflow:hidden;background:rgba(65,201,143,.16)}
+.bc-proof-cell{padding:18px 20px;background:#0A120F}
+/* Card labels are metadata, not money — green is reserved for realised
+   figures, so labels use the muted ramp. Only .bc-proof-l--warn is tinted. */
+.bc-proof-l{font:600 10px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted-3)}
+.bc-proof-l--warn{color:var(--amber)}
+.bc-proof-n{display:flex;align-items:baseline;gap:9px;margin-top:10px;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.bc-from{font-size:26px;color:var(--muted-2)} .bc-arrow{font-size:20px;color:var(--green)} .bc-to{font-size:30px;color:var(--cream)}
+.bc-proof-s{margin-top:8px;font-size:13px;color:var(--muted)}
+.bc-proof-s b{color:var(--green);font-weight:600}
+.bc-proof-p{margin-top:10px;font-size:14.5px;line-height:1.5;color:#BFB8D0;text-wrap:pretty}
+.bc-proof-p b{color:var(--cream);font-weight:600}
+.bc-heur{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:26px 30px;margin-top:26px}
+.bc-heur p{font-size:15.5px;line-height:1.64;color:#BFB8D0;text-wrap:pretty}
+.bc-heur p b{color:var(--cream);font-weight:600}
+.bc-heur p+p{color:var(--muted)}
+.bc-heur .bc-heur-dim{color:var(--muted-2)}
+/* Two paragraphs sharing one grid cell: .bc-heur auto-fits its CHILDREN into columns,
+   so a fourth <p> silently became a fourth column instead of sitting under the third. */
+.bc-heur-col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.bc-heur-col p+p{color:var(--muted-2)}
+.bc-shell a.bc-cta{display:inline-flex;align-items:center;height:46px;margin-top:26px;padding:0 24px;
+  border:1px solid rgba(161,138,255,.45);border-radius:9px;background:rgba(161,138,255,.08);
+  color:#DCD3F5;font:500 15.5px var(--font-display)}
+.bc-shell a.bc-cta:hover{background:rgba(161,138,255,.16);color:#EFEAF7}
+
+/* --- live / chart / metrics --- */
+.bc-live{padding:26px 22px 0}
+.bc-live-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.bc-live-l{display:flex;align-items:center;gap:9px;font:600 11px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--green)}
+.bc-live-l b{font-weight:700;color:var(--gold)}
+.bc-live-n{display:flex;align-items:baseline;gap:14px;padding-top:16px;flex-wrap:wrap}
+.bc-big{font:clamp(34px,5.8cqw,54px)/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--cream)}
+.bc-delta{display:inline-flex;align-items:center;height:32px;padding:0 13px;white-space:nowrap;
+  border:1px solid rgba(65,201,143,.34);border-radius:var(--pill);background:rgba(65,201,143,.07);
+  color:var(--green);font:13.5px var(--font-mono)}
+.bc-live-s{margin-top:10px;font:12.5px var(--font-mono);color:var(--muted-2)}
+.bc-live-s b{color:var(--ink-soft);font-weight:400} .bc-live-s i{font-style:normal;color:var(--blue)}
+/* The day's change, broken into the parts that make it up — so "-5,75 today"
+   next to "realised +0,54" and "unrealised 0,00" stops reading as a
+   contradiction. The parts are signed and end in the same total the line
+   above prints. */
+.bc-live-bridge{margin-top:7px;font:12px/1.5 var(--font-mono);color:var(--muted-2)}
+.bc-live-bridge .bc-br-pos{color:var(--ink-soft)} .bc-live-bridge .bc-br-neg{color:var(--ink-soft)}
+.bc-live-bridge .bc-br-eq{color:var(--muted-2)}
+/* Who did it, after the pair. One family for all five states: the brackets are the
+   record, what sits inside them is what happened to it, and the dashed axis says the
+   record is a copy. Stroke only, at the pair's own scale, in the colours the page
+   already assigns - muted the bot, blue a person, amber a person who changed what the
+   bot had done, purple the mirror. The bot mark is the most frequent one on the page,
+   so it sits on --muted rather than --muted-2: quiet, but still legible. */
+.bc-doer{flex:none;display:inline-flex;width:13px;height:13px;margin-left:8px;
+  vertical-align:-1px}
+.bc-doer svg{display:block;width:100%;height:100%}
+.bc-doer--bot{color:var(--muted)}
+.bc-doer--hand{color:var(--blue)}
+.bc-doer--fix{color:var(--amber)}
+.bc-doer--mirror,.bc-doer--mirror-flip{color:var(--purple)}
+.bc-legend{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.bc-legend-l{font:10.5px var(--font-mono);letter-spacing:.13em;text-transform:uppercase;color:var(--muted-3);text-align:right}
+/* One pill, four groups, hairlines between them. Two framed rows read as two boxes
+   arguing with the chart under them; one object with internal divisions reads as a
+   caption. The owner names that used to head the rows ("BlynAI:", "Rankiniai:") moved
+   into the "?" dialog - the blue already says a person moved that money. */
+.bc-legend-bar{display:inline-flex;align-items:stretch;height:30px;
+  border:1px solid var(--hairline);border-radius:var(--pill);background:rgba(13,11,20,.7);
+  font:11px var(--font-mono);color:var(--ink-soft);white-space:nowrap}
+/* The divider is a border on each group, not a separate element, so a group that
+   hides takes its own rule with it. A separate span would leave a doubled hairline
+   wherever "startas" is absent, which is any account funded before it was listed. */
+/* Squares first, then what they mean - every group, and the dialog rows too. The
+   BlynAI name is part of its group's label, not a heading in front of the squares:
+   one group reading the other way was the only thing to notice about the line. */
+.bc-legend-bar>*{display:inline-flex;align-items:center;gap:5px;padding:0 9px;
+  border-left:1px solid var(--hairline)}
+.bc-legend-bar>*:first-child{border-left:0;padding-left:12px}
+.bc-legend-bar>*:last-child{padding-right:12px}
+.bc-legend-bar .bc-blynai{font-size:11.5px}
+/* The question mark is the last segment, not a button beside the pill: set outside
+   it reads as a second object competing with the legend it is there to explain. */
+.bc-lg-help{position:relative;border:0;border-left:1px solid var(--hairline);background:none;
+  color:var(--muted-2);font:600 11px var(--font-mono);cursor:pointer;padding:0 10px}
+.bc-lg-help:hover{color:#DCD3F5}
+/* The one control in the legend, and a 26px pill cannot give a thumb 44px. The hit
+   area grows past the pill instead of the glyph doing it - hence no overflow:hidden
+   above, which would clip this back to nothing. It reaches over "startas" on the
+   left, which is text and takes no clicks of its own. */
+.bc-lg-help::after{content:"";position:absolute;inset:-9px -6px}
+.bc-sq-pair{display:inline-flex;gap:3px}
+.bc-sq{width:14px;height:14px;border-radius:3px;display:inline-flex;align-items:center;justify-content:center}
+.bc-sq svg{width:7px;height:6px;display:block}
+.bc-sq--up{background:var(--green)} .bc-sq--dn{background:var(--red)}
+/* Today: filled when the day is up, hollow when it is down, and carrying the same
+   plus and minus the transfers use - the gold adds a subject, not a second
+   convention to learn. */
+.bc-sq--today{background:#f5b84f}
+.bc-sq--today-dn{background:#0D0B14;box-shadow:inset 0 0 0 1.5px #f5b84f}
+.bc-sq--today svg,.bc-sq--today-dn svg{width:7px;height:7px}
+/* The capital the account began with. One square, not a pair: unlike a transfer it
+   has no direction - it is where the counting starts, and it happens once. */
+.bc-sq--start{background:var(--blue-deep)}
+.bc-lg-w{display:inline} .bc-lg-n{display:none}
+.bc-sq--dep{background:var(--blue)} .bc-sq--wdr{background:var(--blue-deep);box-shadow:inset 0 0 0 1.5px var(--blue)}
+.bc-chart{margin-top:16px}
+.bc-chart-svg{display:block;overflow:visible}
+/* The account row and the day's tally sit one above the other and answer the same
+   question, so they are the same object: separate cards, not a hairline-joined strip.
+   The strip read as a table header for the cards beneath it. Mobile keeps the joined
+   form for both - four bordered boxes on a phone is more frame than figure. */
+.bc-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,175px),1fr));gap:12px;margin-top:18px}
+.bc-metric{padding:16px 18px;border:1px solid var(--hairline);border-radius:var(--r-lg);
+  background:rgba(13,11,20,.85)}
+.bc-metrics .bc-metric-v{font-size:28px}
+.bc-metric-l{font:600 10px var(--font-mono);letter-spacing:.11em;text-transform:uppercase;color:var(--muted-3)}
+.bc-metric-v{margin-top:8px;font:22px/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--cream)}
+.bc-metric-s{margin-top:6px;font-size:12px;color:var(--muted-2)}
+
+/* --- tabs --- */
+.bc-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:20px 22px}
+.bc-tabs a{display:inline-flex;align-items:center;min-height:34px;padding:0 13px;border:1px solid var(--hairline);
+  border-radius:var(--r);background:rgba(13,11,20,.72);font:13px var(--font-mono)}
+.bc-tabs a:hover{border-color:rgba(161,138,255,.45);background:rgba(161,138,255,.1)}
+
+/* --- sections & cards --- */
+.bc-sec{padding:8px 22px 0}
+.bc-sec+.bc-sec{padding-top:34px}
+.bc-sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.bc-sec-head h2{margin:0;font:600 clamp(19px,2.6cqw,22px) var(--font-display);letter-spacing:-.01em;color:var(--cream)}
+.bc-sec-head span{font:12px var(--font-mono);color:var(--muted-3)}
+.bc-tstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,165px),1fr));gap:12px;margin-top:12px}
+.bc-tstats .bc-metric{padding:16px 18px;border:1px solid var(--hairline);border-radius:var(--r-lg);background:rgba(13,11,20,.85)}
+.bc-tstats .bc-metric-v{font-size:28px}
+
+/* Account at a glance — three groups (Marža / P/N / Sandoriai), each a row of
+   three related figures. Wide screens set the groups side by side (one line of
+   three); the phone stacks them into three rows. Each group's own three values
+   always stay in one three-column row, so the block is a rectangle, never a
+   scattered set of square cards. */
+.bc-account{margin-top:18px}
+.bc-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.bc-group{padding:14px 16px;border:1px solid var(--hairline);border-radius:var(--r-lg);background:rgba(13,11,20,.85)}
+.bc-group-l{font:600 10px var(--font-mono);letter-spacing:.11em;text-transform:uppercase;color:var(--gold)}
+.bc-group-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:11px}
+.bc-gcell{display:flex;flex-direction:column;gap:5px;min-width:0}
+.bc-gc-l{font:600 9px var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted-3);line-height:1.3;min-height:2.1em}
+/* Colour comes from the tone class every cell is given (bc-t-cream / green /
+   red), so no hardcoded colour here — it would sit later in the sheet and win. */
+.bc-gc-v{font:18px/1 var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.bc-groups-note{margin-top:11px;font:12px var(--font-mono);color:var(--muted-2)}
+.bc-list{display:grid;gap:12px}
+.bc-card{border:1px solid var(--hairline);border-radius:var(--r-lg);
+  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.008)),var(--surface)}
+.bc-card-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,272px),1fr));gap:22px 26px;padding:20px}
+.bc-pair{font:600 19px var(--font-display);letter-spacing:-.01em;color:var(--cream)}
+.bc-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.bc-badge{display:inline-flex;align-items:center;height:23px;padding:0 9px;border-radius:var(--pill);
+  font:600 10.5px var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+.bc-badge--green{color:var(--green);background:rgba(65,201,143,.1);border:1px solid rgba(65,201,143,.3)}
+.bc-badge--red{color:var(--red);background:rgba(239,93,111,.1);border:1px solid rgba(239,93,111,.32)}
+.bc-badge--warn{color:var(--amber);background:rgba(240,166,58,.09);border:1px solid rgba(240,166,58,.3)}
+.bc-badge--neutral{color:var(--muted);background:rgba(255,255,255,.03);border:1px solid rgba(161,138,255,.18)}
+.bc-when{display:block;margin-top:11px;font:11.5px var(--font-mono);color:var(--muted-3)}
+.bc-params{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 14px;margin-top:13px}
+.bc-kv{display:flex;flex-direction:column;gap:3px}
+.bc-kv-l{font:9.5px var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted-4)}
+.bc-kv-v{font:13px var(--font-mono);font-variant-numeric:tabular-nums}
+.bc-why-l,.bc-chips-l,.bc-num-l{font:600 10px var(--font-mono);letter-spacing:.13em;text-transform:uppercase;color:var(--muted-3)}
+.bc-chips-l,.bc-num-l+.bc-chips{margin-top:0}
+.bc-why{margin-top:9px;font-size:14.5px;line-height:1.6;color:#D5CFE4;text-wrap:pretty}
+.bc-tech{margin-top:14px;font:11.5px/1.6 var(--font-mono);color:var(--muted-3);word-break:break-word}
+.bc-bar-box{margin-top:18px;padding:14px 14px 10px;border:1px solid rgba(161,138,255,.1);border-radius:10px;background:rgba(0,0,0,.24)}
+.bc-bar-ends{display:flex;justify-content:space-between;font:10px var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted-4)}
+.bc-bar{height:8px;margin-top:9px;border-radius:var(--pill)}
+.bc-bar--long{background:linear-gradient(90deg,rgba(239,93,111,.55),rgba(240,166,58,.4) 45%,rgba(65,201,143,.55))}
+.bc-bar--short{background:linear-gradient(90deg,rgba(65,201,143,.55),rgba(240,166,58,.4) 55%,rgba(239,93,111,.55))}
+.bc-bar-marks{position:relative;height:33px;margin-top:-8px}
+.bc-tick{position:absolute;top:0;width:2px;height:8px;background:var(--cream);opacity:.55}
+.bc-now{position:absolute;top:-3px;width:14px;height:14px;margin-left:-7px;border-radius:50%;
+  border:2.5px solid var(--surface-2);background:var(--cream);box-shadow:0 0 12px rgba(239,234,247,.5)}
+.bc-now-l{position:absolute;top:15px;transform:translateX(-50%);white-space:nowrap;font:11px var(--font-mono);color:var(--cream)}
+.bc-bar-foot{font:11px var(--font-mono);color:var(--muted-4)}
+.bc-num-l{font-size:9.5px;letter-spacing:.11em}
+.bc-num-v{display:flex;align-items:baseline;gap:10px;margin-top:7px}
+.bc-num-v span{font:30px/1 var(--font-mono);font-variant-numeric:tabular-nums}
+.bc-num-v em{font-style:normal;font:14px var(--font-mono)}
+.bc-num .bc-chips-l{margin-top:18px}
+.bc-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.bc-chip{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:7px;font:11.5px var(--font-mono)}
+/* A signal chip is a signed weight, so its colour follows the sign — a bearish
+   weight must not read in the profit colour. .bc-chip--sig is layout only. */
+.bc-chip--sig{border:1px solid var(--hairline);background:rgba(255,255,255,.03);color:var(--ink-soft)}
+.bc-chip--pos{border-color:rgba(65,201,143,.26);background:rgba(65,201,143,.07);color:var(--green)}
+.bc-chip--neg{border-color:rgba(239,93,111,.26);background:rgba(239,93,111,.07);color:var(--red)}
+.bc-chip--zero{border-color:var(--hairline);background:rgba(255,255,255,.03);color:var(--muted-3)}
+.bc-chip--ctx{border:1px solid rgba(111,174,255,.24);background:rgba(111,174,255,.07);color:var(--blue)}
+.bc-chip--warn{border:1px solid rgba(240,166,58,.28);background:rgba(240,166,58,.08);color:var(--amber)}
+.bc-chev{font:10.5px var(--font-mono);color:var(--muted-3)}
+.bc-card-body{padding:0 20px 18px;border-top:1px solid var(--hairline-soft)}
+.bc-trade-sum{font:10.5px var(--font-mono);color:var(--muted-3)}
+.bc-proof-note{margin-top:14px;font-size:13.5px;line-height:1.55;color:var(--muted);text-wrap:pretty}
+.bc-proof-note b{color:var(--cream);font-weight:600}
+.bc-proof-fine{margin-top:8px;font:11.5px/1.5 var(--font-mono);color:var(--muted-3);text-wrap:pretty}
+/* Card 2 is a hypothetical, so its figures must not borrow the profit colour. */
+.bc-proof-n--hypo .bc-from,.bc-proof-n--hypo .bc-arrow{color:var(--muted-3)}
+/* The money that was at work keeps the amber it had when it read "Iš 44,98 $" on the
+   line below. It moved to the headline, not to a different meaning. */
+.bc-from--used{color:var(--amber)}
+.bc-proof-n--hypo .bc-to{color:var(--muted)}
+.bc-proof-l--hypo{color:var(--muted-4)}
+.bc-fn-mark{color:var(--purple);text-decoration:none}
+.bc-footnote{margin:0;padding:22px;border-top:1px solid var(--hairline);
+  font:12.5px/1.65 var(--font-body);color:var(--muted-2);text-wrap:pretty}
+.bc-footnote b{color:var(--ink-soft);font-weight:600}
+.bc-proof-pct{font:16px var(--font-mono);color:var(--green)}
+.bc-proof-n .bc-to.is-realised{color:var(--green)}
+.bc-cta-note{margin-top:10px;font:12px var(--font-mono);color:var(--muted-3)}
+/* Technical terms: monospace + dotted underline, never coloured. Green is
+   reserved for realised P&L figures, so terminology must not borrow it. */
+.term{font-family:var(--font-mono);font-size:.94em;border-bottom:1px dotted rgba(200,187,166,.5);color:inherit}
+.bc-mobilebar{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 14px;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);
+  background:rgba(0,0,0,.4);font:11px var(--font-mono)}
+.bc-mb-status{display:inline-flex;flex:none;align-items:center;gap:8px;white-space:nowrap;color:var(--green)}
+.bc-mb-status em{font-style:normal;color:var(--muted-4)}
+.bc-only-narrow{display:none}
+
+/* =========================== WIDE (desktop) =========================== */
+@container (min-width:900px){
+  /* four fixed columns: auto-fit would orphan the fourth card onto its own row */
+  .bc-proof{grid-template-columns:repeat(4,1fr)}
+  /* cards are always expanded on desktop; the toggle is mobile-only */
+  .bc-card>.bc-card-sum{cursor:default}
+  .bc-only-narrow{display:none!important}
+  .bc-status-line{display:none}
+  /* The headline block gives up width before the legend does. One line of legend is
+     wider than the two stacked frames it replaced, and left to their content widths
+     the two of them wrapped it under the number on a 1280px screen; a 360px basis
+     lets the sentence under the number take a second line instead. Scoped to this
+     block on purpose - the narrow layout runs the same flex in a column, where a
+     360px basis is 360px of empty height under the number. */
+  .bc-live-head>:first-child{flex:1 1 360px;min-width:0}
+  .bc-legend{flex:0 0 auto}
+}
+
+/* =========================== NARROW (mobile) ========================== */
+@container (max-width:899px){
+  .bc-only-wide{display:none!important}
+  .bc-only-narrow{display:block}
+  span.bc-only-narrow{display:inline-block}
+
+  .bc-topbar{position:absolute;top:0;left:0;right:0;z-index:2;
+    justify-content:center;align-items:center;padding:26px 16px 0;gap:12px;border-bottom:0;background:none}
+  .bc-mark{width:32px;height:32px;border-radius:10px}
+  .bc-mark svg{width:23px;height:23px}
+  .bc-brand-txt b{font-size:14.5px}
+  /* The column itself dissolves so the language toggle can survive it; the three
+     data controls it held are hidden one by one (the mobile bar carries them). */
+  .bc-topbar-right{display:contents}
+  .bc-topbar-right>.bc-tenant,.bc-topbar-right>.bc-status-chips,
+  .bc-topbar-right>.bc-status-line{display:none}
+  /* Pinned into the empty corner beside the centred brand — costs no fold budget. */
+  /* The two of them take the corners the centred wordmark leaves empty, on the
+     line under it: the document on the left, the language on the right. The
+     wrapper dissolves so each can be placed on its own. */
+  .bc-meta{display:contents}
+  .bc-aktas{position:absolute;top:21px;left:4px;padding:10px 12px;z-index:3}
+  .bc-aktas::after{content:none}
+  .bc-lang{position:absolute;top:31px;right:16px;z-index:3}
+  .bc-seg button{min-height:24px;padding:0 10px;font-size:10.5px}
+  .bc-mobilebar{display:flex}
+
+  /* HERO = the whole first screen: centred, sells before any scroll */
+  /* FOLD BUDGET: on a 390x844 screen the ".bc-next-l" label must sit above 844px —
+     it is what tells the reader the page continues. Measured: arrow 784-818,
+     label 825-839 — both read in full above the fold, and the rule they sit on is
+     the visible break that says the page continues. Do not let the label slip past
+     844. A second identical cue sits after the heuristics block. The coin pills now
+     fall below the fold by design. If you add anything to the hero, re-measure. */
+  /* The brand is lifted out of flow so the hero starts at y=0 and its glow
+     origin coincides with the top of the screen — otherwise a hard seam forms
+     across the shell right under the centred logo. */
+  .bc-hero{grid-template-columns:1fr;gap:18px;min-height:700px;align-content:center;
+    padding:84px 20px 22px;text-align:center;
+    background:radial-gradient(120% 62% at 50% 0%,rgba(245,184,79,.12),rgba(7,6,11,0) 62%)}
+  .bc-hero-main{order:1}
+  .bc-hero-wide{order:2}
+  .bc-cta-wrap{order:3}
+  .bc-next{display:block;position:relative;order:4;margin-top:4px;padding-top:24px;border-top:2px solid rgba(201,168,106,.34);text-align:center}
+  .bc-next--live{order:7;margin-top:30px}
+  .bc-next-ar{position:absolute;top:-17px;left:50%;margin-left:-17px;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;border:2px solid rgba(201,168,106,.34);background:var(--bg-void);color:var(--gold);animation:bcNudge 2.2s ease-in-out infinite}
+  .bc-next-ar svg{width:18px;height:18px;display:block}
+  .bc-next-l{margin:0;font:600 11px var(--font-mono);letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+  .bc-coins{order:5;margin-top:24px}
+  .bc-heur{order:6}
+  .bc-h1{margin:12px auto 0;font-size:30px;max-width:none}
+  .bc-lead{margin:12px auto 0;font-size:15px;max-width:none}
+  .bc-coins{grid-row:auto;grid-column:auto;padding:0;border:0;background:none}
+  .bc-coins-l{font-size:9.5px}
+  .bc-coins-row{display:flex;justify-content:center;gap:8px;margin-top:10px}
+  .bc-coin{gap:7px;height:30px;padding:0 11px;border-radius:var(--pill)}
+  .bc-coin-ic svg{width:17px;height:17px}
+  .bc-coin-txt small{display:none}
+  .bc-coin-txt b{font-size:12.5px}
+
+  /* Stacked and centred under the label; the fold budget below assumes one line. */
+  .bc-coins-hd{flex-direction:column;align-items:center;gap:5px}
+  .bc-rate{font-size:10px}
+  /* 2×2: all four cards fit the splash. Stacked they cost 545px and pushed the
+     CTA off-screen; paired they cost ~360px. Rows are equal-height (stretch),
+     so the two cells in a row share a baseline even with unequal copy. */
+  /* minmax(0,1fr), not 1fr: 1fr is minmax(auto,1fr), so a figure row wider than
+     its share stretched the column instead of shrinking it, and cards 2 and 4 ran
+     51px past a 390px screen. The mock's "60 $ -> 89 $" fit; live values carry
+     cents and need 265px. */
+  .bc-proof{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;border:0;border-radius:0;background:none;text-align:center}
+  .bc-proof-cell{padding:12px 10px;border:1px solid rgba(65,201,143,.26);border-radius:14px;background:rgba(65,201,143,.05)}
+  /* stays at the base 10px: below that the muted ramp drops under 4.5:1, and these
+     labels are the only thing distinguishing cards 1 and 2, which print the same figure */
+  .bc-proof-l{letter-spacing:.09em}
+  .bc-proof-n{justify-content:center;margin-top:6px;gap:4px}
+  /* 16/21 were measured against the mock's "60 $ -> 89 $". A live figure carries
+     cents and needs 173.2px in a 149px cell — the leading digit was being clipped.
+     Scaled by the measured 0.86 so every character survives; the arrow stays. */
+  .bc-from{font-size:13.5px} .bc-arrow{font-size:13px} .bc-to{font-size:18px}
+  .bc-proof-s{margin-top:6px;font-size:11.5px;line-height:1.4}
+  .bc-proof-p{margin-top:6px;font-size:11.5px;line-height:1.45}
+  .bc-proof-fine{margin-top:6px;font-size:10px;line-height:1.4}
+  .bc-proof-note{margin-top:12px;font-size:12.5px;text-align:center}
+  .bc-cta-note{text-align:center}
+  .bc-heur{grid-template-columns:1fr;gap:9px;margin-top:6px;text-align:center}
+  .bc-heur p{font-size:12.5px;line-height:1.6}
+  .bc-shell a.bc-cta{display:flex;justify-content:center;height:50px;
+    margin-top:0;padding:0 20px;border:0;background:var(--purple);color:#151030;
+    font-weight:600;font-size:16px;box-shadow:0 12px 40px rgba(107,78,219,.3)}
+  .bc-shell a.bc-cta:hover{background:#C9BCFF;color:#151030}
+
+  .bc-live{padding:20px 16px 0}
+  .bc-legend{align-items:flex-start;order:2;margin-top:10px}
+  .bc-legend-l{text-align:left}
+  /* One line has to hold 343px on a 375px phone, so the pill gives up 4px of height,
+     1px of type and 6px of padding per group, and the words drop to the short forms
+     below. Measure with getBoundingClientRect() before adding a group: the type does
+     not go under 10px, the words go first. */
+  .bc-legend-bar{height:26px;font-size:10px}
+  .bc-legend-bar>*{padding:0 4px;gap:4px}
+  .bc-legend-bar>*:first-child{padding-left:7px}
+  .bc-legend-bar>*:last-child{padding-right:7px}
+  .bc-legend-bar .bc-blynai{font-size:10.5px}
+  .bc-legend-bar .bc-sq{width:11px;height:11px}
+  .bc-legend-bar .bc-sq-pair{gap:2px}
+  .bc-lg-help{padding:0 7px;font-size:10px}
+  /* Three of the seven words go, not shortened into stubs: "istorija" is what the
+     BlynAI name and a pair of arrows already say, and the grey square is the one
+     entry nobody has to read in a hurry. The three that stay are the ones a stranger
+     cannot guess. Spelled out the line wants 349px and a 375px phone offers 343. */
+  .bc-lg-w{display:none}
+  .bc-lg-n{display:inline}
+  .bc-live-head{flex-direction:column;gap:0}
+  .bc-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;
+    border:1px solid rgba(161,138,255,.12);border-radius:10px;overflow:hidden;background:rgba(161,138,255,.1)}
+  .bc-metrics .bc-metric{border:0;border-radius:0}
+  .bc-metric{padding:12px 13px}
+  .bc-metric-v{font-size:17px}
+  .bc-metrics .bc-metric-v{font-size:17px}
+  .bc-metric-s{display:none}
+
+  .bc-tabs{padding:18px 16px;gap:7px}
+  .bc-tabs a{min-height:32px;padding:0 11px;font-size:11.5px}
+
+  .bc-sec{padding:4px 16px 0}
+  .bc-sec+.bc-sec{padding-top:24px}
+  .bc-sec-head h2{font-size:17px}
+  .bc-tstats{grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;
+    border:1px solid rgba(161,138,255,.12);border-radius:10px;overflow:hidden;background:rgba(161,138,255,.1)}
+  .bc-tstats .bc-metric{border:0;border-radius:0;padding:12px 13px}
+  .bc-tstats .bc-metric-v{font-size:17px}
+
+  /* Phone: the three groups stack into three rows; each group keeps its own
+     three-column row. One hairline frame around the lot, seams between. */
+  .bc-groups{grid-template-columns:1fr;gap:1px;
+    border:1px solid rgba(161,138,255,.12);border-radius:10px;overflow:hidden;background:rgba(161,138,255,.1)}
+  .bc-group{border:0;border-radius:0;padding:11px 13px}
+  .bc-group-row{gap:9px;margin-top:9px}
+  .bc-gc-l{font-size:8.5px;letter-spacing:.05em}
+  .bc-gc-v{font-size:15px}
+
+  /* collapsed rows: headline + risk bar visible, everything else behind the tap */
+  .bc-card-sum{display:block;padding:13px 14px}
+  .bc-pair{font-size:16px}
+  .bc-badges{margin-top:8px}
+  .bc-when{margin-top:8px;font-size:10.5px}
+  .bc-num{display:flex;align-items:baseline;gap:10px;margin-top:10px}
+  .bc-num-l{display:none}
+  .bc-num-v{margin-top:0}
+  .bc-num-v span{font-size:19px}
+  .bc-bar-box{margin-top:11px;padding:0;border:0;background:none}
+  .bc-bar{height:6px}
+  .bc-bar-marks{height:26px}
+  .bc-now{width:12px;height:12px;margin-left:-6px;border-width:2px}
+  .bc-chev{display:block;margin-top:8px;text-align:right}
+  .bc-card-body{padding:0 14px 14px}
+  .bc-card-body .bc-params{margin-top:13px}
+  .bc-card-body .bc-why{font-size:13.5px}
+  .bc-card-body .bc-tech{font-size:10.5px}
+}
+
+/* ============================================================
+   Additions beyond the handoff stylesheet: page frame, live-data
+   states (loading, failure, empty) and the status tones the spec
+   describes in prose but does not declare.
+   ============================================================ */
+html,body{margin:0;background:var(--bg-void);color:var(--ink)}
+.bc-page{width:100%;max-width:1440px;margin:0 auto}
+
+.bc-t-amber{color:var(--amber)}
+.bc-dot--warn{background:var(--amber);color:var(--amber)}
+/* A service that is down stops blinking — a steady red reads as broken,
+   a blinking one reads as alive. */
+.bc-dot--down{background:var(--red);color:var(--red);animation:none;box-shadow:0 0 8px currentColor}
+.bc-delta--down{border-color:rgba(239,93,111,.34);background:rgba(239,93,111,.07);color:var(--red)}
+
+.bc-notice{margin:0;padding:11px 22px;border-bottom:1px solid rgba(240,166,58,.3);
+  background:rgba(240,166,58,.08);color:var(--amber);font:12.5px var(--font-mono)}
+
+.bc-empty{margin:0;padding:22px 20px;border:1px solid var(--hairline);border-radius:var(--r-lg);
+  background:var(--surface);color:var(--muted-2);font:13px var(--font-mono);text-align:center}
+
+/* First paint renders the real card heights rather than a spinner. */
+@keyframes bcSkeleton{0%,100%{opacity:.35}50%{opacity:.6}}
+.bc-skeleton{border:1px solid var(--hairline);border-radius:var(--r-lg);background:var(--surface);
+  animation:bcSkeleton 1.6s ease-in-out infinite}
+.bc-skeleton--pos{height:232px;margin-bottom:12px}
+.bc-skeleton--trade{height:186px}
+.bc-skeleton--chart{height:310px;border-radius:var(--r)}
+@container (max-width:899px){
+  .bc-skeleton--pos{height:118px}
+  .bc-skeleton--trade{height:104px}
+  .bc-skeleton--chart{height:168px}
+}
+
+/* The spec gives the legend groups an explicit display:inline-flex, which outranks
+   the user agent's [hidden] rule — so a hidden group still took up space. State it
+   once for the whole shell. */
+.bc-shell [hidden]{display:none!important}
+
+/* ============================================================
+   Footnotes and the full disclaimer dialog.
+   ============================================================ */
+
+/* Numbered marks, not asterisks, and never their own colour: each one inherits
+   the line it sits on, so the purple sub-lockup and the muted account label
+   both keep their own tone. Overrides the gold in the spec sheet on purpose. */
+.bc-shell .bc-fn-mark,.bc-shell a.bc-fn-mark{margin-left:2px;color:inherit;opacity:.75;
+  font-size:.72em;vertical-align:super;line-height:0;text-decoration:none}
+.bc-shell a.bc-fn-mark:hover{opacity:1;color:inherit}
+
+.bc-fn-line{margin:0}
+/* The two definitions run as one block; the number carries the separation. */
+.bc-fn-item{display:inline}
+.bc-fn-item+.bc-fn-item{margin-left:6px}
+.bc-fn-item b:first-child{color:var(--muted-3);font-weight:600}
+.bc-fn-item:target{background:rgba(161,138,255,.1);box-shadow:0 0 0 4px rgba(161,138,255,.1)}
+
+.bc-fn-more{margin-left:8px;padding:0;border:0;background:none;cursor:pointer;
+  color:var(--purple);font:inherit;text-decoration:underline;text-underline-offset:3px}
+.bc-fn-more:hover{color:#DCD3F5}
+
+.bc-modal{width:min(720px,calc(100vw - 32px));max-height:82vh;padding:0;overflow:hidden;
+  border:1px solid var(--hairline);border-radius:var(--r-lg);background:#12101C;color:var(--ink);
+  box-shadow:var(--shadow)}
+.bc-modal::backdrop{background:rgba(0,0,0,.72)}
+.bc-modal-head{display:flex;align-items:flex-start;gap:16px;padding:20px 22px 14px;
+  border-bottom:1px solid var(--hairline)}
+.bc-modal-t{margin:0;flex:1;font:600 clamp(17px,2.4vw,20px)/1.25 var(--font-display);color:var(--cream)}
+.bc-modal-x{flex:none;width:32px;height:32px;border:1px solid var(--hairline);border-radius:var(--r-sm);
+  background:rgba(255,255,255,.03);color:var(--muted);cursor:pointer;font:14px var(--font-mono)}
+.bc-modal-x:hover{color:var(--ink);border-color:rgba(161,138,255,.3)}
+.bc-modal-body{max-height:calc(82vh - 70px);overflow-y:auto;padding:18px 22px 24px;
+  font:13.5px/1.65 var(--font-body);color:var(--ink-soft);text-wrap:pretty}
+.bc-modal-body p{margin:0 0 11px}
+.bc-modal-body h3{margin:20px 0 8px;font:600 13px var(--font-mono);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted)}
+.bc-modal-body ul{margin:0 0 11px;padding-left:20px}
+.bc-modal-body li{margin-bottom:5px}
+.bc-modal-body b{color:var(--cream);font-weight:600}
+
+/* Legend key. The swatch column is fixed so the sentences line up in one edge, and
+   the squares sit at cap height of the first line rather than centred on a
+   paragraph that may run three lines deep. */
+.bc-help-row{display:grid;grid-template-columns:37px 1fr;gap:12px;margin-bottom:14px}
+.bc-help-keys{display:inline-flex;gap:3px;padding-top:2px}
+.bc-help-row p{margin:0}
+.bc-help-end{margin-top:16px;padding-top:14px;border-top:1px solid var(--hairline);
+  color:var(--muted-2);font-size:12.5px}
+
+@container (max-width:899px){
+  .bc-fn-item{display:block}
+  .bc-fn-item+.bc-fn-item{margin-left:0;margin-top:8px}
+  /* A 21px text link is not a finger target; §11's 44px rule applies here too. */
+  .bc-fn-more{display:inline-flex;align-items:center;min-height:44px;margin:6px 0 0}
+}
+
+/* ============================================================
+   Chart tooltip, and cards that no longer hide anything.
+   ============================================================ */
+.bc-chart{position:relative}
+.bc-tip{position:absolute;z-index:3;pointer-events:none;min-width:186px;max-width:calc(100% - 12px);padding:9px 11px;
+  border:1px solid var(--hairline);border-radius:var(--r);background:rgba(10,9,15,.97);
+  box-shadow:var(--shadow);font:11.5px/1.5 var(--font-mono);color:var(--ink-soft)}
+.bc-tip-d{margin:0 0 6px;padding-bottom:6px;border-bottom:1px solid var(--hairline-soft);
+  color:var(--cream);font-weight:600}
+.bc-tip-r{display:flex;justify-content:space-between;gap:18px;margin:0}
+.bc-tip-r span{color:var(--muted-3)}
+.bc-tip-r b{font-weight:400;font-variant-numeric:tabular-nums}
+.bc-hit{cursor:crosshair}
+
+/* Every card ships open: the phone shows the same content as the desktop, in
+   reading order, so the disclosure control has nothing left to disclose. */
+.bc-card>.bc-card-sum{cursor:default}
+.bc-card>.bc-card-sum::marker,.bc-card>.bc-card-sum::-webkit-details-marker{display:none}
+@container (max-width:899px){
+  .bc-card-body{padding-top:14px}
+  .bc-card-body .bc-bar-box{margin-top:12px}
+  /* The spec spaces these inside .bc-num, which the narrow body does not use. */
+  .bc-card-body .bc-params{margin-top:14px}
+  .bc-card-body .bc-chips-l{margin-top:16px}
+  .bc-card-body .bc-tech{margin-top:14px}
+}
+
+/* ============================================================
+   The raw operator pages, behind one button and a warning.
+   ============================================================ */
+.bc-more{display:flex;justify-content:center;padding:26px 22px 30px}
+.bc-more-btn{display:inline-flex;align-items:center;min-height:44px;padding:0 20px;
+  border:1px solid var(--hairline);border-radius:var(--pill);background:rgba(255,255,255,.03);
+  color:var(--muted);cursor:pointer;font:12.5px var(--font-mono);letter-spacing:.02em}
+.bc-more-btn:hover{color:var(--ink-soft);border-color:rgba(161,138,255,.28)}
+
+.bc-warn-box{margin:0 0 16px;padding:12px 14px;border:1px solid rgba(240,166,58,.3);
+  border-radius:var(--r);background:rgba(240,166,58,.07);color:var(--amber);
+  font:12.5px/1.55 var(--font-body)}
+.bc-warn-box b{color:var(--amber);font-weight:600}
+
+/* Inside the dialog the tab row is a plain stack, not a page-wide strip. */
+.bc-modal--pages .bc-tabs{flex-direction:column;gap:8px;padding:0}
+.bc-modal--pages .bc-tabs a{justify-content:space-between;min-height:44px}
+
+
+/* A rate nobody has been able to refresh for hours still shows, but dimmed:
+   hiding it would be worse than admitting it is old. */
+.bc-rate--stale{opacity:.55}
+
+/* A losing day in proof card 1. The spec only had .is-realised for a gain,
+   because the mock's day was green; the sign decides the colour either way.
+   The element selector is load-bearing: .bc-proof-s b is (0,1,1) and outranks a
+   bare .bc-t-red, which painted a loss in the profit colour — the same trap the
+   handoff calls out for .bc-shell a.bc-cta. */
+.bc-proof-n .bc-to.is-loss{color:var(--red)}
+.bc-proof-s b.bc-t-red{color:var(--red)}
+
+/* The delta pill fixed its height at 32px and used the `font` shorthand, which
+   resets line-height to the font's own "normal". IBM Plex Mono reports a tall
+   ascent, so the glyphs sit low in that line box and the Lithuanian descender in
+   "šiandien" ends up against the bottom edge. A stated line-height re-centres the
+   text, and real vertical padding with a minimum height keeps it off both edges
+   however tall the line turns out to be. */
+.bc-delta{height:auto;min-height:32px;padding-top:4px;padding-bottom:5px;line-height:1.15}
+/* The spec asks for 10px under the live value, but `.bc-shell p{margin:0}` is a
+   class plus a type selector and outranks `.bc-live-s`, so that margin never
+   applied: the blue "iš jų ..." line sat flush against the pill's border. Same
+   trap as the [hidden] and card-colour rules - matching the specificity is the
+   fix, not a bigger number. */
+.bc-shell .bc-live-s{margin-top:10px}
+
+/* A blue piece is money that was carried in or out, not a trading result. The
+   tooltip says so outright, so nobody reads the deposit that funded the account
+   as a day the bot had. */
+.bc-tip-n{margin:6px 0 0;padding-top:6px;border-top:1px solid var(--hairline-soft);
+  color:var(--muted-3);font-size:11px;line-height:1.35}
+
+/* A stretch nobody observed: the worker was down, so the account moved with no
+   record of who moved it. Grey because it is neither the bot's result nor a
+   transfer - crediting it to either would be a guess. */
+.bc-sq--gap{background:#767185}
+.bc-t-grey{color:#9A94AB}
+
+/* The bot's swatches carry a triangle each; the transfer pair carries a plus and
+   a minus, so the legend reads the same way for both. The shared `.bc-sq svg`
+   rule sizes a 7x6 triangle, and these glyphs are square. */
+.bc-sq--dep svg,.bc-sq--wdr svg{width:7px;height:7px}
+
+@container (max-width:899px){
+  /* The status line and the account switch belong with the numbers they
+     describe, so on a phone they sit directly above the proof cards instead of
+     below the whole hero. Same order value as .bc-hero-main, so document order
+     places it right after the headline and still ahead of .bc-hero-wide. */
+  /* `1fr` is `minmax(auto,1fr)`, so any child wider than the screen stretches the
+     track and the whole page scrolls sideways. The status text is flex:none and
+     nowrap by design, which makes it exactly such a child. */
+  .bc-hero{grid-template-columns:minmax(0,1fr)}
+  /* Full bleed, cancelling the hero's side padding, so the bar spans edge to edge
+     the way it did when it sat outside the hero. */
+  /* Tighter than the hero's own 18px rhythm on both sides: this is a thin utility
+     strip, and giving it the same air as a headline or a card makes it read as a
+     section of its own. The negative block margins pull back the grid gap; the
+     negative inline ones cancel the hero padding for the full-bleed rule. */
+  .bc-hero>.bc-mobilebar{order:1;min-width:0;margin:-7px -20px;padding:6px 14px;flex-wrap:wrap}
+}
+
+@container (max-width:899px){
+  /* FOLD BUDGET, see spec: on 390x844 the ".bc-next-l" label must end above
+     844px, because it is what tells the reader the page continues. Moving the
+     status bar into the hero cost 72px and pushed the label to 858. The eyebrow
+     lost the exchange name (it is still named in the heuristics paragraph) and
+     the lead is a step smaller; re-measure both if anything is added here. */
+  .bc-hero-main .bc-lead{font-size:13px;line-height:1.5}
+  .bc-hero-main .bc-h1{font-size:26px}
+  /* A span rather than a <br>: setting display on a <br> stops it breaking in some
+     engines, while a block-level span breaks reliably and leaves the wide layout
+     untouched, where the two halves stay on one line. */
+  .bc-hero-main .bc-h1 .bc-h1-a{display:block}
+}
+
+@container (max-width:899px){
+  /* The phone rule turned this into a filled gold slab across the full width, sitting
+     at the bottom of the first screen. In that position and that shape it reads as a
+     "next" control: the thumb goes for it instead of scrolling, and the reader skips
+     the live half of the page. Restoring the desktop treatment - outlined, sized to
+     its own text - makes it an offer rather than a way forward. 44px stays: it is the
+     smallest comfortable tap target, and this is the page's only call to action. */
+  .bc-shell a.bc-cta{display:inline-flex;justify-content:center;width:auto;height:44px;
+    margin-top:0;padding:0 22px;
+    border:1px solid rgba(161,138,255,.45);border-radius:9px;background:rgba(161,138,255,.08);
+    color:#DCD3F5;font:500 15px var(--font-display);box-shadow:none}
+}
+
+@container (max-width:899px){
+  /* On a phone the rate belongs under the two coins it compares, not wedged
+     between the heading and them. The heading and the rate live inside
+     .bc-coins-hd, the coins outside it, so the wrapper dissolves and all three
+     become siblings that can be ordered - the same trick .bc-topbar-right uses. */
+  .bc-coins{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .bc-coins-hd{display:contents}
+  .bc-coins-l{order:1}
+  .bc-coins-row{order:2;margin-top:0}
+  .bc-rate{order:3;margin-top:0}
+}
+
+@container (max-width:899px){
+  /* 42px sat between the scroll cue and the coins: the hero's 18px gap plus the
+     block's own 24px top margin, stacked. The cue and what follows it are one
+     thought, so the block keeps only the gap. */
+  .bc-hero>.bc-coins{margin-top:0}
+}
+
+/* The trailing bar is not a stop-to-target scale: it runs from the entry price to
+   +15% of it, which is further than these positions realistically travel. A stop
+   that only exists once the trade is winning has no losing half to draw, so the
+   gradient starts at the amber/green blend rather than at red. */
+.bc-bar--trail{background:linear-gradient(90deg,rgba(240,166,58,.4),rgba(65,201,143,.55) 55%,rgba(65,201,143,.85))}
+/* Mirrored for a short, the same way .bc-bar--short mirrors .bc-bar--long: the axis
+   is price, so profit lies to the left when the position is short. */
+.bc-bar--trail-rev{background:linear-gradient(90deg,rgba(65,201,143,.85),rgba(65,201,143,.55) 45%,rgba(240,166,58,.4))}
+.bc-ts{position:absolute;top:-2px;width:2px;height:12px;margin-left:-1px;background:var(--gold);opacity:.9}
+.bc-ts-l{position:absolute;top:15px;transform:translateX(-50%);white-space:nowrap;font:11px var(--font-mono);color:var(--gold)}
+
+/* Two labels stacked under the trailing bar need more room than the single label the
+   stop-to-target bar carries, otherwise the lower one lands on the foot line. */
+/* The trailing stop sits above the bar and the current price below it, so the two
+   never share a line and the eye reads floor-then-price without decoding. */
+.bc-bar-top{position:relative;height:17px;margin-top:7px}
+.bc-bar-top .bc-ts-l{position:absolute;top:0}
+.bc-bar-marks--trail{height:34px}
+.bc-bar-marks--trail .bc-now-l{top:15px}
+/* A label centred on its mark hangs half its width outside the box whenever the mark
+   sits near an end. Its width depends on the font and on how wide the card is, so
+   rather than estimate that in percent the label is pinned to the container edge
+   once the mark gets close to one - still beside its mark, never past the border. */
+.bc-lab--start{transform:none}
+.bc-lab--end{transform:none}
+  </style>
+</head>
+<body>
+  <div class="bc-page">
+  <div class="bc-shell">
+    <div style="height:2px;background:linear-gradient(90deg,#F5B84F,#C98F63 42%,#8C6BC9 74%,#6B4EDB)" aria-hidden="true"></div>
+    <p class="bc-notice" id="bcNotice" hidden></p>
+    <header class="bc-topbar">
+      <a class="bc-brand" href="/">
+        <span class="bc-mark"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 23.54 L15.97 27.57 L12.43 24.03 L16.46 20 L12.43 15.97 L15.97 12.43 L20 16.46 L24.03 12.43 L27.57 15.97 L23.54 20 L27.57 24.03 L24.03 27.57 Z" fill="#FFD987"/><circle cx="6.6" cy="20" r="2" fill="#B97F2E"/><circle cx="33.4" cy="20" r="2" fill="#B97F2E"/></svg></span>
+        <span class="bc-brand-txt"><b>CryptoSmith <i>X</i></b><small>Perps &amp; crypto trade bot<sup class="bc-fn-mark">1</sup></small></span>
+      </a>
+      <div class="bc-topbar-right">
+          <div class="bc-meta">
+            <a class="bc-aktas" href="https://blynai.meetluko.eu/aktas/">Aktas</a>
+            <p class="bc-lang"><b class="is-active" aria-current="true">LT</b><span class="bc-lang-x"> &#183; </span><a href="/en/" hreflang="en">EN</a></p>
+          </div>
+        <div class="bc-tenant">
+          <span class="bc-tenant-l">Viešas testuotojas<a class="bc-fn-mark" href="#fn-testuotojas" aria-label="Viešo testuotojo apibrėžimas">2</a></span>
+          <span class="bc-seg"><button type="button" data-tenant="LUKAS">LUKAS</button><button type="button" data-tenant="DENISAS">DENISAS</button></span>
+        </div>
+        <div class="bc-status-chips" id="bcStatusChips"></div>
+        <button type="button" class="bc-status-line" id="bcStatusLine" aria-expanded="false"><i class="bc-dot" id="bcStatusLineDot"></i><span class="bc-status-v" id="bcStatusLineText">Kraunama</span><span class="bc-status-m" id="bcStatusLineAge"></span><span class="bc-chev">detaliau &#9662;</span></button>
+      </div>
+    </header>
+
+    <section class="bc-hero">
+      <div class="bc-hero-main">
+        <p class="bc-eyebrow">Uždaras testavimas · tikri pinigai</p>
+        <h1 class="bc-h1"><span class="bc-h1-a">L&amp;D botas <span class="bc-blynai">CryptoSmith <i>X</i></span> dirba.</span> <span class="bc-h1-b">Mes uždirbam. Kol kas.</span></h1>
+        <p class="bc-lead">Jis pats suranda ir atidaro pozicijas, pats valdo riziką, pats uždaro sandorius. Be rankų, be emocijų. Kiekvienas sprendimas įrašytas. Mes tik stebime, kaip keičiasi skaičiai.</p>
+      </div>
+
+      <aside class="bc-coins">
+        <div class="bc-coins-hd">
+          <p class="bc-coins-l">Beje, pripažįstame tik dvi valiutas</p>
+          <p class="bc-rate" id="bcRate">1 LUKO &#8776; <b class="bc-rate-b" id="bcRateB">9,28</b> BYKO<span class="bc-rate-x"> &#183; </span>1 BYKO &#8776; <b class="bc-rate-l" id="bcRateL">0,11</b> LUKO</p>
+        </div>
+        <div class="bc-coins-row">
+          <a class="bc-coin bc-coin--luko" href="https://meetluko.eu"><span class="bc-coin-ic"><svg viewBox="0 0 512 512" aria-hidden="true"><circle cx="256" cy="256" r="256" fill="#0A0A0A"/><circle cx="256" cy="256" r="248" fill="none" stroke="#C9A86A" stroke-opacity=".5" stroke-width="8"/><g transform="translate(-117.1 -89.7) scale(1.4463)"><g opacity=".3"><path d="M144 164L182 122V167Z" fill="#C9A86A"/><g fill="none" stroke="#C9A86A" stroke-width="15"><circle cx="306" cy="186" r="58"/><path d="M364 186V312"/></g></g><path d="M182 122h52V312H346l16 16V358H182Z" fill="#C9A86A"/></g></svg></span><span class="bc-coin-txt"><b>LUKO</b><small>meetluko.eu</small><small class="bc-coin-algo">blynai.meetluko.eu</small></span></a>
+          <a class="bc-coin bc-coin--byko" href="https://byko.bykovas.lt"><span class="bc-coin-ic"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#7CCBFF"/><g transform="translate(2.1875 1.25) scale(.3125)" fill="none" stroke="#0B0D10" stroke-width="13"><path d="M24 14V82"/><path d="M40 20L70 48 40 76"/></g></svg></span><span class="bc-coin-txt"><b>BYKO</b><small>byko.bykovas.lt</small><small class="bc-coin-algo">blynai.bykovas.lt</small></span></a>
+        </div>
+      </aside>
+
+      <div class="bc-next">
+        <span class="bc-next-ar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15"/><path d="M5.5 13.5 12 20l6.5-6.5"/></svg></span>
+        <p class="bc-next-l">Arba skaityk žemiau</p>
+      </div>
+
+      <div class="bc-mobilebar bc-only-narrow">
+        <span class="bc-mb-status"><i class="bc-dot" id="bcMbDot"></i><span id="bcMbText">Kraunama</span><em id="bcMbAge"></em></span>
+        <span class="bc-seg"><button type="button" data-tenant="LUKAS">LUKAS</button><button type="button" data-tenant="DENISAS">DENISAS</button></span>
+      </div>
+
+      <div class="bc-hero-wide">
+        <div class="bc-proof">
+          <div class="bc-proof-cell">
+            <p class="bc-proof-l">Geriausia para &#183; realūs sandoriai</p>
+            <p class="bc-proof-n"><span class="bc-from" id="bcBestFrom">60 $</span><span class="bc-arrow">&#8594;</span><span class="bc-to" id="bcBestTo">89 $</span></p>
+            <p class="bc-proof-s" id="bcBestS"><b>+29 $</b> &#183; +48 % &#183; geriausias rezultatas iki šiol</p>
+            <p class="bc-proof-fine" id="bcBestFine">Geriausia para iki šiol — bet ne vienintelė, sekasi įvairiai, nes eksperimentuojam.</p>
+          </div>
+          <div class="bc-proof-cell">
+            <p class="bc-proof-l">Blogiausia para &#183; realūs sandoriai</p>
+            <p class="bc-proof-n"><span class="bc-from" id="bcWorstFrom">—</span><span class="bc-arrow">&#8594;</span><span class="bc-to" id="bcWorstTo">—</span></p>
+            <p class="bc-proof-s" id="bcWorstS">Nuostolingos paros dar nebuvo.</p>
+            <p class="bc-proof-fine" id="bcWorstFine">Taip nutinka ne visada — kartais para baigiasi minuse.</p>
+          </div>
+          <div class="bc-proof-cell">
+            <p class="bc-proof-l">Vakar &#183; realūs sandoriai</p>
+            <p class="bc-proof-n"><span class="bc-from" id="bcYestFrom">60 $</span><span class="bc-arrow">&#8594;</span><span class="bc-to" id="bcYestTo">89 $</span></p>
+            <p class="bc-proof-s" id="bcYestS"><b>+29 $</b> &#183; +48 % per parą</p>
+            <p class="bc-proof-fine" id="bcYestFine">Uždaryti sandoriai, ne popierinis pelnas.</p>
+          </div>
+          <div class="bc-proof-cell">
+            <p class="bc-proof-l bc-proof-l--hypo">Jei tada tik būtume žinoję…</p>
+            <p class="bc-proof-n bc-proof-n--hypo"><span class="bc-from" id="bcHypoFrom">600 $</span><span class="bc-arrow">&#8594;</span><span class="bc-to" id="bcHypoTo">900 $</span></p>
+            <p class="bc-proof-s" id="bcHypoS">+300 $ &#183; ta pati logika, tik nuliai, botui nerūpi, su kokia suma dirba, o mes nepasinaudojom…</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bc-heur">
+          <p><b>Euristikų rinkinys ir dirbtinis intelektas</b> dirba kartu. Sistema nuskaito ~150 Kraken porų kas minutę — gyvas skaičius telemetrijoje. Kiekviena pora vertinama pagal šimtus parametrų: <span class="term">EMA 9/21 sankirtas</span>, <span class="term">RSI</span>, <span class="term">momentum</span>, <span class="term">ATR volatilumą</span>, spread'ą, 24 h apimtis, <span class="term">order-book gylį</span>, <span class="term">koreliaciją su BTC</span>, rinkos režimą ir visą kainų istoriją.</p>
+          <p>Iš viso to gimsta vienas balas — o iš balo sprendimas. Pozicijas atidaro pati, dydį parenka pagal <span class="term">rizikos limitus</span>, <span class="term">stop-loss</span> ir tikslus nustato pati, uždaro anksčiau, nei nuosmukis įsibėgėja, ir užfiksuoja rezultatą. Viskas automatiškai: be rankinio įsikišimo ir be jūsų dalyvavimo.</p>
+        <div class="bc-heur-col">
+          <p class="bc-heur-dim">Netikėk. Patikrink pats. Kiekvienas sprendimas įrašomas — kodėl įėjo, kurie <span class="term">signalai svėrė</span>, kokia buvo rizika. Viską galima atkartoti.</p>
+          <p class="bc-heur-dim"><b>Sąžiningai:</b> taip nutinka <b>ne visada</b> — kartais para baigiasi minuse. Buvo savaičių, kai praradom daugiau, nei uždirbom. <span id="bcHonestyStat"></span></p>
+        </div>
+      </div>
+
+      <div class="bc-next bc-next--live">
+        <span class="bc-next-ar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15"/><path d="M5.5 13.5 12 20l6.5-6.5"/></svg></span>
+        <p class="bc-next-l">Toliau — gyvas pulsas</p>
+      </div>
+
+      <div class="bc-cta-wrap">
+        <a class="bc-cta" href="mailto:hello@meetluko.eu">Paklausk mūsų, kaip tai veikia</a>
+      </div>
+    </section>
+
+    <section class="bc-live" id="live">
+      <div class="bc-live-head">
+        <div>
+          <p class="bc-live-l"><i class="bc-dot" id="bcLiveDot"></i><b id="bcLiveTenant">LUKAS</b><span>&#183; Portfelio vert&#279; dabar &#183; gyvai</span></p>
+          <p class="bc-live-n"><span class="bc-big" id="bcLiveValue">&#8212;</span><span class="bc-delta" id="bcLiveDelta"></span></p>
+          <p class="bc-live-bridge" id="bcLiveBridge" hidden></p>
+          <p class="bc-live-s" id="bcLiveSince"></p>
+        </div>
+        <div class="bc-legend">
+          <p class="bc-legend-l" id="bcChartCaption">Grafikas — 30 uždarytų dienų<br>(šiandiena dar neįskaityta)</p>
+          <div class="bc-legend-bar">
+            <span><span class="bc-sq-pair"><span class="bc-sq bc-sq--up"><svg viewBox="0 0 7 6" aria-hidden="true"><path d="M3.5 0 L7 6 H0 Z" fill="#06301d"/></svg></span><span class="bc-sq bc-sq--dn"><svg viewBox="0 0 7 6" aria-hidden="true"><path d="M0 0 H7 L3.5 6 Z" fill="#3d0710"/></svg></span><span class="bc-sq bc-sq--gap" id="bcLegendGap" hidden></span></span><span class="bc-lg-lbl"><span class="bc-blynai bc-lg-w">CryptoSmith <i>X</i></span><span class="bc-lg-n">botas</span><span class="bc-lg-w"> istorija</span></span></span>
+            <span><span class="bc-sq-pair"><span class="bc-sq bc-sq--today"><svg viewBox="0 0 8 8" aria-hidden="true"><path d="M3.1 0.6h1.8v2.5h2.5v1.8H4.9v2.5H3.1V4.9H0.6V3.1h2.5z" fill="#0D0B14"/></svg></span><span class="bc-sq bc-sq--today-dn"><svg viewBox="0 0 8 8" aria-hidden="true"><path d="M0.6 3.1h6.8v1.8H0.6z" fill="#f5b84f"/></svg></span></span>šiandien</span>
+            <span><span class="bc-sq-pair"><span class="bc-sq bc-sq--dep"><svg viewBox="0 0 8 8" aria-hidden="true"><path d="M3.1 0.6h1.8v2.5h2.5v1.8H4.9v2.5H3.1V4.9H0.6V3.1h2.5z" fill="#0e2a48"/></svg></span><span class="bc-sq bc-sq--wdr"><svg viewBox="0 0 8 8" aria-hidden="true"><path d="M0.6 3.1h6.8v1.8H0.6z" fill="#6faeff"/></svg></span></span><span class="bc-lg-w">pervedimai</span><span class="bc-lg-n">pinigai</span></span>
+            <span id="bcLegendStart"><span class="bc-sq bc-sq--start"></span>startas</span>
+            <button type="button" class="bc-lg-help" id="bcLegendHelpOpen" aria-label="Ką reiškia grafiko ženklai">?</button>
+          </div>
+        </div>
+      </div>
+      <div class="bc-chart" id="bcChart"><div id="bcChartCanvas"></div><div class="bc-tip" id="bcChartTip" hidden></div></div>
+      <!-- Three grouped rows, not scattered cards: Marža, P/N and Sandoriai, each a
+           row of three related figures. The day's tally (opened/closed today) sits
+           here with the account, beside the count of what is open right now, so the
+           "opened 4" no longer reads as "4 open" a screen away from the positions. -->
+      <div class="bc-account" id="bcMetrics"></div>
+      </section>
+
+    <section class="bc-sec">
+      <div class="bc-sec-head"><h2>Aktyvios pozicijos</h2><span id="bcPosMeta">kraunama</span></div>
+      <div class="bc-list" id="bcPosList"></div>
+    </section>
+
+    <section class="bc-sec">
+      <div class="bc-sec-head"><h2>&#352;iandienos sandoriai</h2><span id="bcTradeMeta">kraunama</span></div>
+      <div class="bc-list" id="bcTradeList"></div>
+    </section>
+
+    <div class="bc-more">
+      <button type="button" class="bc-more-btn" id="bcPagesOpen">Kiti svetainės puslapiai</button>
+    </div>
+
+    <footer class="bc-footnote" id="testuotojas">
+      <p class="bc-fn-line"><span id="fn-blynai" class="bc-fn-item"><b>1.</b> <b>BlynAI Capital</b> — ne įmonė ir ne finansinė paslauga, o nekomercinis hobio projektas algoritminės prekybos programinei įrangai ir biržų API integracijoms tyrinėti. Projektas nepriima ir nevaldo kitų asmenų lėšų, nevaldo jų biržos sąskaitų ir investavimo paslaugų neteikia. Rodomi rezultatai yra istoriniai ir negarantuoja būsimų. Tai nėra individuali investavimo rekomendacija.</span> <span id="fn-testuotojas" class="bc-fn-item"><b>2.</b> <b>Viešas testuotojas</b> — asmuo, savo infrastruktūroje įsidiegęs boto programinę įrangą ir prekiaujantis tik savo lėšomis per savo biržos API raktą; strategiją ir rizikos parametrus nustato pats.</span> <button type="button" class="bc-fn-more" id="bcDisclaimerOpen">Skaityti plačiau</button></p>
+    </footer>
+
+    <dialog class="bc-modal" id="bcLegendHelp" aria-labelledby="bcLegendHelpTitle">
+      <div class="bc-modal-head">
+        <h2 class="bc-modal-t" id="bcLegendHelpTitle">Ką rodo grafiko kvadratai ir ženklai prie porų</h2>
+        <button type="button" class="bc-modal-x" id="bcLegendHelpClose" aria-label="Uždaryti">&#10005;</button>
+      </div>
+      <div class="bc-modal-body">
+        <div class="bc-help-row"><span class="bc-help-keys"><span class="bc-sq-pair"><span class="bc-sq bc-sq--up"><svg viewBox="0 0 7 6" aria-hidden="true"><path d="M3.5 0 L7 6 H0 Z" fill="#06301d"/></svg></span><span class="bc-sq bc-sq--dn"><svg viewBox="0 0 7 6" aria-hidden="true"><path d="M0 0 H7 L3.5 6 Z" fill="#3d0710"/></svg></span></span></span>
+          <p><b>Žalias su rodykle į viršų, raudonas — į apačią.</b> Viena uždaryta para. Žalia — tą dieną sąskaita paaugo, raudona — sumažėjo. Rodyklė sako tą patį, ką spalva, kad būtų aišku ir tam, kas spalvų neatskiria.</p></div>
+        <div class="bc-help-row"><span class="bc-help-keys"><span class="bc-sq-pair"><span class="bc-sq bc-sq--today"><svg viewBox="0 0 8 8" aria-hidden="true"><path d="M3.1 0.6h1.8v2.5h2.5v1.8H4.9v2.5H3.1V4.9H0.6V3.1h2.5z" fill="#0D0B14"/></svg></span><span class="bc-sq bc-sq--today-dn"><svg viewBox="0 0 8 8" aria-hidden="true"><path d="M0.6 3.1h6.8v1.8H0.6z" fill="#f5b84f"/></svg></span></span></span>
+          <p><b>Auksinis su pliusu arba minusu.</b> Šiandiena — diena, kuri dar nesibaigė. Pilnas kvadratas: kol kas pliusas. Tuščias su auksiniu apvadu: kol kas minusas. Skaičius dar pasikeis iki nakties, todėl stovi atskirai nuo uždarytų dienų.</p></div>
+        <div class="bc-help-row"><span class="bc-help-keys"><span class="bc-sq-pair"><span class="bc-sq bc-sq--dep"><svg viewBox="0 0 8 8" aria-hidden="true"><path d="M3.1 0.6h1.8v2.5h2.5v1.8H4.9v2.5H3.1V4.9H0.6V3.1h2.5z" fill="#0e2a48"/></svg></span><span class="bc-sq bc-sq--wdr"><svg viewBox="0 0 8 8" aria-hidden="true"><path d="M0.6 3.1h6.8v1.8H0.6z" fill="#6faeff"/></svg></span></span></span>
+          <p><b>Mėlynas su pliusu arba minusu.</b> Rankinis pervedimas: pliusas — pinigai įnešti, minusas — išimti. Tai ne uždarbis ir ne nuostolis, todėl į rezultatą neįskaičiuojama — kitaip įnašas atrodytų kaip pelnas.</p></div>
+        <div class="bc-help-row"><span class="bc-help-keys"><span class="bc-sq bc-sq--start"></span></span>
+          <p><b>Tamsiai mėlynas be ženklo.</b> Startas — suma, su kuria sąskaita pradėjo. Krypties neturi, nes tai ne judėjimas, o vieta, nuo kurios skaičiuojama. Būna vienas.</p></div>
+        <div class="bc-help-row"><span class="bc-help-keys"><span class="bc-sq bc-sq--gap"></span></span>
+          <p><b>Pilkas.</b> Tos dienos duomenų nėra — botas stovėjo arba ryšys nutrūko. Pasirodo tik tada, kai grafike tokia diena iš tikrųjų yra.</p></div>
+        <p class="bc-help-end">Šiandiena grafike stovi atskirai, dešinėje nuo skirtuko, ir į uždarytų dienų sumą neįeina — kiek jų rodoma, parašyta virš grafiko.</p>
+        <h3>Ženklai prie poros</h3>
+        <div class="bc-help-row"><span class="bc-help-keys" data-doer="bot"></span>
+          <p><b>Kvadratas skliaustuose.</b> Poziciją atidarė arba sandorį įvykdė botas pagal savo taisykles. Žmogaus čia nebuvo.</p></div>
+        <div class="bc-help-row"><span class="bc-help-keys" data-doer="hand"></span>
+          <p><b>Brūkšnys skliaustuose.</b> Padaryta rankomis. Pozicijai: ji atsirado biržoje, kai botas jau dirbo, o orderio nedavė — vadinasi, davė žmogus. Sandoriui: pozicija dingo iš biržos, bet ją uždarė ne boto orderis — nei stop, nei tikslas.</p></div>
+        <div class="bc-help-row"><span class="bc-help-keys" data-doer="fix"></span>
+          <p><b>Praplėštas skliaustas.</b> Botas atidarė, o kiekį pakeitė ranka. Rėmas jo, bet tai, kas jame, jau ne tik jo.</p></div>
+        <div class="bc-help-row"><span class="bc-help-keys" data-doer="mirror"></span>
+          <p><b>Du skliaustai į tą pačią pusę.</b> Zerkalas: įėjimas nukopijuotas iš kito boto ta pačia kryptimi.</p></div>
+        <div class="bc-help-row"><span class="bc-help-keys" data-doer="mirrorFlip"></span>
+          <p><b>Skliaustai vienas prieš kitą.</b> Tas pats zerkalas, tik apverstas: kopija atlikta į priešingą pusę nei šaltinis.</p></div>
+        <p class="bc-help-end">Jei ženklo nėra — vadinasi, nežinoma. Po perkrovimo pozicija nuskaitoma iš biržos be istorijos, todėl tuščia vieta reiškia „neatsekama“, o ne „botas“.</p>
+      </div>
+    </dialog>
+
+    <dialog class="bc-modal" id="bcDisclaimer" aria-labelledby="bcDisclaimerTitle">
+      <div class="bc-modal-head">
+        <h2 class="bc-modal-t" id="bcDisclaimerTitle">Atsakomybės ribojimas ir projekto statusas</h2>
+        <button type="button" class="bc-modal-x" id="bcDisclaimerClose" aria-label="Uždaryti">&#10005;</button>
+      </div>
+      <div class="bc-modal-body">
+        <p>„BlynAI Capital“ nėra juridinis asmuo, įmonė, finansų įstaiga, investicijų valdytojas ar finansinių paslaugų teikėjas. „BlynAI Capital“ yra tik nekomercinio asmeninio hobio projekto ir interneto svetainės pavadinimas.</p>
+        <p>Svetainės <b>blynai.bykovas.lt</b> ir <b>blynai.meetluko.eu</b> skirtos programinės įrangos kūrimo, algoritminės prekybos, automatizavimo, biržų API integracijų, duomenų analizės ir susijusių technologijų tyrinėjimui, mokymuisi bei rezultatų demonstravimui.</p>
+
+        <h3>Savarankiškas naudojimas</h3>
+        <p>Programinė įranga yra techninis įrankis. Kiekvienas ją naudojantis asmuo:</p>
+        <ul>
+          <li>įdiegia ir paleidžia ją savo kontroliuojamoje infrastruktūroje;</li>
+          <li>naudoja savo asmeninę biržos paskyrą ir savo API raktus;</li>
+          <li>prekiauja tik savo lėšomis;</li>
+          <li>savarankiškai pasirenka ir konfigūruoja prekybos strategiją, jos parametrus, rizikos limitus ir kitus nustatymus;</li>
+          <li>savarankiškai priima sprendimą, ar programinę įrangą paleisti, sustabdyti, keisti jos konfigūraciją ar apskritai ją naudoti.</li>
+        </ul>
+        <p>Programinė įranga tik automatizuoja pagal naudotojo pasirinktą konfigūraciją atliekamus techninius veiksmus. Projekto autoriai nepriima individualių prekybos sprendimų naudotojo vardu ir nekontroliuoja jo biržos paskyros ar kapitalo.</p>
+
+        <h3>Jokio klientų turto valdymo</h3>
+        <p>„BlynAI Capital“:</p>
+        <ul>
+          <li>nepriima ir nesaugo kitų asmenų pinigų ar kriptoturto;</li>
+          <li>nevaldo kitų asmenų biržos paskyrų;</li>
+          <li>neturi teisės disponuoti naudotojų turtu;</li>
+          <li>neprašo ir neturi prieigos prie API teisių, leidžiančių išimti naudotojo lėšas;</li>
+          <li>nevykdo kolektyvinio investavimo ar bendro kapitalo valdymo;</li>
+          <li>negarantuoja jokios grąžos ar finansinio rezultato.</li>
+        </ul>
+        <p>Kiekvieno naudotojo lėšos ir biržos paskyra visą laiką lieka jo paties kontrolėje.</p>
+
+        <h3>Viešai skelbiami rezultatai</h3>
+        <p>Ši svetainė taip pat gali veikti kaip informacinis stendas, kuriame projekto dalyviai savo noru gali viešai pateikti savo naudojamos strategijos rezultatus, statistiką ar kitą techninę informaciją.</p>
+        <p>Paskelbti rezultatai yra konkretaus naudotojo ir konkretaus laikotarpio istoriniai duomenys. Jie nėra pažadas, prognozė ar teiginys, kad tokie patys arba panašūs rezultatai bus pasiekti ateityje ar naudojant kitą konfigūraciją.</p>
+        <p><b>Ankstesni rezultatai negarantuoja būsimų rezultatų.</b></p>
+
+        <h3>Rizika</h3>
+        <p>Algoritminė prekyba kriptoturtu yra rizikinga. Programinė įranga gali priimti nepalankius sprendimus, patirti techninių sutrikimų arba veikti kitaip, nei tikisi naudotojas.</p>
+        <p>Naudotojas pats prisiima visą su savo pasirinkta strategija, jos konfigūracija ir programinės įrangos naudojimu susijusią finansinę riziką, įskaitant galimybę prarasti dalį arba visas prekybai skirtas lėšas.</p>
+
+        <h3>Ne finansinė rekomendacija</h3>
+        <p>Svetainėje pateikiamas turinys, programinis kodas, prekybos statistika, algoritmai, techniniai paaiškinimai ir kitų naudotojų paskelbti rezultatai yra skirti tik informaciniams, edukaciniams ir technologijų demonstravimo tikslams.</p>
+        <p>Jokia čia pateikta informacija neturėtų būti suprantama kaip individuali investavimo rekomendacija, finansinė konsultacija, turto valdymo paslauga ar garantija dėl būsimo finansinio rezultato.</p>
+        <p>Kiekvienas asmuo pats sprendžia, ar ir kaip naudoti programinę įrangą bei kokią riziką prisiimti.</p>
+      </div>
+    </dialog>
+
+    <dialog class="bc-modal bc-modal--pages" id="bcPages" aria-labelledby="bcPagesTitle">
+      <div class="bc-modal-head">
+        <h2 class="bc-modal-t" id="bcPagesTitle">Kiti svetainės puslapiai</h2>
+        <button type="button" class="bc-modal-x" id="bcPagesClose" aria-label="Uždaryti">&#10005;</button>
+      </div>
+      <div class="bc-modal-body">
+        <p class="bc-warn-box"><b>Įspėjimas.</b> Šie puslapiai nepritaikyti prie šio dizaino ir nėra patikrinti. Juose gali būti klaidų, o skaičiai gali rodyti nesąmones. Jie palikti tokie, kokie yra — kaip neapdorotas techninis žurnalas.</p>
+        <nav class="bc-tabs"><a href="/trades.html">Sandori&#371; &#382;urnalas</a><a href="https://blynai.meetluko.eu/cycles.html">Cikl&#371; lentel&#279;</a><a href="https://blynai.meetluko.eu/cycle-decisions.html">Cikl&#371; sprendimai</a><a href="https://blynai.meetluko.eu/market-snapshots.html">Rinkos momentin&#279;s nuotraukos</a><a href="https://blynai.meetluko.eu/api/export/cycles-and-snapshots.csv">Eksportuoti CSV</a><a href="https://blynai.meetluko.eu/sim.html">Modeliavimas &#8222;kas jei&#8220;</a></nav>
+      </div>
+    </dialog>
+  </div>
+  </div>
+
+  <script>
+    // --------------------------------------------------------------------
+    // BlynAI Capital — what one day earned, and which day was best.
+    //
+    // "Geriausia para" is not a field the API returns; it is arithmetic, and
+    // this file is the only place it is done. The dashboard inlines this file
+    // at build time and the og:image renderer imports it as a module, so the
+    // share card and the page cannot drift apart. Two copies of this would be
+    // two answers waiting to disagree in public about the same account, which
+    // is exactly the dishonesty the rest of the project is built to avoid.
+    //
+    // Everything here is pure: no DOM, no fetch, no clock. Node and the
+    // browser must produce identical strings from identical input.
+    // --------------------------------------------------------------------
+
+    // The launch. Nothing on the page reaches back before it - not the chart, not
+    // the cards, not the honesty line - and there is no way to ask it to: whatever
+    // the account did earlier belongs to a run that is not being shown, and letting
+    // one number quietly come from there while the others do not is how a page
+    // starts lying without anyone deciding to.
+    const LAUNCH_DATE = "2026-08-19";
+
+    // ---- formatting ----------------------------------------------------
+    // Lithuanian throughout: comma decimals, non-breaking space before the
+    // unit, currency symbol after the number, U+2212 for minus. The card and
+    // the page print the same characters or they are not the same number.
+    const MINUS = "−";
+    const NBSP = " ";
+
+    const nf = (digits) => new Intl.NumberFormat("lt-LT", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits
+    });
+
+    function fixMinus(text) {
+      return text.replace(/-/g, MINUS).replace(/−−/g, MINUS);
+    }
+
+    function num(value, digits = 2) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "—";
+      return fixMinus(nf(digits).format(n));
+    }
+
+    function signed(value, digits = 2) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "—";
+      return (n > 0 ? "+" : "") + num(n, digits);
+    }
+
+    // The currency symbol is passed in rather than held in a module variable:
+    // the renderer serves two accounts from one process and a symbol left over
+    // from the previous request would print the wrong one. The page wraps these
+    // two under its own `money`/`signedMoney`, which carry the symbol it is
+    // currently showing - hence the longer names here, so both can be in scope
+    // once this file is inlined into the page's own script.
+    function formatMoney(value, digits = 2, symbol = "$") {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "—";
+      return num(n, digits) + NBSP + symbol;
+    }
+
+    function formatSignedMoney(value, digits = 2, symbol = "$") {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "—";
+      return signed(n, digits) + NBSP + symbol;
+    }
+
+    function percent(value, digits = 2) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "—";
+      return num(n, digits) + NBSP + "%";
+    }
+
+    function signedPercent(value, digits = 2) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "—";
+      return signed(n, digits) + NBSP + "%";
+    }
+
+    // Lithuanian plurals: 1 sandoris, 2-9 sandoriai, 10-20 sandorių, 21 sandoris …
+    function tradesWord(count) {
+      const n = Math.abs(Math.round(Number(count) || 0));
+      const last = n % 10;
+      const lastTwo = n % 100;
+      if (lastTwo >= 11 && lastTwo <= 19) return "sandorių";
+      if (last === 0) return "sandorių";
+      if (last === 1) return "sandoris";
+      return "sandoriai";
+    }
+
+    // ---- the arithmetic ------------------------------------------------
+
+    // The same arithmetic the API uses for a day's result, applied to the trimmed
+    // series so that "best day" means the best day since the launch.
+    function dayResult(day) {
+      const open = Number(day.chainOpen ?? day.open);
+      if (!Number.isFinite(open) || open <= 0) return null;
+      const moved = Number(day.manualAdjustmentEur) || 0;
+      const bot = Number(day.close) - open - moved;
+      // The margin percentage is recomputed here rather than taken from the server:
+      // the bot figure above is measured from the chained open, so a percentage
+      // carried over from the server's own arithmetic would not match the money
+      // printed beside it.
+      const peak = Number(day.peakMarginEur);
+      return {
+        date: day.date, open, close: open + bot,
+        manualAdjustmentEur: moved, botEur: bot, botPercent: bot / open * 100,
+        peakMarginEur: peak > 0 ? peak : null,
+        marginPercent: peak > 0 ? bot / peak * 100 : null,
+        closedTrades: Number(day.closedTrades) || 0
+      };
+    }
+
+    function trimToLaunch(equity) {
+      if (!equity || !Array.isArray(equity.days)) return equity;
+      const raw = equity.days.filter(day => day.date >= LAUNCH_DATE);
+
+      // A day opens where the previous one closed. Measuring it from its own first
+      // observed cycle instead drops whatever happened between the two: on
+      // futures-lukas-live 2026-08-19 closed at 80,99 and 2026-08-20 opened at 83,82,
+      // and those 2,83 belonged to no day at all - the daily results summed to 24,22
+      // while the account had actually made 27,06. The exception is a stretch nobody
+      // watched, which stays unattributed and is drawn grey.
+      const days = raw.map((day, index) => {
+        if (index === 0) return Object.assign({}, day, { chainOpen: Number(day.open) });
+        const prevClose = Number(raw[index - 1].close);
+        const blind = Number(day.gapMinutes);
+        const outage = Number.isFinite(prevClose) && Number.isFinite(blind) && blind > 60
+          && Math.abs(Number(day.open) - prevClose) >= 0.01;
+        return Object.assign({}, day, {
+          chainOpen: outage || !Number.isFinite(prevClose) ? Number(day.open) : prevClose,
+          outage
+        });
+      });
+      const results = days.map(dayResult).filter(Boolean);
+      return Object.assign({}, equity, {
+        days,
+        manualAdjustmentEur: days.reduce((sum, day) => sum + (Number(day.manualAdjustmentEur) || 0), 0),
+        yesterday: results.length ? results[results.length - 1] : null,
+        // Best by what the card prints: the return on the money that was at work.
+        // Ranking by portfolio percent disagreed with the figure beside it - a day
+        // that made 41.2% on its capital held the title while a later one made 55.6%
+        // on its own and did not, because the account had grown and the same profit
+        // was a smaller slice of it.
+        bestDay: results.length
+          ? results.reduce((best, result) =>
+              (result.marginPercent ?? result.botPercent) > (best.marginPercent ?? best.botPercent)
+                ? result : best)
+          : null,
+        // Ranked the same way as bestDay - by the return on the money that was at
+        // work - so the two cards are comparable. Only genuinely losing days are
+        // eligible: the worst day of a week where every day made money is not a
+        // "blogiausia para", it is the smallest gain, and printing it under a red
+        // label would be the one dishonest card on the page.
+        worstDay: results.length
+          ? results
+              .filter(result => Number(result.botEur) < 0)
+              .reduce((worst, result) =>
+                worst === null
+                || (result.marginPercent ?? result.botPercent) < (worst.marginPercent ?? worst.botPercent)
+                  ? result : worst, null)
+          : null
+      });
+    }
+
+    // --------------------------------------------------------------------
+    // BlynAI Capital — portfelio dashboard
+    // One markup tree, one stylesheet, one endpoint: /api/dashboard.
+    // --------------------------------------------------------------------
+
+    // Two tenants, two live futures accounts. Everything below re-fetches when
+    // this changes; the choice is persisted the way /dash.html already does it.
+    const TENANTS = {
+      LUKAS: { botInstanceId: "futures-lukas-live", label: "LUKAS" },
+      DENISAS: { botInstanceId: "futures-live", label: "DENISAS" }
+    };
+    const STORAGE_KEY = "tradingBot.botInstanceId";
+    const REFRESH_MS = 10000;
+
+    let tenant = "LUKAS";
+    let lastGood = null;
+
+    // ---- formatting ----------------------------------------------------
+    // num, signed, percent, signedPercent and the day arithmetic all come from
+    // equity-day.js, inlined above this script. The share card prints the same
+    // figures from the same file, so the two cannot disagree in public about
+    // the same account. Only the currency symbol stays here: the page shows one
+    // account at a time and carries its symbol, the renderer is handed one.
+    let currencySymbol = "$";
+
+    function money(value, digits = 2) {
+      return formatMoney(value, digits, currencySymbol);
+    }
+
+    function signedMoney(value, digits = 2) {
+      return formatSignedMoney(value, digits, currencySymbol);
+    }
+
+    // Prices span eight orders of magnitude here (0,0851 and 174,74 on the same
+    // screen), so significant digits beat a fixed scale.
+    function price(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "—";
+      const magnitude = Math.abs(n);
+      const digits = magnitude === 0 ? 2 : magnitude >= 100 ? 2 : magnitude >= 1 ? 3 : magnitude >= 0.01 ? 4 : 6;
+      return num(n, digits);
+    }
+
+    function quantity(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "—";
+      return num(n, Math.abs(n) >= 100 ? 0 : Math.abs(n) >= 1 ? 2 : 4);
+    }
+
+    function esc(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
+    function toneClass(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n) || n === 0) return "bc-t-soft";
+      return n > 0 ? "bc-t-green" : "bc-t-red";
+    }
+
+    function ltDateTime(value, withSeconds = true) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "—";
+      const parts = new Intl.DateTimeFormat("lt-LT", {
+        timeZone: "Europe/Vilnius",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit",
+        second: withSeconds ? "2-digit" : undefined,
+        hourCycle: "h23"
+      }).formatToParts(date);
+      const at = Object.fromEntries(parts.map(part => [part.type, part.value]));
+      const clock = withSeconds ? `${at.hour}:${at.minute}:${at.second}` : `${at.hour}:${at.minute}`;
+      return `${at.year}-${at.month}-${at.day} ${clock}`;
+    }
+
+    // "prieš 12 s" / "prieš 4 min." / "prieš 2 val."
+    function ago(seconds) {
+      const s = Number(seconds);
+      if (!Number.isFinite(s)) return "";
+      if (s < 90) return `prieš ${Math.max(0, Math.round(s))} s`;
+      if (s < 5400) return `prieš ${Math.round(s / 60)} min.`;
+      return `prieš ${Math.round(s / 3600)} val.`;
+    }
+
+    function duration(fromUtc) {
+      const date = new Date(fromUtc);
+      if (Number.isNaN(date.getTime())) return "—";
+      const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+      return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
+    }
+
+    // Lithuanian plurals: 1 pora, 2–9 poros, 10–20 porų, 21 pora, 22 poros …
+    function pairsWord(count) {
+      const n = Math.abs(Math.round(Number(count) || 0));
+      const last = n % 10;
+      const lastTwo = n % 100;
+      if (lastTwo >= 11 && lastTwo <= 19) return "porų";
+      if (last === 0) return "porų";
+      if (last === 1) return "pora";
+      return "poros";
+    }
+
+    function positionsWord(count) {
+      const n = Math.abs(Math.round(Number(count) || 0));
+      const last = n % 10;
+      const lastTwo = n % 100;
+      if (lastTwo >= 11 && lastTwo <= 19) return "atvirų pozicijų";
+      if (last === 0) return "atvirų pozicijų";
+      if (last === 1) return "atvira pozicija";
+      return "atviros pozicijos";
+    }
+
+    // "diena" after a number: 1 diena / 2-9 dienos / 0 and 10-20 dienų, and the
+    // adjective agrees with it. Live counts start at one, so the plural-only
+    // wording of the mock ("1 uždarytų dienų") reads wrong on day one.
+    function countForm(count, one, few, many) {
+      const n = Math.abs(Math.round(Number(count) || 0));
+      const last = n % 10;
+      const lastTwo = n % 100;
+      if (lastTwo >= 11 && lastTwo <= 19) return many;
+      if (last === 1) return one;
+      if (last === 0) return many;
+      return few;
+    }
+
+    function closedDaysPhrase(count) {
+      return `${num(count, 0)} ${countForm(count, "uždaryta diena", "uždarytos dienos", "uždarytų dienų")}`;
+    }
+
+    // Accusative, because it follows "per".
+    function overDaysPhrase(count) {
+      return `${num(count, 0)} ${countForm(count, "dieną", "dienas", "dienų")}`;
+    }
+
+    // ---- elements ------------------------------------------------------
+    const el = (id) => document.getElementById(id);
+    const els = {
+      notice: el("bcNotice"),
+      statusChips: el("bcStatusChips"),
+      statusLine: el("bcStatusLine"),
+      statusLineDot: el("bcStatusLineDot"),
+      statusLineText: el("bcStatusLineText"),
+      statusLineAge: el("bcStatusLineAge"),
+      mbDot: el("bcMbDot"),
+      mbText: el("bcMbText"),
+      mbAge: el("bcMbAge"),
+      liveDot: el("bcLiveDot"),
+      liveTenant: el("bcLiveTenant"),
+      liveValue: el("bcLiveValue"),
+      liveDelta: el("bcLiveDelta"),
+      liveBridge: el("bcLiveBridge"),
+      liveSince: el("bcLiveSince"),
+      chart: el("bcChart"),
+      chartCanvas: el("bcChartCanvas"),
+      chartCaption: el("bcChartCaption"),
+      honestyStat: el("bcHonestyStat"),
+      yestFrom: el("bcYestFrom"),
+      yestTo: el("bcYestTo"),
+      yestS: el("bcYestS"),
+      bestFrom: el("bcBestFrom"),
+      bestTo: el("bcBestTo"),
+      bestS: el("bcBestS"),
+      bestFine: el("bcBestFine"),
+      worstFrom: el("bcWorstFrom"),
+      worstTo: el("bcWorstTo"),
+      worstS: el("bcWorstS"),
+      worstFine: el("bcWorstFine"),
+      hypoFrom: el("bcHypoFrom"),
+      hypoTo: el("bcHypoTo"),
+      hypoS: el("bcHypoS"),
+      rate: el("bcRate"),
+      rateB: el("bcRateB"),
+      rateL: el("bcRateL"),
+      yestFine: el("bcYestFine"),
+      legendGap: el("bcLegendGap"),
+      legendStart: el("bcLegendStart"),
+      metrics: el("bcMetrics"),
+      posMeta: el("bcPosMeta"),
+      posList: el("bcPosList"),
+      tradeMeta: el("bcTradeMeta"),
+      tradeList: el("bcTradeList")
+    };
+
+    // ---- tenant switching ----------------------------------------------
+    // Each tester's own dashboard opens on their own account. An explicit choice
+    // still wins: the query string, or a switch made earlier on this host.
+    const HOST_TENANTS = {
+      // The project's own domain is the LUKO dashboard, named explicitly rather than
+      // left to fall through to the default - which happened to be LUKAS anyway, and
+      // a default that is right by accident stops being right the day it changes.
+      "blynai.eu": "LUKAS",
+      "blynai.meetluko.eu": "LUKAS",
+      "blynai.bykovas.lt": "DENISAS",
+      // The dashboards moved off algo.*, which now redirects. A link that has
+      // been sitting in a chat since before the move still has to open on the
+      // account it named.
+      "algo.meetluko.eu": "LUKAS",
+      "algo.bykovas.lt": "DENISAS"
+    };
+
+    function tenantFromBotInstance(botInstanceId) {
+      return Object.keys(TENANTS).find(key => TENANTS[key].botInstanceId === botInstanceId) || null;
+    }
+
+    function defaultTenant() {
+      return HOST_TENANTS[location.hostname.toLowerCase()] || "LUKAS";
+    }
+
+    function applyTenantButtons() {
+      document.querySelectorAll("[data-tenant]").forEach(button => {
+        const active = button.dataset.tenant === tenant;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      els.liveTenant.textContent = tenant;
+    }
+
+    function setTenant(next, persist) {
+      tenant = TENANTS[next] ? next : "LUKAS";
+      applyTenantButtons();
+      if (persist) {
+        try { localStorage.setItem(STORAGE_KEY, TENANTS[tenant].botInstanceId); } catch (error) { /* private mode */ }
+        const url = new URL(location.href);
+        url.searchParams.set("botInstanceId", TENANTS[tenant].botInstanceId);
+        history.replaceState(null, "", url);
+      }
+    }
+
+    function initTenant() {
+      const fromUrl = new URLSearchParams(location.search).get("botInstanceId");
+      let stored = null;
+      try { stored = localStorage.getItem(STORAGE_KEY); } catch (error) { /* private mode */ }
+      setTenant(tenantFromBotInstance(fromUrl || stored) || defaultTenant(), false);
+      document.querySelectorAll("[data-tenant]").forEach(button => {
+        button.addEventListener("click", () => {
+          if (button.dataset.tenant === tenant) return;
+          setTenant(button.dataset.tenant, true);
+          renderSkeleton();
+          refresh();
+        });
+      });
+      els.statusLine.addEventListener("click", () => {
+        const open = document.body.classList.toggle("bc-status-open");
+        els.statusLine.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+    }
+
+    // ---- disclaimer -------------------------------------------------------
+    // A native <dialog>: keyboard, focus trap and Esc come for free, and the legal
+    // text still ships in the served HTML where crawlers and scam classifiers read
+    // it, rather than being injected on open.
+    // Cards are rendered open and nothing is hidden behind the summary, so the
+    // native toggle would only let a reader lose content by accident.
+    function lockCardsOpen() {
+      document.addEventListener("click", event => {
+        const summary = event.target.closest ? event.target.closest(".bc-card > .bc-card-sum") : null;
+        if (summary) event.preventDefault();
+      });
+    }
+
+    function initModal(dialogId, openId, closeId) {
+      const dialog = el(dialogId);
+      const open = el(openId);
+      const close = el(closeId);
+      if (!dialog || !open || !close) return;
+
+      open.addEventListener("click", () => dialog.showModal());
+      close.addEventListener("click", () => dialog.close());
+      // The dialog is only the click target when the pointer lands on the backdrop.
+      dialog.addEventListener("click", event => {
+        if (event.target === dialog) dialog.close();
+      });
+    }
+
+    function initDisclaimer() {
+      initModal("bcDisclaimer", "bcDisclaimerOpen", "bcDisclaimerClose");
+      initModal("bcPages", "bcPagesOpen", "bcPagesClose");
+      initModal("bcLegendHelp", "bcLegendHelpOpen", "bcLegendHelpClose");
+      // The legend draws its marks from DOER through the same doerMark() the lists use,
+      // so the explanation cannot drift away from the thing it explains.
+      document.querySelectorAll("#bcLegendHelp [data-doer]").forEach((slot) => {
+        slot.innerHTML = doerMark(slot.getAttribute("data-doer"));
+      });
+    }
+
+    // ---- status ---------------------------------------------------------
+    // Green under two minutes, amber while data goes stale, red once the
+    // worker is effectively down (or has never reported).
+    // The worker loops every 120s and a cycle itself takes another 8-10s, so cycles
+    // land 128-130s apart. A 120s threshold was therefore below the normal period:
+    // the page flipped to "pasenę" for the last seconds of every single cycle while
+    // nothing was wrong. 200s clears the real cadence with room for jitter and still
+    // catches a genuinely missed cycle, which lands at ~260s.
+    function health(ageSeconds) {
+      if (!Number.isFinite(Number(ageSeconds))) return "down";
+      if (ageSeconds <= 200) return "ok";
+      if (ageSeconds <= 600) return "stale";
+      return "down";
+    }
+
+    const HEALTH_TONE = { ok: "", stale: "bc-dot--warn", down: "bc-dot--down" };
+
+    function chip(label, value, meta, state) {
+      return `<span class="bc-status"><i class="bc-dot ${HEALTH_TONE[state] || ""}"></i>` +
+        `<span class="bc-status-l">${esc(label)}</span>` +
+        `<span class="bc-status-v ${state === "down" ? "bc-t-red" : state === "stale" ? "bc-t-amber" : ""}">${esc(value)}</span>` +
+        `<span class="bc-status-m">${esc(meta)}</span></span>`;
+    }
+
+    function renderStatus(data) {
+      const workers = data.workers || [];
+      const byId = Object.fromEntries(workers.map(worker => [worker.botInstanceId, worker]));
+      const mine = byId[TENANTS[tenant].botInstanceId] || null;
+
+      const chips = Object.keys(TENANTS).map(key => {
+        const worker = byId[TENANTS[key].botInstanceId];
+        const state = worker ? health(worker.latestCycleAgeSeconds) : "down";
+        const value = state === "down"
+          ? `${key} neatsako`
+          : state === "stale" ? `${key} duomenys pasenę` : `${key} veikia`;
+        return chip("worker", value, worker ? ago(worker.latestCycleAgeSeconds) : "nėra duomenų", state);
+      });
+
+      const krakenState = mine ? health(mine.latestCycleAgeSeconds) : "down";
+      const pairs = mine ? mine.activePairsCount : 0;
+      chips.push(chip("kraken", krakenState === "ok" ? "OK" : krakenState === "stale" ? "pasenę" : "neatsako",
+        pairs ? `${num(pairs, 0)} ${pairsWord(pairs)}/min.` : "nėra duomenų", krakenState));
+
+      const dbState = data.summary ? health(mine ? mine.latestCycleAgeSeconds : null) : "down";
+      chips.push(chip("duomenų bazė", dbState === "down" ? "neatsako" : "OK",
+        data.summary ? ago((Date.now() - new Date(data.summary.updatedAt).getTime()) / 1000) : "nėra duomenų", dbState));
+
+      els.statusChips.innerHTML = chips.join("");
+
+      const worst = [krakenState, dbState].concat(Object.keys(TENANTS).map(key => {
+        const worker = byId[TENANTS[key].botInstanceId];
+        return worker ? health(worker.latestCycleAgeSeconds) : "down";
+      })).reduce((acc, state) => (state === "down" ? "down" : state === "stale" && acc !== "down" ? "stale" : acc), "ok");
+
+      const summaryText = worst === "ok" ? "Visos sistemos OK"
+        : worst === "stale" ? "Duomenys pasenę" : "Sistema neatsako";
+      const summaryAge = mine ? `· ${ago(mine.latestCycleAgeSeconds)}` : "";
+
+      els.statusLineText.textContent = summaryText;
+      els.statusLineAge.textContent = summaryAge;
+      els.statusLineDot.className = `bc-dot ${HEALTH_TONE[worst] || ""}`;
+      // The phone bar has ~200px for the status once the account switch has taken its
+      // share, and the full sentence needs 214. These are the same words with the
+      // subject dropped, so nothing new has to be learned to read them.
+      els.mbText.textContent = worst === "ok" ? "Gyvai"
+        : worst === "stale" ? "Pasenę" : "Neatsako";
+      els.mbAge.textContent = summaryAge;
+      els.mbDot.className = `bc-dot ${HEALTH_TONE[worst] || ""}`;
+      els.liveDot.className = `bc-dot ${HEALTH_TONE[worst] || ""}`;
+    }
+
+    // ---- painting ---------------------------------------------------------
+    // A 10s poll that rewrites a list's innerHTML resizes the document, and the
+    // browser clamps the scroll position while it is short — which is why the page
+    // jumped to the top every refresh. Nothing is rewritten unless it actually
+    // changed, open cards keep their state, and the scroll position is restored.
+    const painted = new Map();
+
+    function paint(node, html) {
+      if (!node || painted.get(node.id) === html) return;
+      painted.set(node.id, html);
+
+      const before = new Map();
+      node.querySelectorAll("details[data-key]").forEach(card => {
+        before.set(card.dataset.key, card.open);
+      });
+
+      const scrollY = window.scrollY;
+      node.innerHTML = html;
+
+      node.querySelectorAll("details[data-key]").forEach(card => {
+        if (before.has(card.dataset.key)) card.open = before.get(card.dataset.key);
+      });
+
+      if (window.scrollY !== scrollY) window.scrollTo(0, scrollY);
+    }
+
+    // ---- chart ----------------------------------------------------------
+    // Two viewBoxes from one series: a tall one for wide containers, a short
+    // one for phones. Both plot CLOSED days only — today lives to the right of
+    // the gold divider as the dashed live line and the gold pill.
+    //
+    // Money in and out is NOT drawn among the candles. Stacking it there put two
+    // unrelated quantities in one column and made a deposit look like a trading
+    // result. It gets its own band under the price, on its own scale, the way a
+    // terminal puts volume under the chart.
+    const CHART_SLOTS = 30;
+    const CHART_WIDE = {
+      className: "bc-chart-svg bc-only-wide", width: 1180, height: 310,
+      plotWidth: 1112, top: 24, bottom: 278, flowHeight: 54, flowGap: 16,
+      labelX: 1124, labelSize: 10.5, gridLines: 7, dateTicks: 5, dateStepDays: 2, dateY: 296,
+      candleWidth: 26, wickWidth: 1.7, flowWidth: 14,
+      pillWidth: 62, pillHeight: 23, pillSize: 12.5, annotationSize: 10.5
+    };
+    const CHART_NARROW = {
+      className: "bc-chart-svg bc-only-narrow", width: 390, height: 168,
+      plotWidth: 364, top: 8, bottom: 138, flowHeight: 26, flowGap: 10,
+      labelX: 369, labelSize: 8.5, gridLines: 3, dateTicks: 3, dateStepDays: 7, dateY: 162,
+      candleWidth: 10, wickWidth: 1.2, flowWidth: 5,
+      pillWidth: 40, pillHeight: 17, pillSize: 9.5, annotationSize: 8
+    };
+
+    // Picks the round step whose line count lands closest to , rather than the
+    // first one wide enough. Taking the first left holes in the ladder: a ceiling of
+    // 552 jumped straight from a step of 100 to 200 and drew three lines where five
+    // belong. Ties go to the denser grid, which is the one that helps reading.
+    function niceTicks(min, max, count) {
+      const span = max - min;
+      if (!(span > 0)) return [min];
+      const magnitude = Math.pow(10, Math.floor(Math.log10(span / Math.max(1, count - 1))));
+      const ladder = [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10, 15, 20];
+      const build = (step) => {
+        const ticks = [];
+        for (let value = Math.ceil(min / step) * step; value <= max + step * 0.001; value += step) {
+          ticks.push(Number(value.toFixed(10)));
+        }
+        return ticks;
+      };
+      let best = null;
+      ladder.map(factor => factor * magnitude).forEach(step => {
+        const ticks = build(step);
+        if (ticks.length < 2 || ticks.length > 9) return;
+        const score = Math.abs(ticks.length - count);
+        if (!best || score < best.score || (score === best.score && ticks.length > best.ticks.length)) {
+          best = { score, ticks };
+        }
+      });
+      return best ? best.ticks : build(magnitude);
+    }
+
+    // One column per day, built of at most two parts, because a day only ever has two
+    // authors: the bot and the hands. The coloured part is what the bot did, the blue
+    // part is what was moved in or out, and they are laid end to end so the column
+    // starts on the day's real opening value and finishes on its real closing value.
+    // Money moved is not money earned, and a single body from open to close cannot say
+    // that - it reports a deposit as profit.
+    //
+    // The blue part is drawn narrower and on top. When the two authors pull the same
+    // way it simply sits beyond the coloured part; when they pull against each other it
+    // runs back through it, which is the honest picture: on 2026-08-19 futures-live's
+    // bot lost 16,30 and the hands put 14,49 back, and the thin blue rod inside the red
+    // body is exactly that story.
+    function buildColumns(days) {
+      const columns = [];
+      days.forEach((day, index) => {
+        const open = Number(day.open);
+        const close = Number(day.close);
+        const moved = Number(day.manualAdjustmentEur) || 0;
+        if (!Number.isFinite(open) || !Number.isFinite(close)) return;
+
+        // The first day carries the capital the account started with as well as
+        // whatever was moved that day. Both are the same hand on the same date, so
+        // they are one blue part, drawn from zero and ahead of the bot: the account
+        // was funded first and traded afterwards. Later days put their blue part
+        // after the bot's, since by then the money was already there.
+        if (index === 0) {
+          // Only what was actually transferred around the launch counts as hands.
+          // The rest of the opening value is a balance carried over from before the
+          // series starts - painting that blue would credit the hands with money the
+          // bot had already been trading, and it pins the axis to zero for no reason.
+          // Everything the account held when the series starts, drawn from zero as the
+          // base the first candle stands on. It is not a deposit and never claims to
+          // be - it has its own colour and its own name - but leaving it out left the
+          // first candle floating with nothing underneath, which said less than it
+          // hid. Whether that money arrived minutes before the first cycle or months
+          // earlier makes no difference to the reader: it is what there was.
+          columns.push({
+            date: day.date, opening: true, open: 0, close, moved: open + moved,
+            capital: open ? { from: 0, to: open, amount: open } : null,
+            manual: moved ? { from: open, to: open + moved, amount: moved } : null,
+            bot: { from: open + moved, to: close }
+          });
+          return;
+        }
+
+        // A day whose close was never observed - the worker was down - leaves the
+        // account somewhere other than where the next day picks it up. That stretch
+        // is drawn grey and hung on the day that went dark, running to the next
+        // opening: it is neither the bot's result nor a transfer, and pretending
+        // otherwise would be a guess.
+        const previous = columns[columns.length - 1];
+        if (previous && day.outage) {
+          previous.gap = {
+            from: Number(days[index - 1].close), to: open, minutes: Number(day.gapMinutes)
+          };
+        }
+
+        // Everywhere else the day starts where the last one ended, so nothing falls
+        // between two columns.
+        const from = Number(day.chainOpen ?? open);
+        const botTo = close - moved;
+        columns.push({
+          date: day.date, open: from, close, moved,
+          bot: { from, to: botTo },
+          manual: moved ? { from: botTo, to: close, amount: moved } : null
+        });
+      });
+      return columns;
+    }
+
+    function chartSvg(spec, columns, today) {
+      // Today occupies the slot after the last closed day, so the divider has
+      // something to divide rather than sitting at the edge of the plot.
+      const total = columns.length + (today ? 1 : 0);
+      const slots = Math.max(total, CHART_SLOTS);
+      const slot = spec.plotWidth / slots;
+      // Anchored right, against the ŠIANDIEN divider, so a young account gets
+      // normal-width candles by the divider rather than a few stretched across.
+      const centre = (index) => spec.plotWidth - (total - index - 0.5) * slot;
+
+      const values = [];
+      columns.forEach(column => {
+        if (column.bot) values.push(column.bot.from, column.bot.to);
+        if (column.capital) values.push(column.capital.from, column.capital.to);
+        if (column.manual) values.push(column.manual.from, column.manual.to);
+        if (column.gap) values.push(column.gap.from, column.gap.to);
+      });
+      if (today) {
+        values.push(today.bot.from, today.bot.to);
+        if (today.manual) values.push(today.manual.from, today.manual.to);
+      }
+      const finite = values.filter(Number.isFinite);
+      if (!finite.length) return "";
+
+      // The axis always reaches zero, so the height of a bar means the same thing on
+      // every chart and between the two accounts: a column half the plot tall is half
+      // the money, not half of some floating window. Only the top is padded - padding
+      // the bottom would push the baseline below zero, which has no meaning here.
+      //
+      // The ceiling is today's balance plus a fifth. That keeps the newest candle at
+      // roughly five sixths of the height whatever the account is worth, so the chart
+      // looks the same on 40 dollars and on 400, and leaves room above for the next
+      // few days before the scale has to move. It never clips: a past day taller than
+      // that raises the ceiling instead.
+      const min = Math.min(0, ...finite);
+      const liveTotal = today ? (today.manual ? today.manual.to : today.bot.to) : null;
+      const headroom = Number.isFinite(liveTotal) ? Math.abs(liveTotal) * 1.2 : 0;
+      let max = Math.max(headroom, ...finite);
+      if (max <= min) max = min + 1;
+      const y = (value) => spec.top + (max - Number(value)) / (max - min) * (spec.bottom - spec.top);
+
+      // Five levels: the zero baseline and four above it. Grey rather than the old
+      // near-invisible gold at .07 opacity - a grid you cannot see is decoration, and
+      // reading a candle against nothing was guesswork. Zero is drawn stronger than
+      // the rest because it is the one line that means something on its own.
+      const out = [];
+      niceTicks(min, max, 6).forEach(tick => {
+        const ty = y(tick);
+        if (ty < spec.top - 1 || ty > spec.bottom + 1) return;
+        const zero = Math.abs(tick) < 1e-9;
+        out.push(`<line x1="0" x2="${spec.plotWidth}" y1="${ty.toFixed(2)}" y2="${ty.toFixed(2)}" stroke="${zero ? "rgba(255,255,255,.20)" : "rgba(255,255,255,.09)"}" stroke-width="1"/>`);
+        out.push(`<text x="${spec.labelX}" y="${(ty + 4).toFixed(2)}" fill="${zero ? "#8F87A3" : "#6B6480"}" font-family="IBM Plex Mono, monospace" font-size="${spec.labelSize}">${esc(num(tick, tick % 1 === 0 ? 0 : 1))}</text>`);
+      });
+
+      // Bodies only, no wicks: the stored high and low belong to the day as a whole,
+      // transfer included, so hanging them off one part would be inventing a range.
+      const bar = (x, width, from, to, fill, strokeColour) => {
+        const top = y(Math.max(from, to));
+        // An outlined body needs room for its own outline. A 0,27 loss on a 600
+        // account is 1.5px tall, the stroke is 1.6px, and the two edges met in the
+        // middle: the hollow candle that means "down" was painted solid gold and read
+        // as a gain. Outlined bodies get enough height to show a dark centre; filled
+        // ones keep the smaller floor, since nothing about them is ambiguous.
+        const height = Math.max(strokeColour ? 4.5 : 1.5, Math.abs(y(from) - y(to)));
+        const stroke = strokeColour
+          ? ` stroke="${strokeColour}" stroke-width="${Math.min(1.6, height / 3).toFixed(2)}"`
+          : "";
+        // Square corners. The handoff rounded the bodies by 2px, but a flat day is
+        // only 1.5px tall and the radius swallowed it whole, turning half of August
+        // into a row of pills.
+        return `<rect x="${(x - width / 2).toFixed(2)}" y="${top.toFixed(2)}" width="${width.toFixed(2)}" height="${height.toFixed(2)}" fill="${fill}"${stroke}/>`;
+      };
+
+      columns.forEach((column, index) => {
+        const x = centre(index);
+        if (column.bot) {
+          out.push(bar(x, spec.candleWidth, column.bot.from, column.bot.to,
+            column.bot.to >= column.bot.from ? "#41C98F" : "#EF5D6F", null));
+        }
+        if (column.capital) {
+          out.push(bar(x, spec.flowWidth, column.capital.from, column.capital.to, "#2f5d8a", null));
+        }
+        if (column.manual) {
+          // Filled for money in, hollow for money out - the legend's own convention.
+          const paidIn = column.manual.amount >= 0;
+          out.push(bar(x, spec.flowWidth, column.manual.from, column.manual.to,
+            paidIn ? "#6faeff" : "#0D0B14",
+            paidIn ? null : "#6faeff"));
+        }
+        if (column.gap) {
+          out.push(bar(x, spec.flowWidth, column.gap.from, column.gap.to, "#767185", null));
+        }
+      });
+
+      // Today, still set apart from the closed series but now drawn rather than
+      // announced. The dashed price line and its pill were removed with it: the
+      // number they carried is the headline directly above the chart, and saying
+      // it twice cost a horizontal rule across every candle.
+      if (today) {
+        const dividerX = centre(columns.length) - slot / 2;
+        out.push(`<line x1="${dividerX.toFixed(2)}" x2="${dividerX.toFixed(2)}" y1="${spec.top}" y2="${spec.bottom}" stroke="#f5b84f" stroke-width="1" stroke-dasharray="3 4" opacity=".55"/>`);
+        if (spec.gridLines > 3) {
+          out.push(`<text x="${(dividerX - 6).toFixed(2)}" y="18" fill="#f5b84f" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" letter-spacing="1.4" text-anchor="end">ŠIANDIEN →</text>`);
+        }
+        // Filled up, hollow down - the same notation the transfers already use, so
+        // the third colour adds a subject and not a second thing to learn. The
+        // transfer part keeps the blue it has everywhere else: what changed today is
+        // whose day it is, not what a deposit is.
+        const x = centre(columns.length);
+        const up = today.bot.to >= today.bot.from;
+        out.push(bar(x, spec.candleWidth, today.bot.from, today.bot.to,
+          up ? "#f5b84f" : "#0D0B14",
+          up ? null : "#f5b84f"));
+        if (today.manual) {
+          const paidIn = today.manual.amount >= 0;
+          out.push(bar(x, spec.flowWidth, today.manual.from, today.manual.to,
+            paidIn ? "#6faeff" : "#0D0B14",
+            paidIn ? null : "#6faeff"));
+        }
+      }
+
+      // One date label per day, centred over that day's columns.
+      const spans = [];
+      columns.forEach((column, index) => {
+        const last = spans[spans.length - 1];
+        if (last && last.date === column.date) last.to = index;
+        else spans.push({ date: column.date, from: index, to: index });
+      });
+      // Dates on a fixed rhythm, each with its own dashed rule, rather than wherever
+      // the sampling happened to land. The phone gets one a week because that is what
+      // fits between 390 pixels and an 8.5pt label; the desktop has room for one every
+      // couple of days.
+      //
+      // The rhythm runs across the whole plot, not just the part holding data. A young
+      // account fills four of thirty slots, and ruling only those left five sixths of
+      // the chart blank - the grid looked broken rather than empty. Dates before the
+      // series are extrapolated one slot per day, so the spacing is continuous through
+      // the point where the account starts.
+      const DAY_MS = 86400000;
+      const stepDays = spec.dateStepDays || 7;
+      const dayOf = (date) => Math.round(Date.parse(date + "T00:00:00Z") / DAY_MS);
+      const minGap = spec.labelSize * 3.6;
+
+      if (spans.length) {
+        const firstDay = dayOf(spans[0].date);
+        const newest = dayOf(spans[spans.length - 1].date);
+        const byDate = new Map(spans.map(span => [span.date, span]));
+        const xOf = (day) => {
+          const span = byDate.get(new Date(day * DAY_MS).toISOString().slice(0, 10));
+          return span ? (centre(span.from) + centre(span.to)) / 2 : centre(0) - (firstDay - day) * slot;
+        };
+
+        let lastLabelX = Infinity;
+        // Right to left, because the series is anchored to the divider and the newest
+        // day is the one worth naming.
+        // One step throughout. The old fallback to daily inside the data region was
+        // there because a three-day chart would otherwise carry a single date; now
+        // that the rhythm covers the empty part too there are always plenty, and a
+        // constant step is what makes the spacing read as a rhythm at all.
+        for (let day = newest; ; day -= stepDays) {
+          const x = xOf(day);
+          if (x < -slot) break;
+          if (x < 0 || x > spec.plotWidth) continue;
+          if (lastLabelX - x < minGap) continue;
+          lastLabelX = x;
+          const label = new Date(day * DAY_MS).toISOString().slice(5, 10);
+          out.push(`<line x1="${x.toFixed(2)}" x2="${x.toFixed(2)}" y1="${spec.top}" y2="${spec.bottom}" stroke="rgba(255,255,255,.09)" stroke-width="1" stroke-dasharray="3 5"/>`);
+          out.push(`<text x="${x.toFixed(2)}" y="${spec.dateY}" fill="#6B6480" font-family="IBM Plex Mono, monospace" font-size="${spec.labelSize}" text-anchor="middle">${esc(label)}</text>`);
+        }
+      }
+
+      // One invisible hit area per column, full height, so the tooltip has something
+      // to catch that is wider than a 7px candle on a phone.
+      columns.forEach((column, index) => {
+        out.push(`<rect class="bc-hit" data-day="${index}" x="${(centre(index) - slot / 2).toFixed(2)}" y="${spec.top}" width="${slot.toFixed(2)}" height="${(spec.bottom - spec.top).toFixed(2)}" fill="transparent"/>`);
+      });
+
+      return `<svg class="${spec.className}" viewBox="0 0 ${spec.width} ${spec.height}" width="100%" role="img" aria-label="Portfelio vertė, ${spans.length} uždarytų dienų">${out.join("")}</svg>`;
+    }
+
+    // ---- chart tooltip ---------------------------------------------------
+    let chartSegments = [];
+
+    function hoursPhrase(minutes) {
+      const hours = Math.max(1, Math.round(minutes / 60));
+      const last = hours % 10;
+      const teen = hours % 100 >= 11 && hours % 100 <= 19;
+      if (hours === 1) return "1 valandą";
+      if (!teen && last >= 2 && last <= 9) return `${hours} valandas`;
+      return `${hours} valandų`;
+    }
+
+    function tooltipHtml(column) {
+      const bot = column.bot ? column.bot.to - column.bot.from : 0;
+      if (column.opening) {
+        return `<p class="bc-tip-d">${esc(column.date)}</p>` +
+          `<p class="bc-tip-r"><span>Atidarymas</span><b>${esc(money(column.open))}</b></p>` +
+          `<p class="bc-tip-r"><span>Įnešta</span><b class="bc-t-blue">${esc(money(column.moved))}</b></p>` +
+          `<p class="bc-tip-r"><span>Botas</span><b class="${toneClass(bot)}">${esc(signedMoney(bot))}</b></p>` +
+          `<p class="bc-tip-r"><span>Uždarymas</span><b class="${toneClass(bot)}">${esc(money(column.close))}</b></p>` +
+          `<p class="bc-tip-n">Mėlyna dalis — įneštos lėšos, ne boto pelnas</p>`;
+      }
+      const rows = [
+        ["Atidarymas", money(column.open), ""],
+        ["Uždarymas", money(column.close), toneClass(column.close - column.open)],
+        ["Botas", signedMoney(bot), toneClass(bot)]
+      ];
+      if (column.moved) {
+        rows.push([column.moved > 0 ? "Įnašas" : "Išėmimas", signedMoney(column.moved), "bc-t-blue"]);
+      }
+      if (column.gap) {
+        rows.push(["Trūksta duomenų", signedMoney(column.gap.to - column.gap.from), "bc-t-grey"]);
+      }
+      const note = column.gap
+        ? `<p class="bc-tip-n">Sistema nerašė ${esc(hoursPhrase(column.gap.minutes))} — kas per tą laiką pajudino sąskaitą, nežinoma</p>`
+        : (column.moved ? `<p class="bc-tip-n">Mėlyna dalis — perkeltos lėšos, ne boto pelnas</p>` : "");
+      return `<p class="bc-tip-d">${esc(column.date)}</p>` + rows.map(([label, value, tone]) =>
+        `<p class="bc-tip-r"><span>${esc(label)}</span><b class="${tone}">${esc(value)}</b></p>`).join("") + note;
+    }
+
+    function hideChartTip() {
+      const tip = el("bcChartTip");
+      if (tip) tip.hidden = true;
+    }
+
+    function initChartTooltip() {
+      const tip = el("bcChartTip");
+      const chart = els.chart;
+      if (!tip || !chart) return;
+
+      const hide = () => { tip.hidden = true; };
+
+      // A panel positioned for a 1440px chart is far outside a 390px one, and no
+      // mouseleave fires when the viewport changes under a stationary pointer.
+      window.addEventListener("resize", hide);
+
+      const show = (event) => {
+        const hit = event.target.closest ? event.target.closest(".bc-hit") : null;
+        if (!hit) { hide(); return; }
+        const day = chartSegments[Number(hit.dataset.day)];
+        if (!day) { hide(); return; }
+
+        tip.innerHTML = tooltipHtml(day);
+        tip.hidden = false;
+
+        // Keep the panel inside the chart box: at the last days it would otherwise
+        // run off the right edge, which is exactly where the newest data sits.
+        const box = chart.getBoundingClientRect();
+        const width = tip.offsetWidth;
+        const x = Math.min(Math.max(event.clientX - box.left + 14, 6), box.width - width - 6);
+        const y = Math.min(Math.max(event.clientY - box.top - 12, 6), box.height - tip.offsetHeight - 6);
+        tip.style.left = `${x}px`;
+        tip.style.top = `${y}px`;
+      };
+
+      chart.addEventListener("mousemove", show);
+      chart.addEventListener("mouseleave", hide);
+      chart.addEventListener("touchstart", (event) => {
+        const touch = event.touches[0];
+        if (touch) show({ target: document.elementFromPoint(touch.clientX, touch.clientY), clientX: touch.clientX, clientY: touch.clientY });
+      }, { passive: true });
+      chart.addEventListener("touchend", hide);
+    }
+
+    function renderChart(data) {
+      const days = (data.equity && data.equity.days) || [];
+      const liveValue = data.summary ? Number(data.summary.totalValueEur) : null;
+      const columns = buildColumns(days);
+      // Today opens where the last closed day ended, by the same chaining rule the
+      // closed series uses, so no money falls into the gap between them - and it is
+      // split the same way too: what the bot did, then what a hand moved, stacked on
+      // top. Without the split a deposit landing today would be drawn as though the
+      // bot had earned it, which is the one thing this chart exists not to do.
+      const lastClose = days.length ? Number(days[days.length - 1].close) : null;
+      const movedToday = Number(data.equity && data.equity.todayManualEur) || 0;
+      const today = Number.isFinite(lastClose) && Number.isFinite(liveValue)
+        ? {
+            bot: { from: lastClose, to: liveValue - movedToday },
+            manual: movedToday
+              ? { from: liveValue - movedToday, to: liveValue, amount: movedToday }
+              : null
+          }
+        : null;
+      chartSegments = columns;
+      hideChartTip();
+
+      els.chartCaption.innerHTML =
+        `Grafikas — ${esc(closedDaysPhrase(days.length))}<br>(šiandiena dar neįskaityta)`;
+
+      // Money in and money out share one entry with a filled and a hollow swatch, the
+      // way the bot's two directions share one. It is the notation being explained,
+      // not the contents of a particular day, so it never hides. Grey is different:
+      // it means something went wrong, and it is announced only when it happened.
+      if (els.legendGap) els.legendGap.hidden = !columns.some(column => column.gap);
+      // An account funded before the series starts has no starting capital in it -
+      // futures-live opened its first drawn day at 51,57 that was already there - so
+      // there is no dark blue bar and the entry explains nothing.
+      if (els.legendStart) els.legendStart.hidden = !columns.some(column => column.capital);
+
+      if (!columns.length) {
+        paint(els.chartCanvas, '<p class="bc-empty">Istorijos duomenų dar nėra</p>');
+        return;
+      }
+      paint(els.chartCanvas, chartSvg(CHART_WIDE, columns, today) + chartSvg(CHART_NARROW, columns, today));
+    }
+
+    // The coin cross rate. Read from the chain by the API and cached there, so the
+    // page never talks to an RPC itself. Three levels of fallback: a live figure,
+    // the last one the API stored (shown with its age, because a rate nobody has
+    // refreshed for hours should say so), and the figures baked into the served
+    // HTML if the API cannot be reached at all.
+    function renderRate(rates) {
+      if (!els.rate || !rates) return;
+
+      const lukoInByko = Number(rates.lukoInByko);
+      const bykoInLuko = Number(rates.bykoInLuko);
+      if (!Number.isFinite(lukoInByko) || !Number.isFinite(bykoInLuko)) return;
+
+      els.rateB.textContent = num(lukoInByko, 2);
+      els.rateL.textContent = num(bykoInLuko, 2);
+
+      const observed = rates.observedAt ? ltDateTime(rates.observedAt) : null;
+      els.rate.title = observed
+        ? `Kursas iš Aerodrome telkinių Base tinkle · blokas ${num(rates.blockNumber, 0)} · ${observed} LT`
+        : "";
+      els.rate.classList.toggle("bc-rate--stale", !!rates.stale);
+    }
+
+    // ---- headline numbers ------------------------------------------------
+    // Proof cards 1-3, all from the same closed-day series and all on the bot's own
+    // trading with money movement taken out: a day that received a deposit is not a
+    // day the bot earned it. The served copy stays as the fallback until a day
+    // closes. Card 3 is the same best day at ten times the size — a hypothetical,
+    // so it never takes a colour (§9b).
+    // The hypothetical is scaled from the money that was actually at work, not from
+    // the portfolio. Ten times a 60 dollar account said nothing useful: the bot never
+    // had 60 in a position, it had 44.98, and the result belongs to that. Answering
+    // "what if the same day had been traded with 500" is a straight ratio, because
+    // position size is proportional to margin and the result is proportional to
+    // position size.
+    const HYPO_CAPITAL = 500;
+
+    // Both cards read the money that was at work, winners and losers alike. When a
+    // day loses more than was ever at work at once the pair ends on a negative
+    // number - "14,99 $ -> -12,66 $" - and that is deliberate: it is what happened.
+    // The day burned through the working money and kept going into what was held
+    // back, and a percentage of the portfolio would have softened that into
+    // something it was not. The fine line below spells it out, because the pair
+    // alone reads as a broken figure rather than as the fact it is.
+    function fillDay(fromEl, toEl, sumEl, day, tail) {
+      if (!fromEl || !day || !Number.isFinite(Number(day.open))) return;
+      const bot = Number(day.botEur);
+      // Green is for a realised gain only; a losing day says so in red.
+      toEl.classList.toggle("is-realised", bot > 0);
+      toEl.classList.toggle("is-loss", bot < 0);
+      // Against the money actually at work, not the portfolio. An account holding
+      // 60 that only ever committed 15 did not make 31% on its capital; it made
+      // 124% on the part it used, and the smaller number is the flattering one.
+      // Falls back to the portfolio figure on a day with nothing open.
+      // The headline pair is the money that was at work and what it became. The
+      // portfolio moves to the line below: it is context, not the result. Printing
+      // the portfolio big said the account grew from 60 to 78 while the sentence
+      // underneath said the bot had 44.98 in play, and the eye took the first pair
+      // for the trade.
+      const used = Number(day.peakMarginEur);
+      const onCapital = used > 0 && Number.isFinite(Number(day.marginPercent));
+      const trades = Number(day.closedTrades) || 0;
+      const tradesText = trades > 0 ? ` (${esc(num(trades, 0))} ${esc(tradesWord(trades))})` : tail;
+
+      fromEl.classList.toggle("bc-from--used", !!onCapital);
+      if (onCapital) {
+        fromEl.textContent = money(used);
+        toEl.textContent = money(used + bot);
+        sumEl.innerHTML =
+          `<b class="${bot < 0 ? "bc-t-red" : ""}">${esc(signedMoney(bot))}</b> · ` +
+          `${esc(signedPercent(day.marginPercent, 1))}${tradesText}`;
+        // day.close here is the opening plus the bot's result - the transfers are
+        // deliberately left out of it, the way every figure on this card is. Calling
+        // that "portfelis" was a lie the moment a deposit landed: the account really
+        // went 46,93 to 600,53 that day, and the card said 38,55.
+        const moved = Number(day.manualAdjustmentEur) || 0;
+        return moved
+          ? `Portfelis be įnašų ${money(day.open)} → ${money(day.close)}`
+          : `Portfelis ${money(day.open)} → ${money(day.close)}`;
+      }
+
+      fromEl.textContent = money(day.open);
+      toEl.textContent = money(day.close);
+      sumEl.innerHTML =
+        `<b class="${bot < 0 ? "bc-t-red" : ""}">${esc(signedMoney(bot))}</b> · ` +
+        `${esc(signedPercent(day.botPercent, 1))}${tradesText}`;
+      // Mirrors the margin branch: the OTHER basis goes to the fine line, so a reader
+      // comparing the two cards can see that one percent is of the portfolio and the
+      // other of the money at work, instead of reading them as the same measure.
+      return used > 0 ? `Dirbo ${money(used)}` : "";
+    }
+
+    function renderProof(equity) {
+      if (!equity) return;
+
+      // The portfolio goes in the fine print. It is context - the account it happened
+      // in - not the result, and on one line with the profit and the trade count it
+      // wrapped to four rows on a phone.
+      const yestPortfolio = fillDay(els.yestFrom, els.yestTo, els.yestS, equity.yesterday, " per parą");
+      if (els.yestFine) {
+        els.yestFine.textContent = yestPortfolio
+          ? `${yestPortfolio} · Uždaryti sandoriai, ne popierinis pelnas.`
+          : "Uždaryti sandoriai, ne popierinis pelnas.";
+      }
+
+      // The copy under the best day was written for an account with a long history
+      // behind it. Once the series starts at the launch, that stops being the case:
+      // with one closed day "not the only day that ended in the plus" is simply
+      // false, and if that day lost money the words "best result so far" sit over a
+      // red number. Each claim is now made only in the case where it is true.
+      const best = equity.bestDay;
+      const lost = !!best && Number(best.botEur) <= 0;
+
+      const bestPortfolio = fillDay(els.bestFrom, els.bestTo, els.bestS, best, " · geriausias rezultatas iki šiol");
+
+      const used = best ? Number(best.peakMarginEur) : null;
+      if (best && els.hypoFrom && Number.isFinite(used) && used > 0) {
+        // Muted throughout: this never happened, and §9b forbids dressing a
+        // hypothetical like a realised figure.
+        // Whole dollars: cents on a sum that never existed are false precision.
+        const scaled = Number(best.botEur) * (HYPO_CAPITAL / used);
+        els.hypoFrom.textContent = money(HYPO_CAPITAL, 0);
+        els.hypoTo.textContent = money(HYPO_CAPITAL + scaled, 0);
+        els.hypoS.textContent = lost
+          // A bigger stake on a losing day is not a missed opportunity, and
+          // pretending to regret it would be the one dishonest line on the page.
+          ? `${signedMoney(scaled, 0)} · ta pati logika, tik daugiau pinigų darbe. ` +
+            "Šįkart gerai, kad nepasinaudojom…"
+          : `${signedMoney(scaled, 0)} · ta pati logika, tik daugiau pinigų darbe. ` +
+            `Tądien dirbo ${money(used)}, botui nerūpi, kiek jų — o mes nepasinaudojom…`;
+      }
+
+      // One sentence for every case - it already says results vary, which is what a
+      // losing best day and a single closed day both need it to say - but which day
+      // it was is a fact, and facts on this page are dated.
+      if (best && els.bestFine) {
+        els.bestFine.textContent =
+          (bestPortfolio ? `${bestPortfolio} · ` : "")
+          + `Geriausia para iki šiol (${best.date}) — bet ne vienintelė, `
+          + "sekasi įvairiai, nes eksperimentuojam.";
+      }
+
+      // The losing twin of the card above, filled by the same helper so the two read
+      // identically. Until a day actually ends in the red the card keeps its
+      // placeholder rather than dressing the smallest gain as a loss.
+      const worst = equity.worstDay;
+      const worstPortfolio = fillDay(els.worstFrom, els.worstTo, els.worstS, worst, "");
+      if (els.worstFine) {
+        const used = Number(worst && worst.peakMarginEur);
+        const lost = Math.abs(Number(worst && worst.botEur));
+        // The pair above ends below zero exactly when the day lost more than was ever
+        // at work at once. Say that in words rather than leaving a negative number to
+        // be read as a rendering fault.
+        const beyondWorking = used > 0 && lost > used;
+        els.worstFine.textContent = worst
+          ? (beyondWorking
+              ? `Vienu metu dirbo daugiausia ${money(used)}, o praradom ${money(lost)} `
+                + "— visus dirbusius pinigus ir dalį rezervo. "
+              : (worstPortfolio ? `${worstPortfolio} · ` : ""))
+            + `Blogiausia para iki šiol (${worst.date}).`
+          : "Taip nutinka ne visada — kartais para baigiasi minuse.";
+      }
+    }
+
+    // "12/30 dienų — minuse · blogiausia diena −1,37 $". Ships in the served HTML
+    // and is refreshed from the real series; if the series is unusable the line is
+    // removed rather than left showing a stale or templated figure.
+    function renderHonestyStat(days) {
+      if (!els.honestyStat) return;
+      if (!days.length) {
+        els.honestyStat.hidden = true;
+        return;
+      }
+
+      // The bot's own result, not the raw close minus open: a day that took a deposit
+      // reads as barely down while the bot lost many times that. On 2026-08-19
+      // futures-live closed 1,81 below its open and the bot had lost 16,30 - the
+      // difference was money paid in. Saying -1,81 here would contradict the candle
+      // drawn a few centimetres above.
+      // Counts the losing days rather than naming the worst one: the worst day now
+      // has a card of its own a few centimetres above, and printing the same figure
+      // twice made the page look like it was owning up to two separate bad days.
+      let losing = 0;
+      let counted = 0;
+      days.forEach(day => {
+        const result = dayResult(day);
+        if (!result) return;
+        counted += 1;
+        if (result.botEur < 0) losing += 1;
+      });
+
+      // Nothing to own up to yet: better silent than a "0 iš 0" that says nothing.
+      els.honestyStat.hidden = counted === 0 || losing === 0;
+      if (!els.honestyStat.hidden) {
+        els.honestyStat.textContent = `${num(losing, 0)} iš ${num(counted, 0)} parų baigėsi minuse.`;
+      }
+    }
+
+    // Break the day's change into the parts that make it up. For a
+    // mark-to-market equity series the identity always holds:
+    //   delta = realizedToday + unrealizedNow + manualToday − unrealizedAtYesterdayClose
+    // Everything on the right except that last term is reported directly by the
+    // API; the last is the single residual, and it IS yesterday's unrealized by
+    // construction — the paper P/N that was baked into yesterday's close and
+    // then either held or evaporated. Printed as its effect on today (−residual),
+    // so "-5,75 today" next to "realised +0,54" and "unrealised 0,00" reads as a
+    // sum instead of a contradiction. When the numbers ever stop reconciling the
+    // residual carries the drift into daylight rather than hiding it.
+    function renderDayBridge(data, delta) {
+      if (!els.liveBridge) return;
+      const realizedToday = Number(data.today && data.today.realizedPnlEur) || 0;
+      const closedToday = Number(data.today && data.today.closed) || 0;
+      const positions = data.positions || [];
+      const unrealizedNow = positions.reduce((sum, p) => sum + (Number(p.unrealizedPnlEur) || 0), 0);
+      const manualToday = Number(data.equity && data.equity.todayManualEur) || 0;
+      const revertedEffect = delta - (realizedToday + unrealizedNow + manualToday); // = −(yesterday's unrealized)
+
+      const SHOW = 0.005;
+      const parts = [];
+      if (Math.abs(realizedToday) > SHOW || closedToday > 0)
+        parts.push({ value: realizedToday, label: "realizuota nuo įėjimo" });
+      if (Math.abs(unrealizedNow) > SHOW)
+        parts.push({ value: unrealizedNow, label: "nerealizuota dabar" });
+      if (Math.abs(manualToday) > SHOW)
+        parts.push({ value: manualToday, label: "pervedimai" });
+      // Precisely −(unrealized carried at yesterday's close): yesterday's value
+      // already counted it, so the day-over-day change takes it back out. True
+      // whether those positions since closed or are still open, so the label
+      // states that rather than claiming the paper P/N "did not hold".
+      if (Math.abs(revertedEffect) > SHOW)
+        parts.push({ value: revertedEffect, label: "vakar jau įskaitytas popierinis P/N" });
+
+      // Nothing moved, or nothing worth decomposing: leave only the headline.
+      if (Math.abs(delta) <= SHOW || parts.length < 2) {
+        els.liveBridge.hidden = true;
+        els.liveBridge.textContent = "";
+        return;
+      }
+
+      const body = parts.map(part => {
+        const tone = part.value >= 0 ? "bc-br-pos" : "bc-br-neg";
+        return `<span class="${tone}">${esc(signedMoney(part.value))}</span> ${esc(part.label)}`;
+      }).join(" · ");
+      els.liveBridge.hidden = false;
+      els.liveBridge.innerHTML = `${body} <span class="bc-br-eq">= ${esc(signedMoney(delta))} šiandien</span>`;
+    }
+
+    function renderHeadline(data) {
+      const summary = data.summary;
+      const days = (data.equity && data.equity.days) || [];
+      if (!summary) {
+        els.liveValue.textContent = "—";
+        els.liveDelta.textContent = "";
+        els.liveBridge.hidden = true;
+        els.liveSince.textContent = "Laukiama pirmojo boto ciklo";
+        return;
+      }
+
+      const total = Number(summary.totalValueEur);
+      els.liveValue.textContent = money(total);
+
+      const lastClose = days.length ? Number(days[days.length - 1].close) : null;
+      if (Number.isFinite(lastClose) && lastClose !== 0) {
+        const delta = total - lastClose;
+        const deltaPercent = delta / Math.abs(lastClose) * 100;
+        els.liveDelta.className = `bc-delta ${delta >= 0 ? "" : "bc-delta--down"}`;
+        els.liveDelta.innerHTML = `${delta >= 0 ? "▲" : "▼"} ${esc(signedMoney(delta))} (${esc(signedPercent(deltaPercent))}) šiandien`;
+        renderDayBridge(data, delta);
+      } else {
+        els.liveDelta.className = "bc-delta";
+        els.liveDelta.textContent = "";
+        els.liveBridge.hidden = true;
+      }
+
+      const first = days.length ? Number(days[0].open) : null;
+      // Closed days and today both. The figure below is measured against the live
+      // total, which already holds anything moved today, so leaving today out
+      // credited the bot with it: futures-live read "+534,36 botas" an hour after a
+      // 560 dollar deposit.
+      const manual = (Number(data.equity && data.equity.manualAdjustmentEur) || 0)
+        + (Number(data.equity && data.equity.todayManualEur) || 0);
+      if (Number.isFinite(first) && first !== 0) {
+        // The bold figure is the bot's, like every other headline number on the page.
+        // It used to be the whole change with "iš jų ..." naming the manual part as a
+        // share of it, which put a green +3,11 in front of a reader on a day the bot
+        // had lost money and the deposits had covered it. The transfer is still shown,
+        // beside the result rather than inside it.
+        const botChange = total - first - manual;
+        const botPercent = botChange / Math.abs(first) * 100;
+        // The chart's first blue bar is the starting capital plus whatever moved that
+        // same day, because a bar rising from zero has to contain the money the
+        // account began with. This figure deliberately excludes it - the bot's result
+        // is measured from that capital, so subtracting it here would take it twice.
+        // Two honest answers to two different questions, and without naming the gap
+        // the page shows 62,44 on the chart and 2,44 in the text.
+        // The same number the chart draws as the base: everything the account held when
+        // the series starts, however long it had been there.
+        const opening = days.length ? Number(days[0].open) || 0 : 0;
+        const openingText = opening
+          ? ` <span class="bc-t-soft">(+ ${esc(money(opening))} pradinio kapitalo)</span>`
+          : "";
+        const manualText = manual || opening
+          ? ` · rankiniai koregavimai <i>${esc(signedMoney(manual))}</i>${openingText}`
+          : "";
+        els.liveSince.innerHTML = `Per ${esc(overDaysPhrase(days.length))} botas <b>${esc(signedMoney(botChange))} (${esc(signedPercent(botPercent, 1))})</b>${manualText}`;
+      } else {
+        els.liveSince.textContent = "";
+      }
+    }
+
+    function metricCell(label, value, tone, sub) {
+      return `<div class="bc-metric"><p class="bc-metric-l">${esc(label)}</p>` +
+        `<p class="bc-metric-v ${tone}">${esc(value)}</p>` +
+        `<p class="bc-metric-s">${sub}</p></div>`;
+    }
+
+    function groupCell(label, value, tone) {
+      return `<div class="bc-gcell"><span class="bc-gc-l">${esc(label)}</span>` +
+        `<span class="bc-gc-v ${tone || ""}">${esc(value)}</span></div>`;
+    }
+
+    function accountGroup(title, cells) {
+      return `<div class="bc-group"><p class="bc-group-l">${esc(title)}</p>` +
+        `<div class="bc-group-row">${cells.join("")}</div></div>`;
+    }
+
+    // Three groups, each a row of three: the money (Marža), the profit (P/N) and
+    // the activity (Sandoriai). Within each row the first figure is the sum of
+    // the other two, or — for Sandoriai — three counts that answer three
+    // different questions. "Aktyvūs" (open right now) is deliberately beside
+    // "Atidaryti/Uždaryti" (opened and closed today): the count of what is open
+    // and the count of what was opened today are not the same number, and the
+    // old single "Atidaryta 1" read as "1 open" when nothing was.
+    function renderMetrics(data) {
+      const summary = data.summary;
+      if (!summary) { paint(els.metrics, ""); return; }
+
+      const positions = data.positions || [];
+      const today = data.today || {};
+
+      const cash = Number(summary.cashEur) || 0;                                              // Laisva
+      const posMargin = positions.reduce((s, p) => s + (Number(p.initialMarginEur) || 0), 0); // Pozicijų
+      const marginTotal = cash + posMargin;                                                   // Viso (collateral)
+
+      const unrealized = positions.reduce((s, p) => s + (Number(p.unrealizedPnlEur) || 0), 0); // Nerealizuotas
+      const realized = Number(today.realizedPnlEur) || 0;                                       // Realizuotas (šiandien)
+      const pnlTotal = unrealized + realized;                                                   // Viso
+
+      const openNow = positions.length;             // Aktyvūs — atviros dabar
+      const openedToday = Number(today.opened) || 0; // Atidaryti šiandien
+      const closedToday = Number(today.closed) || 0; // Uždaryti šiandien
+
+      const groups = [
+        accountGroup("Marža", [
+          groupCell("Viso", money(marginTotal), "bc-t-cream"),
+          groupCell("Pozicijų", money(posMargin), "bc-t-cream"),
+          groupCell("Laisva", money(cash), "bc-t-cream")
+        ]),
+        accountGroup("P/N", [
+          groupCell("Viso", signedMoney(pnlTotal), toneClass(pnlTotal)),
+          groupCell("Nerealizuotas", signedMoney(unrealized), toneClass(unrealized)),
+          groupCell("Realizuotas", signedMoney(realized), toneClass(realized))
+        ]),
+        accountGroup("Sandoriai", [
+          groupCell("Aktyvūs", num(openNow, 0), "bc-t-cream"),
+          groupCell("Atidaryti", num(openedToday, 0), "bc-t-cream"),
+          groupCell("Uždaryti", num(closedToday, 0), "bc-t-cream")
+        ])
+      ].join("");
+
+      // Portfolio value = collateral + unrealised; if that identity ever drifts,
+      // the gap is named, not hidden — the same discipline as the day bridge.
+      const total = Number(summary.totalValueEur) || 0;
+      const gap = total - (marginTotal + unrealized);
+      const gapNote = Math.abs(gap) > 0.01
+        ? ` · <span class="bc-t-amber">nesutampa ${esc(signedMoney(gap))}</span>` : "";
+      const drawdown = Number(data.equity && data.equity.maxDrawdownPercent) || 0;
+      const note = `<p class="bc-groups-note">Maks. nuosmukis ` +
+        `<span class="${drawdown < 0 ? "bc-t-red" : "bc-t-soft"}">${esc(percent(drawdown, 1))}</span>` +
+        ` · giliausias kritimas nuo piko · P/N nuo įėjimo · ${esc(currencyCode)}${gapNote}</p>`;
+
+      paint(els.metrics, `<div class="bc-groups">${groups}</div>${note}`);
+    }
+
+    // ---- prose ------------------------------------------------------------
+    // Ported from the humaniser in public/trades.html and translated to
+    // Lithuanian. Three defects from the original are fixed on the way:
+    //  * a LONG futures entry no longer describes an exchange-confirmed fill as
+    //    a "dry-run" (the original built that sentence by string-replacing the
+    //    spot wording, dragging "dry-run" along with it);
+    //  * the entry threshold is quoted from the decision instead of a hardcoded
+    //    0.90, which matches nothing — futures use 0.8, spot 0.85;
+    //  * EmaGapVelocity, which the worker itself labels "not used for trading",
+    //    stays out of the signal chips.
+
+    function normalizedReason(reason) {
+      return String(reason || "").toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+    }
+
+    const EXIT_BADGES = {
+      SELL_TAKE_PROFIT: { text: "Tikslas", tone: "green" },
+      SELL_STOP_LOSS: { text: "Stop loss", tone: "red" },
+      SELL_SCORE_DECAY: { text: "Balas nuslūgo", tone: "warn" },
+      SELL_POST_ENTRY_ADVERSE: { text: "Pasuko prieš", tone: "warn" },
+      SELL_MAX_HOLD: { text: "Laikymo limitas", tone: "warn" },
+      SELL_SIGNAL_FLIP: { text: "Signalas apsivertė", tone: "warn" },
+      SELL_TRAILING_STOP: { text: "Slenkantis stop", tone: "green" },
+      SELL_KILL_SWITCH: { text: "Avarinis stabdys", tone: "red" },
+      SELL_EMERGENCY_RISK: { text: "Avarinė rizika", tone: "red" },
+      SELL_BROKER_SAFETY: { text: "Brokerio apsauga", tone: "red" },
+      // The position went, and none of our orders took it. Named rather than
+      // guessed: the old code picked whichever of stop and target the fill sat
+      // nearer to, so a close by hand always arrived labelled as one of them.
+      SELL_EXCHANGE_CLOSE: { text: "Ne mano orderis", tone: "warn" }
+    };
+
+    // The original returned a structured code unchanged and looked it straight up
+    // in the SELL_* map. The worker stores it without that prefix (STOP_LOSS, not
+    // SELL_STOP_LOSS), so every structured code missed the map and fell through to
+    // the generic "closed by an exit rule" sentence. Canonicalise first, and only
+    // fall back to reading the log when the code is unknown.
+    function inferExitCode(code, reason) {
+      const raw = String(code || "").trim().toUpperCase().replace(/^SELL_/, "");
+      if (raw && EXIT_BADGES[`SELL_${raw}`]) return `SELL_${raw}`;
+      const text = normalizedReason(reason);
+      if (text.includes("take profit")) return "SELL_TAKE_PROFIT";
+      if (text.includes("stop loss")) return "SELL_STOP_LOSS";
+      if (text.includes("score decay")) return "SELL_SCORE_DECAY";
+      if (text.includes("post entry adverse")) return "SELL_POST_ENTRY_ADVERSE";
+      if (text.includes("conditional max hold") || text.includes("max hold")) return "SELL_MAX_HOLD";
+      if (text.includes("trailing stop")) return "SELL_TRAILING_STOP";
+      if (text.includes("kill switch")) return "SELL_KILL_SWITCH";
+      if (text.includes("emergency risk")) return "SELL_EMERGENCY_RISK";
+      if (text.includes("broker safety")) return "SELL_BROKER_SAFETY";
+      if (text.includes("signal flip")
+        || text.includes("signal reversal close")
+        || text.includes("desired exposure flipped to flat")
+        || text.includes("confirmed bearish flip")
+        || text.includes("strategy no longer wanted")
+        || text.includes("strategy no longer wants")) {
+        return "SELL_SIGNAL_FLIP";
+      }
+      return null;
+    }
+
+    function exitExplanation(code, reason, side) {
+      const text = normalizedReason(reason);
+      const isShort = String(side || "").toUpperCase() === "SHORT";
+      const closed = isShort ? "Uždariau SHORT" : "Pardaviau";
+      const map = {
+        SELL_TAKE_PROFIT: isShort
+          ? "Uždariau SHORT, nes pozicija pasiekė tikslą (take-profit)."
+          : "Pardaviau, nes pozicija pasiekė tikslą (take-profit). Tai pelno fiksavimas, o ne panika.",
+        SELL_STOP_LOSS: `${closed}, nes pozicija pasiekė mano darbinį stop-loss.`,
+        SELL_SCORE_DECAY: `${closed}, nes pradinis stiprus signalas subyrėjo, kol pozicija buvo minuse.`,
+        SELL_POST_ENTRY_ADVERSE: `${closed}, nes iškart po įėjimo kaina pasuko prieš poziciją, o signalas nustojo pasitvirtinti.`,
+        SELL_MAX_HOLD: text.includes("stale loss")
+          ? "Uždariau pasenusią futures poziciją pagal laikymo limitą — ji sena ir jau buvo minuse."
+          : "Uždariau pagal maksimalaus laikymo laikmatį.",
+        SELL_SIGNAL_FLIP: isShort
+          ? "Uždariau SHORT, nes nebenorėjau laikyti short."
+          : "Pardaviau, nes nebenorėjau laikyti long.",
+        SELL_TRAILING_STOP: `${closed} pagal slenkantį stop: pozicija jau buvo pelne, bet atsitraukė nuo vietinės viršūnės.`,
+        SELL_KILL_SWITCH: `${closed} dėl avarinio stabdžio. Tai apsauginė priemonė.`,
+        SELL_EMERGENCY_RISK: `${closed} dėl avarinės rizikos taisyklės.`,
+        SELL_BROKER_SAFETY: `${closed} dėl brokerio arba sąskaitos saugos taisyklės.`,
+        SELL_EXCHANGE_CLOSE: `Pozicija dingo iš biržos, bet jos uždarė ne mano orderis — nei stop, nei tikslas, nei slenkantis stop nesuveikė. Greičiausiai uždaryta ranka.`
+      };
+      const inferred = inferExitCode(code, reason);
+      if (inferred && map[inferred]) return map[inferred];
+      return `${closed} pagal išėjimo taisyklę. Tikslus techninis įrašas — žemiau.`;
+    }
+
+    function signalAt(signals, name) {
+      return (signals || []).find(signal => signal.name === name) || null;
+    }
+
+    function entryClause(signals, source) {
+      const parts = [];
+      const at = (name) => Number((signalAt(signals, name) || {}).value);
+      const isShort = String(source.side || "").toUpperCase() === "SHORT";
+
+      if (isShort) {
+        if (at("ShortMomentum") > 0) parts.push("kritimo momentum patvirtino judėjimą");
+        if (at("ShortVolume") > 0) parts.push("apimtis patvirtino short setup");
+        if (at("ShortTrend") > 0) parts.push("kaina buvo žemiau trendo filtro");
+        if (at("EMA") < 0) parts.push("EMA persisuko žemyn");
+        if (at("Momentum") < 0) parts.push("momentum buvo negatyvus");
+      } else {
+        if (at("EMA") > 0) parts.push("EMA buvo bullish");
+        if (at("Momentum") > 0) parts.push("momentum patvirtino judėjimą");
+        if (at("Volume") > 0) parts.push("apimtis patvirtino įėjimą");
+        if (at("PriceAction") >= 0 && source.priceActionDirection === "RISING") {
+          parts.push("paskutinių kainų eiga kilo");
+        }
+        if (at("RSI") < 0) parts.push("RSI buvo perkaitęs, todėl įėjimas silpnesnis");
+      }
+      return parts;
+    }
+
+    function entryExplanation(source) {
+      const side = String(source.side || "").toUpperCase() || "LONG";
+      const leveraged = Number.isFinite(Number(source.leverage)) && Number(source.leverage) > 1;
+      // A live instance commits an exchange-confirmed fill (fillSource REAL*);
+      // only a dry-run instance books a simulated one.
+      const real = /^REAL/i.test(String(source.fillSource || ""));
+      const kind = real ? "realų" : "virtualų";
+
+      const opening = leveraged
+        ? `Atidariau ${kind} futures ${side}`
+        : (side === "SHORT" ? "Pardaviau" : "Pirkau");
+
+      const threshold = Number(source.scoreThreshold);
+      const prefix = source.exploratory
+        ? `${opening} kaip žvalgomąjį įėjimą žemiau pagrindinės ${Number.isFinite(threshold) ? num(threshold, 2) : "įprastos"} ribos.`
+        : `${opening} kaip įprastą įėjimą pagal pilną signalą.`;
+
+      const parts = entryClause(source.signals, source);
+      const detail = parts.length
+        ? ` Pagrindas: ${parts.join(", ")}.`
+        : " Signalo detalės — chipuose ir techniniame įraše.";
+      return prefix + detail;
+    }
+
+    function positionWhy(position, entry) {
+      const opening = entry
+        ? entryExplanation(entry)
+        : `Atidariau ${String(position.side || "").toUpperCase()} pagal savo signalą.`;
+
+      const pnl = Number(position.unrealizedPnlEur) || 0;
+      const now = Number(position.lastPrice);
+      const stop = Number(position.stopLossPrice);
+      const target = Number(position.takeProfitPrice);
+
+      // How far the price still has to travel, in both money and percent, instead of
+      // a word for it. The old text said "stop-loss saugiai toli" whenever the
+      // position was in profit - it never looked at the stop at all, and a position
+      // can be a cent in profit with the stop right underneath. And the flag it used
+      // for "netoli stop-loss" was the distance to liquidation, a different price
+      // that is usually further away.
+      const gap = (to) => {
+        const diff = Math.abs(Number(to) - now);
+        return Number.isFinite(diff) && Number.isFinite(now) && now !== 0
+          ? { diff, pct: diff / Math.abs(now) * 100 }
+          : null;
+      };
+      const toTarget = Number.isFinite(target) ? gap(target) : null;
+      const toStop = Number.isFinite(stop) ? gap(stop) : null;
+      const nearStop = !!toStop && toStop.pct < 2;
+
+      // A gap of 0,001945 next to a price of 0,0770 reads as noise. price() picks its
+      // decimals from the magnitude of what it is given, and a difference is always
+      // smaller than the price it came from, so it would always be printed finer than
+      // the number it is compared against. Match the price's own scale instead.
+      const sameScale = (formatted, value) => num(value, (formatted.split(",")[1] || "").length);
+      const distances = [];
+      if (toTarget) {
+        distances.push(`iki tikslo ${price(target)} — ${percent(toTarget.pct, 1)} (${sameScale(price(target), toTarget.diff)})`);
+      }
+      if (toStop) {
+        distances.push(`iki stop-loss ${price(stop)} — ${percent(toStop.pct, 1)} (${sameScale(price(stop), toStop.diff)})`);
+      }
+      const spread = distances.length
+        ? ` ${distances.join(", ").replace(/^i/, "I")}.`
+        : "";
+
+      // Same reason as the bar: with a trailing stop armed there is no target left to
+      // measure a distance to, and the stop-loss price quoted here was cancelled.
+      const trailingArmed = String(position.trailingStopState || "").toUpperCase() === "EXCHANGE_OPEN";
+      const trailingPct = Number(position.trailingStopPercent);
+      if (trailingArmed) {
+        const floor = Number.isFinite(now) && Number.isFinite(trailingPct)
+          ? (String(position.side || "").toUpperCase() === "SHORT"
+              ? now * (1 + trailingPct / 100)
+              : now * (1 - trailingPct / 100))
+          : null;
+        return opening
+          + " Pozicija nuėjo pakankamai toli, todėl tikslą ir stop-loss pakeičiau slenkančiu stopu"
+          + (Number.isFinite(trailingPct) ? ` ${percent(trailingPct, 2)} atstumu` : "")
+          + (floor ? ` — šiuo metu ties ${price(floor)}` : "")
+          + ". Viršutinės ribos nebeliko: kol kaina kyla, kyla ir stopas.";
+      }
+
+      let state;
+      if (pnl > 0) {
+        state = " Kaina nuėjo tikslo pusėn, todėl pozicija pelne." + spread;
+      } else if (nearStop) {
+        state = " Nuo tada kaina pasisuko prieš poziciją ir stop-loss jau visai netoli —"
+          + " uždarysiu ją automatiškai, jei bus pasiektas." + spread;
+      } else if (toStop) {
+        state = " Kol kas pozicija minuse; uždarysiu ją automatiškai, jei bus pasiektas stop-loss." + spread;
+      } else {
+        state = "";
+      }
+      return opening + state;
+    }
+
+    function isExitAction(action) {
+      return action === "WOULD_CLOSE" || action === "WOULD_SELL";
+    }
+
+    function tradeWhy(trade) {
+      return isExitAction(trade.action)
+        ? exitExplanation(trade.exitReasonCode, trade.log, trade.side)
+        : entryExplanation(trade);
+    }
+
+    // ---- chips --------------------------------------------------------------
+    // PositionSizing and ExitSignal are bookkeeping, and the worker's own reason
+    // text for EmaGapVelocity says it is "not used for trading" — none of the
+    // three belong in a chip row that claims to show what drove the decision.
+    const IGNORED_SIGNALS = new Set(["PositionSizing", "ExitSignal", "EmaGapVelocity"]);
+    const ALWAYS_SHOWN_SIGNALS = ["EMA", "RSI", "Volume", "PriceAction"];
+
+    function topSignals(signals) {
+      return (signals || [])
+        .filter(signal => !IGNORED_SIGNALS.has(signal.name))
+        .filter(signal => Number(signal.value) !== 0 || ALWAYS_SHOWN_SIGNALS.includes(signal.name))
+        .sort((a, b) => Math.abs(Number(b.value) || 0) - Math.abs(Number(a.value) || 0))
+        .slice(0, 5);
+    }
+
+    // A signal chip is a signed weight, so its colour follows the sign. A bearish
+    // EMA −0,30 rendered in the profit colour is the fastest way to make this
+    // dashboard look dishonest, so the category never decides the colour.
+    function signalChipClass(signal) {
+      const value = Number(signal.value);
+      if (value > 0) return "bc-chip--pos";
+      if (value < 0) return "bc-chip--neg";
+      return "bc-chip--zero";
+    }
+
+    function signalChips(signals) {
+      const shown = topSignals(signals);
+      if (!shown.length) {
+        return '<span class="bc-chip bc-chip--sig bc-chip--zero">nėra signalų duomenų</span>';
+      }
+      return shown.map(signal =>
+        `<span class="bc-chip bc-chip--sig ${signalChipClass(signal)}" title="${esc(signal.reason || "")}">` +
+        `${esc(signal.name)} ${esc(signed(signal.value, 2))}</span>`).join("");
+    }
+
+    function contextChips(source, extras) {
+      const chips = [];
+      const spread = Number(source.spreadPercent);
+      if (Number.isFinite(spread)) chips.push(`spread ${signedPercent(spread, 2)}`);
+      if (source.priceActionDirection) {
+        const trend = Number(source.priceActionTrendPercent);
+        chips.push(`PA ${source.priceActionDirection}${Number.isFinite(trend) ? ` ${signedPercent(trend, 2)}` : ""}`);
+      }
+      const gap = Number(source.emaGapPercent);
+      if (Number.isFinite(gap)) chips.push(`EMA gap ${signedPercent(gap, 2)}`);
+      const side = String(source.side || "").toUpperCase();
+      if (side) chips.push(`pusė ${side}`);
+      const leverage = Number(source.leverage);
+      if (Number.isFinite(leverage) && leverage) chips.push(`svertas ${num(leverage, 0)}x`);
+      if (/^REAL/i.test(String(source.fillSource || ""))) chips.push("realus vykdymas");
+
+      const warnings = (extras || []).slice();
+      if (source.exploratory) warnings.push("žvalgomasis įėjimas");
+
+      return chips.map(text => `<span class="bc-chip bc-chip--ctx">${esc(text)}</span>`).join("")
+        + warnings.map(text => `<span class="bc-chip bc-chip--warn">${esc(text)}</span>`).join("");
+    }
+
+    // ---- cards ---------------------------------------------------------------
+    // What the position is worth at a given price, in money. A price on its own tells
+    // you nothing about the size of the bet: 0,0725 is meaningless until it reads
+    // "-3,00 $". Direction is folded in, so a short reads the same way as a long.
+    function moneyAt(position, priceValue) {
+      const entry = Number(position.entryPrice);
+      const qty = Number(position.quantity);
+      const value = Number(priceValue);
+      if (!Number.isFinite(entry) || !Number.isFinite(qty) || !Number.isFinite(value)) return null;
+      const direction = String(position.side || "").toUpperCase() === "SHORT" ? -1 : 1;
+      return (value - entry) * qty * direction;
+    }
+
+    function priceWithMoney(position, priceValue) {
+      const amount = moneyAt(position, priceValue);
+      return amount === null
+        ? price(priceValue)
+        : `${price(priceValue)} (${signedMoney(amount)})`;
+    }
+
+    // Who did it, after the pair. One family of five: the brackets are the record, what
+    // sits inside them is what happened to it, and the dashed axis says the record is a
+    // copy. Muted is the bot, blue a person, amber a person who edited what the bot had
+    // already done, purple the mirror - the colours the page assigns elsewhere.
+    //
+    // Nothing is drawn when it cannot be told. A position opened in the seconds before
+    // the container is recreated loses its provenance: the state never reached the
+    // store, so on restart it is re-read from Kraken as KRAKEN_SYNC with no channel.
+    // An empty space there means "not known", not "the bot".
+    //
+    // Two of the five wait on the API: mirrorFlip needs `mirrorInverted`, fix needs
+    // `manualQtyChange`. Until those fields arrive the marks live only in the legend -
+    // an inverted copy reads as a plain mirror, and a hand-resized position stays
+    // unmarked. That is deliberate: guessing a hand from price or quantity would put
+    // the page back to accusing the bot of its own trades.
+    const DOER = {
+      bot: {
+        cls: "bc-doer--bot",
+        title: "Boto sprendimas",
+        svg: '<path d="M3.6 2.4 H2.1 V9.6 H3.6"/><path d="M8.4 2.4 H9.9 V9.6 H8.4"/>' +
+          '<rect x="5.1" y="5.1" width="1.8" height="1.8" fill="currentColor" stroke="none"/>'
+      },
+      hand: {
+        cls: "bc-doer--hand",
+        title: "Padaryta rankomis: ne boto orderis",
+        svg: '<path d="M3.6 2.4 H2.1 V9.6 H3.6"/><path d="M8.4 2.4 H9.9 V9.6 H8.4"/>' +
+          '<path d="M4.9 8.3 L7.1 3.7"/>'
+      },
+      // The right bracket is torn open: the frame is the bot's, but a hand reached into
+      // it and changed what was already there. Amber, not blue - blue is a whole action
+      // by a person, this is an edit on top of the bot's own.
+      fix: {
+        cls: "bc-doer--fix",
+        title: "Pakoreguota rankomis",
+        svg: '<path d="M3.6 2.4 H2.1 V9.6 H3.6"/><path d="M8.4 2.4 H9.9 V4.7"/>' +
+          '<path d="M9.9 7.3 V9.6 H8.4"/><path d="M4.9 8.3 L7.1 3.7"/>'
+      },
+      // ] | ] - two identical brackets facing the same way: the same trade, copied.
+      mirror: {
+        cls: "bc-doer--mirror",
+        title: "Zerkalas: kopija ta pa\u010dia kryptimi",
+        svg: '<path d="M2.1 2.4 H3.5 V9.6 H2.1"/><path d="M8.4 2.4 H9.9 V9.6 H8.4"/>' +
+          '<path d="M6 1.6 V10.4" stroke-dasharray="1.5 1.5" stroke-width="1"/>'
+      },
+      // ] | [ - the second bracket is turned: the copy went the other way.
+      mirrorFlip: {
+        cls: "bc-doer--mirror-flip",
+        title: "Zerkalas apverstas: kopija \u012f prie\u0161ing\u0105 pus\u0119",
+        svg: '<path d="M2.1 2.4 H3.5 V9.6 H2.1"/><path d="M9.9 2.4 H8.5 V9.6 H9.9"/>' +
+          '<path d="M6 1.6 V10.4" stroke-dasharray="1.5 1.5" stroke-width="1"/>'
+      }
+    };
+
+    function doerMark(kind) {
+      const mark = DOER[kind];
+      if (!mark) return "";
+      return `<span class="bc-doer ${mark.cls}" title="${esc(mark.title)}" aria-label="${esc(mark.title)}">` +
+        `<svg viewBox="0 0 12 12" aria-hidden="true"><g fill="none" stroke="currentColor" ` +
+        `stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${mark.svg}</g></svg></span>`;
+    }
+
+    function tradeDoer(trade) {
+      if (String(trade.exitReasonCode || "").toUpperCase() === "EXCHANGE_CLOSE") return "hand";
+      if (String(trade.entryChannel || "").toLowerCase() === "mirror") {
+        // The inverted copy is a different fact about the same channel, not a different
+        // channel: absent the flag, a mirror is a mirror.
+        return trade.mirrorInverted ? "mirrorFlip" : "mirror";
+      }
+      return "bot";
+    }
+
+    function positionDoer(position) {
+      if (String(position.entryChannel || "").toLowerCase() === "mirror") {
+        return position.mirrorInverted ? "mirrorFlip" : "mirror";
+      }
+      // A hand changed the size of something the bot had opened. Checked before origin,
+      // because it is still the bot's position - the mark says what happened to it last.
+      if (position.manualQtyChange) return "fix";
+      // It turned up on the exchange while the worker was watching and it was not the
+      // worker that put it there. That is a person, and it is known rather than guessed:
+      // a position adopted at the first sync after a restart does not set this.
+      if (position.adoptedWhileRunning) return "hand";
+      if (String(position.origin || "").toUpperCase() === "BOT") return "bot";
+      // KRAKEN_SYNC or nothing at all: it arrived without the bot ordering it, or its
+      // provenance did not survive a restart. Either way we do not know.
+      return null;
+    }
+
+    function kv(label, value, tone) {
+      return `<span class="bc-kv"><span class="bc-kv-l">${esc(label)}</span>` +
+        `<span class="bc-kv-v ${tone || "bc-t-soft"}">${esc(value)}</span></span>`;
+    }
+
+    function positionParams(position, entry) {
+      const liquidation = Number(position.liquidationDistancePercent);
+
+      // Once the position is far enough toward its target the worker arms a trailing
+      // stop on the exchange and CANCELS the take profit and the stop loss. Showing
+      // those two prices afterwards describes orders that no longer exist - which is
+      // exactly what the page did while a trailing stop closed a position on 2026-08-21.
+      const trailing = String(position.trailingStopState || "").toUpperCase() === "EXCHANGE_OPEN";
+      const trailingPct = Number(position.trailingStopPercent);
+
+      const nowPrice = Number(position.lastPrice);
+      const trailStop = trailing && Number.isFinite(nowPrice) && Number.isFinite(trailingPct)
+        ? (String(position.side || "").toUpperCase() === "SHORT"
+            ? nowPrice * (1 + trailingPct / 100)
+            : nowPrice * (1 - trailingPct / 100))
+        : null;
+
+      const protection = trailing
+        ? [
+            kv("Apsauga", "Slenkantis stop", "bc-t-gold"),
+            kv("Slenkantis stop", trailStop === null ? "—" : priceWithMoney(position, trailStop), "bc-t-gold"),
+            kv("Atstumas", Number.isFinite(trailingPct) ? percent(trailingPct, 2) : "—", "bc-t-gold"),
+            kv("Stop loss", "atšauktas", "bc-t-soft"),
+            kv("Tikslas (TP)", "atšauktas", "bc-t-soft")
+          ]
+        : [
+            kv("Apsauga", "Stop loss / TP", "bc-t-soft"),
+            kv("Stop loss", priceWithMoney(position, position.stopLossPrice), "bc-t-red"),
+            kv("Tikslas (TP)", priceWithMoney(position, position.takeProfitPrice), "bc-t-soft")
+          ];
+
+      return [
+        kv("Įėjimas", price(position.entryPrice)),
+        kv("Dabar", priceWithMoney(position, position.lastPrice), "bc-t-cream"),
+        kv("Kiekis", quantity(position.quantity)),
+        kv("Nominalas", money(position.entryNotionalEur)),
+        kv("Marža", money(position.initialMarginEur)),
+        kv("Mokestis", entry && Number.isFinite(Number(entry.feeEur)) ? money(entry.feeEur, 3) : "—"),
+        ...protection,
+        kv("Likvidacija", price(position.liquidationPrice), "bc-t-red"),
+        kv("Iki likvidacijos", Number.isFinite(liquidation) ? percent(liquidation, 1) : "—",
+          Number.isFinite(liquidation) && liquidation < 8 ? "bc-t-red" : "bc-t-soft")
+      ].join("");
+    }
+
+    // The track spans the two exit prices and is always oriented so that RIGHT
+    // IS BAD: LONG runs SL -> TP, SHORT runs TP -> SL.
+    const clampPercent = (value) => Math.min(87, Math.max(13, value));
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+    function riskBar(position) {
+      const isLong = String(position.side || "").toUpperCase() !== "SHORT";
+      const stop = Number(position.stopLossPrice);
+      const target = Number(position.takeProfitPrice);
+      const now = Number(position.lastPrice);
+      const entry = Number(position.entryPrice);
+      const liquidation = Number(position.liquidationDistancePercent);
+
+      const foot = `<p class="bc-bar-foot">įėjimas ${esc(price(entry))} · iki likvidacijos ` +
+        `<b class="${Number.isFinite(liquidation) && liquidation < 8 ? "bc-t-red" : "bc-t-soft"}">` +
+        `${esc(Number.isFinite(liquidation) ? percent(liquidation, 1) : "—")}</b></p>`;
+
+      // Once the trailing stop is armed the take profit and stop loss are cancelled, so
+      // a stop-to-target bar would plot two prices that no longer exist and imply a
+      // ceiling the position no longer has. The scale becomes profit instead: the entry
+      // price on the left, +15% of it on the right - further than these trades actually
+      // run - with the current price and the stop that follows it marked along the way.
+      const trailingPct = Number(position.trailingStopPercent);
+      if (String(position.trailingStopState || "").toUpperCase() === "EXCHANGE_OPEN"
+          && Number.isFinite(now) && Number.isFinite(entry) && entry > 0
+          && Number.isFinite(trailingPct) && trailingPct > 0) {
+        const SCALE = 15;
+        // The axis is price and rises left to right, which mirrors the whole bar for a
+        // short exactly as .bc-bar--short already mirrors the stop-to-target one. So a
+        // short reads the way a price chart reads: the profitable end is the low end,
+        // on the left, and the entry sits on the right.
+        const stopPrice = isLong ? now * (1 - trailingPct / 100) : now * (1 + trailingPct / 100);
+        const ceiling = isLong ? entry * (1 + SCALE / 100) : entry * (1 - SCALE / 100);
+        const lo = isLong ? entry : ceiling;
+        const hi = isLong ? ceiling : entry;
+        const at = (value) => clamp((value - lo) / (hi - lo) * 100, 0, 100);
+        const nowAt = at(now);
+        const tsAt = at(stopPrice);
+
+        // Position for a label: centred on its mark in the middle of the bar, pinned to
+        // the container edge near either end. Pinning uses the edge rather than the mark
+        // because the label's width is unknown here - it depends on the font and on the
+        // card width, which is half as wide on a phone.
+        // 25/75, not 18/82: a centred label needs half its width clear on either side,
+        // so the threshold has to cover the widest the label ever gets relative to the
+        // bar. The same text is ~16% of an 805px desktop bar but ~45% of a 330px phone
+        // one, and 25% is what keeps the phone case inside.
+        const EDGE = 25;
+        const label = (at) => at < EDGE
+          ? { cls: " bc-lab--start", style: "left:0" }
+          : at > 100 - EDGE
+            ? { cls: " bc-lab--end", style: "right:0" }
+            : { cls: "", style: `left:${at.toFixed(1)}%` };
+        const ts = label(tsAt);
+        const nw = label(nowAt);
+
+        return `<div class="bc-bar-box">
+              <div class="bc-bar-ends">${isLong
+                ? `<span>Įėjimas ${esc(price(entry))}</span><span>${esc(priceWithMoney(position, ceiling))}</span>`
+                : `<span>${esc(priceWithMoney(position, ceiling))}</span><span>Įėjimas ${esc(price(entry))}</span>`}</div>
+              <div class="bc-bar-top">
+                <span class="bc-ts-l${ts.cls}" style="${ts.style}">TS ${esc(priceWithMoney(position, stopPrice))}</span>
+              </div>
+              <div class="bc-bar bc-bar--trail${isLong ? "" : "-rev"}"></div>
+              <div class="bc-bar-marks bc-bar-marks--trail">
+                <span class="bc-ts" style="left:${tsAt.toFixed(1)}%"></span>
+                <span class="bc-now" style="left:${nowAt.toFixed(1)}%"></span>
+                <span class="bc-now-l${nw.cls}" style="${nw.style}">dabar ${esc(priceWithMoney(position, now))}</span>
+              </div>
+              ${foot}
+            </div>`;
+      }
+
+      if (!Number.isFinite(stop) || !Number.isFinite(target) || stop === target) {
+        return `<div class="bc-bar-box">${foot}</div>`;
+      }
+
+      const lo = isLong ? stop : target;
+      const hi = isLong ? target : stop;
+      const at = (value) => (Number(value) - lo) / (hi - lo) * 100;
+
+      const nowAt = clamp(at(now), 0, 100);
+      const entryAt = clamp(at(entry), 0, 100);
+      // The dot keeps the true percentage; only the label is pulled back inside
+      // the card, because it is translateX(-50%) and would escape at the ends.
+      const labelAt = clamp(nowAt, 13, 87);
+
+      return `<div class="bc-bar-box">
+              <div class="bc-bar-ends"><span>${isLong ? "SL" : "TP"} ${esc(priceWithMoney(position, lo))}</span><span>${isLong ? "TP" : "SL"} ${esc(priceWithMoney(position, hi))}</span></div>
+              <div class="bc-bar bc-bar--${isLong ? "long" : "short"}"></div>
+              <div class="bc-bar-marks">
+                <span class="bc-tick" style="left:${entryAt.toFixed(1)}%"></span>
+                <span class="bc-now" style="left:${nowAt.toFixed(1)}%"></span>
+                <span class="bc-now-l" style="left:${labelAt.toFixed(1)}%">dabar ${esc(priceWithMoney(position, now))}</span>
+              </div>
+              ${foot}
+            </div>`;
+    }
+
+    function positionCard(position, entry) {
+      const side = String(position.side || "").toUpperCase();
+      const leverage = Number(position.leverage);
+      const liquidation = Number(position.liquidationDistancePercent);
+      const atRisk = Number.isFinite(liquidation) && liquidation < 8;
+
+      const badges = [
+        `<span class="bc-badge bc-badge--${side === "SHORT" ? "red" : "green"}">Atidariau ${esc(side || "—")}</span>`,
+        Number.isFinite(leverage) && leverage ? `<span class="bc-badge bc-badge--neutral">${esc(num(leverage, 0))}x</span>` : "",
+        Number.isFinite(leverage) && leverage ? '<span class="bc-badge bc-badge--neutral">Futures</span>' : "",
+        atRisk ? '<span class="bc-badge bc-badge--warn">Rizika</span>' : ""
+      ].join("");
+
+      const params = positionParams(position, entry);
+      const why = positionWhy(position, entry);
+      const signals = entry ? signalChips(entry.signals) : signalChips(null);
+      // "arti LIQ", not "arti SL": the flag counts the distance to liquidation, which
+      // is a different price from the stop-loss and often much further away. Labelled
+      // as SL it contradicted the position's own text - "stop-loss saugiai toli" - and
+      // would have read as an outright lie on a wide stop at high leverage.
+      const context = contextChips(entry || {
+        spreadPercent: null, side: position.side, leverage: position.leverage
+      }, atRisk && Number.isFinite(Number(position.liquidationPrice))
+        ? [`LIQ ${price(position.liquidationPrice)}`]
+        : atRisk ? ["arti LIQ"] : []);
+      const log = entry && entry.log ? entry.log : "";
+      const bar = riskBar(position);
+      const pnl = Number(position.unrealizedPnlEur);
+      const tone = toneClass(pnl);
+
+      // The narrow body carries the same content as the wide summary, in the order
+      // a person reads it: what I did and why, then the picture, then the numbers
+      // and the raw exchange record.
+      return `<details class="bc-card bc-card--pos" data-key="pos:${esc(position.pair)}" open>
+        <summary class="bc-card-sum">
+          <div class="bc-id">
+            <span class="bc-pair">${esc(position.pair)}${doerMark(positionDoer(position))}</span>
+            <span class="bc-badges">${badges}</span>
+            <span class="bc-when">atidariau ${esc(ltDateTime(position.openedAtUtc, false))} LT · prieš ${esc(duration(position.openedAtUtc))}</span>
+            <span class="bc-params bc-only-wide">${params}</span>
+          </div>
+          <div class="bc-mid">
+            <p class="bc-why-l bc-only-wide">Kodėl ją atidariau</p>
+            <p class="bc-why bc-only-wide">${esc(why)}</p>
+            <div class="bc-only-wide">${bar}</div>
+            ${log ? `<p class="bc-tech bc-only-wide">${esc(log)}</p>` : ""}
+          </div>
+          <div class="bc-num">
+            <p class="bc-num-l">Nerealizuotas P/N</p>
+            <p class="bc-num-v"><span class="${tone}">${esc(signedMoney(pnl))}</span><em class="${tone}">(${esc(signedPercent(position.unrealizedPnlPercent))})</em></p>
+            <div class="bc-only-wide">
+              <p class="bc-chips-l">Signalai</p><div class="bc-chips">${signals}</div>
+              <p class="bc-chips-l">Kontekstas</p><div class="bc-chips">${context}</div>
+            </div>
+          </div>
+        </summary>
+        <div class="bc-card-body bc-only-narrow">
+          <p class="bc-why-l">Kodėl ją atidariau</p>
+          <p class="bc-why">${esc(why)}</p>
+          ${bar}
+          <div class="bc-params">${params}</div>
+          <p class="bc-chips-l">Signalai</p><div class="bc-chips">${signals}</div>
+          <p class="bc-chips-l">Kontekstas</p><div class="bc-chips">${context}</div>
+          ${log ? `<p class="bc-tech">${esc(log)}</p>` : ""}
+        </div>
+      </details>`;
+    }
+
+    const TRADE_BADGES = {
+      WOULD_OPEN_LONG: '<span class="bc-badge bc-badge--green">Atidariau LONG</span>',
+      WOULD_OPEN_SHORT: '<span class="bc-badge bc-badge--red">Atidariau SHORT</span>',
+      WOULD_BUY: '<span class="bc-badge bc-badge--green">Atidariau LONG</span>',
+      WOULD_SELL: '<span class="bc-badge bc-badge--red">Uždariau</span>',
+      WOULD_CLOSE: '<span class="bc-badge bc-badge--red">Uždariau</span>'
+    };
+
+    function tradeCard(trade) {
+      const isExit = isExitAction(trade.action);
+      const log = String(trade.log || "");
+      const badges = [];
+      if (TRADE_BADGES[trade.action]) badges.push(TRADE_BADGES[trade.action]);
+      if (isExit) {
+        // Every exit reason the worker can emit gets its own badge, inferred from
+        // the log when the structured code is missing.
+        const exit = EXIT_BADGES[inferExitCode(trade.exitReasonCode, log)];
+        if (exit) badges.push(`<span class="bc-badge bc-badge--${exit.tone}">${esc(exit.text)}</span>`);
+      }
+      if (Number.isFinite(Number(trade.leverage)) && Number(trade.leverage)) {
+        badges.push('<span class="bc-badge bc-badge--neutral">Futures</span>');
+      }
+
+      const realized = Number(trade.realizedPnlEur);
+      const realizedPercent = Number(trade.realizedPnlPercent);
+      const outcome = isExit && Number.isFinite(realized)
+        ? kv("Realizuota",
+            `${signedMoney(realized)} ${Number.isFinite(realizedPercent) ? signedPercent(realizedPercent) : ""}`.trim(),
+            toneClass(realized))
+        : kv("Tikslinė suma", money(trade.targetNotionalEur));
+
+      const params = [
+        kv("Įvykdyta kaina", price(trade.fillPrice)),
+        kv("Kiekis", quantity(trade.quantity)),
+        kv("Mokestis", money(trade.feeEur, 3)),
+        kv("Balas", num(trade.score, 2), "bc-t-cream"),
+        outcome
+      ].join("");
+
+      const why = tradeWhy(trade);
+      const signals = signalChips(trade.signals);
+      const context = contextChips(trade, trade.reduceOnly ? ["reduce-only"] : []);
+      const key = `trade:${trade.utc}:${trade.pair}:${trade.action}`;
+
+      return `<details class="bc-card bc-card--trade" data-key="${esc(key)}" open>
+        <summary class="bc-card-sum">
+          <div class="bc-id">
+            <span class="bc-pair">${esc(trade.pair)}${doerMark(tradeDoer(trade))}</span>
+            <span class="bc-badges">${badges.join("")}</span>
+            <span class="bc-when">${esc(ltDateTime(trade.utc, false))} LT</span>
+            <span class="bc-params bc-only-wide">${params}</span>
+          </div>
+          <div class="bc-mid">
+            <p class="bc-why-l bc-only-wide">Kodėl</p>
+            <p class="bc-why bc-only-wide">${esc(why)}</p>
+            ${log ? `<p class="bc-tech bc-only-wide">${esc(log)}</p>` : ""}
+          </div>
+          <div class="bc-num">
+            <p class="bc-num-l bc-only-wide">Signalai</p>
+            <div class="bc-chips bc-only-wide">${signals}</div>
+            <p class="bc-chips-l bc-only-wide">Kontekstas</p>
+            <div class="bc-chips bc-only-wide">${context}</div>
+            <p class="bc-num-v bc-only-narrow"><span class="bc-t-cream">${esc(num(trade.score, 2))} balas</span></p>
+          </div>
+        </summary>
+        <div class="bc-card-body bc-only-narrow">
+          <p class="bc-why-l">Kodėl</p>
+          <p class="bc-why">${esc(why)}</p>
+          <div class="bc-params">${params}</div>
+          <p class="bc-chips-l">Signalai</p><div class="bc-chips">${signals}</div>
+          <p class="bc-chips-l">Kontekstas</p><div class="bc-chips">${context}</div>
+          ${log ? `<p class="bc-tech">${esc(log)}</p>` : ""}
+        </div>
+      </details>`;
+    }
+
+    // ---- sections -------------------------------------------------------------
+    function renderPositions(data) {
+      const positions = data.positions || [];
+      const contexts = data.entryContexts || {};
+      const updated = data.summary ? `atnaujinta ${ltDateTime(data.summary.updatedAt)} LT` : "laukiama duomenų";
+      els.posMeta.textContent = `${num(positions.length, 0)} ${positionsWord(positions.length)} · ${updated}`;
+      paint(els.posList, positions.length
+        ? positions.map(position => positionCard(position, contexts[position.pair])).join("")
+        : '<p class="bc-empty">Nėra atvirų pozicijų</p>');
+    }
+
+    function renderTrades(data) {
+      const today = data.today || {};
+      const trades = today.trades || [];
+      els.tradeMeta.textContent = today.localDate
+        ? `nuo ${today.localDate} 00:00 ${today.timeZone || "Europe/Vilnius"}`
+        : "";
+
+      // The day's counts and realised P/N moved up into the account groups; here
+      // the section is just the list of what actually happened today.
+      paint(els.tradeList, trades.length
+        ? trades.map(tradeCard).join("")
+        : '<p class="bc-empty">Šiandien sandorių dar nebuvo</p>');
+    }
+
+    // ---- loading + failure ------------------------------------------------------
+    function renderSkeleton() {
+      if (lastGood) return;
+      els.posList.innerHTML = '<div class="bc-skeleton bc-skeleton--pos"></div><div class="bc-skeleton bc-skeleton--pos"></div>';
+      els.tradeList.innerHTML = '<div class="bc-skeleton bc-skeleton--trade"></div>';
+      els.chartCanvas.innerHTML = '<div class="bc-skeleton bc-skeleton--chart"></div>';
+    }
+
+    // The API's warnings are English operator text; the page is Lithuanian.
+    const WARNINGS = {
+      "portfolio_state is empty; wait for the worker to persist a cycle":
+        "Botas dar neįrašė nė vieno ciklo — laukiama pirmųjų duomenų.",
+      "portfolio tables/views are not initialized yet; wait for the worker to start with database enabled":
+        "Duomenų bazė dar neparuošta — laukiama, kol botas startuos."
+    };
+
+    function notice(message) {
+      message = message ? (WARNINGS[message] || message) : message;
+      if (!message) {
+        els.notice.hidden = true;
+        els.notice.textContent = "";
+        return;
+      }
+      els.notice.hidden = false;
+      els.notice.textContent = message;
+    }
+
+    let currencyCode = "USD";
+
+    function render(data) {
+      data = Object.assign({}, data, { equity: trimToLaunch(data.equity) });
+      currencyCode = (data.summary && data.summary.cashQuoteCurrency) || "USD";
+      currencySymbol = currencyCode === "EUR" ? "€" : "$";
+
+      notice(data.warning || null);
+      renderStatus(data);
+      renderHeadline(data);
+      renderRate(data.rates);
+      renderProof(data.equity);
+      renderChart(data);
+      renderHonestyStat((data.equity && data.equity.days) || []);
+      renderMetrics(data);
+      renderPositions(data);
+      renderTrades(data);
+    }
+
+    // In production the page is served from the same host as the API, so /api is
+    // a plain same-origin path. Opened as a local file or from a dev server there
+    // is no /api next to it, so it falls back to the deployed host: the endpoint
+    // is public, read-only and sends CORS headers, which lets a local copy show
+    // the very same live numbers without a proxy.
+    const REMOTE_API = "https://blynai.meetluko.eu";
+    const SERVED_OVER_HTTP = /^https?:$/.test(location.protocol) && !!location.hostname;
+    // Same origin first, because that is how the page is served in production. A copy
+    // opened from a file, or from a dev server with no /api behind it, falls back to
+    // the deployed host: the endpoint is public, read-only and sends CORS headers, so
+    // a local copy shows the very same live numbers without a proxy.
+    // На этом домене /api нет и не будет — сервис живёт на REMOTE_API. Попытка
+    // same-origin здесь только скачивала бы нашу 404-страницу каждые 10 секунд,
+    // поэтому идём сразу на удалённый хост (он публичный, read-only, с CORS).
+    let apiBase = REMOTE_API;
+
+    async function refresh() {
+      const botInstanceId = TENANTS[tenant].botInstanceId;
+      try {
+        let response;
+        try {
+          response = await fetch(`${apiBase}/api/dashboard?botInstanceId=${encodeURIComponent(botInstanceId)}`, { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        } catch (sameOrigin) {
+          if (apiBase === REMOTE_API) throw sameOrigin;
+          apiBase = REMOTE_API;
+          response = await fetch(`${apiBase}/api/dashboard?botInstanceId=${encodeURIComponent(botInstanceId)}`, { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        lastGood = data;
+        render(data);
+      } catch (error) {
+        // Never blank the dashboard: keep the last good numbers, flip the dots
+        // red and say so above the hero.
+        notice(`Nepavyko atnaujinti duomenų (${error.message}). Rodomi paskutiniai gauti skaičiai.`);
+        document.querySelectorAll(".bc-dot").forEach(dot => dot.classList.add("bc-dot--down"));
+      }
+    }
+
+    initTenant();
+    initDisclaimer();
+    initChartTooltip();
+    lockCardsOpen();
+    renderSkeleton();
+    refresh();
+    setInterval(refresh, REFRESH_MS);
+  </script>
+</body>
+</html>
