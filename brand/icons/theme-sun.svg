@@ -1,0 +1,8 @@
+<!-- Theme toggle — light ("Paper"). Filled disc plus eight rays; the rays are
+     stroked at 1.5 so they survive at 15px. Paints with currentColor. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <circle cx="8" cy="8" r="3.1" fill="currentColor"/>
+  <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+    <path d="M8 1v1.7M8 13.3V15M15 8h-1.7M2.7 8H1M12.95 3.05l-1.2 1.2M4.25 11.75l-1.2 1.2M12.95 12.95l-1.2-1.2M4.25 4.25l-1.2-1.2"/>
+  </g>
+</svg>

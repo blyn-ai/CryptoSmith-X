@@ -1,0 +1,5 @@
+<!-- Theme toggle — dark ("Ink"). Filled crescent, no stroke: an outline at 15px
+     renders as a hairline and disappears. Paints with currentColor. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <path fill="currentColor" d="M13.9 10.4A6.3 6.3 0 0 1 5.6 2.1a6.6 6.6 0 1 0 8.3 8.3z"/>
+</svg>
