@@ -1,24 +1,13 @@
 using CryptoSmithX.Database;
 using CryptoSmithX.WebApp.Api;
-using CryptoSmithX.WebApp.Auth;
-using CryptoSmithX.WebApp.Options;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
-
-// `dotnet run -- hash-password <pwd>` prints a PBKDF2 hash and exits, so the operator can fill
-// WebApp:Users without a running app. This is the only non-web entry point.
-if (args is ["hash-password", var pwd])
-{
-    Console.WriteLine(PasswordHasher.Hash(pwd));
-    return;
-}
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 
-builder.Services.Configure<WebAppOptions>(builder.Configuration.GetSection(WebAppOptions.SectionName));
 builder.Services.AddSingleton(_ => new Db(
     builder.Configuration.GetConnectionString("Database")
     ?? throw new InvalidOperationException("ConnectionStrings:Database is not configured.")));

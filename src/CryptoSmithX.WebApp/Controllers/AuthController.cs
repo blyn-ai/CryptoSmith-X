@@ -1,30 +1,33 @@
 using System.Security.Claims;
-using CryptoSmithX.WebApp.Auth;
-using CryptoSmithX.WebApp.Options;
+using CryptoSmithX.Database;
+using CryptoSmithX.WebApp.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace CryptoSmithX.WebApp.Controllers;
 
-/// <summary>Cookie sign-in and sign-out. Users are the hardcoded ones from configuration.</summary>
+/// <summary>Cookie sign-in and sign-out. Users live in the database (<c>webapp_user</c>).</summary>
 [AllowAnonymous]
 public sealed class AuthController : Controller
 {
-    private readonly WebAppOptions _options;
+    private readonly Db _db;
 
-    public AuthController(IOptions<WebAppOptions> options) => _options = options.Value;
+    public AuthController(Db db) => _db = db;
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(string? username, string? password)
+    public async Task<IActionResult> Login(string? username, string? password, CancellationToken ct)
     {
-        var user = _options.Users.FirstOrDefault(u =>
-            string.Equals(u.Username, username, StringComparison.Ordinal));
+        await using var conn = await _db.OpenAsync(ct);
+        var user = await UserStore.FindAsync(conn, username ?? "", ct);
 
-        if (user is null || !PasswordHasher.Verify(password ?? "", user.PasswordHash))
+        // Plaintext comparison for now; constant-time is moot without hashing. A seeded account has
+        // no password (null) and can never sign in until an operator sets one directly in the database.
+        if (user is null
+            || string.IsNullOrEmpty(user.Password)
+            || !string.Equals(user.Password, password, StringComparison.Ordinal))
         {
             TempData["LoginFailed"] = true;
             return RedirectToAction(nameof(HomeController.Index), "Home");
