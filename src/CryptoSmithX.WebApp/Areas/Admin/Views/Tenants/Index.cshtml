@@ -1,0 +1,57 @@
+@model IReadOnlyList<TenantRow>
+@{
+    ViewData["Title"] = "Tenants";
+}
+<main>
+    <div class="page-head">
+        <div>
+            <p class="eyebrow">Admin</p>
+            <h1>Tenants</h1>
+        </div>
+    </div>
+
+    @if (TempData["Error"] is string err)
+    {
+        <div class="alert alert-error">@err</div>
+    }
+
+    <div class="grid grid-2">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Code</th><th>Name</th><th>Created</th></tr>
+                </thead>
+                <tbody>
+                    @if (Model.Count == 0)
+                    {
+                        <tr><td colspan="3" class="dash">No tenants yet.</td></tr>
+                    }
+                    @foreach (var t in Model)
+                    {
+                        <tr>
+                            <td>@t.Code</td>
+                            <td class="muted">@t.Name</td>
+                            <td class="muted">@Format.Utc(t.CreatedAt)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="panel">
+            <h2>New tenant</h2>
+            <form method="post" action="/Admin/Tenants/Create">
+                @Html.AntiForgeryToken()
+                <div class="field">
+                    <label for="code">Code</label>
+                    <input id="code" name="code" type="text" placeholder="DENIS">
+                </div>
+                <div class="field">
+                    <label for="name">Name</label>
+                    <input id="name" name="name" type="text" placeholder="Denis instance">
+                </div>
+                <button class="btn" type="submit">Create tenant</button>
+            </form>
+        </div>
+    </div>
+</main>

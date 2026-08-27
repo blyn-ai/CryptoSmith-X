@@ -1,0 +1,51 @@
+@{
+    var isAuth = User.Identity?.IsAuthenticated == true;
+    var isAdmin = User.IsInRole("admin");
+    var name = User.Identity?.Name;
+    string Active(string area, string controller)
+    {
+        var a = (ViewContext.RouteData.Values["area"] as string) ?? "";
+        var c = (ViewContext.RouteData.Values["controller"] as string) ?? "";
+        return string.Equals(a, area, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(c, controller, StringComparison.OrdinalIgnoreCase) ? "is-active" : "";
+    }
+}
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>@(ViewData["Title"] ?? "CryptoSmith X")</title>
+    <link rel="icon" href="~/ds/assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="~/ds/styles.css">
+    <link rel="stylesheet" href="~/app.css">
+    @await RenderSectionAsync("head", required: false)
+</head>
+<body>
+    <div class="top-rule"></div>
+    @if (isAuth)
+    {
+        <header class="top">
+            <a class="wordmark" href="@(isAdmin ? "/Admin" : "/My")">CryptoSmith <span>X</span></a>
+            <nav class="nav">
+                @if (isAdmin)
+                {
+                    <a class="@Active("Admin", "Bots")" href="/Admin/Bots">Bots</a>
+                    <a class="@Active("Admin", "Tenants")" href="/Admin/Tenants">Tenants</a>
+                    <a class="@Active("Admin", "MarketData")" href="/Admin/MarketData">Market data</a>
+                }
+                else
+                {
+                    <a class="@Active("My", "Bots")" href="/My/Bots">My bots</a>
+                }
+            </nav>
+            <span class="who"><b>@name</b> · @(isAdmin ? "ADMIN" : "USER")</span>
+            <form method="post" action="/auth/logout">
+                @Html.AntiForgeryToken()
+                <button class="linkbtn" type="submit">Sign out</button>
+            </form>
+        </header>
+    }
+    @RenderBody()
+</body>
+</html>

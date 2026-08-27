@@ -1,0 +1,96 @@
+@model BotDetails
+@{
+    ViewData["Title"] = $"Bot {Model.BotInstanceId}";
+    var newToken = ViewData["NewToken"] as NewTokenNotice;
+}
+<main>
+    <div class="page-head">
+        <div>
+            <p class="eyebrow">Admin · @Model.TenantCode</p>
+            <h1>@Model.BotInstanceId</h1>
+        </div>
+        <div class="actions">
+            <a class="btn btn-ghost btn-sm" href="/Admin/Bots">Back to bots</a>
+        </div>
+    </div>
+
+    @if (newToken is not null)
+    {
+        <div class="alert alert-token">
+            Token for <b>@newToken.BotInstanceId</b> — shown once, store it now:
+            <code>@newToken.Token</code>
+        </div>
+    }
+    @if (TempData["Saved"] is string ok)
+    {
+        <div class="alert alert-ok">@ok</div>
+    }
+    @if (TempData["Error"] is string err)
+    {
+        <div class="alert alert-error">@err</div>
+    }
+
+    <div class="panel">
+        <div class="actions">
+            <span>Status: @if (Model.IsEnabled) { <span class="badge badge-on">enabled</span> } else { <span class="badge badge-off">disabled</span> }</span>
+            <form method="post" action="/Admin/Bots/SetEnabled">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id">
+                <input type="hidden" name="enabled" value="@((!Model.IsEnabled).ToString().ToLowerInvariant())">
+                <button class="btn btn-ghost btn-sm" type="submit">@(Model.IsEnabled ? "Disable" : "Enable")</button>
+            </form>
+            <form method="post" action="/Admin/Bots/RegenerateToken">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id">
+                <button class="btn btn-ghost btn-sm" type="submit">Regenerate token</button>
+            </form>
+            <span class="muted">Last heartbeat: @Format.Utc(Model.LastHeartbeatAt)</span>
+        </div>
+    </div>
+
+    <div class="grid grid-2 section">
+        <div>
+            <h2>Policy · v@Model.PolicyVersion</h2>
+            <div class="panel">
+                <form method="post" action="/Admin/Bots/SavePolicy">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.Id">
+                    <div class="field">
+                        <label for="policyJson">policy json</label>
+                        <textarea id="policyJson" name="policyJson" spellcheck="false">@(Model.PolicyJson ?? "{\n  \n}")</textarea>
+                    </div>
+                    <button class="btn" type="submit">Save policy</button>
+                </form>
+            </div>
+
+            <h2 class="section">Recent events</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Received</th><th>Utc</th><th>Type</th><th>Event id</th></tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Events.Count == 0)
+                        {
+                            <tr><td colspan="4" class="dash">No events yet.</td></tr>
+                        }
+                        @foreach (var e in Model.Events)
+                        {
+                            <tr>
+                                <td class="muted">@Format.Utc(e.ReceivedAt)</td>
+                                <td class="muted">@Format.Utc(e.Utc)</td>
+                                <td>@e.Type</td>
+                                <td class="muted">@e.EventId</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <h2>Last heartbeat</h2>
+            <pre class="json">@(Model.LastHeartbeatJson ?? Format.Dash)</pre>
+        </div>
+    </div>
+</main>

@@ -1,0 +1,77 @@
+@model IReadOnlyList<BotListItem>
+@{
+    ViewData["Title"] = "Bots";
+    var tenants = ViewData["Tenants"] as IReadOnlyList<string> ?? new List<string>();
+}
+<main>
+    <div class="page-head">
+        <div>
+            <p class="eyebrow">Admin</p>
+            <h1>Bots</h1>
+        </div>
+    </div>
+
+    @if (TempData["Error"] is string err)
+    {
+        <div class="alert alert-error">@err</div>
+    }
+
+    <div class="grid grid-2">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Tenant</th><th>Instance</th><th>Enabled</th><th>Token</th><th>Last heartbeat</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @if (Model.Count == 0)
+                    {
+                        <tr><td colspan="6" class="dash">No bots yet.</td></tr>
+                    }
+                    @foreach (var b in Model)
+                    {
+                        <tr>
+                            <td>@b.TenantCode</td>
+                            <td><a href="/Admin/Bots/Details/@b.Id">@b.BotInstanceId</a></td>
+                            <td>@if (b.IsEnabled) { <span class="badge badge-on">on</span> } else { <span class="badge badge-off">off</span> }</td>
+                            <td>@if (b.HasToken) { <span class="muted">set</span> } else { <span class="badge badge-warn">none</span> }</td>
+                            <td class="muted">@Format.Age(b.HeartbeatAgeSeconds)</td>
+                            <td><a href="/Admin/Bots/Details/@b.Id">Open</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="panel">
+            <h2>New bot</h2>
+            @if (tenants.Count == 0)
+            {
+                <p class="muted">Create a tenant first.</p>
+            }
+            else
+            {
+                <form method="post" action="/Admin/Bots/Create">
+                    @Html.AntiForgeryToken()
+                    <div class="field">
+                        <label for="tenantCode">Tenant</label>
+                        <select id="tenantCode" name="tenantCode">
+                            @foreach (var t in tenants)
+                            {
+                                <option value="@t">@t</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="botInstanceId">Instance id</label>
+                        <input id="botInstanceId" name="botInstanceId" type="text" placeholder="futures-live">
+                    </div>
+                    <div class="field">
+                        <label for="name">Name</label>
+                        <input id="name" name="name" type="text" placeholder="Futures live">
+                    </div>
+                    <button class="btn" type="submit">Create bot</button>
+                </form>
+            }
+        </div>
+    </div>
+</main>

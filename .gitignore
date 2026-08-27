@@ -37,3 +37,6 @@ TestResults/
 # macOS
 .DS_Store
 ._*
+
+# Build artefact — the design system is linked in, not copied
+src/CryptoSmithX.WebApp/wwwroot/ds/

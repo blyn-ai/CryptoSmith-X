@@ -1,0 +1,35 @@
+@{
+    ViewData["Title"] = "CryptoSmith X — prisijungimas";
+    var failed = ViewData["LoginFailed"] is true;
+}
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="auth-brand">
+            <img src="~/ds/assets/cryptosmith-mark.svg" width="40" height="40" alt="">
+            <div>
+                <p class="wordmark">CryptoSmith <span>X</span></p>
+                <p class="auth-tag">Perps &amp; crypto trade bot</p>
+            </div>
+        </div>
+
+        <p class="eyebrow">Prisijungimas</p>
+
+        @if (failed)
+        {
+            <div class="alert alert-error" role="alert">Tokio naudotojo nėra. Prieiga šiuo metu suteikiama tik uždaro testavimo dalyviams.</div>
+        }
+
+        <form method="post" action="/auth/login">
+            @Html.AntiForgeryToken()
+            <div class="field">
+                <label for="username">Naudotojas</label>
+                <input id="username" name="username" type="text" autocomplete="username" autofocus>
+            </div>
+            <div class="field">
+                <label for="password">Slaptažodis</label>
+                <input id="password" name="password" type="password" autocomplete="current-password">
+            </div>
+            <button class="btn" type="submit" style="width:100%">Prisijungti</button>
+        </form>
+    </div>
+</div>

@@ -54,5 +54,26 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
+  webapp:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: webapp
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=marketdata}
+      # Dev users ship in appsettings.Development.json; run in Development so they load.
+      ASPNETCORE_ENVIRONMENT: ${WEBAPP_ENVIRONMENT:-Development}
+      # DataProtection keys must survive a restart, or every redeploy logs everyone out.
+      DataProtection__KeysDirectory: /keys
+    volumes:
+      - webapp-keys:/keys
+    ports:
+      - "8081:8080"
+    restart: unless-stopped
+
 volumes:
   marketdata-pgdata:
+  webapp-keys:
