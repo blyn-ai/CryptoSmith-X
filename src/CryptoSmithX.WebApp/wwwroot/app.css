@@ -73,6 +73,7 @@ td a:hover{color:var(--text-heading)}
 .dash{color:var(--text-faint)}
 .up{color:var(--pnl-up)}
 .down{color:var(--pnl-down)}
+.warn{color:var(--gold-400)}
 
 /* ── badges ────────────────────────────────────────────── */
 .badge{
@@ -140,3 +141,10 @@ pre.json{
 .auth-brand img{width:40px; height:40px}
 .auth-brand .wordmark{font-size:24px}
 .auth-tag{font:500 10px/1 var(--font-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--text-muted)}
+
+/* KPI strip — the "what to look at first" row above a detail page's tables. */
+.kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap-grid); margin-bottom:var(--space-7)}
+.kpi{background:var(--surface-card); border:var(--hairline-card); border-radius:var(--radius-md); padding:var(--pad-card)}
+.kpi-l{margin:0 0 var(--space-2); font:var(--type-eyebrow); letter-spacing:var(--track-eyebrow); text-transform:uppercase; color:var(--eyebrow)}
+.kpi-v{margin:0; font:var(--type-stat); letter-spacing:var(--track-stat); color:var(--text-heading)}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}

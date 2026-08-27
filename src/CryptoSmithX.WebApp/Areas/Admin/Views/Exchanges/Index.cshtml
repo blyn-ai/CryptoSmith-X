@@ -2,12 +2,16 @@
 @{
     ViewData["Title"] = "Exchanges";
 }
+@section head {
+    <meta http-equiv="refresh" content="10">
+}
 <main>
     <div class="page-head">
         <div>
             <p class="eyebrow">Admin · integrations</p>
             <h1>Exchanges</h1>
         </div>
+        <span class="who">refreshes 10 s</span>
     </div>
 
     <div class="table-wrap">
@@ -43,7 +47,7 @@
                         }
                         else
                         {
-                            <span class="@(health == "ok" ? "" : "down")">@health</span>
+                            <span class="@(health switch { "error" => "down", "warning" => "warn", _ => "" })">@health</span>
                         }
                     </td>
                     <td class="num muted">@(enabled ? Format.Num(e.AvgDurationMs, 0) : Format.Dash)</td>

@@ -7,7 +7,9 @@
     <div class="page-head">
         <div>
             <p class="eyebrow">Admin · @e.Code</p>
-            <h1>@e.Name</h1>
+            <h1>@e.Name
+                <span class="badge @(e.Status switch { "enabled" => "badge-on", "maintenance" => "badge-warn", _ => "badge-off" })">@e.Status</span>
+            </h1>
         </div>
         <a class="muted" href="/Admin/Exchanges">Back to exchanges</a>
     </div>
@@ -20,6 +22,25 @@
     {
         <div class="alert alert-ok">@savedMsg</div>
     }
+
+    <div class="kpis">
+        <div class="kpi">
+            <p class="kpi-l">Trading</p>
+            <p class="kpi-v">@e.TradingInstruments</p>
+        </div>
+        <div class="kpi">
+            <p class="kpi-l">Known</p>
+            <p class="kpi-v">@e.KnownInstruments</p>
+        </div>
+        <div class="kpi">
+            <p class="kpi-l">Avg response</p>
+            <p class="kpi-v">@Format.Num(Model.Collectors.Where(c => c.AvgDurationMs is not null).Select(c => c.AvgDurationMs!.Value).DefaultIfEmpty().Average(), 0) ms</p>
+        </div>
+        <div class="kpi">
+            <p class="kpi-l">Last discovery</p>
+            <p class="kpi-v">@Format.Age(Model.Collectors.FirstOrDefault(c => c.Collector == "discovery")?.LastSuccessAgeSeconds)</p>
+        </div>
+    </div>
 
     <div class="grid grid-2">
         <div>
@@ -49,9 +70,6 @@
                     </tbody>
                 </table>
             </div>
-
-            <h2 class="section">Instruments</h2>
-            <p class="muted">Trading @e.TradingInstruments · known @e.KnownInstruments</p>
         </div>
 
         <div class="panel">
