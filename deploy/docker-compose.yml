@@ -15,16 +15,41 @@ services:
       timeout: 3s
       retries: 20
 
-  marketdata:
+  # One-shot: applies the schema, then exits. Hub and api wait for it to complete successfully.
+  database-migrator:
     build:
-      # The repository root, so src/web/ds is reachable by the linked content.
       context: ..
-      dockerfile: deploy/marketdata.Dockerfile
+      dockerfile: deploy/Dockerfile
+      target: migrator
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      ConnectionStrings__MarketData: ${MARKETDATA_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=marketdata}
+      ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=marketdata}
+    restart: "no"
+
+  hub:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: hub
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=marketdata}
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: api
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=marketdata}
     ports:
       - "8080:8080"
     restart: unless-stopped

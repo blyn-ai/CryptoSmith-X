@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>CryptoSmithX.MarketData.Connectors</RootNamespace>
+  </PropertyGroup>
+</Project>
