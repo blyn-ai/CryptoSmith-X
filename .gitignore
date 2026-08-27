@@ -40,3 +40,6 @@ TestResults/
 
 # Build artefact — the design system is linked in, not copied
 src/CryptoSmithX.WebApp/wwwroot/ds/
+
+# Local Docker volume data when CSX_DATA_ROOT is unset
+deploy/data/
