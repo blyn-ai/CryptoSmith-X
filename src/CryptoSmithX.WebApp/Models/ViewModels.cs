@@ -43,3 +43,28 @@ public sealed record MarketDataConsole(
     IReadOnlyList<dynamic> Instruments,
     IReadOnlyList<dynamic> Snapshot,
     DateTimeOffset AsOf);
+
+public sealed record ExchangeListItem(
+    string Code,
+    string Name,
+    string Status,
+    string? Description,
+    int TradingInstruments,
+    int KnownInstruments,
+    int? MaxFailures,
+    double? AvgDurationMs,
+    double? DiscoveryAgeSeconds);
+
+public sealed record ExchangeCollectorRow(
+    string Collector,
+    double? LastSuccessAgeSeconds,
+    int ConsecutiveFailures,
+    int? InstrumentsExpected,
+    int? LastDurationMs,
+    double? AvgDurationMs,
+    string? LastError,
+    double? LastErrorAgeSeconds);
+
+public sealed record ExchangeDetails(
+    ExchangeListItem Exchange,
+    IReadOnlyList<ExchangeCollectorRow> Collectors);

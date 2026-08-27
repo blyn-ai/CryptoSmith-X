@@ -8,7 +8,8 @@ public sealed record CollectorAttempt(
     bool Success,
     string? Error,
     int ConsecutiveFailures,
-    int? InstrumentsExpected);
+    int? InstrumentsExpected,
+    long DurationMs);
 
 /// <summary>
 /// The only loop runner in the service. Every collector is this class with a different body, so
@@ -72,12 +73,14 @@ public sealed class CollectorLoop
             var attemptAt = _clock.GetUtcNow();
             CollectorAttempt attempt;
 
+            var startedTicks = _clock.GetTimestamp();
             try
             {
                 var count = await _body(ct).ConfigureAwait(false);
                 ConsecutiveFailures = 0;
                 attempt = new CollectorAttempt(
-                    _exchangeCode, _collector, attemptAt, true, null, 0, count >= 0 ? count : null);
+                    _exchangeCode, _collector, attemptAt, true, null, 0, count >= 0 ? count : null,
+                    ElapsedMs(startedTicks));
                 _logger.LogDebug(
                     "{Exchange}/{Collector} ok, {Count} rows", _exchangeCode, _collector, count);
             }
@@ -90,7 +93,8 @@ public sealed class CollectorLoop
                 // One venue failing must never stop another, so nothing escapes this loop.
                 ConsecutiveFailures++;
                 attempt = new CollectorAttempt(
-                    _exchangeCode, _collector, attemptAt, false, Describe(ex), ConsecutiveFailures, null);
+                    _exchangeCode, _collector, attemptAt, false, Describe(ex), ConsecutiveFailures, null,
+                    ElapsedMs(startedTicks));
                 _logger.LogWarning(
                     ex, "{Exchange}/{Collector} failed ({Failures} in a row)",
                     _exchangeCode, _collector, ConsecutiveFailures);
@@ -116,6 +120,9 @@ public sealed class CollectorLoop
             }
         }
     }
+
+    private long ElapsedMs(long startedTicks) =>
+        (long)_clock.GetElapsedTime(startedTicks).TotalMilliseconds;
 
     /// <summary>±10%, so a hundred instruments do not all wake in the same millisecond.</summary>
     private static TimeSpan Jitter(TimeSpan delay) =>

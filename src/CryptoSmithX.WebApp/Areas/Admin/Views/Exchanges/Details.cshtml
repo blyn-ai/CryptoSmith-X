@@ -1,0 +1,92 @@
+@model ExchangeDetails
+@{
+    ViewData["Title"] = Model.Exchange.Name;
+    var e = Model.Exchange;
+}
+<main>
+    <div class="page-head">
+        <div>
+            <p class="eyebrow">Admin · @e.Code</p>
+            <h1>@e.Name</h1>
+        </div>
+        <a class="muted" href="/Admin/Exchanges">Back to exchanges</a>
+    </div>
+
+    @if (TempData["Error"] is string err)
+    {
+        <div class="alert alert-error">@err</div>
+    }
+    @if (TempData["Saved"] is string savedMsg)
+    {
+        <div class="alert alert-ok">@savedMsg</div>
+    }
+
+    <div class="grid grid-2">
+        <div>
+            <h2 class="section">Collectors</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Collector</th><th class="num">Last success</th><th class="num">Failures</th>
+                            <th class="num">Avg ms</th><th class="num">Expected</th><th>Last error</th></tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.Collectors.Count == 0)
+                    {
+                        <tr><td colspan="6" class="dash">Nothing has collected for this exchange yet.</td></tr>
+                    }
+                    @foreach (var c in Model.Collectors)
+                    {
+                        <tr>
+                            <td>@c.Collector</td>
+                            <td class="num muted">@Format.Age(c.LastSuccessAgeSeconds)</td>
+                            <td class="num @(c.ConsecutiveFailures > 0 ? "down" : "muted")">@c.ConsecutiveFailures</td>
+                            <td class="num muted">@Format.Num(c.AvgDurationMs, 0)</td>
+                            <td class="num muted">@(c.InstrumentsExpected?.ToString() ?? Format.Dash)</td>
+                            <td class="muted">@(c.LastError is null ? Format.Dash : $"{c.LastError} · {Format.Age(c.LastErrorAgeSeconds)} ago")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <h2 class="section">Instruments</h2>
+            <p class="muted">Trading @e.TradingInstruments · known @e.KnownInstruments</p>
+        </div>
+
+        <div class="panel">
+            <h2>Settings</h2>
+            <form method="post" action="/Admin/Exchanges/Save/@e.Code">
+                @Html.AntiForgeryToken()
+                <div class="field">
+                    <label for="name">Name</label>
+                    <input id="name" name="name" type="text" value="@e.Name">
+                </div>
+                <div class="field">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        @foreach (var s in new[] { "planned", "enabled", "disabled", "maintenance", "abandoned" })
+                        {
+                            if (s == e.Status)
+                            {
+                                <option value="@s" selected>@s</option>
+                            }
+                            else
+                            {
+                                <option value="@s">@s</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="description">Description</label>
+                    <input id="description" name="description" type="text" value="@e.Description">
+                </div>
+                <button class="btn" type="submit">Save</button>
+                <p class="muted">Status is the desired state. enabled — collect; maintenance —
+                deliberate pause, not an alert; planned — no adapter yet; abandoned — history only.
+                Connection health is observed and never stored.</p>
+            </form>
+        </div>
+    </div>
+</main>

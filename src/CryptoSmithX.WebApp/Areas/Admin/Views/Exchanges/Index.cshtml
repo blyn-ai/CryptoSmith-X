@@ -1,0 +1,58 @@
+@model IReadOnlyList<ExchangeListItem>
+@{
+    ViewData["Title"] = "Exchanges";
+}
+<main>
+    <div class="page-head">
+        <div>
+            <p class="eyebrow">Admin · integrations</p>
+            <h1>Exchanges</h1>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Lifecycle</th><th>Exchange</th><th>Connection</th>
+                    <th class="num">Avg ms</th><th class="num">Instruments</th>
+                    <th class="num">Discovery</th><th class="num">Failures</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="7" class="dash">No exchanges.</td></tr>
+            }
+            @foreach (var e in Model)
+            {
+                var health = CryptoSmithX.WebApp.Data.ExchangeStore.Health(e);
+                var enabled = e.Status == "enabled";
+                <tr>
+                    <td>
+                        <span class="badge @(e.Status switch { "enabled" => "badge-on", "maintenance" => "badge-warn", _ => "badge-off" })">@e.Status</span>
+                    </td>
+                    <td>
+                        <a href="/Admin/Exchanges/Details/@e.Code">@e.Name</a>
+                        <span class="muted">@e.Code</span>
+                    </td>
+                    <td>
+                        @if (health == "none")
+                        {
+                            <span class="muted">@Format.Dash</span>
+                        }
+                        else
+                        {
+                            <span class="@(health == "ok" ? "" : "down")">@health</span>
+                        }
+                    </td>
+                    <td class="num muted">@(enabled ? Format.Num(e.AvgDurationMs, 0) : Format.Dash)</td>
+                    <td class="num">@(enabled ? $"{e.TradingInstruments} / {e.KnownInstruments}" : Format.Dash)</td>
+                    <td class="num muted">@(enabled ? Format.Age(e.DiscoveryAgeSeconds) : Format.Dash)</td>
+                    <td class="num @((e.MaxFailures ?? 0) > 0 ? "down" : "muted")">@(enabled ? (e.MaxFailures ?? 0).ToString() : Format.Dash)</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</main>

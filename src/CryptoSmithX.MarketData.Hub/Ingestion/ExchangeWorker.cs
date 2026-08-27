@@ -135,7 +135,7 @@ public sealed class ExchangeWorker : BackgroundService
     {
         await using var conn = await _db.OpenAsync(ct);
         return await conn.ExecuteScalarAsync<bool?>(new CommandDefinition(
-            "select is_enabled from exchange where code = @code", new { code }, cancellationToken: ct)) ?? false;
+            "select status = 'enabled' from exchange where code = @code", new { code }, cancellationToken: ct)) ?? false;
     }
 
     private async Task WriteStatusAsync(CollectorAttempt a, CancellationToken ct)
@@ -145,19 +145,25 @@ public sealed class ExchangeWorker : BackgroundService
             """
             insert into collector_status (
                 exchange_code, collector, last_attempt_at, last_success_at, last_error_at,
-                last_error, consecutive_failures, instruments_expected)
+                last_error, consecutive_failures, instruments_expected,
+                last_duration_ms, avg_duration_ms)
             values (
                 @ExchangeCode, @Collector, @AttemptAt,
                 case when @Success then @AttemptAt end,
                 case when @Success then null else @AttemptAt end,
-                @Error, @ConsecutiveFailures, @InstrumentsExpected)
+                @Error, @ConsecutiveFailures, @InstrumentsExpected,
+                @DurationMs, @DurationMs)
             on conflict (exchange_code, collector) do update set
                 last_attempt_at      = excluded.last_attempt_at,
                 last_success_at      = coalesce(excluded.last_success_at, collector_status.last_success_at),
                 last_error_at        = coalesce(excluded.last_error_at,  collector_status.last_error_at),
                 last_error           = case when @Success then collector_status.last_error else excluded.last_error end,
                 consecutive_failures = excluded.consecutive_failures,
-                instruments_expected = coalesce(excluded.instruments_expected, collector_status.instruments_expected)
+                instruments_expected = coalesce(excluded.instruments_expected, collector_status.instruments_expected),
+                last_duration_ms     = excluded.last_duration_ms,
+                -- EWMA: a cheap recent average with no history table; first sample seeds it whole
+                avg_duration_ms      = coalesce(0.8 * collector_status.avg_duration_ms + 0.2 * excluded.last_duration_ms,
+                                                excluded.last_duration_ms)
             """,
             new
             {
@@ -168,6 +174,7 @@ public sealed class ExchangeWorker : BackgroundService
                 a.Error,
                 a.ConsecutiveFailures,
                 a.InstrumentsExpected,
+                a.DurationMs,
             },
             cancellationToken: ct));
     }

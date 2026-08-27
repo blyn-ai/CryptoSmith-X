@@ -38,7 +38,9 @@ public static class Endpoints
                    s.consecutive_failures                                as "ConsecutiveFailures",
                    s.last_error                                          as "LastError",
                    extract(epoch from now() - s.last_error_at)::double precision as "LastErrorAgeSeconds",
-                   s.instruments_expected                                as "InstrumentsExpected"
+                   s.instruments_expected                                as "InstrumentsExpected",
+                   s.last_duration_ms                                    as "LastDurationMs",
+                   s.avg_duration_ms                                     as "AvgDurationMs"
               from collector_status s
              order by s.exchange_code, s.collector
             """, cancellationToken: ct))).ToList();
@@ -80,7 +82,7 @@ public static class Endpoints
         await using var conn = await db.OpenAsync(ct);
         var rows = await conn.QueryAsync(new CommandDefinition(
             """
-            select e.code, e.name, e.is_enabled as "isEnabled", e.note,
+            select e.code, e.name, e.status, e.description,
                    (select count(*) from exchange_instrument i
                      where i.exchange_code = e.code and i.status = 'trading') as "tradingInstruments",
                    (select count(*) from exchange_instrument i
@@ -216,7 +218,9 @@ public static class Endpoints
         int ConsecutiveFailures,
         string? LastError,
         double? LastErrorAgeSeconds,
-        int? InstrumentsExpected);
+        int? InstrumentsExpected,
+        int? LastDurationMs,
+        double? AvgDurationMs);
 
     private sealed record StaleRow(
         string ExchangeCode,
