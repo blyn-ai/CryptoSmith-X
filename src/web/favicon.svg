@@ -1,0 +1,28 @@
+<!-- CryptoSmith X — app/browser icon. Rounded-square plate, the mark set as large
+     as its own proportions allow.
+
+     The mark is wide and short: the star spans 15.14 units of the 40-unit box, the
+     two dots carry it out to 30.8 wide. Scaling it to fill the plate vertically
+     would run the dots off both edges, so it is fitted by WIDTH to 82% of the plate
+     — 9% clear on the left and right — and centred. The vertical air that leaves is
+     the mark's own aspect ratio, not padding.
+
+     Geometry is copied from src/web/ds/assets/cryptosmith-mark.svg, never redrawn.
+     Plate is the ink-950 token (violet-tinted black, per the design system: never a
+     neutral gray-black). The hairline gold edge is the sanctioned "logo plate" border.
+
+     Note for editors: an XML comment may not contain a double hyphen, so token names
+     are written without their leading dashes in here. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"
+     role="img" aria-label="CryptoSmith X">
+  <title>CryptoSmith X</title>
+  <rect width="512" height="512" rx="112" fill="#0A0812"/>
+  <rect x="4" y="4" width="504" height="504" rx="108"
+        fill="none" stroke="#F5B84F" stroke-opacity=".30" stroke-width="8"/>
+  <!-- fit by width: 30.8 units → 419.8 px, so scale 13.63; centre (20,20) → (256,256) -->
+  <g transform="translate(-16.7 -16.7) scale(13.63)">
+    <path d="M20 23.54 L15.97 27.57 L12.43 24.03 L16.46 20 L12.43 15.97 L15.97 12.43 L20 16.46 L24.03 12.43 L27.57 15.97 L23.54 20 L27.57 24.03 L24.03 27.57 Z" fill="#FFD987"/>
+    <circle cx="6.6" cy="20" r="2" fill="#B97F2E"/>
+    <circle cx="33.4" cy="20" r="2" fill="#B97F2E"/>
+  </g>
+</svg>

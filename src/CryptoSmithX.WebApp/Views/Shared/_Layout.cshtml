@@ -4,16 +4,24 @@
     var isAdmin = User.IsInRole("admin");
     var name = User.Identity?.Name;
     var env = HostEnv.IsDevelopment() ? "Local" : HostEnv.EnvironmentName;
+    // Theme is read on the SERVER so the first paint is already correct — a
+    // client-side patch would strobe on every one of the 10 s refreshes.
+    var theme = Context.Request.Cookies["csx_theme"] == "light" ? "light" : "dark";
 }
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="@theme">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>@(ViewData["Title"] ?? "CryptoSmith X")</title>
-    <link rel="icon" href="~/ds/assets/favicon.svg" type="image/svg+xml">
+    @* Not ds/assets/favicon.svg — that is a different drawing altogether (angle brackets,
+       not the mark). The master is brand/logo/cryptosmith-favicon.svg; the .ico is
+       generated from it by brand/logo/make-favicons.py. *@
+    <link rel="icon" href="~/favicon.ico" sizes="48x48 32x32 16x16">
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="~/ds/styles.css" asp-append-version="true">
     <link rel="stylesheet" href="~/app.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/theme-light.css" asp-append-version="true">
     @await RenderSectionAsync("head", required: false)
 </head>
 <body>
@@ -23,7 +31,9 @@
         <div class="shell">
             <aside class="side">
                 <div class="side-brand">
-                    <img src="~/ds/assets/cryptosmith-mark.svg" alt="">
+                    @* Ink mark on ink, paper mark on paper — the logo rule. CSS picks. *@
+                    <img class="mark-ink" src="~/ds/assets/cryptosmith-mark.svg" alt="">
+                    <img class="mark-paper" src="~/ds/assets/cryptosmith-mark-paper.svg" alt="">
                     <div>
                         <span class="wordmark">CryptoSmith <span>X</span></span>
                         <span class="side-sub">@(isAdmin ? "Admin console" : "Trader")</span>
@@ -40,6 +50,7 @@
                         @Html.AntiForgeryToken()
                         <button class="linkbtn" type="submit">Sign out</button>
                     </form>
+                    <partial name="_ThemeToggle" />
                 </header>
                 <main class="main">
                     @RenderBody()
@@ -54,7 +65,9 @@
     }
     else
     {
+        <div class="theme-float"><partial name="_ThemeToggle" /></div>
         @RenderBody()
     }
+    <script src="~/theme-toggle.js" asp-append-version="true"></script>
 </body>
 </html>

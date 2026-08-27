@@ -14,6 +14,15 @@
       cadence and needs no JS. Nothing else animates. */
 
 *{box-sizing:border-box}
+
+/* The mark ships as two files and the logo rule is absolute: mark.svg on any dark
+   surface, mark-paper.svg on light. Both are in the markup, one is hidden — the
+   theme is server-rendered into <html data-theme>, so this needs no script and
+   cannot flash the wrong one. */
+.mark-paper{display:none}
+[data-theme=light] .mark-ink{display:none}
+[data-theme=light] .mark-paper{display:block}
+
 html,body{margin:0;padding:0}
 body{min-height:100dvh;background:var(--surface-page);font-family:var(--font-body);color:var(--text-body)}
 a{color:var(--link);text-decoration:none}
@@ -39,7 +48,7 @@ a:hover{color:var(--link-hover)}
 .nav-item:hover{background:var(--surface-glass);color:var(--text-heading)}
 .nav-item .bar{width:3px;height:30px;flex:none;background:transparent}
 .nav-item .lbl{flex:1;padding:10px 0}
-.nav-item .bdg{font:var(--fw-semibold) 9px/1 var(--font-mono);letter-spacing:.1em;color:var(--gold-400);padding-right:16px}
+.nav-item .bdg{font:var(--fw-semibold) 9px/1 var(--font-mono);letter-spacing:.1em;color:var(--csx-gold-ink);padding-right:16px}
 .nav-item.is-active{background:var(--surface-glass);color:var(--text-heading)}
 .nav-item.is-active .bar{background:var(--gold-400)}
 .nav-item.is-soon{color:var(--text-faint);cursor:default}
@@ -120,7 +129,7 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
 .code{flex:0 1 auto;min-width:0;font:400 11px/1 var(--font-mono);color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .num{justify-self:end;font:var(--type-data);line-height:1;color:var(--text-data);font-variant-numeric:tabular-nums}
 .num.muted{color:var(--text-muted)}
-.num.warn{color:var(--gold-400)}
+.num.warn{color:var(--csx-gold-ink)}
 .num.fail{color:var(--gold-300)}
 .num.none{color:var(--text-faint)}
 .mono{font:var(--type-data);line-height:1;color:var(--text-data)}
@@ -130,7 +139,7 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
 /* ── status atoms ─────────────────────────────────────────── */
 .dot{width:7px;height:7px;border-radius:var(--radius-circle);flex:none;border:1px solid transparent}
 .dot.ok{background:var(--lilac-500);border-color:var(--lilac-500)}
-.dot.warn{background:transparent;border-color:var(--gold-400)}
+.dot.warn{background:transparent;border-color:var(--csx-gold-ink)}
 .dot.fail{background:var(--gold-400);border-color:var(--gold-400);box-shadow:var(--shadow-live)}
 .dot.paused{background:transparent;border-color:var(--lilac-700)}
 .dot.none{background:transparent;border-color:transparent}
@@ -139,7 +148,7 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
 
 .sev{font:var(--fw-medium) 10px/1 var(--font-mono);letter-spacing:var(--track-badge);text-transform:uppercase}
 .sev.ok{color:var(--text-muted)}
-.sev.warn{color:var(--gold-400)}
+.sev.warn{color:var(--csx-gold-ink)}
 .sev.fail{color:var(--gold-300)}
 .sev.paused,.sev.none{color:var(--text-faint)}
 
@@ -186,7 +195,7 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
 /* ── charts ───────────────────────────────────────────────── */
 .spark{width:62px;height:18px;justify-self:end;overflow:visible}
 .spark polyline{fill:none;stroke-width:1.25;stroke-linejoin:round;stroke-linecap:round;stroke:var(--violet-400)}
-.spark.warn polyline{stroke:var(--gold-400)}
+.spark.warn polyline{stroke:var(--csx-gold-ink)}
 .spark.fail polyline{stroke:var(--gold-300)}
 .chart{width:100%;display:block}
 .chart polyline{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
@@ -197,8 +206,14 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
 /* ── forms ────────────────────────────────────────────────── */
 .field{display:flex;flex-direction:column;gap:8px;margin-bottom:var(--space-5)}
 .field label{font:var(--fw-medium) 10.5px/1 var(--font-mono);letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted)}
-input[type=text],select{width:100%;padding:var(--pad-input);background:var(--surface-sunken);color:var(--text-heading);border:1px solid var(--border-input);border-radius:var(--radius-sm);font:400 14px/1.4 var(--font-body);transition:var(--transition-color)}
-input[type=text]:hover,select:hover{border-color:var(--border-strong)}
+input[type=text],input[type=password],select{width:100%;padding:var(--pad-input);background:var(--surface-sunken);color:var(--text-heading);border:1px solid var(--border-input);border-radius:var(--radius-sm);font:400 14px/1.4 var(--font-body);transition:var(--transition-color)}
+input[type=text]:hover,input[type=password]:hover,select:hover{border-color:var(--border-strong)}
+/* Chrome paints autofilled fields white and ignores background-color; an inset shadow
+   the size of the field is the only way to reach it. Token-based, so both themes follow. */
+input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--text-heading);
+  -webkit-box-shadow:0 0 0 1000px var(--surface-sunken) inset;
+  caret-color:var(--text-heading)}
 .btn{display:inline-block;height:var(--control-h);line-height:var(--control-h);padding:0 22px;border:0;cursor:pointer;background:var(--action-primary);color:var(--text-on-action);border-radius:var(--radius-sm);font:var(--type-button);text-decoration:none;transition:var(--transition-color)}
 .btn:hover{background:var(--action-primary-hover);color:var(--text-on-action)}
 .btn-ghost{background:transparent;color:var(--lilac-200);border:1px solid var(--border-input)}
@@ -254,8 +269,8 @@ input[type=text]:hover,select:hover{border-color:var(--border-strong)}
 
 /* ── market colours — the ONLY place green/red are legal ──── */
 .side-badge{justify-self:start;font:var(--fw-semibold) 9.5px/1 var(--font-mono);letter-spacing:var(--track-badge);text-transform:uppercase;padding:4px 6px;border-radius:var(--radius-xs)}
-.side-badge.long{color:var(--long);border:1px solid rgba(65,201,143,.3);background:var(--tint-up)}
-.side-badge.short{color:var(--short);border:1px solid rgba(239,93,111,.35);background:var(--tint-down)}
+.side-badge.long{color:var(--long);border:1px solid var(--border-up);background:var(--tint-up)}
+.side-badge.short{color:var(--short);border:1px solid var(--border-down);background:var(--tint-down)}
 .pnl.up{color:var(--pnl-up)}
 .pnl.down{color:var(--pnl-down)}
 
@@ -282,8 +297,8 @@ input[type=text]:hover,select:hover{border-color:var(--border-strong)}
 
 /* ── carried over: alerts + plain table used by existing forms ──── */
 .alert{padding:12px 14px;border-radius:var(--radius-sm);font:400 13px/1.5 var(--font-body);margin-bottom:var(--space-5)}
-.alert-error{background:var(--tint-down);border:1px solid rgba(239,93,111,.35);color:var(--down-300)}
-.alert-ok{background:var(--tint-up);border:1px solid rgba(65,201,143,.3);color:var(--up-300)}
+.alert-error{background:var(--tint-down);border:1px solid var(--border-down);color:var(--down-300)}
+.alert-ok{background:var(--tint-up);border:1px solid var(--border-up);color:var(--up-300)}
 .table-wrap{overflow-x:auto;border:1px solid var(--border-hairline);border-radius:var(--radius-md)}
 table{width:100%;border-collapse:collapse}
 th{text-align:left;padding:var(--pad-cell);white-space:nowrap;font:var(--type-eyebrow);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-hairline)}
@@ -296,10 +311,23 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 .auth-wrap{min-height:calc(100dvh - var(--rule-h)); display:grid; place-items:center; padding:var(--space-8) var(--space-6); position:relative}
 .auth-wrap::before{content:""; position:absolute; inset:0; z-index:0; pointer-events:none; background:var(--wash-gold),var(--wash-violet)}
 .auth-card{position:relative; z-index:1; width:min(420px,100%); display:flex; flex-direction:column; gap:var(--space-6)}
-.auth-brand{display:flex; align-items:center; gap:14px}
-.auth-brand img{width:40px; height:40px}
-.auth-brand .wordmark{font-size:24px}
-.auth-tag{font:500 10px/1 var(--font-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--text-muted)}
+/* Stacked and centred: mark over wordmark over descriptor. The lockup box is
+   fit-content, so its width IS the wordmark's width — which is what lets the
+   descriptor justify across exactly the title, per the design system's rule
+   (descriptor at 0.4× the title size, .1em tracking, space-between). */
+.auth-brand{display:flex; flex-direction:column; align-items:center; gap:10px}
+.auth-brand img{width:64px; height:64px}
+.auth-lockup{display:flex; flex-direction:column; gap:8px; width:fit-content}
+.auth-brand .wordmark{font-size:32px; letter-spacing:-.02em}
+.auth-tag{width:100%; display:flex; justify-content:space-between;
+  font:var(--fw-medium) 12.8px/1 var(--font-mono); letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-muted)}
+/* PRISIJUNGIMAS heads the same column as NAUDOTOJAS and SLAPTAŽODIS, so it is set
+   exactly like them — 10.5px, .15em, left — instead of as a page eyebrow (10px,
+   .18em, centred). Three labels in one column set three different ways is what
+   read as careless; the brand block above stays centred, the form column does not. */
+.auth-eyebrow{font:var(--fw-medium) 10.5px/1 var(--font-mono); letter-spacing:.15em;
+  color:var(--text-muted)}
 
 /* KPI strip — the "what to look at first" row above a detail page's tables. */
 .kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap-grid); margin-bottom:var(--space-7)}
@@ -310,3 +338,29 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 
 
 .chip:has(input:checked){background:var(--action-primary);border-color:var(--action-primary);color:var(--text-on-action)}
+
+/* ══ APPEND to wwwroot/app.css ══════════════════════════════════════════════
+   Everything here is theme-agnostic; the light values live in theme-light.css. */
+
+/* Gold has two jobs and only one survives on paper. As a fill (#F5B84F / #D89A2B)
+   it is correct; as text on white it is 2.4:1. Text-role gold routes through its
+   own token: fill-weight on ink, bronze on paper. Ramp stays three steps either way. */
+:root{--csx-gold-ink:var(--gold-400)}
+
+/* Translucent market borders, tokenised so the light theme can override them.
+   (These four rgba() literals were previously inline in the rules below.) */
+:root{--border-up:rgba(65,201,143,.3);--border-down:rgba(239,93,111,.35)}
+
+/* ── theme toggle ─────────────────────────────────────────── */
+.theme-toggle{display:flex;padding:0;background:0;cursor:pointer;font:inherit;
+  border:1px solid var(--border-strong);border-radius:var(--radius-xs);overflow:hidden}
+/* A fixed box per segment so the pair does not jump when the active one changes.
+   The icons are inline SVG on currentColor; the inactive one sits on --text-muted
+   rather than --text-faint, which was too washed out to read at this size. */
+.theme-toggle span{display:grid;place-items:center;width:28px;height:24px;
+  color:var(--text-muted);transition:var(--transition-color)}
+.theme-toggle svg{display:block}
+.theme-toggle .t-paper{border-left:1px solid var(--border-strong)}
+[data-theme=dark] .theme-toggle .t-ink,
+[data-theme=light] .theme-toggle .t-paper{background:var(--tint-violet);color:var(--violet-200)}
+.theme-float{position:absolute;top:18px;right:22px;z-index:2}

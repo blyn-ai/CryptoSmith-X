@@ -1,0 +1,24 @@
+@* Moon / sun as inline SVG, filled with currentColor so they follow the theme tokens.
+
+   This is a DELIBERATE exception to the design system's "no icon set" rule
+   (ds/readme.md) and to the light-theme brief's §4.1, both of which asked for two
+   text labels instead. The text version ("Ink | Paper") and the unicode one
+   (U+263E / U+2600) were both rejected in review: the unicode glyphs are missing
+   from IBM Plex Mono, so they fell back to a system face and rendered as a hairline
+   outline that was effectively invisible at 12px. These two are the only icons in
+   the product; do not take them as licence to add more. *@
+<button class="theme-toggle" type="button" data-theme-toggle
+        aria-label="Switch between dark and light theme" title="Switch theme">
+    <span class="t-ink" aria-hidden="true">
+        <svg viewBox="0 0 16 16" width="15" height="15" focusable="false">
+            <path fill="currentColor" d="M13.9 10.4A6.3 6.3 0 0 1 5.6 2.1a6.6 6.6 0 1 0 8.3 8.3z"/>
+        </svg>
+    </span><span class="t-paper" aria-hidden="true">
+        <svg viewBox="0 0 16 16" width="15" height="15" focusable="false">
+            <circle cx="8" cy="8" r="3.1" fill="currentColor"/>
+            <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <path d="M8 1v1.7M8 13.3V15M15 8h-1.7M2.7 8H1M12.95 3.05l-1.2 1.2M4.25 11.75l-1.2 1.2M12.95 12.95l-1.2-1.2M4.25 4.25l-1.2-1.2"/>
+            </g>
+        </svg>
+    </span>
+</button>

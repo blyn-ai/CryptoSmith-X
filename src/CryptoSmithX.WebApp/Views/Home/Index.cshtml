@@ -4,15 +4,23 @@
 }
 <div class="auth-wrap">
     <div class="auth-card">
+        @* The descriptor is two pieces justified across the wordmark's width, not one
+           letter-spaced line — the design system's rule, and the same technique the
+           public site uses in src/web/assets/site.css. Spelling it as one string is
+           what stretched it out of proportion before. *@
         <div class="auth-brand">
-            <img src="~/ds/assets/cryptosmith-mark.svg" width="40" height="40" alt="">
-            <div>
+            @* Two files, one shown per theme: the logo rule is "mark.svg on any dark
+               surface, mark-paper.svg on light" — the ink mark on paper is the washed-out
+               look it forbids. CSS picks; no JS, so it survives the server-rendered theme. *@
+            <img class="mark-ink" src="~/ds/assets/cryptosmith-mark.svg" width="64" height="64" alt="">
+            <img class="mark-paper" src="~/ds/assets/cryptosmith-mark-paper.svg" width="64" height="64" alt="">
+            <div class="auth-lockup">
                 <p class="wordmark">CryptoSmith <span>X</span></p>
-                <p class="auth-tag">Perps &amp; crypto trade bot</p>
+                <p class="auth-tag"><span>Perps &amp; Crypto</span><span>Trade Bot</span></p>
             </div>
         </div>
 
-        <p class="eyebrow">Prisijungimas</p>
+        <p class="eyebrow auth-eyebrow">Prisijungimas</p>
 
         @if (failed)
         {

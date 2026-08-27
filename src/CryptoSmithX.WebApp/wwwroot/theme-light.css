@@ -1,0 +1,71 @@
+/* CryptoSmith X — Paper theme.
+   Drop at wwwroot/theme-light.css and link it AFTER ~/ds/styles.css and ~/app.css.
+
+   A REMAP of the same base scales, not a second palette: violet still leads,
+   gold is still the signal, green/red are still market-only. Every rule in
+   app.css is untouched — it already paints from these tokens.
+
+   Two things do not survive the flip and are handled explicitly:
+   1. Gold as TEXT (2.4:1 on white) — routed through --csx-gold-ink, see app.css.
+   2. Glows — on paper they become flat halo rings. */
+
+html[data-theme="light"]{
+  /* violet axis — #A18AFF has no contrast on paper, so the accent moves to the
+     700 rung. The logo rule already says the "X" is #6B4EDB on light surfaces. */
+  --violet-100:#EFEAF7;--violet-200:#5B3FC4;--violet-300:#7C6BB8;--violet-400:#6B4EDB;
+  --violet-500:#6353A8;--violet-600:#5B3FC4;--violet-700:#5B3FC4;--violet-800:#4A32A8;
+
+  /* gold axis — 400 stays bright because it is a FILL (dot, nav bar, mark).
+     200/300/700 are the text rungs and go bronze. */
+  --gold-200:#7E4A08;--gold-300:#7E4A08;--gold-400:#D89A2B;--gold-600:#9A6A16;--gold-700:#7E4A08;
+
+  /* ink → paper. Cards are pure white so the violet-tinted page reads as a field. */
+  --ink-950:#EDE8F7;--ink-900:#F4F1FA;--ink-850:#FFFFFF;
+  --ink-800:#FFFFFF;--ink-700:#ECE7F7;--ink-600:#DED6F0;
+
+  /* text — violet-tinted near-blacks, never neutral gray */
+  --lilac-100:#161020;--lilac-200:#2A2138;--lilac-300:#453C57;
+  --lilac-500:#665D7D;--lilac-700:#7E7590;
+  --sand-200:#6B5636;              /* the one warm neutral, for mono data */
+
+  /* market — the dark greens/reds are too light on white */
+  --up-300:#2E9A6C;--up-500:#1E9B6A;--up-700:#177A53;
+  --down-300:#C23D4E;--down-500:#CE3B4E;--down-700:#A32B3C;
+
+  --surface-overlay:rgba(22,16,32,.38);
+  --surface-glass:rgba(107,78,219,.055);
+  --text-on-gold:#221704;
+
+  --border-hairline:rgba(107,78,219,.14);
+  --border-card:rgba(107,78,219,.16);
+  --border-strong:rgba(107,78,219,.30);
+  --border-input:rgba(107,78,219,.26);
+  --border-gold:rgba(138,90,15,.34);
+  --border-up:rgba(30,155,106,.34);
+  --border-down:rgba(206,59,78,.34);
+
+  --tint-up:rgba(30,155,106,.10);
+  --tint-down:rgba(206,59,78,.09);
+  --tint-violet:rgba(107,78,219,.10);
+  --tint-gold:rgba(216,154,43,.15);
+  --tint-neutral:rgba(109,100,132,.12);
+
+  /* paper casts a real shadow; ink barely did */
+  --shadow-card:0 1px 2px rgba(24,16,48,.05),0 8px 24px rgba(24,16,48,.05);
+  --shadow-modal:0 18px 48px rgba(24,16,48,.18);
+  --shadow-live:0 0 0 3px rgba(216,154,43,.24);   /* halo, not glow */
+  --shadow-mark:0 0 0 1px rgba(216,154,43,.30);
+
+  /* the sign-in wash is calibrated for ink; on paper it must be barely there */
+  --wash-gold:radial-gradient(820px 520px at 2% 0%,rgba(216,154,43,.10),transparent 66%);
+  --wash-violet:radial-gradient(820px 620px at 100% 100%,rgba(107,78,219,.09),transparent 70%);
+
+  /* gold as text: 4.7:1 for degraded. Failing keeps --gold-300 (#7E4A08, 7.4:1). */
+  --csx-gold-ink:#9A6A16;
+}
+
+html[data-theme="light"] ::selection{background:rgba(107,78,219,.22);color:var(--lilac-100)}
+
+/* brightness() washes a dot out on white, so the fresh beat saturates down instead */
+@keyframes csxFreshLight{0%{filter:saturate(2.4) brightness(.78)}100%{filter:none}}
+html[data-theme="light"] .dot.fresh{animation-name:csxFreshLight}
