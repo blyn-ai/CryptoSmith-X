@@ -308,3 +308,5 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 .kpi-v{margin:0; font:var(--type-stat); letter-spacing:var(--track-stat); color:var(--text-heading)}
 @media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
+
+.chip:has(input:checked){background:var(--action-primary);border-color:var(--action-primary);color:var(--text-on-action)}

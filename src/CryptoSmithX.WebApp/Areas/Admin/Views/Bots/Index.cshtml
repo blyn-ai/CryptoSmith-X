@@ -1,77 +1,66 @@
 @model IReadOnlyList<BotListItem>
+@using System.Text.Json
+@using CryptoSmithX.WebApp.Models
 @{
     ViewData["Title"] = "Bots";
     var tenants = ViewData["Tenants"] as IReadOnlyList<string> ?? new List<string>();
+    NewTokenNotice? token = TempData["NewToken"] is string j ? JsonSerializer.Deserialize<NewTokenNotice>(j) : null;
+    bool Online(BotListItem b) => b.HeartbeatAgeSeconds is not null and < 180;
 }
-<main>
-    <div class="page-head">
-        <div>
-            <p class="eyebrow">Admin</p>
-            <h1>Bots</h1>
-        </div>
+@section head { <meta http-equiv="refresh" content="10"> }
+@section live { <span class="live">refreshes 10 s</span> }
+
+<div class="page-head"><div class="t"><p class="eyebrow">Admin · fleet</p><h1>Bots</h1></div></div>
+
+@if (TempData["Error"] is string err) { <div class="alert alert-error">@err</div> }
+@if (token is not null)
+{
+    <div class="token-alert">
+        <p>Token for <b>@token.BotInstanceId</b> — shown once and never again. Store it now.</p>
+        <code>@token.Token</code>
+    </div>
+}
+
+<div class="grid2">
+    <div class="panel scroll">
+        <div class="th r-bot"><span>Tenant</span><span>Instance</span><span>State</span><span style="justify-self:end">Heartbeat</span><span style="justify-self:end">Token</span><span style="justify-self:end">Actions</span></div>
+        @if (Model.Count == 0)
+        {
+            <div class="empty lg"><h3>No bots yet</h3><p>A bot exists once you register it here and it POSTs its first heartbeat. Nothing seeds this table.</p></div>
+        }
+        @foreach (var b in Model)
+        {
+            var online = Online(b);
+            <div class="tr r-bot @(b.IsEnabled && !online && b.HeartbeatAgeSeconds is not null ? "is-fail" : "")">
+                <span class="mono muted">@b.TenantCode</span>
+                <span class="cell"><span class="dot @(online ? "ok fresh" : b.HeartbeatAgeSeconds is null ? "none" : "fail")"></span><a class="name" href="/Admin/Bots/Details/@b.Id">@b.BotInstanceId</a><span class="code">@b.Name</span></span>
+                <span class="tag @(b.IsEnabled ? "enabled" : "")" style="justify-self:start">@(b.IsEnabled ? "enabled" : "disabled")</span>
+                <span class="num @(online ? "" : b.HeartbeatAgeSeconds is null ? "none" : "fail")">@(b.HeartbeatAgeSeconds is null ? "never" : Format.Age(b.HeartbeatAgeSeconds))</span>
+                <span class="num muted">@(b.HasToken ? "set" : "—")</span>
+                <span class="num"><a class="linkbtn" href="/Admin/Bots/Details/@b.Id" style="font-size:10px">open</a></span>
+            </div>
+        }
     </div>
 
-    @if (TempData["Error"] is string err)
-    {
-        <div class="alert alert-error">@err</div>
-    }
-
-    <div class="grid grid-2">
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr><th>Tenant</th><th>Instance</th><th>Enabled</th><th>Token</th><th>Last heartbeat</th><th></th></tr>
-                </thead>
-                <tbody>
-                    @if (Model.Count == 0)
-                    {
-                        <tr><td colspan="6" class="dash">No bots yet.</td></tr>
-                    }
-                    @foreach (var b in Model)
-                    {
-                        <tr>
-                            <td>@b.TenantCode</td>
-                            <td><a href="/Admin/Bots/Details/@b.Id">@b.BotInstanceId</a></td>
-                            <td>@if (b.IsEnabled) { <span class="badge badge-on">on</span> } else { <span class="badge badge-off">off</span> }</td>
-                            <td>@if (b.HasToken) { <span class="muted">set</span> } else { <span class="badge badge-warn">none</span> }</td>
-                            <td class="muted">@Format.Age(b.HeartbeatAgeSeconds)</td>
-                            <td><a href="/Admin/Bots/Details/@b.Id">Open</a></td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-
-        <div class="panel">
-            <h2>New bot</h2>
-            @if (tenants.Count == 0)
-            {
-                <p class="muted">Create a tenant first.</p>
-            }
-            else
-            {
-                <form method="post" action="/Admin/Bots/Create">
-                    @Html.AntiForgeryToken()
-                    <div class="field">
-                        <label for="tenantCode">Tenant</label>
-                        <select id="tenantCode" name="tenantCode">
-                            @foreach (var t in tenants)
-                            {
-                                <option value="@t">@t</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label for="botInstanceId">Instance id</label>
-                        <input id="botInstanceId" name="botInstanceId" type="text" placeholder="futures-live">
-                    </div>
-                    <div class="field">
-                        <label for="name">Name</label>
-                        <input id="name" name="name" type="text" placeholder="Futures live">
-                    </div>
-                    <button class="btn" type="submit">Create bot</button>
-                </form>
-            }
-        </div>
+    <div class="panel" style="padding:18px">
+        <h2 style="margin-bottom:5px">Register a bot</h2>
+        <p style="margin:0 0 16px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">The token is generated here and shown once. A bot with no token cannot authenticate.</p>
+        <form method="post" action="/Admin/Bots/Create">
+            @Html.AntiForgeryToken()
+            <div class="field">
+                <label for="tc">Tenant</label>
+                @if (tenants.Count == 0)
+                {
+                    <p class="mono faint">Create a tenant first.</p>
+                }
+                else
+                {
+                    <select id="tc" name="tenantCode">@foreach (var t in tenants) { <option value="@t">@t</option> }</select>
+                }
+            </div>
+            <div class="field"><label for="bid">Instance id</label><input id="bid" name="botInstanceId" type="text" placeholder="futures-live"></div>
+            <div class="field"><label for="bn">Name</label><input id="bn" name="name" type="text" placeholder="Futures live"></div>
+            <button class="btn" type="submit" @(tenants.Count == 0 ? "disabled" : "")>Create bot</button>
+        </form>
     </div>
-</main>
+</div>

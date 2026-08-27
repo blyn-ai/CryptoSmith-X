@@ -1,110 +1,150 @@
 @model ExchangeDetails
+@using CryptoSmithX.WebApp.Data
 @{
-    ViewData["Title"] = Model.Exchange.Name;
     var e = Model.Exchange;
+    ViewData["Title"] = e.Name;
+    string CollHealth(ExchangeCollectorRow c) => c.ConsecutiveFailures >= 3 ? "fail" : c.ConsecutiveFailures >= 1 ? "warn" : "ok";
+    string Interval(string coll) => coll switch { "snapshot" => "every 10 s", "candles" => "every 60 s", "discovery" => "every 60 min", "rollup" => "every 60 s", _ => "" };
+    var worst = Model.Collectors.Where(c => c.LastError is not null).OrderByDescending(c => c.ConsecutiveFailures).FirstOrDefault();
+    var maxFails = Model.Collectors.Count == 0 ? 0 : Model.Collectors.Max(c => c.ConsecutiveFailures);
+    var health = maxFails >= 3 ? "fail" : maxFails >= 1 ? "warn" : "ok";
+    var avg = Model.Collectors.Where(c => c.AvgDurationMs is not null).Select(c => c.AvgDurationMs!.Value).DefaultIfEmpty().Average();
+    var discovery = Model.Collectors.FirstOrDefault(c => c.Collector == "discovery");
+    var statuses = new[] { "planned", "enabled", "disabled", "maintenance", "abandoned" };
 }
-<main>
-    <div class="page-head">
-        <div>
-            <p class="eyebrow">Admin · @e.Code</p>
-            <h1>@e.Name
-                <span class="badge @(e.Status switch { "enabled" => "badge-on", "maintenance" => "badge-warn", _ => "badge-off" })">@e.Status</span>
-            </h1>
-        </div>
-        <a class="muted" href="/Admin/Exchanges">Back to exchanges</a>
+@section head { <meta http-equiv="refresh" content="10"> }
+@section live { <span class="live">refreshes 10 s</span> }
+
+<div class="page-head">
+    <div class="t">
+        <p class="eyebrow">Admin · @e.Code</p>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>@e.Name</h1><span class="tag @(e.Status == "enabled" ? "enabled" : e.Status == "maintenance" ? "maintenance" : "")">@e.Status</span></div>
+        @if (e.Status == "enabled")
+        {
+            <div style="display:flex;align-items:center;gap:9px"><span class="dot @health @(health == "ok" ? "fresh" : "")"></span><span class="sev @health">@(health == "ok" ? "ok" : health == "warn" ? "degraded" : "failing")</span><span class="code">@maxFails consecutive failures, max across collectors</span></div>
+        }
     </div>
+    <a class="linkbtn" href="/Admin/Exchanges">← Exchanges</a>
+</div>
 
-    @if (TempData["Error"] is string err)
-    {
-        <div class="alert alert-error">@err</div>
-    }
-    @if (TempData["Saved"] is string savedMsg)
-    {
-        <div class="alert alert-ok">@savedMsg</div>
-    }
+@if (TempData["Error"] is string err) { <div class="alert alert-error">@err</div> }
+@if (TempData["Saved"] is string saved) { <div class="alert alert-ok">@saved</div> }
 
-    <div class="kpis">
-        <div class="kpi">
-            <p class="kpi-l">Trading</p>
-            <p class="kpi-v">@e.TradingInstruments</p>
-        </div>
-        <div class="kpi">
-            <p class="kpi-l">Known</p>
-            <p class="kpi-v">@e.KnownInstruments</p>
-        </div>
-        <div class="kpi">
-            <p class="kpi-l">Avg response</p>
-            <p class="kpi-v">@Format.Num(Model.Collectors.Where(c => c.AvgDurationMs is not null).Select(c => c.AvgDurationMs!.Value).DefaultIfEmpty().Average(), 0) ms</p>
-        </div>
-        <div class="kpi">
-            <p class="kpi-l">Last discovery</p>
-            <p class="kpi-v">@Format.Age(Model.Collectors.FirstOrDefault(c => c.Collector == "discovery")?.LastSuccessAgeSeconds)</p>
-        </div>
+@if (e.Status == "enabled" && worst is not null && CollHealth(worst) != "ok")
+{
+    <div class="err">
+        <b>Error</b>
+        <div><span class="t">@worst.LastError</span><span class="m">@e.Code · @worst.Collector · @Format.Age(worst.LastErrorAgeSeconds) ago · collector_status.last_error</span></div>
     </div>
+}
 
-    <div class="grid grid-2">
-        <div>
-            <h2 class="section">Collectors</h2>
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr><th>Collector</th><th class="num">Last success</th><th class="num">Failures</th>
-                            <th class="num">Avg ms</th><th class="num">Expected</th><th>Last error</th></tr>
-                    </thead>
-                    <tbody>
-                    @if (Model.Collectors.Count == 0)
-                    {
-                        <tr><td colspan="6" class="dash">Nothing has collected for this exchange yet.</td></tr>
-                    }
-                    @foreach (var c in Model.Collectors)
-                    {
-                        <tr>
-                            <td>@c.Collector</td>
-                            <td class="num muted">@Format.Age(c.LastSuccessAgeSeconds)</td>
-                            <td class="num @(c.ConsecutiveFailures > 0 ? "down" : "muted")">@c.ConsecutiveFailures</td>
-                            <td class="num muted">@Format.Num(c.AvgDurationMs, 0)</td>
-                            <td class="num muted">@(c.InstrumentsExpected?.ToString() ?? Format.Dash)</td>
-                            <td class="muted">@(c.LastError is null ? Format.Dash : $"{c.LastError} · {Format.Age(c.LastErrorAgeSeconds)} ago")</td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
+@if (e.Status == "enabled")
+{
+    <div class="kpis kpis-4">
+        <div class="kpi"><p class="kpi-l">Trading</p><p class="kpi-v">@e.TradingInstruments</p><p class="kpi-s">of @e.KnownInstruments known</p></div>
+        <div class="kpi"><p class="kpi-l">Avg response</p><p class="kpi-v @(avg == 0 ? "none" : "")">@(avg == 0 ? "—" : Format.Num(avg, 0))</p><p class="kpi-s">mean across collectors</p></div>
+        <div class="kpi"><p class="kpi-l">Last discovery</p><p class="kpi-v @(health == "ok" ? "" : "warn")">@Format.Age(discovery?.LastSuccessAgeSeconds)</p><p class="kpi-s">interval 60 min</p></div>
+        <div class="kpi"><p class="kpi-l">Failures</p><p class="kpi-v @(maxFails > 0 ? "warn" : "")">@maxFails</p><p class="kpi-s">consecutive, max across collectors</p></div>
+    </div>
+}
+
+<div class="grid2">
+    <div class="stack">
+        @if (e.Status == "enabled")
+        {
+            <div class="panel">
+                <div class="panel-h"><h2>Collectors</h2><span class="meta">collector_status</span></div>
+                @if (Model.Collectors.Count == 0)
+                {
+                    <div class="empty"><h3>Nothing collected yet</h3><p>The first cycle has not completed.</p></div>
+                }
+                @foreach (var c in Model.Collectors)
+                {
+                    var ch = CollHealth(c);
+                    <div class="coll @(ch == "fail" ? "is-fail" : "")">
+                        <div class="coll-h"><span class="dot @ch @(ch == "ok" ? "fresh" : "")"></span><span class="n">@c.Collector</span><span class="sev @ch">@(ch == "ok" ? "ok" : ch == "warn" ? "degraded" : "failing")</span><span class="iv">@Interval(c.Collector)</span></div>
+                        <div class="coll-g">
+                            <span><i>Last success</i><b style="@(ch != "ok" ? "color:var(--gold-300)" : "")">@Format.Age(c.LastSuccessAgeSeconds)</b></span>
+                            <span><i>Failures</i><b style="@(c.ConsecutiveFailures > 0 ? "color:var(--gold-300)" : "")">@c.ConsecutiveFailures</b></span>
+                            <span><i>Last / avg ms</i><b>@(c.LastDurationMs?.ToString() ?? "—") / @Format.Num(c.AvgDurationMs, 0)</b></span>
+                            <span><i>Expected</i><b class="muted">@(c.InstrumentsExpected?.ToString() ?? "—")</b></span>
+                        </div>
+                        @if (c.LastError is not null)
+                        {
+                            <span class="e @(ch != "ok" ? "is-err" : "")">@c.LastError · @Format.Age(c.LastErrorAgeSeconds) ago</span>
+                        }
+                    </div>
+                }
             </div>
-        </div>
 
-        <div class="panel">
-            <h2>Settings</h2>
+            <div class="panel">
+                <div class="panel-h"><h2>Snapshot throughput</h2><span class="meta">market_snapshot · 5 min buckets · 2 h</span></div>
+                <div class="panel-b">
+                    @if (Model.Throughput.Sum() > 0)
+                    {
+                        <svg class="chart" height="84" viewBox="0 0 600 84" preserveAspectRatio="none">
+                            <defs><linearGradient id="csxFillD" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--tint-violet)"/><stop offset="100%" stop-color="transparent"/></linearGradient></defs>
+                            <polygon points="@Spark.Area(Model.Throughput, 600, 84)" fill="url(#csxFillD)"></polygon>
+                            <polyline points="@Spark.Points(Model.Throughput, 600, 84)" stroke="var(--violet-400)" stroke-width="1.75"></polyline>
+                        </svg>
+                        <div class="chart-x"><span>−2 h</span><span class="mid">rows per 5 min</span><span>now</span></div>
+                    }
+                    else
+                    {
+                        <div class="empty"><h3>No snapshots yet</h3><p>Nothing recorded in the last two hours.</p></div>
+                    }
+                </div>
+            </div>
+
+            <div class="notwired">
+                <div class="hd"><span class="tag gold">Not wired</span><h3>Per-collector latency trend</h3></div>
+                <p>avg_duration_ms is a running figure on collector_status — there is no history to plot. Migration request: collector_status_history (exchange_code text, collector text, sampled_at timestamptz, duration_ms int, ok boolean), one row per loop, retained 7 days. Until it exists this panel shows nothing rather than a shape.</p>
+            </div>
+        }
+        else
+        {
+            <div class="panel"><div class="empty lg"><h3>@e.Status.ToUpperInvariant()</h3><p>This exchange is not collecting, so it has no health, latency or freshness to show. Set its status to enabled to start.</p></div></div>
+        }
+    </div>
+
+    <div class="stack">
+        <div class="panel" style="padding:18px">
+            <h2 style="margin-bottom:5px">Lifecycle</h2>
+            <p style="margin:0 0 16px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">The desired state. A human writes this; nothing observed is stored here.</p>
             <form method="post" action="/Admin/Exchanges/Save/@e.Code">
                 @Html.AntiForgeryToken()
+                <div class="field"><label for="name">Name</label><input id="name" name="name" type="text" value="@e.Name"></div>
                 <div class="field">
-                    <label for="name">Name</label>
-                    <input id="name" name="name" type="text" value="@e.Name">
-                </div>
-                <div class="field">
-                    <label for="status">Status</label>
-                    <select id="status" name="status">
-                        @foreach (var s in new[] { "planned", "enabled", "disabled", "maintenance", "abandoned" })
+                    <label>Status</label>
+                    <div class="chips">
+                        @foreach (var st in statuses)
                         {
-                            if (s == e.Status)
-                            {
-                                <option value="@s" selected>@s</option>
-                            }
-                            else
-                            {
-                                <option value="@s">@s</option>
-                            }
+                            <label class="chip @(st == e.Status ? "is-on" : "")"><input type="radio" name="status" value="@st" @(st == e.Status ? "checked" : "") style="position:absolute;opacity:0;width:0;height:0">@st</label>
                         }
-                    </select>
+                    </div>
                 </div>
-                <div class="field">
-                    <label for="description">Description</label>
-                    <input id="description" name="description" type="text" value="@e.Description">
-                </div>
-                <button class="btn" type="submit">Save</button>
-                <p class="muted">Status is the desired state. enabled — collect; maintenance —
-                deliberate pause, not an alert; planned — no adapter yet; abandoned — history only.
-                Connection health is observed and never stored.</p>
+                <div class="field"><label for="description">Description</label><input id="description" name="description" type="text" value="@e.Description"></div>
+                <button class="btn" type="submit">Save changes</button>
             </form>
+            <dl class="legend">
+                <dt>enabled</dt><dd>collect</dd>
+                <dt>maintenance</dt><dd>deliberate pause, not an alert</dd>
+                <dt>planned</dt><dd>no adapter yet</dd>
+                <dt>abandoned</dt><dd>history only</dd>
+            </dl>
         </div>
+
+        @if (e.Status == "enabled" && Model.Stalest.Count > 0)
+        {
+            <div class="panel">
+                <div class="panel-h"><h2>Stalest instruments</h2></div>
+                @foreach (var s in Model.Stalest)
+                {
+                    var stale = s.AgeSeconds > 30;
+                    <div class="tr" style="grid-template-columns:1fr auto;padding:8px 16px"><span class="mono">@s.Symbol</span><span class="num @(stale ? "fail" : "muted")">@Format.Age(s.AgeSeconds)</span></div>
+                }
+                <p class="panel-note">Stale = no snapshot for 3 intervals</p>
+            </div>
+        }
     </div>
-</main>
+</div>

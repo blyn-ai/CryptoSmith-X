@@ -1,0 +1,39 @@
+@model IReadOnlyList<ClientListItem>
+@{
+    ViewData["Title"] = "Clients";
+}
+@section head { <meta http-equiv="refresh" content="10"> }
+@section live { <span class="live">refreshes 10 s</span> }
+
+<div class="page-head">
+    <div class="t"><p class="eyebrow">Admin · clients</p><h1>Clients</h1></div>
+    <span class="tag gold">Derived from tenant + bot</span>
+</div>
+<p class="lead">There is no client table. Every figure below is read from tenant, bot and bot_event, or marked as needing one. Online is derived from the newest heartbeat across a client's bots — never a stored flag.</p>
+
+<div class="panel scroll">
+    <div class="th r-cli"><span>Client</span><span>Bots</span><span>Heartbeat</span><span>Events 24 h</span><span>Shares</span><span>Billing</span></div>
+    @if (Model.Count == 0)
+    {
+        <div class="empty lg"><h3>No clients yet</h3><p>A client is a tenant with bots. Create one under Tenants.</p></div>
+    }
+    @foreach (var c in Model)
+    {
+        <a class="tr r-cli" href="/Admin/Clients/Details/@c.Code">
+            <span class="cell"><span class="dot @(c.Online ? "ok fresh" : c.HeartbeatAgeSeconds is null ? "none" : "fail")"></span><span style="display:flex;flex-direction:column;gap:3px;min-width:0"><span class="name">@c.Name</span><span class="code" style="letter-spacing:.08em">@c.Code</span></span></span>
+            <span class="mono">@c.BotCount</span>
+            <span class="mono @(c.Online ? "muted" : c.HeartbeatAgeSeconds is null ? "faint" : "")" style="@(!c.Online && c.HeartbeatAgeSeconds is not null ? "color:var(--gold-300)" : "")">@(c.HeartbeatAgeSeconds is null ? "—" : Format.Age(c.HeartbeatAgeSeconds))</span>
+            <span class="mono">@c.Events24h</span>
+            <span class="tag dashed" style="justify-self:start">Not wired</span>
+            <span class="tag dashed" style="justify-self:start">Not wired</span>
+        </a>
+    }
+</div>
+
+<div class="notwired" style="margin-top:var(--space-7)">
+    <div class="hd"><span class="tag gold">Migration request</span><h3>What this screen needs that the schema cannot serve</h3></div>
+    <div class="mig-row"><b>client_consent</b><span>(tenant_code text references tenant, scope text, granted boolean, changed_at timestamptz, changed_by text) — one row per scope per tenant. Seven scopes today; the UI reads the set, not a fixed column list.</span></div>
+    <div class="mig-row"><b>client_consent_log</b><span>(id bigint, tenant_code text, scope text, granted boolean, actor text check (actor in ('client','admin')), at timestamptz) — append-only, so the consent history panel has a source.</span></div>
+    <div class="mig-row"><b>Trade status</b><span>No new table. Derive from bot_event where type in ('position.opened','position.closed') and read the payload. Needs an index on (bot_id, type, received_at desc) to stay cheap.</span></div>
+    <div class="mig-row"><b>Billing</b><span>Nothing designed and nothing requested. The column renders NOT WIRED until there is a decision — it is deliberately the least developed thing on the screen.</span></div>
+</div>

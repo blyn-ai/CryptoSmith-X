@@ -1,0 +1,89 @@
+@model ClientDetails
+@{
+    ViewData["Title"] = Model.Name;
+    // The seven consent scopes are a fixed design set. There is no consent table yet, so these
+    // render as the intended surface marked Sample — the switches do not persist until the
+    // migration lands (see the Clients list).
+    var scopes = new (string T, string D, bool On, bool Locked)[]
+    {
+        ("Heartbeat and bot status", "Whether the bot is running, its version and its last error. Required to operate the service.", true, true),
+        ("Bot policy and parameters", "The parameter set we configure together. Without it we cannot help them tune anything.", true, false),
+        ("Trade events", "Opens, closes, fills and rejects as the bot reports them.", true, false),
+        ("Realised PnL figures", "Result per closed position. Amounts, not balances.", true, false),
+        ("Exchange balances", "Account equity and free margin. We have never needed this to help anyone.", false, false),
+        ("API error logs", "Raw exchange responses when a call fails. Fastest route to a diagnosis.", true, false),
+        ("Contact for support", "Email, so we can reach them when something breaks on our side.", true, false),
+    };
+}
+@section head { <meta http-equiv="refresh" content="10"> }
+@section live { <span class="live">refreshes 10 s</span> }
+
+<div class="page-head">
+    <div class="t">
+        <p class="eyebrow">Admin · clients · @Model.Code</p>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>@Model.Name</h1><span style="display:flex;align-items:center;gap:8px"><span class="dot @(Model.Online ? "ok lg fresh" : "fail lg")"></span><span class="sev @(Model.Online ? "ok" : "fail")">@(Model.Online ? "online" : "offline")</span></span></div>
+    </div>
+    <a class="linkbtn" href="/Admin/Clients">← Clients</a>
+</div>
+
+<div class="grid2">
+    <div class="stack">
+        <div class="panel">
+            <div style="padding:16px 18px;border-bottom:1px solid var(--border-hairline)">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap"><h2 style="margin-bottom:6px">What @Model.Name.Split(' ')[0] shares with us</h2><span class="tag gold">Sample · needs client_consent</span></div>
+                <p style="margin:0;font:400 12.5px/1.55 var(--font-body);color:var(--text-muted);max-width:68ch;text-wrap:pretty">This is their switchboard, mirrored. They see the same rows at /My/Sharing and they are the only ones who can move them. We can ask; we cannot grant ourselves anything.</p>
+            </div>
+            @foreach (var s in scopes)
+            {
+                <div class="consent-row @(s.On ? "" : "is-off") @(s.Locked ? "no-act" : "")">
+                    <button class="sw" role="switch" aria-checked="@(s.On ? "true" : "false")" disabled><i></i></button>
+                    <span class="body">
+                        <span class="t">@s.T
+                            @if (s.Locked) { <span class="tag gold" style="font-size:8.5px">Locked</span> }
+                            else if (s.On) { <span class="tag enabled" style="font-size:8.5px">Shared</span> }
+                            else { <span class="tag" style="font-size:8.5px">Not shared</span> }
+                        </span>
+                        <span class="d">@s.D</span>
+                        <span class="m">@(s.Locked ? "required · cannot be withdrawn while a bot is registered" : s.On ? "shared" : "declined")</span>
+                    </span>
+                    @if (!s.Locked)
+                    {
+                        <span style="justify-self:end">@if (!s.On) { <button class="btn btn-ghost btn-sm" type="button" disabled>Request</button> }</span>
+                    }
+                </div>
+            }
+            <p class="panel-note">Every row here is a migration request — see Clients. Nothing on this screen reads a consent table today; the switches are disabled until client_consent exists.</p>
+        </div>
+
+        <div class="panel">
+            <div class="panel-h"><h2>Trade status</h2><span class="tag gold">Sample · needs position payloads</span></div>
+            <div class="empty"><h3>Not wired</h3><p>Derived from bot_event payloads of type position.opened / position.closed — the one place in this console where green and red are legal. No position events have been recorded yet.</p></div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="kpis kpis-4" style="grid-template-columns:repeat(2,minmax(0,1fr));margin:0">
+            <div class="kpi"><p class="kpi-l">Bots online</p><p class="kpi-v @(Model.BotsTotal > 0 && Model.BotsOnline < Model.BotsTotal ? "warn" : Model.BotsTotal == 0 ? "none" : "")">@Model.BotsOnline / @Model.BotsTotal</p></div>
+            <div class="kpi"><p class="kpi-l">Last heartbeat</p><p class="kpi-v @(Model.HeartbeatAgeSeconds is null ? "none" : "")">@(Model.HeartbeatAgeSeconds is null ? "never" : Format.Age(Model.HeartbeatAgeSeconds))</p></div>
+            <div class="kpi"><p class="kpi-l">Events 24 h</p><p class="kpi-v @(Model.Events24h == 0 ? "none" : "")">@Model.Events24h</p></div>
+            <div class="kpi"><p class="kpi-l">Open positions</p><p class="kpi-v none">—</p></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-h"><h2>Their bots</h2></div>
+            @if (Model.Bots.Count == 0)
+            {
+                <div class="empty"><h3>No bots</h3><p>This client has no registered bots yet.</p></div>
+            }
+            @foreach (var b in Model.Bots)
+            {
+                <div class="tr" style="grid-template-columns:auto 1fr auto;padding:10px 16px"><span class="dot @(b.Online ? "ok fresh" : b.HeartbeatAgeSeconds is null ? "none" : "fail")"></span><span class="name">@b.BotInstanceId</span><span class="num @(b.Online ? "muted" : "fail")">@(b.HeartbeatAgeSeconds is null ? "never" : Format.Age(b.HeartbeatAgeSeconds))</span></div>
+            }
+        </div>
+
+        <div class="panel">
+            <div class="panel-h"><h2>Consent history</h2><span class="tag dashed">Not wired</span></div>
+            <div class="empty"><h3>Needs client_consent_log</h3><p>An append-only log of who changed which scope and when. Until it exists there is no history to show.</p></div>
+        </div>
+    </div>
+</div>

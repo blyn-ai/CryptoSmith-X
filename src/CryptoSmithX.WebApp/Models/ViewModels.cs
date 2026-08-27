@@ -65,9 +65,13 @@ public sealed record ExchangeCollectorRow(
     string? LastError,
     double? LastErrorAgeSeconds);
 
+public sealed record StaleInstrument(string Symbol, double? AgeSeconds);
+
 public sealed record ExchangeDetails(
     ExchangeListItem Exchange,
-    IReadOnlyList<ExchangeCollectorRow> Collectors);
+    IReadOnlyList<ExchangeCollectorRow> Collectors,
+    IReadOnlyList<StaleInstrument> Stalest,
+    IReadOnlyList<double> Throughput);
 
 // ── Admin dashboard ───────────────────────────────────────────────────────
 public sealed record DashExchange(
@@ -100,3 +104,14 @@ public sealed record Dashboard(
     IReadOnlyList<DashTenant> Tenants,
     IReadOnlyList<double> IngestBuckets, int IngestPeak,
     DateTime AsOf);
+
+// ── Clients (derived from tenant + bot; no client table yet) ───────────────
+public sealed record ClientListItem(
+    string Code, string Name, int BotCount, bool Online, double? HeartbeatAgeSeconds, int Events24h);
+
+public sealed record ClientBot(string BotInstanceId, bool Online, double? HeartbeatAgeSeconds);
+
+public sealed record ClientDetails(
+    string Code, string Name, bool Online, double? HeartbeatAgeSeconds,
+    int BotsOnline, int BotsTotal, int Events24h,
+    IReadOnlyList<ClientBot> Bots);

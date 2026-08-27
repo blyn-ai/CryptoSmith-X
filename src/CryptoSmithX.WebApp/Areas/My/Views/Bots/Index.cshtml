@@ -1,35 +1,33 @@
 @model IReadOnlyList<BotListItem>
 @{
     ViewData["Title"] = "My bots";
+    var tenant = User.FindFirst("tenantCode")?.Value ?? "";
+    bool Online(BotListItem b) => b.HeartbeatAgeSeconds is not null and < 180;
 }
-<main>
-    <div class="page-head">
-        <div>
-            <p class="eyebrow">Your bots</p>
-            <h1>My bots</h1>
+@section head { <meta http-equiv="refresh" content="10"> }
+@section live { <span class="live">refreshes 10 s</span> }
+
+<div class="page-head"><div class="t"><p class="eyebrow">@tenant · my instance</p><h1>My bots</h1></div></div>
+
+@if (Model.Count == 0)
+{
+    <div class="panel"><div class="empty lg"><h3>No bots yet</h3><p>Your bots appear here once they are registered for you and send their first heartbeat. Ask us and we will set one up together.</p></div></div>
+}
+<div class="stack">
+@foreach (var b in Model)
+{
+    var online = Online(b);
+    <div class="bot-card">
+        <div class="hd">
+            <span class="dot @(online ? "ok lg fresh" : b.HeartbeatAgeSeconds is null ? "none lg" : "fail lg")"></span>
+            <span class="n">@b.BotInstanceId</span><span class="s">@b.Name</span>
+            <a class="btn btn-ghost btn-sm" href="/My/Bots/Details/@b.Id" style="margin-left:auto">Edit policy</a>
+        </div>
+        <div class="coll-g" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+            <span><i>Heartbeat</i><b>@(b.HeartbeatAgeSeconds is null ? "never" : Format.Age(b.HeartbeatAgeSeconds))</b></span>
+            <span><i>State</i><b>@(b.IsEnabled ? "enabled" : "disabled")</b></span>
+            <span><i>Token</i><b class="muted">@(b.HasToken ? "set" : "none")</b></span>
         </div>
     </div>
-
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr><th>Instance</th><th>Enabled</th><th>Last heartbeat</th><th></th></tr>
-            </thead>
-            <tbody>
-                @if (Model.Count == 0)
-                {
-                    <tr><td colspan="4" class="dash">You have no bots yet.</td></tr>
-                }
-                @foreach (var b in Model)
-                {
-                    <tr>
-                        <td><a href="/My/Bots/Details/@b.Id">@b.BotInstanceId</a></td>
-                        <td>@if (b.IsEnabled) { <span class="badge badge-on">on</span> } else { <span class="badge badge-off">off</span> }</td>
-                        <td class="muted">@Format.Age(b.HeartbeatAgeSeconds)</td>
-                        <td><a href="/My/Bots/Details/@b.Id">Open</a></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-</main>
+}
+</div>

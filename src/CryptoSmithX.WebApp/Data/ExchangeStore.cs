@@ -81,7 +81,33 @@ public static class ExchangeStore
             new { code },
             cancellationToken: ct))).ToList();
 
-        return new ExchangeDetails(exchange, collectors);
+        // Stalest trading instruments — the oldest snapshots, which is where a failing feed shows.
+        var stalest = (await conn.QueryAsync<StaleInstrument>(new CommandDefinition(
+            """
+            select i.exchange_symbol as "Symbol",
+                   extract(epoch from now() - l.received_at)::double precision as "AgeSeconds"
+              from exchange_instrument i
+              join market_snapshot_latest l on l.exchange_instrument_id = i.id
+             where i.exchange_code = @code and i.status = 'trading'
+             order by l.received_at asc limit 6
+            """,
+            new { code },
+            cancellationToken: ct))).ToList();
+
+        // Snapshot throughput: rows per 5 min over 2 h, for the detail chart.
+        var throughput = (await conn.QueryAsync<double>(new CommandDefinition(
+            """
+            with buckets as (select generate_series(date_trunc('hour', now()) - interval '2 hours', now(), interval '5 minutes') as b)
+            select count(m.received_at)::double precision
+              from buckets
+              left join market_snapshot m on m.received_at >= buckets.b and m.received_at < buckets.b + interval '5 minutes'
+               and m.exchange_instrument_id in (select id from exchange_instrument where exchange_code = @code)
+             group by buckets.b order by buckets.b
+            """,
+            new { code },
+            cancellationToken: ct))).ToList();
+
+        return new ExchangeDetails(exchange, collectors, stalest, throughput);
     }
 
     /// <summary>Returns false when the code does not exist or the status is not an allowed value.</summary>
