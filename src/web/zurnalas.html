@@ -371,6 +371,21 @@
 .bc-from--used{color:var(--amber)}
 .bc-proof-n--hypo .bc-to{color:var(--muted)}
 .bc-proof-l--hypo{color:var(--muted-4)}
+/* Šiandien is the live day: its number still holds unrealised P/N from open
+   positions, so it is never green (green stays realised-only, footnote 9b). It
+   takes the amber the rest of the page gives "today" — the live candle, the divider. */
+.bc-proof-s--today b{color:var(--amber)}
+/* The hypothetical is no longer a fourth card; it is a low full-width strip under
+   the four real ones. Number left, sentence right; stacks on a phone. Dashed and
+   dim so it never reads as a realised row. */
+.bc-hypo{grid-column:1/-1;display:flex;align-items:baseline;gap:8px 22px;flex-wrap:wrap;
+  margin-top:12px;padding:13px 20px;border:1px dashed var(--hairline);border-radius:var(--r-lg)}
+.bc-hypo-head{display:flex;align-items:baseline;gap:14px;flex:0 0 auto}
+.bc-hypo-head .bc-proof-l,.bc-hypo-head .bc-proof-n{margin:0}
+.bc-hypo .bc-from{font-size:17px} .bc-hypo .bc-arrow{font-size:14px} .bc-hypo .bc-to{font-size:19px}
+.bc-hypo-s{margin:0;flex:1 1 300px;min-width:0;color:var(--muted-3)}
+.bc-proof-fn{margin-top:14px;font:11px/1.55 var(--font-mono);color:var(--muted-3);text-wrap:pretty}
+.bc-proof-fn .bc-fn-item b:first-child{color:var(--muted-3)}
 .bc-fn-mark{color:var(--purple);text-decoration:none}
 .bc-footnote{margin:0;padding:22px;border-top:1px solid var(--hairline);
   font:12.5px/1.65 var(--font-body);color:var(--muted-2);text-wrap:pretty}
@@ -478,6 +493,11 @@
      cents and need 265px. */
   .bc-proof{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;border:0;border-radius:0;background:none;text-align:center}
   .bc-proof-cell{padding:12px 10px;border:1px solid rgba(65,201,143,.26);border-radius:14px;background:rgba(65,201,143,.05)}
+  /* The hypothetical strip is one wide row on desktop; on a phone the label + number
+     would overrun the edge, so it stacks and centres like the cards above it. */
+  .bc-hypo{flex-direction:column;align-items:stretch;gap:8px;text-align:center;padding:14px}
+  .bc-hypo-head{justify-content:center;flex-wrap:wrap;gap:6px 12px}
+  .bc-hypo-s{flex:0 0 auto}
   /* stays at the base 10px: below that the muted ramp drops under 4.5:1, and these
      labels are the only thing distinguishing cards 1 and 2, which print the same figure */
   .bc-proof-l{letter-spacing:.09em}
@@ -899,29 +919,38 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
       <div class="bc-hero-wide">
         <div class="bc-proof">
           <div class="bc-proof-cell">
-            <p class="bc-proof-l">Geriausia para &#183; realūs sandoriai</p>
+            <p class="bc-proof-l">Geriausia para &#183; realūs sandoriai<a class="bc-fn-mark" href="#fn-realus" aria-label="Realių sandorių apibrėžimas">1</a></p>
             <p class="bc-proof-n"><span class="bc-from" id="bcBestFrom">60 $</span><span class="bc-arrow">&#8594;</span><span class="bc-to" id="bcBestTo">89 $</span></p>
             <p class="bc-proof-s" id="bcBestS"><b>+29 $</b> &#183; +48 % &#183; geriausias rezultatas iki šiol</p>
             <p class="bc-proof-fine" id="bcBestFine">Geriausia para iki šiol — bet ne vienintelė, sekasi įvairiai, nes eksperimentuojam.</p>
           </div>
           <div class="bc-proof-cell">
-            <p class="bc-proof-l">Blogiausia para &#183; realūs sandoriai</p>
+            <p class="bc-proof-l">Blogiausia para &#183; realūs sandoriai<a class="bc-fn-mark" href="#fn-realus" aria-label="Realių sandorių apibrėžimas">1</a></p>
             <p class="bc-proof-n"><span class="bc-from" id="bcWorstFrom">—</span><span class="bc-arrow">&#8594;</span><span class="bc-to" id="bcWorstTo">—</span></p>
             <p class="bc-proof-s" id="bcWorstS">Nuostolingos paros dar nebuvo.</p>
             <p class="bc-proof-fine" id="bcWorstFine">Taip nutinka ne visada — kartais para baigiasi minuse.</p>
           </div>
           <div class="bc-proof-cell">
-            <p class="bc-proof-l">Vakar &#183; realūs sandoriai</p>
+            <p class="bc-proof-l">Vakar &#183; realūs sandoriai<a class="bc-fn-mark" href="#fn-realus" aria-label="Realių sandorių apibrėžimas">1</a></p>
             <p class="bc-proof-n"><span class="bc-from" id="bcYestFrom">60 $</span><span class="bc-arrow">&#8594;</span><span class="bc-to" id="bcYestTo">89 $</span></p>
             <p class="bc-proof-s" id="bcYestS"><b>+29 $</b> &#183; +48 % per parą</p>
             <p class="bc-proof-fine" id="bcYestFine">Uždaryti sandoriai, ne popierinis pelnas.</p>
           </div>
           <div class="bc-proof-cell">
-            <p class="bc-proof-l bc-proof-l--hypo">Jei tada tik būtume žinoję…</p>
-            <p class="bc-proof-n bc-proof-n--hypo"><span class="bc-from" id="bcHypoFrom">600 $</span><span class="bc-arrow">&#8594;</span><span class="bc-to" id="bcHypoTo">900 $</span></p>
-            <p class="bc-proof-s" id="bcHypoS">+300 $ &#183; ta pati logika, tik nuliai, botui nerūpi, su kokia suma dirba, o mes nepasinaudojom…</p>
+            <p class="bc-proof-l bc-proof-l--warn">Šiandien &#183; gyvai</p>
+            <p class="bc-proof-n"><span class="bc-from" id="bcTodayFrom">—</span><span class="bc-arrow">&#8594;</span><span class="bc-to" id="bcTodayTo">—</span></p>
+            <p class="bc-proof-s bc-proof-s--today" id="bcTodayS">Diena dar neprasidėjo.</p>
+            <p class="bc-proof-fine" id="bcTodayFine">Dalis pelno — popierinis, kol pozicijos atviros; į uždarytų parų sumą neįeina.</p>
           </div>
         </div>
+        <div class="bc-hypo">
+          <div class="bc-hypo-head">
+            <p class="bc-proof-l bc-proof-l--hypo">Jei tada tik būtume žinoję…</p>
+            <p class="bc-proof-n bc-proof-n--hypo"><span class="bc-from" id="bcHypoFrom">600 $</span><span class="bc-arrow">&#8594;</span><span class="bc-to" id="bcHypoTo">900 $</span></p>
+          </div>
+          <p class="bc-proof-s bc-hypo-s" id="bcHypoS">+300 $ &#183; ta pati logika, tik nuliai, botui nerūpi, su kokia suma dirba, o mes nepasinaudojom…</p>
+        </div>
+        <p class="bc-fn-line bc-proof-fn"><span id="fn-realus" class="bc-fn-item"><b>1.</b> <b>Realūs sandoriai</b> — tikroje biržos sąskaitoje tikrais pinigais atidaryti ir uždaryti sandoriai; ne modeliavimas ir ne popierinis pelnas.</span></p>
       </div>
 
       <div class="bc-heur">
@@ -1418,6 +1447,10 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
       hypoFrom: el("bcHypoFrom"),
       hypoTo: el("bcHypoTo"),
       hypoS: el("bcHypoS"),
+      todayFrom: el("bcTodayFrom"),
+      todayTo: el("bcTodayTo"),
+      todayS: el("bcTodayS"),
+      todayFine: el("bcTodayFine"),
       rate: el("bcRate"),
       rateB: el("bcRateB"),
       rateL: el("bcRateL"),
@@ -2150,8 +2183,55 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
       return used > 0 ? `Dirbo ${money(used)}` : "";
     }
 
-    function renderProof(equity) {
+    function renderProof(data) {
+      const equity = data.equity;
       if (!equity) return;
+
+      // Šiandien — the live day, on the SAME basis as the four closed cards: the money
+      // at work, not the portfolio, and what it became counting EVERYTHING today —
+      // realised P/N from trades already closed plus unrealised P/N on positions still
+      // open. It is never green: the unrealised part is paper, and footnote 9b keeps
+      // green for realised only, so the number wears the amber the page gives "today".
+      // The exchange reports no intraday peak margin (closed days store one, today does
+      // not), so the base is the margin at work right now.
+      if (els.todayFrom) {
+        const positions = data.positions || [];
+        const workingNow = positions.reduce((sum, p) => sum + (Number(p.initialMarginEur) || 0), 0);
+        const unreal = positions.reduce((sum, p) => sum + (Number(p.unrealizedPnlEur) || 0), 0);
+        const realized = data.today ? Number(data.today.realizedPnlEur) || 0 : 0;
+        const closed = data.today ? Number(data.today.closed) || 0 : 0;
+        const total = realized + unreal;
+        const from = els.todayFrom, to = els.todayTo;
+        to.classList.remove("is-realised", "is-loss");
+        const closedText = closed > 0 ? ` · ${num(closed, 0)} ${tradesWord(closed)} uždaryta` : "";
+        if (workingNow > 0) {
+          from.classList.add("bc-from--used");
+          from.textContent = money(workingNow);
+          to.textContent = money(workingNow + total);
+          els.todayS.innerHTML =
+            `<b>${esc(signedMoney(total))}</b> · ${esc(signedPercent(total / workingNow * 100, 1))}${esc(closedText)}`;
+          if (els.todayFine) els.todayFine.textContent =
+            `Kiek pinigų dabar dirba \u2192 su visu šios dienos rezultatu `
+            + `(realizuota ${signedMoney(realized)}, nerealizuota ${signedMoney(unreal)}). `
+            + "Diena dar nesibaigė, nerealizuota dalis — popierinė.";
+        } else if (closed > 0 || realized !== 0) {
+          // Nothing open right now, so there is no working base to divide by; show the
+          // day's realised result on its own instead of a broken ratio.
+          from.classList.remove("bc-from--used");
+          from.textContent = "—";
+          to.textContent = "—";
+          els.todayS.innerHTML = `<b>${esc(signedMoney(realized))}</b>${esc(closedText)}`;
+          if (els.todayFine) els.todayFine.textContent =
+            "Šiuo metu atvirų pozicijų nėra — rodomas tik šios dienos realizuotas rezultatas.";
+        } else {
+          from.classList.remove("bc-from--used");
+          from.textContent = "—";
+          to.textContent = "—";
+          els.todayS.textContent = "Diena dar neprasidėjo.";
+          if (els.todayFine) els.todayFine.textContent =
+            "Kai botas pradės dirbti šiandien, čia — kiek pinigų dirba ir koks rezultatas.";
+        }
+      }
 
       // The portfolio goes in the fine print. It is context - the account it happened
       // in - not the result, and on one line with the profit and the trade count it
@@ -3187,7 +3267,7 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
       renderStatus(data);
       renderHeadline(data);
       renderRate(data.rates);
-      renderProof(data.equity);
+      renderProof(data);
       renderChart(data);
       renderHonestyStat((data.equity && data.equity.days) || []);
       renderMetrics(data);
