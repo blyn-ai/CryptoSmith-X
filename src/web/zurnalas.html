@@ -358,6 +358,11 @@
 .bc-chip--zero{border-color:var(--hairline);background:rgba(255,255,255,.03);color:var(--muted-3)}
 .bc-chip--ctx{border:1px solid rgba(111,174,255,.24);background:rgba(111,174,255,.07);color:var(--blue)}
 .bc-chip--warn{border:1px solid rgba(240,166,58,.28);background:rgba(240,166,58,.08);color:var(--amber)}
+/* Entry strategy tag. Violet = momentum (trend-following, the default); gold =
+   reversal (contrarian). Non-market colours on purpose — green/red are PnL only. */
+.bc-chip--strat{font-weight:600}
+.bc-chip--strat-mom{border:1px solid rgba(161,138,255,.32);background:rgba(161,138,255,.09);color:var(--purple)}
+.bc-chip--strat-rev{border:1px solid rgba(245,184,79,.34);background:rgba(245,184,79,.10);color:var(--gold)}
 .bc-chev{font:10.5px var(--font-mono);color:var(--muted-3)}
 .bc-card-body{padding:0 20px 18px;border-top:1px solid var(--hairline-soft)}
 .bc-trade-sum{font:10.5px var(--font-mono);color:var(--muted-3)}
@@ -2803,6 +2808,30 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
         + warnings.map(text => `<span class="bc-chip bc-chip--warn">${esc(text)}</span>`).join("");
     }
 
+    // How the entry was chosen. The API field is tradeStrategy, NOT strategy: the API
+    // already has strategyVersion, which is the code change-set and a different thing.
+    // null means Momentum — the original and still the default; spot rows and every
+    // row from before Reversal existed carry no value.
+    function strategyOf(source) {
+      return String(source && source.tradeStrategy) === "Reversal" ? "Reversal" : "Momentum";
+    }
+
+    // A coloured tag for the Kontekstas row: violet for the trend-following default,
+    // gold for the contrarian one. Never green or red — those stay market-only.
+    function strategyChip(source) {
+      const reversal = strategyOf(source) === "Reversal";
+      return `<span class="bc-chip bc-chip--strat bc-chip--strat-${reversal ? "rev" : "mom"}">`
+        + `${reversal ? "Reversal" : "Momentum"}</span>`;
+    }
+
+    // The same distinction in words, for the "why" line. Only meaningful on an entry;
+    // an exit is described by why it closed, not how it was chosen.
+    function strategyText(source) {
+      return strategyOf(source) === "Reversal"
+        ? "Reversal įėjimas — statau prieš kryptį, į signalo apsisukimą."
+        : "Įprastas momentum įėjimas — judu kartu su kryptimi.";
+    }
+
     // ---- cards ---------------------------------------------------------------
     // What the position is worth at a given price, in money. A price on its own tells
     // you nothing about the size of the bet: 0,0725 is meaningless until it reads
@@ -3074,17 +3103,18 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
       ].join("");
 
       const params = positionParams(position, entry);
-      const why = positionWhy(position, entry);
+      const why = positionWhy(position, entry) + " " + strategyText(position);
       const signals = entry ? signalChips(entry.signals) : signalChips(null);
       // "arti LIQ", not "arti SL": the flag counts the distance to liquidation, which
       // is a different price from the stop-loss and often much further away. Labelled
       // as SL it contradicted the position's own text - "stop-loss saugiai toli" - and
       // would have read as an outright lie on a wide stop at high leverage.
-      const context = contextChips(entry || {
+      const contextTail = contextChips(entry || {
         spreadPercent: null, side: position.side, leverage: position.leverage
       }, atRisk && Number.isFinite(Number(position.liquidationPrice))
         ? [`LIQ ${price(position.liquidationPrice)}`]
         : atRisk ? ["arti LIQ"] : []);
+      const context = strategyChip(position) + contextTail;
       const log = entry && entry.log ? entry.log : "";
       const bar = riskBar(position);
       const pnl = Number(position.unrealizedPnlEur);
@@ -3167,9 +3197,9 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
         outcome
       ].join("");
 
-      const why = tradeWhy(trade);
+      const why = tradeWhy(trade) + (isExit ? "" : " " + strategyText(trade));
       const signals = signalChips(trade.signals);
-      const context = contextChips(trade, trade.reduceOnly ? ["reduce-only"] : []);
+      const context = strategyChip(trade) + contextChips(trade, trade.reduceOnly ? ["reduce-only"] : []);
       const key = `trade:${trade.utc}:${trade.pair}:${trade.action}`;
 
       return `<details class="bc-card bc-card--trade" data-key="${esc(key)}" open>
