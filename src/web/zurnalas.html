@@ -1135,7 +1135,11 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
     // the account did earlier belongs to a run that is not being shown, and letting
     // one number quietly come from there while the others do not is how a page
     // starts lying without anyone deciding to.
-    const LAUNCH_DATE = "2026-08-19";
+    // Where each instance's chart begins — the day its current run started. Per instance,
+    // because they launched on different days: LUKAS on 2026-08-19, DENISAS from
+    // 2026-08-31. Days before it are filtered out of that instance's series entirely.
+    const LAUNCH_DATES = { LUKAS: "2026-08-19", DENISAS: "2026-08-31" };
+    function launchDate() { return LAUNCH_DATES[tenant] || "2026-08-19"; }
 
     // ---- formatting ----------------------------------------------------
     // Lithuanian throughout: comma decimals, non-breaking space before the
@@ -1231,7 +1235,8 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
 
     function trimToLaunch(equity) {
       if (!equity || !Array.isArray(equity.days)) return equity;
-      const raw = equity.days.filter(day => day.date >= LAUNCH_DATE);
+      const launch = launchDate();
+      const raw = equity.days.filter(day => day.date >= launch);
 
       // A day opens where the previous one closed. Measuring it from its own first
       // observed cycle instead drops whatever happened between the two: on
