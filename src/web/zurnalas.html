@@ -2719,10 +2719,21 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
               ? now * (1 + trailingPct / 100)
               : now * (1 - trailingPct / 100))
           : null;
+        const distanceText = Number.isFinite(trailingPct) ? ` ${percent(trailingPct, 2)} atstumu` : "";
+        const atText = floor ? ` — šiuo metu ties ${price(floor)}` : "";
+        // A trail armed by the six-hour rule frees a slot near breakeven, not a profit
+        // locked. The worker stamps ExitMode = MAX_HOLD_TRAIL so the page can say what
+        // happened instead of claiming a peak the price never hit.
+        if (String(position.exitMode || "").toUpperCase() === "MAX_HOLD_TRAIL") {
+          return opening
+            + " Šešias valandas pozicija taip ir neišjudėjo į pelną, todėl vietoj tikslo ir stop-loss"
+            + ` uždėjau slenkantį stopą${distanceText}${atText}, kad išstumčiau ją apie nulį ir atlaisvinčiau vietą.`
+            + " Tai ne pelno fiksavimas, o užstrigusios pozicijos išleidimas.";
+        }
         return opening
           + " Pozicija nuėjo pakankamai toli, todėl tikslą ir stop-loss pakeičiau slenkančiu stopu"
-          + (Number.isFinite(trailingPct) ? ` ${percent(trailingPct, 2)} atstumu` : "")
-          + (floor ? ` — šiuo metu ties ${price(floor)}` : "")
+          + distanceText
+          + atText
           + ". Viršutinės ribos nebeliko: kol kaina kyla, kyla ir stopas.";
       }
 
@@ -3048,8 +3059,8 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
 
         return `<div class="bc-bar-box">
               <div class="bc-bar-ends">${isLong
-                ? `<span>Įėjimas ${esc(price(entry))}</span><span>${esc(priceWithMoney(position, ceiling))}</span>`
-                : `<span>${esc(priceWithMoney(position, ceiling))}</span><span>Įėjimas ${esc(price(entry))}</span>`}</div>
+                ? `<span>Įėjimas ${esc(price(entry))}</span><span>${esc(price(ceiling))} <span class="bc-t-soft">(skalės riba −${SCALE}%)</span></span>`
+                : `<span>${esc(price(ceiling))} <span class="bc-t-soft">(skalės riba −${SCALE}%)</span></span><span>Įėjimas ${esc(price(entry))}</span>`}</div>
               <div class="bc-bar-top">
                 <span class="bc-ts-l${ts.cls}" style="${ts.style}">TS ${esc(priceWithMoney(position, stopPrice))}</span>
               </div>
@@ -3095,7 +3106,13 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
       const liquidation = Number(position.liquidationDistancePercent);
       const atRisk = Number.isFinite(liquidation) && liquidation < 8;
 
+      // ⚠️ = a trade LUKO would not have opened or closed (a Reversal entry, or a
+      // max-hold release), not the TP/SL parameter differences. Derived from fields
+      // already present, so the API needs no new column.
+      const divergesLuko = String(position.tradeStrategy || "").toUpperCase() === "REVERSAL"
+        || String(position.exitMode || "").toUpperCase() === "MAX_HOLD_TRAIL";
       const badges = [
+        divergesLuko ? '<span class="bc-badge bc-badge--warn" title="LUKO to neatidarytų ar neuždarytų taip">⚠️ ne kaip LUKO</span>' : "",
         `<span class="bc-badge bc-badge--${side === "SHORT" ? "red" : "green"}">Atidariau ${esc(side || "—")}</span>`,
         Number.isFinite(leverage) && leverage ? `<span class="bc-badge bc-badge--neutral">${esc(num(leverage, 0))}x</span>` : "",
         Number.isFinite(leverage) && leverage ? '<span class="bc-badge bc-badge--neutral">Futures</span>' : "",
@@ -3170,6 +3187,10 @@ html,body{margin:0;background:var(--bg-void);color:var(--ink)}
       const isExit = isExitAction(trade.action);
       const log = String(trade.log || "");
       const badges = [];
+      const exitCode = String(trade.exitReasonCode || "").toUpperCase();
+      const divergesLuko = String(trade.tradeStrategy || "").toUpperCase() === "REVERSAL"
+        || exitCode === "EXCHANGE_MAX_HOLD_RELEASE" || exitCode === "SELL_MAX_HOLD_RELEASE" || exitCode === "SELL_MAX_HOLD";
+      if (divergesLuko) badges.push('<span class="bc-badge bc-badge--warn" title="LUKO to neatidarytų ar neuždarytų taip">⚠️ ne kaip LUKO</span>');
       if (TRADE_BADGES[trade.action]) badges.push(TRADE_BADGES[trade.action]);
       if (isExit) {
         // Every exit reason the worker can emit gets its own badge, inferred from
