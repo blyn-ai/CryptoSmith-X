@@ -46,3 +46,21 @@ services:
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
     restart: unless-stopped
+
+  webapp:
+    container_name: cryptosmithx-webapp
+    image: ghcr.io/blyn-ai/cryptosmithx-webapp:latest
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
+      ASPNETCORE_ENVIRONMENT: Production
+      DataProtection__KeysDirectory: /keys
+    volumes:
+      - /opt/cryptosmithx/webapp-keys:/keys
+    ports:
+      # VPN only: bound to the wg0 address, invisible from the internet.
+      # Move behind traefik with a real domain when the admin console goes public.
+      - "10.8.0.1:777:8080"
+    restart: unless-stopped
