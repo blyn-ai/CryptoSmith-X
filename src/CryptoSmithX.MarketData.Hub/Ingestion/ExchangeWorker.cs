@@ -66,6 +66,7 @@ public sealed class ExchangeWorker : BackgroundService
             var discovery = new DiscoveryCollector(adapter, cfg, _options, _db);
             var snapshot = new SnapshotCollector(adapter, _db, _clock);
             var candles = new CandleCollector(adapter, _options, _db, _clock);
+            var funding = new FundingCollector(adapter, _options, _db, _clock);
 
             // One pass before anything else runs, so the first snapshot has rows to join to.
             var found = await discovery.RunAsync(ct);
@@ -74,6 +75,7 @@ public sealed class ExchangeWorker : BackgroundService
             loops.Add(Loop(cfg.Code, "discovery", _options.DiscoveryInterval, discovery.RunAsync, ct));
             loops.Add(Loop(cfg.Code, "snapshot", _options.SnapshotInterval, snapshot.RunAsync, ct));
             loops.Add(Loop(cfg.Code, "candles", _options.CandleInterval, candles.RunAsync, ct));
+            loops.Add(Loop(cfg.Code, "funding", _options.FundingInterval, funding.RunAsync, ct));
         }
 
         // One rollup and one retention for the whole service, recorded against the sentinel

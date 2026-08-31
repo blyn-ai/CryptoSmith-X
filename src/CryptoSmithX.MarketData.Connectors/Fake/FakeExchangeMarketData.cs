@@ -65,14 +65,17 @@ public sealed class FakeExchangeMarketData : IExchangeMarketData
 
             list.Add(new Instrument(
                 ExchangeSymbol: symbol,
-                BaseAsset: baseAsset,
-                QuoteAsset: "USD",
+                // The fake spells its assets canonically already, so raw == canon here and the
+                // Hub's resolve is identity; the alias path is exercised by unit tests instead.
+                BaseAssetRaw: baseAsset,
+                QuoteAssetRaw: "USD",
                 ContractMultiplier: multiplier,
                 PriceStep: StepFor(price),
                 QtyStep: 0.001m,
                 MinQty: 0.001m,
                 MinNotional: baseAsset == "BTC" ? null : 5m,
                 FundingIntervalHours: 8,
+                ListedAt: ListedAtFor(symbol),
                 Status: status,
                 RawJson: RawJson(symbol, baseAsset, price, multiplier, status)));
         }
@@ -179,6 +182,39 @@ public sealed class FakeExchangeMarketData : IExchangeMarketData
 
         return Task.FromResult<IReadOnlyList<Candle>>(list);
     }
+
+    public Task<IReadOnlyList<FundingRate>> GetFundingHistoryAsync(
+        string exchangeSymbol,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        // Funding prints every eight hours on the 00:00 / 08:00 / 16:00 UTC boundaries.
+        // Deterministic per symbol and boundary, so a refetch of the same window agrees.
+        const long interval = 8 * 3600;
+        var fromSec = from.ToUnixTimeSeconds();
+        var toSec = to.ToUnixTimeSeconds();
+        var first = ((fromSec + interval - 1) / interval) * interval;   // first boundary at/after from
+
+        var list = new List<FundingRate>();
+        for (var t = first; t <= toSec; t += interval)
+        {
+            list.Add(new FundingRate(
+                ExchangeSymbol: exchangeSymbol,
+                FundingTime: DateTimeOffset.FromUnixTimeSeconds(t),
+                Rate: (Unit(exchangeSymbol, t / interval, 61) - 0.5) * 0.0002));
+        }
+
+        return Task.FromResult<IReadOnlyList<FundingRate>>(list);
+    }
+
+    // A fixed listing date per symbol in 2024-2025, so the "contract younger than N days"
+    // filter has something to bite on. Salted apart from the price/noise streams.
+    private DateTimeOffset ListedAtFor(string symbol) =>
+        new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero)
+            .AddDays((double)(Hash(symbol, 0, 60) % 500));
 
     private static string Symbol(string baseAsset) => $"FAKE-{baseAsset}-USD";
 

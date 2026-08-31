@@ -97,9 +97,9 @@ public sealed class FakeExchangeMarketDataTests
         var adapter = Adapter(out _);
         var instruments = await adapter.GetInstrumentsAsync(CancellationToken.None);
 
-        var pepe = Assert.Single(instruments, i => i.BaseAsset == "PEPE");
+        var pepe = Assert.Single(instruments, i => i.BaseAssetRaw == "PEPE");
         Assert.Equal(1000m, pepe.ContractMultiplier);
-        Assert.All(instruments, i => Assert.Equal("USD", i.QuoteAsset));
+        Assert.All(instruments, i => Assert.Equal("USD", i.QuoteAssetRaw));
         Assert.All(instruments, i => Assert.True(i.PriceStep > 0 && i.QtyStep > 0 && i.MinQty > 0));
     }
 

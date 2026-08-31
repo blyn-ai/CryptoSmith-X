@@ -24,4 +24,14 @@ public interface IExchangeMarketData
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken ct);
+
+    /// <summary>
+    /// Historical funding payments in [from, to], oldest first. Venues serve these back in time,
+    /// so the Hub can back-fill the series rather than only recording the live rate.
+    /// </summary>
+    Task<IReadOnlyList<FundingRate>> GetFundingHistoryAsync(
+        string exchangeSymbol,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken ct);
 }

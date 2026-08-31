@@ -124,10 +124,72 @@ public sealed class RollupJob
             }
         }
 
-        _watermark = startedAt;
-        if (written > 0)
+        // Last step: the hourly microstructure slice. Open interest, spread and depth die with the
+        // 90-day snapshot rotation, so every closed hour touched since the watermark is folded into
+        // market_metric_hour, which is not rotated. Recomputed whole on every touch, the same way a
+        // derived candle is — a late snapshot repairs its hour instead of leaving it wrong.
+        var metricRows = await conn.QueryAsync<MetricRow>(new CommandDefinition(
+            """
+            select s.exchange_instrument_id          as InstrumentId,
+                   date_trunc('hour', s.received_at) as HourTime,
+                   s.received_at                     as ReceivedAt,
+                   s.bid_price                       as BidPrice,
+                   s.ask_price                       as AskPrice,
+                   s.open_interest                   as OpenInterest,
+                   s.funding_rate                    as FundingRate,
+                   s.depth_bid_25bps                 as DepthBid25,
+                   s.depth_ask_25bps                 as DepthAsk25
+              from market_snapshot s
+             where s.received_at >= @since
+               and s.received_at < date_trunc('hour', now())
+            """,
+            new { since },
+            cancellationToken: ct));
+
+        var metrics = 0;
+        foreach (var hour in metricRows.GroupBy(r => (r.InstrumentId, r.HourTime)))
         {
-            _logger.LogDebug("Rollup wrote {Rows} derived bars", written);
+            var bar = MetricHour.Aggregate(
+                Utc(hour.Key.HourTime),
+                hour.Select(r => new MetricSnapshot(
+                    Utc(r.ReceivedAt), r.BidPrice, r.AskPrice, r.OpenInterest, r.FundingRate,
+                    r.DepthBid25, r.DepthAsk25)).ToList());
+
+            await conn.ExecuteAsync(new CommandDefinition(
+                """
+                insert into market_metric_hour (
+                    exchange_instrument_id, hour_time, open_interest_last, funding_rate_last,
+                    spread_bps_avg, depth_bid_25bps_avg, depth_ask_25bps_avg, snapshot_count, updated_at)
+                values (@InstrumentId, @HourTime, @OpenInterestLast, @FundingRateLast,
+                        @SpreadBpsAvg, @DepthBid25BpsAvg, @DepthAsk25BpsAvg, @SnapshotCount, now())
+                on conflict (exchange_instrument_id, hour_time) do update set
+                    open_interest_last  = excluded.open_interest_last,
+                    funding_rate_last   = excluded.funding_rate_last,
+                    spread_bps_avg      = excluded.spread_bps_avg,
+                    depth_bid_25bps_avg = excluded.depth_bid_25bps_avg,
+                    depth_ask_25bps_avg = excluded.depth_ask_25bps_avg,
+                    snapshot_count      = excluded.snapshot_count,
+                    updated_at          = excluded.updated_at
+                """,
+                new
+                {
+                    InstrumentId = hour.Key.InstrumentId,
+                    bar.HourTime,
+                    bar.OpenInterestLast,
+                    bar.FundingRateLast,
+                    bar.SpreadBpsAvg,
+                    bar.DepthBid25BpsAvg,
+                    bar.DepthAsk25BpsAvg,
+                    bar.SnapshotCount,
+                },
+                cancellationToken: ct));
+            metrics++;
+        }
+
+        _watermark = startedAt;
+        if (written > 0 || metrics > 0)
+        {
+            _logger.LogDebug("Rollup wrote {Rows} derived bars and {Metrics} metric hours", written, metrics);
         }
 
         return written;
@@ -147,4 +209,15 @@ public sealed class RollupJob
         double Close,
         double Volume,
         int? TradeCount);
+
+    private sealed record MetricRow(
+        int InstrumentId,
+        DateTime HourTime,
+        DateTime ReceivedAt,
+        double BidPrice,
+        double AskPrice,
+        double OpenInterest,
+        double FundingRate,
+        double? DepthBid25,
+        double? DepthAsk25);
 }
