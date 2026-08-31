@@ -1,0 +1,35 @@
+@model IReadOnlyList<SettingRow>
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<div class="page-head">
+    <div class="t">
+        <p class="eyebrow">System</p>
+        <h1>Settings</h1>
+        <p class="page-note">Global market-data values the collectors read live. A change applies within a minute — the Hub caches settings for 30 s, then a loop picks it up on its next interval.</p>
+    </div>
+</div>
+
+@if (TempData["Error"] is string err) { <div class="alert alert-error">@err</div> }
+@if (TempData["Saved"] is string saved) { <div class="alert alert-ok">@saved</div> }
+
+<div class="panel scroll">
+    <div class="th" style="grid-template-columns:minmax(0,1.4fr) minmax(0,2fr) minmax(0,1.4fr) minmax(0,1fr)">
+        <span>Setting</span><span>What it controls</span><span>Value</span><span style="justify-self:end">Last change</span>
+    </div>
+    @foreach (var s in Model)
+    {
+        <div class="tr" style="grid-template-columns:minmax(0,1.4fr) minmax(0,2fr) minmax(0,1.4fr) minmax(0,1fr);align-items:center">
+            <span class="cell"><span class="name mono">@s.Key</span><span class="code">@s.Kind</span></span>
+            <span style="font:400 12px/1.5 var(--font-body);color:var(--text-muted)">@s.Description</span>
+            <form method="post" action="/Admin/Settings/Save" style="display:flex;gap:8px;align-items:center">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="key" value="@s.Key">
+                <input name="value" value="@s.Value" spellcheck="false" style="flex:1;min-width:90px" aria-label="@s.Key value">
+                <button class="btn btn-sm" type="submit">Save</button>
+            </form>
+            <span class="num muted" style="justify-self:end">@(s.UpdatedBy ?? "—")<br><span style="font-size:10px">@s.UpdatedAt.ToString("yyyy-MM-dd HH:mm")Z</span></span>
+        </div>
+    }
+</div>

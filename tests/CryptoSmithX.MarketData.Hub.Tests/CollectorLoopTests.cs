@@ -48,7 +48,7 @@ public sealed class CollectorLoopTests
 
         using var cts = new CancellationTokenSource();
         var loop = new CollectorLoop(
-            "fake", "snapshot", Interval, Body,
+            "fake", "snapshot", () => Interval, Body,
             (a, _) =>
             {
                 attempts.Add(a);
@@ -87,7 +87,7 @@ public sealed class CollectorLoopTests
 
         using var cts = new CancellationTokenSource();
         var loop = new CollectorLoop(
-            "fake", "candles", Interval,
+            "fake", "candles", () => Interval,
             _ =>
             {
                 bodyCalls++;

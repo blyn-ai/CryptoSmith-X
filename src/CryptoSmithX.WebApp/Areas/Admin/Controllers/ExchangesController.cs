@@ -1,5 +1,6 @@
 using CryptoSmithX.Database;
 using CryptoSmithX.WebApp.Data;
+using CryptoSmithX.WebApp.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -37,18 +38,45 @@ public sealed class ExchangesController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(
-        string id, string? name, string? status, string? description, CancellationToken ct)
+        string id, string? name, string? status, string? description,
+        string? baseUrl, string? chartsUrl, string? quoteAssets, string? blacklist,
+        string? snapshotIntervalS, string? candleIntervalS, string? discoveryIntervalMin,
+        string? fundingIntervalMin, string? depthIntervalS, CancellationToken ct)
     {
         name = name?.Trim() ?? "";
-        status = status?.Trim() ?? "";
         if (name.Length == 0)
         {
             TempData["Error"] = "Name is required.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // Empty = "use the global"; a non-empty value must be a positive integer.
+        if (!TryInterval(snapshotIntervalS, out var snap) || !TryInterval(candleIntervalS, out var candle)
+            || !TryInterval(discoveryIntervalMin, out var disc) || !TryInterval(fundingIntervalMin, out var fund)
+            || !TryInterval(depthIntervalS, out var depth))
+        {
+            TempData["Error"] = "Intervals must be a positive whole number, or empty for the global.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var input = new ExchangeSaveInput(
+            Code: id,
+            Name: name,
+            Status: status?.Trim() ?? "",
+            Description: description?.Trim(),
+            BaseUrl: baseUrl?.Trim(),
+            ChartsUrl: chartsUrl?.Trim(),
+            QuoteAssets: SplitList(quoteAssets),
+            Blacklist: SplitList(blacklist),
+            SnapshotIntervalS: snap,
+            CandleIntervalS: candle,
+            DiscoveryIntervalMin: disc,
+            FundingIntervalMin: fund,
+            DepthIntervalS: depth,
+            UpdatedBy: User.Identity?.Name);
+
         await using var conn = await _db.OpenAsync(ct);
-        var saved = await ExchangeStore.SaveSettingsAsync(conn, id, name, status, description?.Trim(), ct);
+        var saved = await ExchangeStore.SaveAsync(conn, input, ct);
         if (!saved)
         {
             TempData["Error"] = "Unknown exchange or invalid status.";
@@ -57,5 +85,27 @@ public sealed class ExchangesController : Controller
 
         TempData["Saved"] = "Saved.";
         return RedirectToAction(nameof(Details), new { id });
+    }
+
+    private static string[] SplitList(string? csv) =>
+        (csv ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static bool TryInterval(string? raw, out int? value)
+    {
+        value = null;
+        raw = raw?.Trim();
+        if (string.IsNullOrEmpty(raw))
+        {
+            return true;
+        }
+
+        if (int.TryParse(raw, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var n) && n > 0)
+        {
+            value = n;
+            return true;
+        }
+
+        return false;
     }
 }

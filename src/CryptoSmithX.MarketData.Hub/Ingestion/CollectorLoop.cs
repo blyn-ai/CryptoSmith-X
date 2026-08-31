@@ -25,16 +25,20 @@ public sealed class CollectorLoop
 
     private readonly string _exchangeCode;
     private readonly string _collector;
-    private readonly TimeSpan _interval;
+    private readonly Func<TimeSpan> _interval;
     private readonly Func<CancellationToken, Task<int>> _body;
     private readonly Func<CollectorAttempt, CancellationToken, Task> _report;
     private readonly ILogger _logger;
     private readonly TimeProvider _clock;
 
+    /// <param name="interval">
+    /// Read on every iteration, not captured once, so an interval edited in the admin UI applies
+    /// on the next cycle without a restart.
+    /// </param>
     public CollectorLoop(
         string exchangeCode,
         string collector,
-        TimeSpan interval,
+        Func<TimeSpan> interval,
         Func<CancellationToken, Task<int>> body,
         Func<CollectorAttempt, CancellationToken, Task> report,
         ILogger logger,
@@ -109,7 +113,7 @@ public sealed class CollectorLoop
                 _logger.LogWarning(ex, "{Exchange}/{Collector} status write failed", _exchangeCode, _collector);
             }
 
-            var delay = Jitter(DelayFor(_interval, ConsecutiveFailures));
+            var delay = Jitter(DelayFor(_interval(), ConsecutiveFailures));
             try
             {
                 await Task.Delay(delay, _clock, ct).ConfigureAwait(false);

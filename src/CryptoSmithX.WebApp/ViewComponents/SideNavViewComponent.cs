@@ -73,7 +73,7 @@ public sealed class SideNavViewComponent : ViewComponent
             new NavGroup("System", [
                 new NavItem("Users", "#", "soon", Soon: true),
                 new NavItem("Audit", "#", "soon", Soon: true),
-                new NavItem("Settings", "#", "soon", Soon: true),
+                new NavItem("Settings", "/Admin/Settings"),
             ]),
         ]));
     }

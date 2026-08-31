@@ -1,4 +1,3 @@
-using CryptoSmithX.MarketData.Hub.Options;
 using CryptoSmithX.Database;
 using Dapper;
 
@@ -10,14 +9,14 @@ namespace CryptoSmithX.MarketData.Hub.Retention;
 /// </summary>
 public sealed class RetentionJob
 {
-    private readonly MarketDataOptions _options;
+    private readonly DbSettings _settings;
     private readonly Db _db;
     private readonly TimeProvider _clock;
     private readonly ILogger<RetentionJob> _logger;
 
-    public RetentionJob(MarketDataOptions options, Db db, TimeProvider clock, ILogger<RetentionJob> logger)
+    public RetentionJob(DbSettings settings, Db db, TimeProvider clock, ILogger<RetentionJob> logger)
     {
-        _options = options;
+        _settings = settings;
         _db = db;
         _clock = clock;
         _logger = logger;
@@ -34,7 +33,7 @@ public sealed class RetentionJob
 
         // A month is droppable once its last day is older than the window, so a partial month is
         // never taken away early.
-        var cutoff = now.AddDays(-_options.SnapshotRetentionDays);
+        var cutoff = now.AddDays(-(await _settings.CurrentAsync(ct)).SnapshotRetentionDays);
         var names = await conn.QueryAsync<string>(new CommandDefinition(
             """
             select c.relname

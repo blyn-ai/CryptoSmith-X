@@ -1,35 +1,41 @@
 using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Connectors.Fake;
-using CryptoSmithX.MarketData.Hub.Options;
 using CryptoSmithX.MarketData.Hub.Retention;
 using CryptoSmithX.MarketData.Hub.Rollups;
 using CryptoSmithX.Database;
 using Dapper;
-using Microsoft.Extensions.Options;
 
 namespace CryptoSmithX.MarketData.Hub.Ingestion;
 
 /// <summary>
-/// Startup order and the set of running loops. Migrations and partitions come first, then one
-/// discovery pass per exchange so snapshots always have an instrument to attach to, then the loops.
-/// A failure here stops the service rather than leaving it half-started.
+/// The supervisor. Rollup and retention run once for the whole service; the per-exchange collectors
+/// are started and stopped to match each exchange's <c>status</c> in the database, reconciled every
+/// ~30 s. Flipping an exchange to <c>enabled</c> in the admin UI starts its loops without a restart;
+/// flipping it away cancels them. Configuration and intervals come from <see cref="DbSettings"/>,
+/// read live, so the process holds no static options at all.
 /// </summary>
 public sealed class ExchangeWorker : BackgroundService
 {
-    private readonly MarketDataOptions _options;
+    private static readonly TimeSpan ReconcileInterval = TimeSpan.FromSeconds(30);
+
+    // Rollup and retention are service-wide; their status rows are recorded against the fake
+    // exchange, which is always present (seeded in 0002), so the collector_status FK holds.
+    private const string ServiceExchange = "fake";
+
+    private readonly DbSettings _settings;
     private readonly Db _db;
     private readonly TimeProvider _clock;
     private readonly ILoggerFactory _loggers;
     private readonly ILogger<ExchangeWorker> _logger;
 
     public ExchangeWorker(
-        IOptions<MarketDataOptions> options,
+        DbSettings settings,
         Db db,
         TimeProvider clock,
         ILoggerFactory loggers,
         ILogger<ExchangeWorker> logger)
     {
-        _options = options.Value;
+        _settings = settings;
         _db = db;
         _clock = clock;
         _loggers = loggers;
@@ -38,61 +44,128 @@ public sealed class ExchangeWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        // Schema is verified in Program.cs before the host runs (a failure there exits non-zero).
-        // Partitions stay with the Hub — it owns the writes.
+        // Schema is verified in Program.cs before the host runs. Partitions stay with the Hub.
         await Partitions.EnsureCurrentAndNextAsync(_db, _clock, ct);
+        await _settings.CurrentAsync(ct);   // prime the cache so interval providers can read it
 
-        var adapters = new List<(IExchangeMarketData Adapter, ExchangeOptions Config)>();
-        foreach (var cfg in _options.Exchanges.Where(e => e.Enabled))
+        var rollup = new RollupJob(_settings, _db, _clock, _loggers.CreateLogger<RollupJob>());
+        var retention = new RetentionJob(_settings, _db, _clock, _loggers.CreateLogger<RetentionJob>());
+
+        var serviceLoops = new List<Task>
         {
-            if (!await IsEnabledInDbAsync(cfg.Code, ct))
+            Loop(ServiceExchange, "rollup", () => TimeSpan.FromSeconds(60), rollup.RunAsync, ct),
+            RunDailyAsync(retention, ct),
+        };
+
+        var running = new Dictionary<string, ExchangeRunner>(StringComparer.Ordinal);
+        try
+        {
+            while (!ct.IsCancellationRequested)
             {
-                _logger.LogInformation("Exchange {Exchange} is disabled in the database, skipping", cfg.Code);
+                await ReconcileAsync(running, ct);
+                try
+                {
+                    await Task.Delay(ReconcileInterval, _clock, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            foreach (var runner in running.Values)
+            {
+                runner.Cts.Cancel();
+            }
+
+            await SafeWhenAll(running.Values.Select(r => r.Loops));
+        }
+
+        await SafeWhenAll(serviceLoops);
+    }
+
+    /// <summary>Start the loops of newly-enabled exchanges; stop those no longer enabled.</summary>
+    private async Task ReconcileAsync(Dictionary<string, ExchangeRunner> running, CancellationToken ct)
+    {
+        var snapshot = await _settings.CurrentAsync(ct);
+        var enabled = snapshot.Exchanges
+            .Where(e => e.Status == "enabled")
+            .ToDictionary(e => e.Code, StringComparer.Ordinal);
+
+        foreach (var code in running.Keys.Where(c => !enabled.ContainsKey(c)).ToList())
+        {
+            _logger.LogInformation("Exchange {Exchange} is no longer enabled; stopping its collectors", code);
+            running[code].Cts.Cancel();
+            running.Remove(code);
+        }
+
+        foreach (var (code, config) in enabled)
+        {
+            if (running.ContainsKey(code))
+            {
                 continue;
             }
 
-            adapters.Add((Build(cfg), cfg));
+            IExchangeMarketData adapter;
+            try
+            {
+                adapter = Build(config);
+            }
+            catch (Exception ex)
+            {
+                // A misconfigured enabled exchange must not take the supervisor down.
+                _logger.LogWarning(ex, "Exchange {Exchange} is enabled but its adapter cannot be built; skipping", code);
+                continue;
+            }
+
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var loops = await StartExchangeAsync(adapter, cts.Token);
+            running[code] = new ExchangeRunner(cts, loops);
+            _logger.LogInformation("Exchange {Exchange} is enabled; started its collectors", code);
         }
+    }
 
-        if (adapters.Count == 0)
+    private async Task<Task> StartExchangeAsync(IExchangeMarketData adapter, CancellationToken ct)
+    {
+        var code = adapter.ExchangeCode;
+        var discovery = new DiscoveryCollector(adapter, _settings, _db);
+        var snapshot = new SnapshotCollector(adapter, _db, _clock);
+        var candles = new CandleCollector(adapter, _settings, _db, _clock);
+        var funding = new FundingCollector(adapter, _settings, _db, _clock);
+
+        // One discovery pass before the other loops so the first snapshot has rows to join to.
+        try
         {
-            _logger.LogWarning("No exchange is enabled in both configuration and the database.");
-        }
-
-        var loops = new List<Task>();
-
-        foreach (var (adapter, cfg) in adapters)
-        {
-            var discovery = new DiscoveryCollector(adapter, cfg, _options, _db);
-            var snapshot = new SnapshotCollector(adapter, _db, _clock);
-            var candles = new CandleCollector(adapter, _options, _db, _clock);
-            var funding = new FundingCollector(adapter, _options, _db, _clock);
-
-            // One pass before anything else runs, so the first snapshot has rows to join to.
             var found = await discovery.RunAsync(ct);
-            _logger.LogInformation("{Exchange}: discovery found {Count} instruments", cfg.Code, found);
-
-            loops.Add(Loop(cfg.Code, "discovery", _options.DiscoveryInterval, discovery.RunAsync, ct));
-            loops.Add(Loop(cfg.Code, "snapshot", _options.SnapshotInterval, snapshot.RunAsync, ct));
-            loops.Add(Loop(cfg.Code, "candles", _options.CandleInterval, candles.RunAsync, ct));
-            loops.Add(Loop(cfg.Code, "funding", _options.FundingInterval, funding.RunAsync, ct));
+            _logger.LogInformation("{Exchange}: initial discovery found {Count} instruments", code, found);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "{Exchange}: initial discovery failed", code);
         }
 
-        // One rollup and one retention for the whole service, recorded against the sentinel
-        // exchange row so /health shows them next to the collectors.
-        var rollup = new RollupJob(_options, _db, _clock, _loggers.CreateLogger<RollupJob>());
-        var retention = new RetentionJob(_options, _db, _clock, _loggers.CreateLogger<RetentionJob>());
+        var loops = new[]
+        {
+            Loop(code, "discovery", () => IntervalFor(code, (s, e) => s.DiscoveryInterval(e), TimeSpan.FromMinutes(60)), discovery.RunAsync, ct),
+            Loop(code, "snapshot", () => IntervalFor(code, (s, e) => s.SnapshotInterval(e), TimeSpan.FromSeconds(10)), snapshot.RunAsync, ct),
+            Loop(code, "candles", () => IntervalFor(code, (s, e) => s.CandleInterval(e), TimeSpan.FromSeconds(60)), candles.RunAsync, ct),
+            Loop(code, "funding", () => IntervalFor(code, (s, e) => s.FundingInterval(e), TimeSpan.FromMinutes(60)), funding.RunAsync, ct),
+        };
+        return Task.WhenAll(loops);
+    }
 
-        var rollupExchange = adapters.Count > 0 ? adapters[0].Config.Code : "fake";
-        loops.Add(Loop(rollupExchange, "rollup", TimeSpan.FromSeconds(60), rollup.RunAsync, ct));
-
-        loops.Add(RunDailyAsync(retention, ct));
-
-        await Task.WhenAll(loops);
+    /// <summary>The effective interval for a collector, read live from the cached settings.</summary>
+    private TimeSpan IntervalFor(string code, Func<SettingsSnapshot, ExchangeConfig, TimeSpan> pick, TimeSpan fallback)
+    {
+        var snapshot = _settings.Latest;
+        var config = snapshot.Exchange(code);
+        return config is null ? fallback : pick(snapshot, config);
     }
 
     private Task Loop(
-        string exchangeCode, string collector, TimeSpan interval,
+        string exchangeCode, string collector, Func<TimeSpan> interval,
         Func<CancellationToken, Task<int>> body, CancellationToken ct)
     {
         var loop = new CollectorLoop(
@@ -131,13 +204,6 @@ public sealed class ExchangeWorker : BackgroundService
                 return;
             }
         }
-    }
-
-    private async Task<bool> IsEnabledInDbAsync(string code, CancellationToken ct)
-    {
-        await using var conn = await _db.OpenAsync(ct);
-        return await conn.ExecuteScalarAsync<bool?>(new CommandDefinition(
-            "select status = 'enabled' from exchange where code = @code", new { code }, cancellationToken: ct)) ?? false;
     }
 
     private async Task WriteStatusAsync(CollectorAttempt a, CancellationToken ct)
@@ -181,11 +247,26 @@ public sealed class ExchangeWorker : BackgroundService
             cancellationToken: ct));
     }
 
-    private static IExchangeMarketData Build(ExchangeOptions cfg) => cfg.Adapter.ToLowerInvariant() switch
+    private static IExchangeMarketData Build(ExchangeConfig config) => config.Adapter switch
     {
         "fake" => new FakeExchangeMarketData(),
         _ => throw new InvalidOperationException(
-            $"Exchange '{cfg.Code}' asks for adapter '{cfg.Adapter}', which does not exist yet. "
+            $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
     };
+
+    /// <summary>Await tasks, swallowing the cancellation that a normal stop raises.</summary>
+    private static async Task SafeWhenAll(IEnumerable<Task> tasks)
+    {
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on shutdown.
+        }
+    }
+
+    private sealed record ExchangeRunner(CancellationTokenSource Cts, Task Loops);
 }

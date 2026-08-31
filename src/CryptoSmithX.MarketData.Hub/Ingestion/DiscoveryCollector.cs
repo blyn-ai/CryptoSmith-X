@@ -1,6 +1,5 @@
 using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Connectors.Market;
-using CryptoSmithX.MarketData.Hub.Options;
 using CryptoSmithX.Database;
 using Dapper;
 
@@ -16,28 +15,33 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 public sealed class DiscoveryCollector
 {
     private readonly IExchangeMarketData _adapter;
-    private readonly ExchangeOptions _exchange;
-    private readonly MarketDataOptions _options;
+    private readonly DbSettings _settings;
     private readonly Db _db;
 
-    public DiscoveryCollector(
-        IExchangeMarketData adapter, ExchangeOptions exchange, MarketDataOptions options, Db db)
+    public DiscoveryCollector(IExchangeMarketData adapter, DbSettings settings, Db db)
     {
         _adapter = adapter;
-        _exchange = exchange;
-        _options = options;
+        _settings = settings;
         _db = db;
     }
 
     /// <summary>Returns the number of instruments the venue listed.</summary>
     public async Task<int> RunAsync(CancellationToken ct)
     {
+        var snapshot = await _settings.CurrentAsync(ct);
+        var config = snapshot.Exchange(_adapter.ExchangeCode);
+        if (config is null)
+        {
+            // The exchange was removed or disabled out from under us; do nothing this pass.
+            return 0;
+        }
+
         var instruments = await _adapter.GetInstrumentsAsync(ct);
 
-        var quotes = _exchange.QuoteAssets;
-        var blacklist = _exchange.Blacklist;
+        var quotes = config.QuoteAssets;
+        var blacklist = config.Blacklist;
         var kept = instruments
-            .Where(i => quotes.Count == 0 || quotes.Contains(i.QuoteAssetRaw, StringComparer.OrdinalIgnoreCase))
+            .Where(i => quotes.Length == 0 || quotes.Contains(i.QuoteAssetRaw, StringComparer.OrdinalIgnoreCase))
             .Where(i => !blacklist.Contains(i.ExchangeSymbol, StringComparer.OrdinalIgnoreCase))
             .ToList();
 
@@ -145,7 +149,7 @@ public sealed class DiscoveryCollector
 
         // Gone for several rounds in a row is a delisting. Age of last_seen_at is used rather than
         // an in-memory miss counter so a restart does not forget what it had seen.
-        var missedFor = _options.DiscoveryInterval * _options.DelistAfterMissedDiscoveries;
+        var missedFor = snapshot.DiscoveryInterval(config) * snapshot.DelistAfterMissedDiscoveries;
         await conn.ExecuteAsync(new CommandDefinition(
             """
             update exchange_instrument

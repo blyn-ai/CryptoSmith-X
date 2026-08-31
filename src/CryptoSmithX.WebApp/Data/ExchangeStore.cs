@@ -107,15 +107,48 @@ public static class ExchangeStore
             new { code },
             cancellationToken: ct))).ToList();
 
-        return new ExchangeDetails(exchange, collectors, stalest, throughput);
+        var config = await conn.QuerySingleAsync<ExchangeConfigRow>(new CommandDefinition(
+            """
+            select adapter                as "Adapter",
+                   base_url               as "BaseUrl",
+                   charts_url             as "ChartsUrl",
+                   quote_assets           as "QuoteAssets",
+                   blacklist              as "Blacklist",
+                   snapshot_interval_s    as "SnapshotIntervalS",
+                   candle_interval_s      as "CandleIntervalS",
+                   discovery_interval_min as "DiscoveryIntervalMin",
+                   funding_interval_min   as "FundingIntervalMin",
+                   depth_interval_s       as "DepthIntervalS",
+                   updated_by             as "UpdatedBy"
+              from exchange
+             where code = @code
+            """,
+            new { code },
+            cancellationToken: ct));
+
+        // Global interval values, to show as placeholders where an override is empty.
+        var globals = (await conn.QueryAsync<(string Key, int Value)>(new CommandDefinition(
+            """
+            select key, value::int from setting
+             where key in ('snapshot_interval_s','candle_interval_s','discovery_interval_min',
+                           'funding_interval_min','depth_interval_s')
+            """,
+            cancellationToken: ct)))
+            .ToDictionary(r => r.Key, r => r.Value, StringComparer.Ordinal);
+
+        return new ExchangeDetails(exchange, config, globals, collectors, stalest, throughput);
     }
 
-    /// <summary>Returns false when the code does not exist or the status is not an allowed value.</summary>
-    public static async Task<bool> SaveSettingsAsync(
-        DbConnection conn, string code, string name, string status, string? description, CancellationToken ct)
+    /// <summary>
+    /// Writes the whole editable surface of an exchange, stamping who did it. Returns false when the
+    /// code does not exist or the status is not an allowed value. Adapter is not written — it is
+    /// bound to the code and shown read-only. Interval values are per-exchange overrides; null means
+    /// "use the global setting".
+    /// </summary>
+    public static async Task<bool> SaveAsync(DbConnection conn, ExchangeSaveInput input, CancellationToken ct)
     {
         // The CHECK constraint is the real guard; this keeps a typo from becoming a 500.
-        if (status is not ("planned" or "enabled" or "disabled" or "maintenance" or "abandoned"))
+        if (input.Status is not ("planned" or "enabled" or "disabled" or "maintenance" or "abandoned"))
         {
             return false;
         }
@@ -123,13 +156,23 @@ public static class ExchangeStore
         var rows = await conn.ExecuteAsync(new CommandDefinition(
             """
             update exchange
-               set name        = @name,
-                   status      = @status,
-                   description = nullif(@description, ''),
-                   updated_at  = now()
-             where code = @code
+               set name                   = @Name,
+                   status                 = @Status,
+                   description            = nullif(@Description, ''),
+                   base_url               = nullif(@BaseUrl, ''),
+                   charts_url             = nullif(@ChartsUrl, ''),
+                   quote_assets           = @QuoteAssets,
+                   blacklist              = @Blacklist,
+                   snapshot_interval_s    = @SnapshotIntervalS,
+                   candle_interval_s      = @CandleIntervalS,
+                   discovery_interval_min = @DiscoveryIntervalMin,
+                   funding_interval_min   = @FundingIntervalMin,
+                   depth_interval_s       = @DepthIntervalS,
+                   updated_by             = @UpdatedBy,
+                   updated_at             = now()
+             where code = @Code
             """,
-            new { code, name, status, description },
+            input,
             cancellationToken: ct));
         return rows == 1;
     }

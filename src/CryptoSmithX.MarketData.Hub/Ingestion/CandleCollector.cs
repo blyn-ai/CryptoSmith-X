@@ -1,5 +1,4 @@
 using CryptoSmithX.MarketData.Connectors;
-using CryptoSmithX.MarketData.Hub.Options;
 using CryptoSmithX.Database;
 using Dapper;
 
@@ -12,14 +11,14 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 public sealed class CandleCollector
 {
     private readonly IExchangeMarketData _adapter;
-    private readonly MarketDataOptions _options;
+    private readonly DbSettings _settings;
     private readonly Db _db;
     private readonly TimeProvider _clock;
 
-    public CandleCollector(IExchangeMarketData adapter, MarketDataOptions options, Db db, TimeProvider clock)
+    public CandleCollector(IExchangeMarketData adapter, DbSettings settings, Db db, TimeProvider clock)
     {
         _adapter = adapter;
-        _options = options;
+        _settings = settings;
         _db = db;
         _clock = clock;
     }
@@ -27,7 +26,7 @@ public sealed class CandleCollector
     public async Task<int> RunAsync(CancellationToken ct)
     {
         var now = _clock.GetUtcNow();
-        var floor = now - TimeSpan.FromHours(_options.CandleBackfillHours);
+        var floor = now - TimeSpan.FromHours((await _settings.CurrentAsync(ct)).CandleBackfillHours);
 
         await using var conn = await _db.OpenAsync(ct);
         await Partitions.EnsureAsync(conn, now, ct);

@@ -67,8 +67,50 @@ public sealed record ExchangeCollectorRow(
 
 public sealed record StaleInstrument(string Symbol, double? AgeSeconds);
 
+/// <summary>
+/// The editable configuration of one exchange. Interval overrides are null when the global wins.
+/// Property-init so Dapper materialises the text[] columns through setters, not the constructor.
+/// </summary>
+public sealed record ExchangeConfigRow
+{
+    public string Adapter { get; init; } = "";
+    public string? BaseUrl { get; init; }
+    public string? ChartsUrl { get; init; }
+    public string[] QuoteAssets { get; init; } = [];
+    public string[] Blacklist { get; init; } = [];
+    public int? SnapshotIntervalS { get; init; }
+    public int? CandleIntervalS { get; init; }
+    public int? DiscoveryIntervalMin { get; init; }
+    public int? FundingIntervalMin { get; init; }
+    public int? DepthIntervalS { get; init; }
+    public string? UpdatedBy { get; init; }
+}
+
+/// <summary>Everything an admin can write on an exchange, in one shot. Bound straight to the update.</summary>
+public sealed record ExchangeSaveInput(
+    string Code,
+    string Name,
+    string Status,
+    string? Description,
+    string? BaseUrl,
+    string? ChartsUrl,
+    string[] QuoteAssets,
+    string[] Blacklist,
+    int? SnapshotIntervalS,
+    int? CandleIntervalS,
+    int? DiscoveryIntervalMin,
+    int? FundingIntervalMin,
+    int? DepthIntervalS,
+    string? UpdatedBy);
+
+/// <summary>One global market-data setting, for the System → Settings page.</summary>
+public sealed record SettingRow(
+    string Key, string Value, string Kind, string Description, DateTime UpdatedAt, string? UpdatedBy);
+
 public sealed record ExchangeDetails(
     ExchangeListItem Exchange,
+    ExchangeConfigRow Config,
+    IReadOnlyDictionary<string, int> GlobalIntervals,
     IReadOnlyList<ExchangeCollectorRow> Collectors,
     IReadOnlyList<StaleInstrument> Stalest,
     IReadOnlyList<double> Throughput);

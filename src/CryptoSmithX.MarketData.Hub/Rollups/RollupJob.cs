@@ -1,4 +1,3 @@
-using CryptoSmithX.MarketData.Hub.Options;
 using CryptoSmithX.Database;
 using Dapper;
 
@@ -21,16 +20,16 @@ public sealed class RollupJob
     /// </summary>
     private static readonly TimeSpan Slack = TimeSpan.FromMinutes(10);
 
-    private readonly MarketDataOptions _options;
+    private readonly DbSettings _settings;
     private readonly Db _db;
     private readonly TimeProvider _clock;
     private readonly ILogger<RollupJob> _logger;
 
     private DateTimeOffset _watermark = DateTimeOffset.UnixEpoch;
 
-    public RollupJob(MarketDataOptions options, Db db, TimeProvider clock, ILogger<RollupJob> logger)
+    public RollupJob(DbSettings settings, Db db, TimeProvider clock, ILogger<RollupJob> logger)
     {
-        _options = options;
+        _settings = settings;
         _db = db;
         _clock = clock;
         _logger = logger;
@@ -40,12 +39,13 @@ public sealed class RollupJob
     {
         var startedAt = _clock.GetUtcNow();
         var since = _watermark == DateTimeOffset.UnixEpoch ? _watermark : _watermark - Slack;
+        var derivedTimeframes = (await _settings.CurrentAsync(ct)).DerivedTimeframes;
 
         await using var conn = await _db.OpenAsync(ct);
         await Partitions.EnsureAsync(conn, startedAt, ct);
 
         var written = 0;
-        foreach (var tf in _options.DerivedTimeframes.Where(t => t > 1).Distinct().OrderBy(t => t))
+        foreach (var tf in derivedTimeframes.Where(t => t > 1).Distinct().OrderBy(t => t))
         {
             var seconds = tf * 60L;
 
