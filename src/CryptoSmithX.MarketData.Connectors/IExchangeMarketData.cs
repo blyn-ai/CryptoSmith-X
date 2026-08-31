@@ -34,4 +34,12 @@ public interface IExchangeMarketData
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken ct);
+
+    /// <summary>
+    /// The order book for one instrument, reduced to the cumulative-notional bands the snapshot
+    /// stores, or null when the venue carries the book inline in its ticker and has no separate call
+    /// (the fake). A per-symbol call: the depth collector paces it and asks only for trading
+    /// instruments, so it lives apart from <see cref="GetTickersAsync"/>.
+    /// </summary>
+    Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct);
 }

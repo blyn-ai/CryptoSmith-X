@@ -1,0 +1,64 @@
+{
+  "result": "success",
+  "instruments": [
+    {
+      "symbol": "PF_XBTUSD",
+      "type": "flexible_futures",
+      "tickSize": 1,
+      "contractSize": 1,
+      "contractValueTradePrecision": 4,
+      "tradeable": true,
+      "postOnly": false,
+      "isExpired": false,
+      "openingDate": "2022-03-22T13:15:36Z",
+      "fundingRateCoefficient": 8,
+      "base": "BTC",
+      "quote": "USD",
+      "pair": "BTC:USD",
+      "category": "Layer 1"
+    },
+    {
+      "symbol": "PF_SOLUSD",
+      "type": "flexible_futures",
+      "tickSize": 0.01,
+      "contractSize": 1,
+      "contractValueTradePrecision": 2,
+      "tradeable": true,
+      "postOnly": false,
+      "isExpired": false,
+      "openingDate": "2022-11-01T00:00:00Z",
+      "base": "SOL",
+      "quote": "USD",
+      "pair": "SOL:USD"
+    },
+    {
+      "symbol": "PI_XBTUSD",
+      "type": "futures_inverse",
+      "tickSize": 1,
+      "contractSize": 1,
+      "contractValueTradePrecision": 0,
+      "tradeable": true,
+      "postOnly": false,
+      "isExpired": false,
+      "openingDate": "2019-01-01T00:00:00Z",
+      "base": "XBT",
+      "quote": "USD",
+      "pair": "XBT:USD"
+    },
+    {
+      "symbol": "FI_ETHUSD_260327",
+      "type": "futures_vanilla",
+      "tickSize": 0.05,
+      "contractSize": 1,
+      "contractValueTradePrecision": 2,
+      "tradeable": true,
+      "postOnly": false,
+      "isExpired": false,
+      "openingDate": "2025-12-01T00:00:00Z",
+      "base": "ETH",
+      "quote": "USD",
+      "pair": "ETH:USD"
+    }
+  ],
+  "serverTime": "2026-08-31T21:26:07.794Z"
+}

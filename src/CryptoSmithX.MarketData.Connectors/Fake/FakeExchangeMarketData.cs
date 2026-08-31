@@ -210,6 +210,14 @@ public sealed class FakeExchangeMarketData : IExchangeMarketData
         return Task.FromResult<IReadOnlyList<FundingRate>>(list);
     }
 
+    public Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        // The fake reports its book inline in the ticker, so there is no separate order-book call;
+        // null tells the depth collector to leave the depth the snapshot already wrote.
+        return Task.FromResult<Depth?>(null);
+    }
+
     // A fixed listing date per symbol in 2024-2025, so the "contract younger than N days"
     // filter has something to bite on. Salted apart from the price/noise streams.
     private DateTimeOffset ListedAtFor(string symbol) =>

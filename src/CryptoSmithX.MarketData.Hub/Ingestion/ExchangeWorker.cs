@@ -1,5 +1,6 @@
 using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Connectors.Fake;
+using CryptoSmithX.MarketData.Connectors.Kraken;
 using CryptoSmithX.MarketData.Hub.Retention;
 using CryptoSmithX.MarketData.Hub.Rollups;
 using CryptoSmithX.Database;
@@ -132,6 +133,7 @@ public sealed class ExchangeWorker : BackgroundService
         var code = adapter.ExchangeCode;
         var discovery = new DiscoveryCollector(adapter, _settings, _db);
         var snapshot = new SnapshotCollector(adapter, _db, _clock);
+        var depth = new DepthCollector(adapter, _db, _clock);
         var candles = new CandleCollector(adapter, _settings, _db, _clock);
         var funding = new FundingCollector(adapter, _settings, _db, _clock);
 
@@ -150,6 +152,7 @@ public sealed class ExchangeWorker : BackgroundService
         {
             Loop(code, "discovery", () => IntervalFor(code, (s, e) => s.DiscoveryInterval(e), TimeSpan.FromMinutes(60)), discovery.RunAsync, ct),
             Loop(code, "snapshot", () => IntervalFor(code, (s, e) => s.SnapshotInterval(e), TimeSpan.FromSeconds(10)), snapshot.RunAsync, ct),
+            Loop(code, "depth", () => IntervalFor(code, (s, e) => s.DepthInterval(e), TimeSpan.FromSeconds(60)), depth.RunAsync, ct),
             Loop(code, "candles", () => IntervalFor(code, (s, e) => s.CandleInterval(e), TimeSpan.FromSeconds(60)), candles.RunAsync, ct),
             Loop(code, "funding", () => IntervalFor(code, (s, e) => s.FundingInterval(e), TimeSpan.FromMinutes(60)), funding.RunAsync, ct),
         };
@@ -250,6 +253,9 @@ public sealed class ExchangeWorker : BackgroundService
     private static IExchangeMarketData Build(ExchangeConfig config) => config.Adapter switch
     {
         "fake" => new FakeExchangeMarketData(),
+        "kraken-futures" => new KrakenFuturesMarketData(new KrakenFuturesClient(
+            config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url"),
+            config.ChartsUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no charts_url"))),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),

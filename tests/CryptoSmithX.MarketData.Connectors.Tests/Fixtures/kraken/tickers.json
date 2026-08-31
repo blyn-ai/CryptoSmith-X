@@ -1,0 +1,63 @@
+{
+  "result": "success",
+  "serverTime": "2026-08-31T21:26:07.794Z",
+  "tickers": [
+    {
+      "symbol": "PF_XBTUSD",
+      "last": 78868,
+      "lastTime": "2026-08-31T21:26:04.173545Z",
+      "tag": "perpetual",
+      "pair": "XBT:USD",
+      "markPrice": 78873.23878806471,
+      "bid": 78869,
+      "bidSize": 0.6347,
+      "ask": 78870,
+      "askSize": 0.0002,
+      "vol24h": 7785.1482,
+      "volumeQuote": 608756216.3351,
+      "openInterest": 1942.3394,
+      "fundingRate": 0.4364457837055987,
+      "fundingRatePrediction": -0.03943026700377629,
+      "suspended": false,
+      "indexPrice": 78871.2,
+      "postOnly": false,
+      "change24h": 0.34
+    },
+    {
+      "symbol": "PF_SOLUSD",
+      "last": 184.21,
+      "tag": "perpetual",
+      "pair": "SOL:USD",
+      "markPrice": 184.25,
+      "bid": 184.2,
+      "bidSize": 120.5,
+      "ask": 184.23,
+      "askSize": 88.1,
+      "vol24h": 1250000.0,
+      "volumeQuote": 230312500.0,
+      "openInterest": 512000.0,
+      "fundingRate": 0.0018425,
+      "suspended": false,
+      "indexPrice": 184.24,
+      "postOnly": false
+    },
+    {
+      "symbol": "PI_XBTUSD",
+      "last": 78860,
+      "tag": "perpetual",
+      "pair": "XBT:USD",
+      "markPrice": 78865.0,
+      "bid": 78859,
+      "bidSize": 3.0,
+      "ask": 78861,
+      "askSize": 2.0,
+      "vol24h": 900.0,
+      "volumeQuote": 70974000.0,
+      "openInterest": 4000000.0,
+      "fundingRate": 0.35,
+      "suspended": false,
+      "indexPrice": 78864.0,
+      "postOnly": false
+    }
+  ]
+}

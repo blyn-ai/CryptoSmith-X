@@ -12,4 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CryptoSmithX.MarketData.Connectors\CryptoSmithX.MarketData.Connectors.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Fixtures\kraken\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

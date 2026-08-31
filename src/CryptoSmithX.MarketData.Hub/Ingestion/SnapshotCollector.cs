@@ -60,6 +60,9 @@ public sealed class SnapshotCollector
             var row = new
             {
                 Id = id,
+                // A ticker without a book must not erase depth the depth collector wrote on its own,
+                // slower pass; this flag keeps those columns as they are when there is nothing new.
+                HasDepth = t.Depth is not null,
                 t.ReceivedAt,
                 t.LastPrice,
                 t.BidPrice,
@@ -108,13 +111,15 @@ public sealed class SnapshotCollector
                     turnover_24h     = excluded.turnover_24h,
                     open_interest    = excluded.open_interest,
                     open_interest_at = excluded.open_interest_at,
-                    depth_bid_10bps  = excluded.depth_bid_10bps,
-                    depth_ask_10bps  = excluded.depth_ask_10bps,
-                    depth_bid_25bps  = excluded.depth_bid_25bps,
-                    depth_ask_25bps  = excluded.depth_ask_25bps,
-                    depth_bid_50bps  = excluded.depth_bid_50bps,
-                    depth_ask_50bps  = excluded.depth_ask_50bps,
-                    depth_at         = excluded.depth_at
+                    -- Depth is only written when this ticker actually carried a book; otherwise the
+                    -- existing columns are kept so the depth collector's separate pass is not undone.
+                    depth_bid_10bps  = case when @HasDepth then excluded.depth_bid_10bps else market_snapshot_latest.depth_bid_10bps end,
+                    depth_ask_10bps  = case when @HasDepth then excluded.depth_ask_10bps else market_snapshot_latest.depth_ask_10bps end,
+                    depth_bid_25bps  = case when @HasDepth then excluded.depth_bid_25bps else market_snapshot_latest.depth_bid_25bps end,
+                    depth_ask_25bps  = case when @HasDepth then excluded.depth_ask_25bps else market_snapshot_latest.depth_ask_25bps end,
+                    depth_bid_50bps  = case when @HasDepth then excluded.depth_bid_50bps else market_snapshot_latest.depth_bid_50bps end,
+                    depth_ask_50bps  = case when @HasDepth then excluded.depth_ask_50bps else market_snapshot_latest.depth_ask_50bps end,
+                    depth_at         = case when @HasDepth then excluded.depth_at else market_snapshot_latest.depth_at end
                 """,
                 row, tx, cancellationToken: ct));
 
