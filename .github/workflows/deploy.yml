@@ -48,7 +48,10 @@ jobs:
         env:
           KEY: ${{ secrets.CSX_DEPLOY_SSH_KEY }}
           HOST: ${{ secrets.CSX_DEPLOY_HOST }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           install -m 600 /dev/null key && printf '%s\n' "$KEY" > key
-          # The key's forced command runs vps-deploy.sh whatever we ask for.
-          ssh -i key -o StrictHostKeyChecking=accept-new "root@$HOST" deploy
+          # The key's forced command runs vps-deploy.sh whatever we ask for; the
+          # ephemeral GITHUB_TOKEN goes over stdin so the VPS can pull private GHCR
+          # packages without any long-lived credential stored on the server.
+          printf '%s\n' "$GHCR_TOKEN" | ssh -i key -o StrictHostKeyChecking=accept-new "root@$HOST" deploy
