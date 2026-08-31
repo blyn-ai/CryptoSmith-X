@@ -1,0 +1,48 @@
+# Prod compose for the Contabo VPS. Lives at /opt/cryptosmithx/docker-compose.yml —
+# vps-deploy.sh refreshes it from this file on every deploy. Images come from GHCR
+# (built by .github/workflows/deploy.yml); nothing is ever built on the VPS.
+# Secrets live ONLY in /opt/cryptosmithx/.env (chmod 600), never in git.
+#
+# `name` groups every container under one "cryptosmithx" stack in docker/Portainer.
+name: cryptosmithx
+
+services:
+  postgres:
+    container_name: cryptosmithx-postgres
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: marketdata
+      POSTGRES_USER: marketdata
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in /opt/cryptosmithx/.env}
+    ports:
+      # Loopback only — reach it through an ssh tunnel, never from the network.
+      # 5432 on this host belongs to the old trading-bot stack.
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - /opt/cryptosmithx/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketdata -d marketdata"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  database-migrator:
+    container_name: cryptosmithx-db-migrator
+    image: ghcr.io/blyn-ai/cryptosmithx-migrator:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
+    restart: "no"
+
+  hub:
+    container_name: cryptosmithx-marketdata-hub
+    image: ghcr.io/blyn-ai/cryptosmithx-hub:latest
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
+    restart: unless-stopped
