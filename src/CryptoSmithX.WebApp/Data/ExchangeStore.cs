@@ -344,8 +344,14 @@ public static class RunStore
                 "select null::text as \"Symbol\", null::text as \"What\", null::timestamptz as \"When\" where false"),
         };
 
-        var all = (await conn.QueryAsync<RunDataRow>(new CommandDefinition(
-            sql, new { code = r.ExchangeCode, winStart, winEnd }, cancellationToken: ct))).ToList();
+        // Count and page in SQL: a backfill run's window matches tens of thousands of
+        // candle rows, and dragging them into memory to call .Count froze the page.
+        var total = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+            $"select count(*) from ({sql}) w",
+            new { code = r.ExchangeCode, winStart, winEnd }, cancellationToken: ct));
+        var rows = (await conn.QueryAsync<RunDataRow>(new CommandDefinition(
+            sql + " limit 40",
+            new { code = r.ExchangeCode, winStart, winEnd }, cancellationToken: ct))).ToList();
 
         // Each collector explains its own empty page instead of one generic wall of maybes.
         var emptyNote = r.Collector switch
@@ -360,6 +366,6 @@ public static class RunStore
         return new RunDetails(
             r.ExchangeCode,
             new CollectorRunRow(r.Id, r.Collector, r.StartedAt, r.DurationMs, r.Ok, r.Error, r.Items),
-            caption, all.Count, all.Take(40).ToList(), emptyNote);
+            caption, total, rows, emptyNote);
     }
 }

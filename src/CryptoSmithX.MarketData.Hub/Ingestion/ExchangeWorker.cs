@@ -1,5 +1,6 @@
 using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Connectors.Fake;
+using CryptoSmithX.MarketData.Connectors.Hyperliquid;
 using CryptoSmithX.MarketData.Connectors.Kraken;
 using CryptoSmithX.MarketData.Connectors.Weex;
 using CryptoSmithX.MarketData.Hub.Retention;
@@ -269,6 +270,7 @@ public sealed class ExchangeWorker : BackgroundService
         "fake" => new FakeExchangeMarketData(),
         "kraken-futures" => BuildKraken(config, ct),
         "weex-futures" => BuildWeex(config, ct),
+        "hyperliquid" => BuildHyperliquid(config, ct),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
@@ -308,6 +310,30 @@ public sealed class ExchangeWorker : BackgroundService
         openInterest.Start(ct);
 
         return new WeexFuturesMarketData(client, openInterest);
+    }
+
+    // Hyperliquid always runs the REST book cycler (bid/ask/size and depth have no batched form on
+    // this venue at all — see the commit that added this adapter), and additionally starts the WS
+    // feed when ws_url is set, which the adapter prefers whenever it is healthy.
+    private IExchangeMarketData BuildHyperliquid(ExchangeConfig config, CancellationToken ct)
+    {
+        var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
+        var client = new HyperliquidClient(baseUrl);
+
+        var restFeed = new HyperliquidBookFeed(client, _loggers, _clock);
+        restFeed.Start(ct);
+
+        HyperliquidWsFeed? ws = null;
+        if (!string.IsNullOrWhiteSpace(config.WsUrl))
+        {
+            var settings = _settings.Latest;
+            ws = new HyperliquidWsFeed(
+                config.WsUrl, client, _loggers, _clock,
+                settings.WsStaleAfter, settings.WsCrosscheckInterval, settings.WsCrosscheckDriftBps);
+            ws.Start(ct);
+        }
+
+        return new HyperliquidMarketData(client, restFeed, ws);
     }
 
     /// <summary>Await tasks, swallowing the cancellation that a normal stop raises.</summary>
