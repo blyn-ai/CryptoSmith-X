@@ -9,7 +9,13 @@ namespace CryptoSmithX.MarketData.Connectors.Kraken;
 /// venue's symbol spelling (XBT, not BTC), which the Hub's asset_alias table resolves. Unit
 /// conversions follow the DDL: funding is a fraction of notional per interval, turnover is in the
 /// quote asset, open interest and candle volume are in the base asset, and Kraken reports no trade
-/// count so candles carry null there. No retry, no logging, no sleeping: an HTTP error propagates.
+/// count so candles carry null there.
+///
+/// Live market (tickers + book depth) is served from a WebSocket feed when one is wired; when the
+/// feed is unhealthy the adapter transparently falls back to the REST call, so a dropped socket is a
+/// coarser cadence, not an outage. Instruments, candles and funding history are always REST — they
+/// are bootstrap, history and metadata. No retry/logging/sleeping on the REST path: an error
+/// propagates and the collector loop counts it.
 /// </summary>
 public sealed class KrakenFuturesMarketData : IExchangeMarketData
 {
@@ -19,8 +25,13 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
     private const short FundingIntervalHours = 1;
 
     private readonly KrakenFuturesClient _client;
+    private readonly IKrakenLiveFeed? _ws;
 
-    public KrakenFuturesMarketData(KrakenFuturesClient client) => _client = client;
+    public KrakenFuturesMarketData(KrakenFuturesClient client, IKrakenLiveFeed? ws = null)
+    {
+        _client = client;
+        _ws = ws;
+    }
 
     public string ExchangeCode => "kraken-futures";
 
@@ -61,6 +72,14 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
 
     public async Task<IReadOnlyList<Ticker>> GetTickersAsync(CancellationToken ct)
     {
+        // WS first: a fresh cache slice (with depth from the live book). Only fresh symbols come
+        // back, so a frozen entry ages its snapshot row instead of masquerading as current.
+        if (_ws is not null && _ws.TryGetFreshTickers(out var live))
+        {
+            return live;
+        }
+
+        // Degraded / no WS: the REST /tickers call, exactly as before. Depth is filled separately.
         var response = await _client.GetTickersAsync(ct);
         var at = response.ServerTime;
 
@@ -154,26 +173,16 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
 
     public async Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct)
     {
-        var response = await _client.GetOrderBookAsync(exchangeSymbol, ct);
-        var bids = response.OrderBook.Bids;
-        var asks = response.OrderBook.Asks;
-        if (bids.Length == 0 || asks.Length == 0)
+        // WS first: depth off the live book. Falls through to REST when the book is dirty or stale.
+        if (_ws is not null && _ws.TryGetDepth(exchangeSymbol, out var live))
         {
-            return null;
+            return live;
         }
 
-        var bestBid = bids.Max(level => level[0]);
-        var bestAsk = asks.Min(level => level[0]);
-        var mid = (bestBid + bestAsk) / 2;
-
-        return new Depth(
-            Bid10Bps: BandBid(bids, mid, 10),
-            Ask10Bps: BandAsk(asks, mid, 10),
-            Bid25Bps: BandBid(bids, mid, 25),
-            Ask25Bps: BandAsk(asks, mid, 25),
-            Bid50Bps: BandBid(bids, mid, 50),
-            Ask50Bps: BandAsk(asks, mid, 50),
-            At: response.ServerTime);
+        var response = await _client.GetOrderBookAsync(exchangeSymbol, ct);
+        var bids = Array.ConvertAll(response.OrderBook.Bids, l => (l[0], l[1]));
+        var asks = Array.ConvertAll(response.OrderBook.Asks, l => (l[0], l[1]));
+        return DepthMath.Compute(bids, asks, response.ServerTime);
     }
 
     /// <summary>PF_XBTUSD with quote USD → "XBT": strip the prefix and the trailing quote.</summary>
@@ -200,47 +209,4 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
     }
 
     private static double Parse(string value) => double.Parse(value, CultureInfo.InvariantCulture);
-
-    // Cumulative quote notional within a band below the mid. Null when the book does not reach past
-    // the band — with no level beyond it the sum would be an undercount, and the column must stay
-    // empty rather than lie (the Depth record documents this).
-    private static double? BandBid(double[][] levels, double mid, int bps)
-    {
-        var floor = mid * (1 - (bps / 10_000.0));
-        var sum = 0.0;
-        var bounded = false;
-        foreach (var level in levels)
-        {
-            if (level[0] >= floor)
-            {
-                sum += level[0] * level[1];
-            }
-            else
-            {
-                bounded = true;
-            }
-        }
-
-        return bounded ? sum : null;
-    }
-
-    private static double? BandAsk(double[][] levels, double mid, int bps)
-    {
-        var ceiling = mid * (1 + (bps / 10_000.0));
-        var sum = 0.0;
-        var bounded = false;
-        foreach (var level in levels)
-        {
-            if (level[0] <= ceiling)
-            {
-                sum += level[0] * level[1];
-            }
-            else
-            {
-                bounded = true;
-            }
-        }
-
-        return bounded ? sum : null;
-    }
 }

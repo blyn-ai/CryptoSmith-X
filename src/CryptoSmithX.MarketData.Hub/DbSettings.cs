@@ -74,6 +74,7 @@ public sealed class DbSettings
                    adapter                as "Adapter",
                    base_url               as "BaseUrl",
                    charts_url             as "ChartsUrl",
+                   ws_url                 as "WsUrl",
                    quote_assets           as "QuoteAssets",
                    blacklist              as "Blacklist",
                    status                 as "Status",
@@ -101,6 +102,7 @@ public sealed record ExchangeConfig
     public string Adapter { get; init; } = "";
     public string? BaseUrl { get; init; }
     public string? ChartsUrl { get; init; }
+    public string? WsUrl { get; init; }
     public string[] QuoteAssets { get; init; } = [];
     public string[] Blacklist { get; init; } = [];
     public string Status { get; init; } = "";
@@ -126,6 +128,12 @@ public sealed class SettingsSnapshot
 
     public ExchangeConfig? Exchange(string code) =>
         Exchanges.FirstOrDefault(e => string.Equals(e.Code, code, StringComparison.Ordinal));
+
+    // WS honesty knobs (0010): how fresh a cached WS record must be to be served, and the
+    // REST cross-check cadence and drift threshold that catch a silently frozen book.
+    public TimeSpan WsStaleAfter => TimeSpan.FromSeconds(GetInt("ws_stale_after_s"));
+    public TimeSpan WsCrosscheckInterval => TimeSpan.FromSeconds(GetInt("ws_crosscheck_interval_s"));
+    public int WsCrosscheckDriftBps => GetInt("ws_crosscheck_drift_bps");
 
     // Global settings (were MarketDataOptions).
     public int SnapshotRetentionDays => GetInt("snapshot_retention_days");

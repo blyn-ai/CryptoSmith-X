@@ -1,0 +1,56 @@
+[
+ {
+  "feed": "book",
+  "product_id": "PF_XBTUSD",
+  "side": "buy",
+  "seq": 199720079,
+  "price": 78022.0,
+  "qty": 0.1133,
+  "timestamp": 1788263903696
+ },
+ {
+  "feed": "book",
+  "product_id": "PF_XBTUSD",
+  "side": "buy",
+  "seq": 199720080,
+  "price": 77874.0,
+  "qty": 1.0272,
+  "timestamp": 1788263903697
+ },
+ {
+  "feed": "book",
+  "product_id": "PF_XBTUSD",
+  "side": "buy",
+  "seq": 199720081,
+  "price": 78023.0,
+  "qty": 0.0558,
+  "timestamp": 1788263903697
+ },
+ {
+  "feed": "book",
+  "product_id": "PF_XBTUSD",
+  "side": "buy",
+  "seq": 199720082,
+  "price": 78024.0,
+  "qty": 0.0527,
+  "timestamp": 1788263903697
+ },
+ {
+  "feed": "book",
+  "product_id": "PF_XBTUSD",
+  "side": "buy",
+  "seq": 199720083,
+  "price": 78000.0,
+  "qty": 3.0988,
+  "timestamp": 1788263903726
+ },
+ {
+  "feed": "book",
+  "product_id": "PF_XBTUSD",
+  "side": "buy",
+  "seq": 199720084,
+  "price": 78001.0,
+  "qty": 1.3198,
+  "timestamp": 1788263903726
+ }
+]

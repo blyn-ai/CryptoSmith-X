@@ -68,6 +68,7 @@ public sealed record ExchangeConfigRow
     public string Adapter { get; init; } = "";
     public string? BaseUrl { get; init; }
     public string? ChartsUrl { get; init; }
+    public string? WsUrl { get; init; }
     public string[] QuoteAssets { get; init; } = [];
     public string[] Blacklist { get; init; } = [];
     public int? SnapshotIntervalS { get; init; }
@@ -85,6 +86,7 @@ public sealed record ExchangeSaveInput(
     string? Description,
     string? BaseUrl,
     string? ChartsUrl,
+    string? WsUrl,
     string[] QuoteAssets,
     string[] Blacklist,
     int? SnapshotIntervalS,

@@ -47,7 +47,7 @@ public sealed class ExchangesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(
         string id, string? name, string? description,
-        string? baseUrl, string? chartsUrl, string? quoteAssets, string? blacklist,
+        string? baseUrl, string? chartsUrl, string? wsUrl, string? quoteAssets, string? blacklist,
         string? snapshotIntervalS, string? candleIntervalS, string? discoveryIntervalMin,
         string? fundingIntervalMin, string? depthIntervalS, CancellationToken ct)
     {
@@ -73,6 +73,7 @@ public sealed class ExchangesController : Controller
             Description: description?.Trim(),
             BaseUrl: baseUrl?.Trim(),
             ChartsUrl: chartsUrl?.Trim(),
+            WsUrl: wsUrl?.Trim(),
             QuoteAssets: SplitList(quoteAssets),
             Blacklist: SplitList(blacklist),
             SnapshotIntervalS: snap,

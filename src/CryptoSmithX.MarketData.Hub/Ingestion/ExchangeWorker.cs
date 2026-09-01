@@ -109,19 +109,22 @@ public sealed class ExchangeWorker : BackgroundService
                 continue;
             }
 
+            // The per-exchange token is created first: a streaming adapter starts its socket from
+            // Build and must die with this token when the exchange is disabled.
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             IExchangeMarketData adapter;
             try
             {
-                adapter = Build(config);
+                adapter = Build(config, cts.Token);
             }
             catch (Exception ex)
             {
                 // A misconfigured enabled exchange must not take the supervisor down.
+                cts.Dispose();
                 _logger.LogWarning(ex, "Exchange {Exchange} is enabled but its adapter cannot be built; skipping", code);
                 continue;
             }
 
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             var loops = await StartExchangeAsync(adapter, cts.Token);
             running[code] = new ExchangeRunner(cts, loops);
             _logger.LogInformation("Exchange {Exchange} is enabled; started its collectors", code);
@@ -260,16 +263,36 @@ public sealed class ExchangeWorker : BackgroundService
             cancellationToken: ct));
     }
 
-    private static IExchangeMarketData Build(ExchangeConfig config) => config.Adapter switch
+    private IExchangeMarketData Build(ExchangeConfig config, CancellationToken ct) => config.Adapter switch
     {
         "fake" => new FakeExchangeMarketData(),
-        "kraken-futures" => new KrakenFuturesMarketData(new KrakenFuturesClient(
-            config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url"),
-            config.ChartsUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no charts_url"))),
+        "kraken-futures" => BuildKraken(config, ct),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
     };
+
+    // Kraken's live market comes over WS when exchange.ws_url is set; the feed starts here and dies
+    // with this exchange's token. Without a ws_url the adapter is pure REST, exactly as before. WS
+    // honesty knobs are read live from settings at build time.
+    private IExchangeMarketData BuildKraken(ExchangeConfig config, CancellationToken ct)
+    {
+        var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
+        var chartsUrl = config.ChartsUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no charts_url");
+        var client = new KrakenFuturesClient(baseUrl, chartsUrl);
+
+        KrakenWsFeed? ws = null;
+        if (!string.IsNullOrWhiteSpace(config.WsUrl))
+        {
+            var settings = _settings.Latest;
+            ws = new KrakenWsFeed(
+                config.WsUrl, client, _loggers, _clock,
+                settings.WsStaleAfter, settings.WsCrosscheckInterval, settings.WsCrosscheckDriftBps);
+            ws.Start(ct);
+        }
+
+        return new KrakenFuturesMarketData(client, ws);
+    }
 
     /// <summary>Await tasks, swallowing the cancellation that a normal stop raises.</summary>
     private static async Task SafeWhenAll(IEnumerable<Task> tasks)
