@@ -78,11 +78,10 @@ public sealed record ExchangeConfigRow
     public string? UpdatedBy { get; init; }
 }
 
-/// <summary>Everything an admin can write on an exchange, in one shot. Bound straight to the update.</summary>
+/// <summary>The editable configuration of an exchange (everything except status, which is guarded).</summary>
 public sealed record ExchangeSaveInput(
     string Code,
     string Name,
-    string Status,
     string? Description,
     string? BaseUrl,
     string? ChartsUrl,

@@ -140,25 +140,21 @@ public static class ExchangeStore
         return new ExchangeDetails(exchange, config, globals, collectors, stalest, throughput, await RunStore.LatencyAsync(conn, code, ct));
     }
 
+    private static readonly string[] AllowedStatuses =
+        ["planned", "enabled", "disabled", "maintenance", "abandoned"];
+
     /// <summary>
-    /// Writes the whole editable surface of an exchange, stamping who did it. Returns false when the
-    /// code does not exist or the status is not an allowed value. Adapter is not written — it is
-    /// bound to the code and shown read-only. Interval values are per-exchange overrides; null means
-    /// "use the global setting".
+    /// Writes the editable configuration of an exchange, stamping who did it. Status is NOT written
+    /// here — it is the guarded control on the overview (see <see cref="SetStatusAsync"/>) — so this
+    /// form can never take a venue offline by accident. Adapter is bound to the code and read-only.
+    /// Interval values are per-exchange overrides; null means "use the global setting".
     /// </summary>
     public static async Task<bool> SaveAsync(DbConnection conn, ExchangeSaveInput input, CancellationToken ct)
     {
-        // The CHECK constraint is the real guard; this keeps a typo from becoming a 500.
-        if (input.Status is not ("planned" or "enabled" or "disabled" or "maintenance" or "abandoned"))
-        {
-            return false;
-        }
-
         var rows = await conn.ExecuteAsync(new CommandDefinition(
             """
             update exchange
                set name                   = @Name,
-                   status                 = @Status,
                    description            = nullif(@Description, ''),
                    base_url               = nullif(@BaseUrl, ''),
                    charts_url             = nullif(@ChartsUrl, ''),
@@ -174,6 +170,26 @@ public static class ExchangeStore
              where code = @Code
             """,
             input,
+            cancellationToken: ct));
+        return rows == 1;
+    }
+
+    /// <summary>
+    /// The guarded status change — the only control that stops (or starts) collection. Returns false
+    /// on an unknown exchange or a status the CHECK would reject. The confirm-code guard lives in the
+    /// controller; this stamps who and when.
+    /// </summary>
+    public static async Task<bool> SetStatusAsync(
+        DbConnection conn, string code, string status, string? updatedBy, CancellationToken ct)
+    {
+        if (!AllowedStatuses.Contains(status))
+        {
+            return false;
+        }
+
+        var rows = await conn.ExecuteAsync(new CommandDefinition(
+            "update exchange set status = @status, updated_by = @updatedBy, updated_at = now() where code = @code",
+            new { code, status, updatedBy },
             cancellationToken: ct));
         return rows == 1;
     }

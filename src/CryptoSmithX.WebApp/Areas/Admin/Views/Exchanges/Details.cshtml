@@ -2,26 +2,42 @@
 @using CryptoSmithX.WebApp.Data
 @{
     var e = Model.Exchange;
+    var cfg = Model.Config;
     ViewData["Title"] = e.Name;
+    var tab = ViewData["Tab"] as string ?? "overview";
+
     string CollHealth(ExchangeCollectorRow c) => c.ConsecutiveFailures >= 3 ? "fail" : c.ConsecutiveFailures >= 1 ? "warn" : "ok";
-    string Interval(string coll) => coll switch { "snapshot" => "every 10 s", "candles" => "every 60 s", "discovery" => "every 60 min", "rollup" => "every 60 s", _ => "" };
+    string Interval(string coll) => coll switch { "snapshot" => "every 10 s", "candles" => "every 60 s", "depth" => "every 60 s", "discovery" => "every 60 min", "funding" => "every 60 min", "rollup" => "every 60 s", _ => "" };
     var worst = Model.Collectors.Where(c => c.LastError is not null).OrderByDescending(c => c.ConsecutiveFailures).FirstOrDefault();
     var maxFails = Model.Collectors.Count == 0 ? 0 : Model.Collectors.Max(c => c.ConsecutiveFailures);
     var health = maxFails >= 3 ? "fail" : maxFails >= 1 ? "warn" : "ok";
+    var pulse = health == "ok" ? "pulse" : "pulse-gold";
     var avg = Model.Collectors.Where(c => c.AvgDurationMs is not null).Select(c => c.AvgDurationMs!.Value).DefaultIfEmpty().Average();
     var discovery = Model.Collectors.FirstOrDefault(c => c.Collector == "discovery");
     var statuses = new[] { "planned", "enabled", "disabled", "maintenance", "abandoned" };
+
+    string StatusTag(string s) => s == "enabled" ? "enabled" : s is "maintenance" or "planned" ? "maintenance" : "";
+    var overrides = new int?[] { cfg.SnapshotIntervalS, cfg.CandleIntervalS, cfg.DiscoveryIntervalMin, cfg.FundingIntervalMin, cfg.DepthIntervalS }.Count(x => x is not null);
+    var worstStale = Model.Stalest.Count > 0 ? Model.Stalest.Max(s => s.AgeSeconds ?? 0) : (double?)null;
+
+    string GlobalHint(string key) => Model.GlobalIntervals.TryGetValue(key, out var v) ? $"global {v}" : "global";
+    string OverrideNote(int? val, string key) => val is null ? "" : $"overrides {GlobalHint(key)}";
 }
 @section live { <span class="live">live · 10 s</span> }
 
-<div class="page-head">
-    <div class="t">
+<div class="page-head" style="margin-bottom:12px;align-items:center">
+    <div class="t" style="gap:6px">
         <p class="eyebrow">Admin · <a href="/Admin/Exchanges">exchanges</a> · @e.Code</p>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>@e.Name</h1><span class="tag @(e.Status == "enabled" ? "enabled" : e.Status == "maintenance" ? "maintenance" : "")">@e.Status</span></div>
-        @if (e.Status == "enabled")
-        {
-            <div style="display:flex;align-items:center;gap:9px"><span class="dot @health @(health == "ok" ? "fresh" : "")"></span><span class="sev @health">@(health == "ok" ? "ok" : health == "warn" ? "degraded" : "failing")</span><span class="code">@maxFails consecutive failures, max across collectors</span></div>
-        }
+        <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
+            <h1>@e.Name</h1>
+            <span class="tag @StatusTag(e.Status)">@e.Status</span>
+            @if (e.Status == "enabled")
+            {
+                <span class="dot @health @pulse"></span>
+                <span class="sev @health">@(health == "ok" ? "ok" : health == "warn" ? "degraded" : "failing")</span>
+                <span class="code">@maxFails consecutive failures, max across collectors</span>
+            }
+        </div>
     </div>
     <div style="display:flex;gap:14px;align-items:center">
         <a class="linkbtn" href="/Admin/Instruments?exchange=@e.Code">Instruments →</a>
@@ -29,167 +45,268 @@
     </div>
 </div>
 
-@if (TempData["Error"] is string err)
-{
-    <div class="alert alert-error">@err</div>
-}
-@if (TempData["Saved"] is string saved)
-{
-    <div class="alert alert-ok">@saved</div>
-}
+@if (TempData["Error"] is string err) { <div class="alert alert-error" style="margin-bottom:12px">@err</div> }
+@if (TempData["Saved"] is string saved) { <div class="alert alert-ok" style="margin-bottom:12px">@saved</div> }
 
 @if (e.Status == "enabled" && worst is not null && CollHealth(worst) != "ok")
 {
-    <div class="err">
+    <div class="err" style="margin-bottom:12px">
         <b>Error</b>
         <div><span class="t">@worst.LastError</span><span class="m">@e.Code · @worst.Collector · @Format.Age(worst.LastErrorAgeSeconds) ago · collector_status.last_error</span></div>
     </div>
 }
 
-@if (e.Status == "enabled")
+<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+    <div class="chips">
+        <a class="chip @(tab == "overview" ? "is-on" : "")" href="/Admin/Exchanges/Details/@e.Code">overview</a>
+        <a class="chip" href="/Admin/Exchanges/Runs/@e.Code">runs</a>
+        <a class="chip @(tab == "settings" ? "is-on" : "")" href="/Admin/Exchanges/Details/@e.Code?tab=settings"><span>settings</span>@if (overrides > 0) { <span class="dot warn" style="margin-left:5px"></span> }</a>
+    </div>
+    <span style="flex:1"></span>
+    @if (e.Status == "enabled")
+    {
+        <div style="display:flex;gap:24px;flex-wrap:wrap">
+            <span class="ex-stat"><i>Trading</i><b>@e.TradingInstruments / @e.KnownInstruments</b></span>
+            <span class="ex-stat"><i>Avg response</i><b>@(avg == 0 ? "—" : Format.Num(avg, 0) + " ms")</b></span>
+            <span class="ex-stat"><i>Last discovery</i><b style="@(health != "ok" ? "color:var(--csx-gold-ink)" : "")">@Format.Age(discovery?.LastSuccessAgeSeconds)</b></span>
+            <span class="ex-stat"><i>Failures</i><b style="@(maxFails > 0 ? "color:var(--gold-300)" : "")">@maxFails</b></span>
+            @if (worstStale is not null)
+            {
+                <a class="ex-stat" href="#stalest" data-scroll="stalest" style="text-decoration:none"><i>Stalest</i><b style="@(worstStale > 30 ? "color:var(--gold-300)" : "")">@Format.Age(worstStale) ↓</b></a>
+            }
+        </div>
+    }
+</div>
+
+@if (tab == "settings")
 {
-    <div class="kpis kpis-4">
-        <div class="kpi"><p class="kpi-l">Trading</p><p class="kpi-v">@e.TradingInstruments</p><p class="kpi-s">of @e.KnownInstruments known</p></div>
-        <div class="kpi"><p class="kpi-l">Avg response</p><p class="kpi-v @(avg == 0 ? "none" : "")">@(avg == 0 ? "—" : Format.Num(avg, 0))</p><p class="kpi-s">mean across collectors</p></div>
-        <div class="kpi"><p class="kpi-l">Last discovery</p><p class="kpi-v @(health == "ok" ? "" : "warn")">@Format.Age(discovery?.LastSuccessAgeSeconds)</p><p class="kpi-s">interval 60 min</p></div>
-        <div class="kpi"><p class="kpi-l">Failures</p><p class="kpi-v @(maxFails > 0 ? "warn" : "")">@maxFails</p><p class="kpi-s">consecutive, max across collectors</p></div>
-    </div>
-}
-
-<div class="grid2">
-    <div class="stack">
-        @if (e.Status == "enabled")
-        {
-            <div class="panel">
-                <div class="panel-h"><h2>Collectors</h2><span class="meta">collector_status</span></div>
-                @if (Model.Collectors.Count == 0)
-                {
-                    <div class="empty"><h3>Nothing collected yet</h3><p>The first cycle has not completed.</p></div>
-                }
-                @foreach (var c in Model.Collectors)
-                {
-                    var ch = CollHealth(c);
-                    <div class="coll @(ch == "fail" ? "is-fail" : "")">
-                        <div class="coll-h"><span class="dot @ch @(ch == "ok" ? "fresh" : "")"></span><span class="n">@c.Collector</span><span class="sev @ch">@(ch == "ok" ? "ok" : ch == "warn" ? "degraded" : "failing")</span><span class="iv">@Interval(c.Collector)</span><a class="linkbtn" style="font-size:10px" href="/Admin/Exchanges/Runs/@e.Code?collector=@c.Collector">runs →</a></div>
-                        <div class="coll-g">
-                            <span><i>Last success</i><b style="@(ch != "ok" ? "color:var(--gold-300)" : "")">@Format.Age(c.LastSuccessAgeSeconds)</b></span>
-                            <span><i>Failures</i><b style="@(c.ConsecutiveFailures > 0 ? "color:var(--gold-300)" : "")">@c.ConsecutiveFailures</b></span>
-                            <span><i>Last / avg ms</i><b>@(c.LastDurationMs?.ToString() ?? "—") / @Format.Num(c.AvgDurationMs, 0)</b></span>
-                            <span><i>Expected</i><b class="muted">@(c.InstrumentsExpected?.ToString() ?? "—")</b></span>
-                        </div>
-                        @if (c.LastError is not null)
-                        {
-                            <span class="e @(ch != "ok" ? "is-err" : "")">@c.LastError · @Format.Age(c.LastErrorAgeSeconds) ago</span>
-                        }
-                    </div>
-                }
-            </div>
-
-            <div class="panel">
-                <div class="panel-h"><h2>Snapshot throughput</h2><span class="meta">market_snapshot · 5 min buckets · 2 h</span></div>
-                <div class="panel-b">
-                    @if (Model.Throughput.Sum() > 0)
-                    {
-                        <svg class="chart" height="84" viewBox="0 0 600 84" preserveAspectRatio="none">
-                            <defs><linearGradient id="csxFillD" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--tint-violet)"/><stop offset="100%" stop-color="transparent"/></linearGradient></defs>
-                            <polygon points="@Spark.Area(Model.Throughput, 600, 84)" fill="url(#csxFillD)"></polygon>
-                            <polyline points="@Spark.Points(Model.Throughput, 600, 84)" stroke="var(--violet-400)" stroke-width="1.75"></polyline>
-                        </svg>
-                        <div class="chart-x"><span>−2 h</span><span class="mid">rows per 5 min</span><span>now</span></div>
-                    }
-                    else
-                    {
-                        <div class="empty"><h3>No snapshots yet</h3><p>Nothing recorded in the last two hours.</p></div>
-                    }
-                </div>
-            </div>
-
-            <div class="panel">
-                <div class="panel-h"><h2>Latency</h2><span class="meta">collector_run · avg ms · 15 min buckets · 12 h</span></div>
-                @if (Model.Latency.Count == 0)
-                {
-                    <div class="empty"><h3>No runs recorded yet</h3><p>The trend appears as collector_run fills; history is kept 7 days.</p></div>
-                }
-                @foreach (var serie in Model.Latency)
-                {
-                    <div class="panel-b" style="border-bottom:1px solid var(--border-hairline)">
-                        <div style="display:flex;justify-content:space-between;align-items:baseline"><p class="eyebrow" style="margin-bottom:6px">@serie.Collector</p><span class="code">@Format.Num(serie.AvgMs[^1], 0) ms now</span></div>
-                        <svg class="chart" height="34" viewBox="0 0 600 34" preserveAspectRatio="none"><polyline points="@Spark.Points(serie.AvgMs, 600, 34)" stroke="var(--violet-400)" stroke-width="1.5" fill="none"></polyline></svg>
-                    </div>
-                }
-            </div>
-        }
-        else
-        {
-            <div class="panel"><div class="empty lg"><h3>@e.Status.ToUpperInvariant()</h3><p>This exchange is not collecting, so it has no health, latency or freshness to show. Set its status to enabled to start.</p></div></div>
-        }
-    </div>
-
-    <div class="stack">
-        <div class="panel" style="padding:18px">
-            <h2 style="margin-bottom:5px">Lifecycle</h2>
-            <p style="margin:0 0 16px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">The desired state. A human writes this; nothing observed is stored here.</p>
-            <form method="post" action="/Admin/Exchanges/Save/@e.Code">
-                @Html.AntiForgeryToken()
+    <div class="panel" style="padding:18px;max-width:940px">
+        <div class="panel-h" style="margin-bottom:4px">
+            <h2>Configuration</h2>
+            @if (overrides > 0) { <span class="tag maintenance">@overrides override@(overrides == 1 ? "" : "s")</span> }
+        </div>
+        <p style="margin:0 0 16px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">What a human writes; nothing observed is stored here. Status lives on the overview, behind its guard.</p>
+        <form method="post" action="/Admin/Exchanges/Save/@e.Code">
+            @Html.AntiForgeryToken()
+            <div class="cfg-grid">
                 <div class="field"><label for="name">Name</label><input id="name" name="name" type="text" value="@e.Name"></div>
-                <div class="field">
-                    <label>Status</label>
-                    <div class="chips">
-                        @foreach (var st in statuses)
-                        {
-                            <label class="chip @(st == e.Status ? "is-on" : "")"><input type="radio" name="status" value="@st" @(st == e.Status ? "checked" : "") style="position:absolute;opacity:0;width:0;height:0">@st</label>
-                        }
-                    </div>
-                </div>
                 <div class="field"><label for="description">Description</label><input id="description" name="description" type="text" value="@e.Description"></div>
-
-                @{
-                    var cfg = Model.Config;
-                    string GlobalHint(string key) => Model.GlobalIntervals.TryGetValue(key, out var v) ? $"global {v}" : "global";
-                    string OverrideNote(int? val, string key) => val is null ? "" : $"overrides {GlobalHint(key)}";
-                }
                 <div class="field"><label>Adapter</label><input type="text" value="@cfg.Adapter" disabled></div>
                 <div class="field"><label for="baseUrl">Base URL</label><input id="baseUrl" name="baseUrl" type="text" value="@cfg.BaseUrl" placeholder="https://…"></div>
                 <div class="field"><label for="chartsUrl">Charts URL</label><input id="chartsUrl" name="chartsUrl" type="text" value="@cfg.ChartsUrl" placeholder="candles host / path"></div>
                 <div class="field"><label for="quoteAssets">Quote assets</label><input id="quoteAssets" name="quoteAssets" type="text" value="@string.Join(", ", cfg.QuoteAssets)" placeholder="USD, USDT, USDC"></div>
                 <div class="field"><label for="blacklist">Blacklist</label><input id="blacklist" name="blacklist" type="text" value="@string.Join(", ", cfg.Blacklist)" placeholder="symbols, comma-separated"></div>
+            </div>
 
-                <p class="eyebrow" style="margin:14px 0 2px">Intervals — empty uses the global</p>
-                <div class="form-row">
-                    <div class="field"><label for="snapshotIntervalS">Snapshot (s)</label><input id="snapshotIntervalS" name="snapshotIntervalS" type="text" value="@(cfg.SnapshotIntervalS?.ToString())" placeholder="@GlobalHint("snapshot_interval_s")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.SnapshotIntervalS, "snapshot_interval_s")</span></div>
-                    <div class="field"><label for="candleIntervalS">Candles (s)</label><input id="candleIntervalS" name="candleIntervalS" type="text" value="@(cfg.CandleIntervalS?.ToString())" placeholder="@GlobalHint("candle_interval_s")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.CandleIntervalS, "candle_interval_s")</span></div>
-                    <div class="field"><label for="depthIntervalS">Depth (s)</label><input id="depthIntervalS" name="depthIntervalS" type="text" value="@(cfg.DepthIntervalS?.ToString())" placeholder="@GlobalHint("depth_interval_s")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.DepthIntervalS, "depth_interval_s")</span></div>
-                </div>
-                <div class="form-row">
-                    <div class="field"><label for="discoveryIntervalMin">Discovery (min)</label><input id="discoveryIntervalMin" name="discoveryIntervalMin" type="text" value="@(cfg.DiscoveryIntervalMin?.ToString())" placeholder="@GlobalHint("discovery_interval_min")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.DiscoveryIntervalMin, "discovery_interval_min")</span></div>
-                    <div class="field"><label for="fundingIntervalMin">Funding (min)</label><input id="fundingIntervalMin" name="fundingIntervalMin" type="text" value="@(cfg.FundingIntervalMin?.ToString())" placeholder="@GlobalHint("funding_interval_min")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.FundingIntervalMin, "funding_interval_min")</span></div>
+            <p class="eyebrow" style="margin:6px 0 2px">Intervals — empty uses the global</p>
+            <div class="form-row">
+                <div class="field"><label for="snapshotIntervalS">Snapshot (s)</label><input id="snapshotIntervalS" name="snapshotIntervalS" type="text" value="@(cfg.SnapshotIntervalS?.ToString())" placeholder="@GlobalHint("snapshot_interval_s")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.SnapshotIntervalS, "snapshot_interval_s")</span></div>
+                <div class="field"><label for="candleIntervalS">Candles (s)</label><input id="candleIntervalS" name="candleIntervalS" type="text" value="@(cfg.CandleIntervalS?.ToString())" placeholder="@GlobalHint("candle_interval_s")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.CandleIntervalS, "candle_interval_s")</span></div>
+                <div class="field"><label for="depthIntervalS">Depth (s)</label><input id="depthIntervalS" name="depthIntervalS" type="text" value="@(cfg.DepthIntervalS?.ToString())" placeholder="@GlobalHint("depth_interval_s")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.DepthIntervalS, "depth_interval_s")</span></div>
+            </div>
+            <div class="form-row">
+                <div class="field"><label for="discoveryIntervalMin">Discovery (min)</label><input id="discoveryIntervalMin" name="discoveryIntervalMin" type="text" value="@(cfg.DiscoveryIntervalMin?.ToString())" placeholder="@GlobalHint("discovery_interval_min")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.DiscoveryIntervalMin, "discovery_interval_min")</span></div>
+                <div class="field"><label for="fundingIntervalMin">Funding (min)</label><input id="fundingIntervalMin" name="fundingIntervalMin" type="text" value="@(cfg.FundingIntervalMin?.ToString())" placeholder="@GlobalHint("funding_interval_min")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.FundingIntervalMin, "funding_interval_min")</span></div>
+            </div>
+
+            <button class="btn" type="submit" style="margin-top:6px">Save changes</button>
+            @if (cfg.UpdatedBy is not null) { <p class="panel-note">Last edited by @cfg.UpdatedBy</p> }
+        </form>
+        <dl class="legend">
+            <dt>enabled</dt><dd>collect</dd>
+            <dt>maintenance</dt><dd>deliberate pause, not an alert</dd>
+            <dt>planned</dt><dd>no adapter yet</dd>
+            <dt>abandoned</dt><dd>history only</dd>
+        </dl>
+    </div>
+}
+else
+{
+    <div class="grid2 grid2-hold">
+        <div class="stack">
+            @if (e.Status == "enabled")
+            {
+                <div class="panel">
+                    <div class="panel-h"><h2>Collectors</h2><span class="meta">collector_status</span></div>
+                    @if (Model.Collectors.Count == 0)
+                    {
+                        <div class="empty"><h3>Nothing collected yet</h3><p>The first cycle has not completed.</p></div>
+                    }
+                    @foreach (var c in Model.Collectors)
+                    {
+                        var ch = CollHealth(c);
+                        <div class="coll @(ch == "fail" ? "is-fail" : "")">
+                            <div class="coll-h"><span class="dot @ch @(ch == "ok" ? "fresh" : "")"></span><span class="n">@c.Collector</span><span class="sev @ch">@(ch == "ok" ? "ok" : ch == "warn" ? "degraded" : "failing")</span><span class="iv">@Interval(c.Collector)</span><a class="linkbtn" style="font-size:10px" href="/Admin/Exchanges/Runs/@e.Code?collector=@c.Collector">runs →</a></div>
+                            <div class="coll-g">
+                                <span><i>Last success</i><b style="@(ch != "ok" ? "color:var(--gold-300)" : "")">@Format.Age(c.LastSuccessAgeSeconds)</b></span>
+                                <span><i>Failures</i><b style="@(c.ConsecutiveFailures > 0 ? "color:var(--gold-300)" : "")">@c.ConsecutiveFailures</b></span>
+                                <span><i>Last / avg ms</i><b>@(c.LastDurationMs?.ToString() ?? "—") / @Format.Num(c.AvgDurationMs, 0)</b></span>
+                                <span><i>Expected</i><b class="muted">@(c.InstrumentsExpected?.ToString() ?? "—")</b></span>
+                            </div>
+                            @if (c.LastError is not null)
+                            {
+                                <span class="e @(ch != "ok" ? "is-err" : "")">@c.LastError · @Format.Age(c.LastErrorAgeSeconds) ago</span>
+                            }
+                        </div>
+                    }
                 </div>
 
-                <button class="btn" type="submit" style="margin-top:6px">Save changes</button>
-                @if (cfg.UpdatedBy is not null)
-                {
-                    <p class="panel-note">Last edited by @cfg.UpdatedBy</p>
-                }
-            </form>
-            <dl class="legend">
-                <dt>enabled</dt><dd>collect</dd>
-                <dt>maintenance</dt><dd>deliberate pause, not an alert</dd>
-                <dt>planned</dt><dd>no adapter yet</dd>
-                <dt>abandoned</dt><dd>history only</dd>
-            </dl>
+                <div class="panel">
+                    <div class="panel-h"><h2>Snapshot throughput</h2><span class="meta">market_snapshot · 5 min buckets · 2 h</span></div>
+                    <div class="panel-b">
+                        @if (Model.Throughput.Sum() > 0)
+                        {
+                            <svg class="chart" height="84" viewBox="0 0 600 84" preserveAspectRatio="none">
+                                <defs><linearGradient id="csxFillD" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--tint-violet)"/><stop offset="100%" stop-color="transparent"/></linearGradient></defs>
+                                <polygon points="@Spark.Area(Model.Throughput, 600, 84)" fill="url(#csxFillD)"></polygon>
+                                <polyline points="@Spark.Points(Model.Throughput, 600, 84)" stroke="var(--violet-400)" stroke-width="1.75"></polyline>
+                            </svg>
+                            <div class="chart-x"><span>−2 h</span><span class="mid">rows per 5 min</span><span>now</span></div>
+                        }
+                        else
+                        {
+                            <div class="empty"><h3>No snapshots yet</h3><p>Nothing recorded in the last two hours.</p></div>
+                        }
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-h"><h2>Latency</h2><span class="meta">collector_run · avg ms · 15 min buckets · 12 h</span></div>
+                    @if (Model.Latency.Count == 0)
+                    {
+                        <div class="empty"><h3>No runs recorded yet</h3><p>The trend appears as collector_run fills; history is kept 7 days.</p></div>
+                    }
+                    else
+                    {
+                        <div class="lat-grid">
+                            @foreach (var serie in Model.Latency)
+                            {
+                                <div class="cell">
+                                    <div class="h"><span class="eyebrow">@serie.Collector</span><span class="code">@(serie.AvgMs.Count > 0 ? Format.Num(serie.AvgMs[^1], 0) + " ms now" : "—")</span></div>
+                                    <svg class="chart" height="30" viewBox="0 0 600 30" preserveAspectRatio="none"><polyline points="@Spark.Points(serie.AvgMs, 600, 30)" stroke="var(--violet-400)" stroke-width="1.5"></polyline></svg>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="panel"><div class="empty lg"><h3>@e.Status.ToUpperInvariant()</h3><p>This exchange is not collecting, so it has no health, latency or freshness to show. Enable it from the Lifecycle control to start.</p></div></div>
+            }
         </div>
 
-        @if (e.Status == "enabled" && Model.Stalest.Count > 0)
-        {
-            <div class="panel">
-                <div class="panel-h"><h2>Stalest instruments</h2></div>
-                @foreach (var s in Model.Stalest)
-                {
-                    var stale = s.AgeSeconds > 30;
-                    <a class="tr" style="grid-template-columns:1fr auto;padding:8px 16px" href="/Admin/Instruments/Details/@s.Id"><span class="mono">@s.Symbol</span><span class="num @(stale ? "fail" : "muted")">@Format.Age(s.AgeSeconds)</span></a>
-                }
-                <p class="panel-note">Stale = no snapshot for 3 intervals</p>
+        <div class="stack">
+            @if (e.Status == "enabled" && Model.Stalest.Count > 0)
+            {
+                <div class="panel" id="stalest">
+                    <div class="panel-h"><h2>Stalest instruments</h2><span class="meta">3 intervals = stale</span></div>
+                    @foreach (var s in Model.Stalest)
+                    {
+                        var stale = s.AgeSeconds > 30;
+                        <a class="tr" style="grid-template-columns:1fr auto;padding:8px 16px" href="/Admin/Instruments/Details/@s.Id"><span class="mono">@s.Symbol</span><span class="num @(stale ? "fail" : "muted")">@Format.Age(s.AgeSeconds)</span></a>
+                    }
+                </div>
+            }
+
+            <div class="panel guard" style="padding:16px 18px" data-lifecycle>
+                <div class="panel-h" style="margin-bottom:10px"><h2>Lifecycle</h2><span class="tag gold">protected</span></div>
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
+                    <span class="dot @(e.Status == "enabled" ? $"{health} {pulse}" : "none")"></span>
+                    <span class="tag @StatusTag(e.Status)">@e.Status</span>
+                    <span class="code">@Model.Collectors.Count collectors</span>
+                </div>
+
+                <div data-status-locked>
+                    <button class="btn btn-ghost btn-sm" type="button" data-status-edit>Change status…</button>
+                    <p style="margin:10px 0 0;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">Stopping the integration halts every collector for this venue and its instruments go stale immediately. It is not an undoable click.</p>
+                </div>
+
+                <form method="post" action="/Admin/Exchanges/Status/@e.Code" style="display:none"
+                      data-status-form data-code="@e.Code" data-current="@e.Status"
+                      data-collectors="@Model.Collectors.Count" data-trading="@e.TradingInstruments">
+                    @Html.AntiForgeryToken()
+                    <p class="eyebrow" style="margin:0 0 6px">New status</p>
+                    <div class="chips" data-status-chips style="margin-bottom:12px">
+                        @foreach (var st in statuses)
+                        {
+                            <label class="chip @(st == e.Status ? "is-on" : "")"><input type="radio" name="newStatus" value="@st" @(st == e.Status ? "checked" : "") style="position:absolute;opacity:0;width:0;height:0" data-status-radio>@st</label>
+                        }
+                    </div>
+                    <div class="err" style="margin-bottom:12px"><b>Confirm</b><div><span class="t" data-impact></span><span class="m">Type the exchange code to release the guard.</span></div></div>
+                    <div class="field"><label for="confirmCode">Exchange code</label><input id="confirmCode" name="confirmCode" type="text" autocomplete="off" spellcheck="false" placeholder="@e.Code" data-confirm></div>
+                    <div style="display:flex;gap:12px;align-items:center">
+                        <button class="btn btn-sm" type="submit" data-apply disabled style="opacity:.4;cursor:not-allowed">Apply</button>
+                        <button class="linkbtn" type="button" data-status-cancel>Cancel</button>
+                    </div>
+                </form>
             </div>
-        }
+        </div>
     </div>
-</div>
+}
+
+@* Guarded Lifecycle + stat-scroll. Delegated on document so it survives live.js swapping <main>. *@
+<script>
+(function () {
+    if (window.__csxExchWired) { return; }
+    window.__csxExchWired = true;
+
+    document.addEventListener('click', function (ev) {
+        if (ev.target.closest('[data-status-edit]')) { setEditing(ev.target, true); return; }
+        if (ev.target.closest('[data-status-cancel]')) { setEditing(ev.target, false); return; }
+        var scroll = ev.target.closest('[data-scroll="stalest"]');
+        if (scroll) {
+            ev.preventDefault();
+            var t = document.getElementById('stalest');
+            if (t) { window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 78, behavior: 'smooth' }); }
+        }
+    });
+    document.addEventListener('change', function (ev) {
+        var form = ev.target.closest('[data-status-form]');
+        if (form && ev.target.matches('[data-status-radio]')) { recompute(form); }
+    });
+    document.addEventListener('input', function (ev) {
+        if (ev.target.matches('[data-confirm]')) { recompute(ev.target.closest('[data-status-form]')); }
+    });
+
+    function setEditing(el, editing) {
+        var panel = el.closest('[data-lifecycle]');
+        if (!panel) { return; }
+        var locked = panel.querySelector('[data-status-locked]');
+        var form = panel.querySelector('[data-status-form]');
+        if (!locked || !form) { return; }
+        locked.style.display = editing ? 'none' : '';
+        form.style.display = editing ? '' : 'none';
+        if (editing) {
+            var code = form.querySelector('[data-confirm]');
+            if (code) { code.value = ''; code.focus(); }
+            recompute(form);
+        }
+    }
+
+    function recompute(form) {
+        if (!form) { return; }
+        var current = form.dataset.current, code = form.dataset.code;
+        form.querySelectorAll('[data-status-chips] .chip').forEach(function (l) {
+            var r = l.querySelector('input');
+            l.classList.toggle('is-on', !!(r && r.checked));
+        });
+        var picked = form.querySelector('[data-status-radio]:checked');
+        var pick = picked ? picked.value : current;
+        var impact = form.querySelector('[data-impact]');
+        if (impact) {
+            if (pick === current) { impact.textContent = 'No change — ' + code + ' is already ' + current + '.'; }
+            else if (pick === 'enabled') { impact.textContent = code + ' → enabled starts collecting.'; }
+            else { impact.textContent = code + ' → ' + pick + ' stops ' + form.dataset.collectors + ' collectors; ' + form.dataset.trading + ' trading instruments go stale at once.'; }
+        }
+        var typed = (form.querySelector('[data-confirm]') || {}).value || '';
+        var ok = pick !== current && typed.trim().toLowerCase() === code.toLowerCase();
+        var apply = form.querySelector('[data-apply]');
+        if (apply) {
+            apply.disabled = !ok;
+            apply.style.opacity = ok ? '' : '.4';
+            apply.style.cursor = ok ? '' : 'not-allowed';
+        }
+    }
+})();
+</script>

@@ -28,17 +28,25 @@ public sealed class ExchangesController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Details(string id, CancellationToken ct)
+    public async Task<IActionResult> Details(string id, string? tab, CancellationToken ct)
     {
         await using var conn = await _db.OpenAsync(ct);
         var details = await ExchangeStore.GetAsync(conn, id, ct);
-        return details is null ? NotFound() : View(details);
+        if (details is null)
+        {
+            return NotFound();
+        }
+
+        // overview by default (it holds the Lifecycle control, the only way to enable a venue);
+        // settings shows the configuration form.
+        ViewData["Tab"] = tab == "settings" ? "settings" : "overview";
+        return View(details);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(
-        string id, string? name, string? status, string? description,
+        string id, string? name, string? description,
         string? baseUrl, string? chartsUrl, string? quoteAssets, string? blacklist,
         string? snapshotIntervalS, string? candleIntervalS, string? discoveryIntervalMin,
         string? fundingIntervalMin, string? depthIntervalS, CancellationToken ct)
@@ -62,7 +70,6 @@ public sealed class ExchangesController : Controller
         var input = new ExchangeSaveInput(
             Code: id,
             Name: name,
-            Status: status?.Trim() ?? "",
             Description: description?.Trim(),
             BaseUrl: baseUrl?.Trim(),
             ChartsUrl: chartsUrl?.Trim(),
@@ -79,11 +86,32 @@ public sealed class ExchangesController : Controller
         var saved = await ExchangeStore.SaveAsync(conn, input, ct);
         if (!saved)
         {
-            TempData["Error"] = "Unknown exchange or invalid status.";
-            return RedirectToAction(nameof(Details), new { id });
+            TempData["Error"] = "Unknown exchange.";
+            return RedirectToAction(nameof(Details), new { id, tab = "settings" });
         }
 
         TempData["Saved"] = "Saved.";
+        return RedirectToAction(nameof(Details), new { id, tab = "settings" });
+    }
+
+    /// <summary>
+    /// The guarded status change from the Lifecycle control. Status is deliberately not part of the
+    /// settings form: this is the one control that stops collection, so it requires typing the
+    /// exchange code to confirm, checked here as well as in the browser.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Status(string id, string? newStatus, string? confirmCode, CancellationToken ct)
+    {
+        if (!string.Equals(confirmCode?.Trim(), id, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "Status unchanged — the typed code did not match.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        await using var conn = await _db.OpenAsync(ct);
+        var ok = await ExchangeStore.SetStatusAsync(conn, id, newStatus?.Trim() ?? "", User.Identity?.Name, ct);
+        TempData[ok ? "Saved" : "Error"] = ok ? $"Saved. {id} is now {newStatus}." : "Unknown exchange or invalid status.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
