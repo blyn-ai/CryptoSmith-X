@@ -105,8 +105,8 @@
             <div class="panel-b">
                 @if (Model.Candles.Count >= 2)
                 {
-                    @Html.Raw(Chart(Model.Candles.Select(c => c.Close).ToList(), "var(--violet-400)", "csxPrice"))
-                    <div class="chart-x"><span>@Format.Utc(Model.Candles[0].OpenTime)</span><span class="mid">close · @Model.Candles.Count bars</span><span>@Format.Utc(Model.Candles[^1].OpenTime)</span></div>
+                    <svg class="chart" height="140" viewBox="0 0 600 140" preserveAspectRatio="none">@Html.Raw(SparkCandles.Render(Model.Candles, 600, 140))</svg>
+                    <div class="chart-x"><span>@Format.Utc(Model.Candles[0].OpenTime)</span><span class="mid">OHLC · @Model.Candles.Count bars · low @Format.Num(Model.Candles.Min(c => c.Low), 2) — high @Format.Num(Model.Candles.Max(c => c.High), 2)</span><span>@Format.Utc(Model.Candles[^1].OpenTime)</span></div>
                 }
                 else
                 {

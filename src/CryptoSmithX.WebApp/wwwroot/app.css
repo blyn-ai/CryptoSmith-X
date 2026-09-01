@@ -380,3 +380,7 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 .tr .stretch::after{content:"";position:absolute;inset:0}
 .tr .lift{position:relative;z-index:1}
 .tr .lift:hover{color:var(--text-heading);text-decoration:underline;text-underline-offset:3px}
+
+/* candlesticks — the one legal green/red: market direction */
+.candle-up{fill:var(--up-500);stroke:var(--up-500)}
+.candle-down{fill:var(--down-500);stroke:var(--down-500)}
