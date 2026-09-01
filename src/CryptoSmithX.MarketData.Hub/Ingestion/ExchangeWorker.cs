@@ -1,6 +1,7 @@
 using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Connectors.Fake;
 using CryptoSmithX.MarketData.Connectors.Kraken;
+using CryptoSmithX.MarketData.Connectors.Weex;
 using CryptoSmithX.MarketData.Hub.Retention;
 using CryptoSmithX.MarketData.Hub.Rollups;
 using CryptoSmithX.Database;
@@ -267,6 +268,7 @@ public sealed class ExchangeWorker : BackgroundService
     {
         "fake" => new FakeExchangeMarketData(),
         "kraken-futures" => BuildKraken(config, ct),
+        "weex-futures" => BuildWeex(config, ct),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
@@ -292,6 +294,20 @@ public sealed class ExchangeWorker : BackgroundService
         }
 
         return new KrakenFuturesMarketData(client, ws);
+    }
+
+    // WEEX is REST-only for now (see the commit that added this adapter for why WS was deferred).
+    // Open interest has no batched endpoint on WEEX, so a background cycle keeps a fresh-enough
+    // sample per symbol; it starts here and dies with this exchange's token, same as Kraken's WS feed.
+    private IExchangeMarketData BuildWeex(ExchangeConfig config, CancellationToken ct)
+    {
+        var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
+        var client = new WeexFuturesClient(baseUrl);
+
+        var openInterest = new WeexOpenInterestFeed(client, _loggers, _clock);
+        openInterest.Start(ct);
+
+        return new WeexFuturesMarketData(client, openInterest);
     }
 
     /// <summary>Await tasks, swallowing the cancellation that a normal stop raises.</summary>

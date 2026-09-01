@@ -1,0 +1,93 @@
+[
+  {
+    "symbol": "cmt_btcusdt",
+    "last": "78235.5",
+    "best_ask": "78235.5",
+    "best_bid": "78235.4",
+    "high_24h": "79223.1",
+    "low_24h": "77389.1",
+    "volume_24h": "1887684695.30752",
+    "timestamp": "1788274362812",
+    "base_volume": "24120.3461",
+    "markPrice": "78236",
+    "indexPrice": "78266.671"
+  },
+  {
+    "symbol": "cmt_ethusdt",
+    "last": "2450.37",
+    "best_ask": "2450.38",
+    "best_bid": "2450.37",
+    "high_24h": "2488.80",
+    "low_24h": "2422.92",
+    "volume_24h": "1838453092.96653",
+    "timestamp": "1788274362784",
+    "base_volume": "748241.876",
+    "markPrice": "2450.37",
+    "indexPrice": "2451.39"
+  },
+  {
+    "symbol": "cmt_dogeusdt",
+    "last": "0.08284",
+    "best_ask": "0.08285",
+    "best_bid": "0.08284",
+    "high_24h": "0.08393",
+    "low_24h": "0.08172",
+    "volume_24h": "48125203.79000",
+    "timestamp": "1788274362820",
+    "base_volume": "580101600",
+    "markPrice": "0.08284",
+    "indexPrice": "0.08289"
+  },
+  {
+    "symbol": "cmt_ltcusdt",
+    "last": "49.52",
+    "best_ask": "49.53",
+    "best_bid": "49.52",
+    "high_24h": "49.79",
+    "low_24h": "48.24",
+    "volume_24h": "38488649.563",
+    "timestamp": "1788274362388",
+    "base_volume": "788964.5",
+    "markPrice": "49.52",
+    "indexPrice": "49.5625"
+  },
+  {
+    "symbol": "cmt_1000flokiusdt",
+    "last": "0.02448",
+    "best_ask": "0.02449",
+    "best_bid": "0.02448",
+    "high_24h": "0.02487",
+    "low_24h": "0.02397",
+    "volume_24h": "1811157.72300",
+    "timestamp": "1788274362814",
+    "base_volume": "74477300",
+    "markPrice": "0.02448",
+    "indexPrice": "0.024509"
+  },
+  {
+    "symbol": "cmt_gastownusdt",
+    "last": "0",
+    "best_ask": "0",
+    "best_bid": "0",
+    "high_24h": "0",
+    "low_24h": "0",
+    "volume_24h": "0.0",
+    "timestamp": "0",
+    "base_volume": "0.0",
+    "markPrice": "0.08283",
+    "indexPrice": "0.08284"
+  },
+  {
+    "symbol": "cmt_usdcusdt",
+    "last": "1.000581",
+    "best_ask": "1.000631",
+    "best_bid": "1.000531",
+    "high_24h": "1.000581",
+    "low_24h": "1.000581",
+    "volume_24h": "0.0",
+    "timestamp": "1782463244807",
+    "base_volume": "0.0",
+    "markPrice": "1.000322",
+    "indexPrice": "1.000325"
+  }
+]

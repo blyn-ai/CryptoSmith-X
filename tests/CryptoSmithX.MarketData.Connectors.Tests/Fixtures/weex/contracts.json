@@ -1,0 +1,86 @@
+[
+  {
+    "symbol": "cmt_btcusdt",
+    "underlying_index": "BTC",
+    "quote_currency": "USDT",
+    "coin": "USDT",
+    "contract_val": "0.0001",
+    "size_increment": "4",
+    "tick_size": "1",
+    "forwardContractFlag": true,
+    "minOrderSize": "0.0001",
+    "maxOrderSize": "1200"
+  },
+  {
+    "symbol": "cmt_ethusdt",
+    "underlying_index": "ETH",
+    "quote_currency": "USDT",
+    "coin": "USDT",
+    "contract_val": "0.001",
+    "size_increment": "3",
+    "tick_size": "2",
+    "forwardContractFlag": true,
+    "minOrderSize": "0.001",
+    "maxOrderSize": "1000000"
+  },
+  {
+    "symbol": "cmt_dogeusdt",
+    "underlying_index": "DOGE",
+    "quote_currency": "USDT",
+    "coin": "USDT",
+    "contract_val": "100",
+    "size_increment": "0",
+    "tick_size": "5",
+    "forwardContractFlag": true,
+    "minOrderSize": "100",
+    "maxOrderSize": "30000000"
+  },
+  {
+    "symbol": "cmt_ltcusdt",
+    "underlying_index": "LTC",
+    "quote_currency": "USDT",
+    "coin": "USDT",
+    "contract_val": "0.1",
+    "size_increment": "1",
+    "tick_size": "2",
+    "forwardContractFlag": true,
+    "minOrderSize": "0.1",
+    "maxOrderSize": "18000"
+  },
+  {
+    "symbol": "cmt_1000flokiusdt",
+    "underlying_index": "1000FLOKI",
+    "quote_currency": "USDT",
+    "coin": "USDT",
+    "contract_val": "100",
+    "size_increment": "0",
+    "tick_size": "5",
+    "forwardContractFlag": true,
+    "minOrderSize": "100",
+    "maxOrderSize": "11000000"
+  },
+  {
+    "symbol": "cmt_gastownusdt",
+    "underlying_index": "GASTOWN",
+    "quote_currency": "USDT",
+    "coin": "USDT",
+    "contract_val": "100",
+    "size_increment": "0",
+    "tick_size": "5",
+    "forwardContractFlag": true,
+    "minOrderSize": "100",
+    "maxOrderSize": "1350"
+  },
+  {
+    "symbol": "cmt_usdcusdt",
+    "underlying_index": "USDC",
+    "quote_currency": "USDT",
+    "coin": "USDT",
+    "contract_val": "1",
+    "size_increment": "0",
+    "tick_size": "6",
+    "forwardContractFlag": true,
+    "minOrderSize": "1",
+    "maxOrderSize": "50000"
+  }
+]

@@ -1,0 +1,6 @@
+[
+  { "symbol": "BTCUSDT", "bidPrice": "78169.6", "bidQty": "2.7548", "askPrice": "78169.7", "askQty": "2.5631", "time": 1788274505209 },
+  { "symbol": "ETHUSDT", "bidPrice": "2449.28", "bidQty": "46.813", "askPrice": "2449.29", "askQty": "41.361", "time": 1788274505231 },
+  { "symbol": "DOGEUSDT", "bidPrice": "0.08274", "bidQty": "2156800", "askPrice": "0.08275", "askQty": "1640700", "time": 1788274505232 },
+  { "symbol": "1000FLOKIUSDT", "bidPrice": "0.02443", "bidQty": "37700", "askPrice": "0.02444", "askQty": "115400", "time": 1788274505082 }
+]

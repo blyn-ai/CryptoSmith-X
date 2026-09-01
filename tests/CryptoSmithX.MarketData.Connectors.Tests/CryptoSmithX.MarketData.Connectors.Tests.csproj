@@ -15,5 +15,6 @@
   <ItemGroup>
     <None Include="Fixtures\kraken\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\kraken-ws\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\weex\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

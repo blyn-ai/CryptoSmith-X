@@ -1,0 +1,8 @@
+[
+  { "symbol": "cmt_btcusdt", "fundingRate": "0.00004120", "collectCycle": 480, "timestamp": 1788249600000 },
+  { "symbol": "cmt_ethusdt", "fundingRate": "0.00000949", "collectCycle": 480, "timestamp": 1788249600000 },
+  { "symbol": "cmt_dogeusdt", "fundingRate": "0.00010000", "collectCycle": 480, "timestamp": 1788249600000 },
+  { "symbol": "cmt_ltcusdt", "fundingRate": "0.00003973", "collectCycle": 480, "timestamp": 1788249600000 },
+  { "symbol": "cmt_1000flokiusdt", "fundingRate": "0.00010000", "collectCycle": 480, "timestamp": 1788249600000 },
+  { "symbol": "cmt_gastownusdt", "fundingRate": "-0.0000955", "collectCycle": 60, "timestamp": 1788271200000 }
+]
