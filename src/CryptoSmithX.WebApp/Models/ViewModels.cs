@@ -57,7 +57,7 @@ public sealed record ExchangeCollectorRow(
     string? LastError,
     double? LastErrorAgeSeconds);
 
-public sealed record StaleInstrument(string Symbol, double? AgeSeconds);
+public sealed record StaleInstrument(int Id, string Symbol, double? AgeSeconds);
 
 /// <summary>
 /// The editable configuration of one exchange. Interval overrides are null when the global wins.

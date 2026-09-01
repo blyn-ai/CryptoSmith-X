@@ -24,7 +24,10 @@
             <div style="display:flex;align-items:center;gap:9px"><span class="dot @health @(health == "ok" ? "fresh" : "")"></span><span class="sev @health">@(health == "ok" ? "ok" : health == "warn" ? "degraded" : "failing")</span><span class="code">@maxFails consecutive failures, max across collectors</span></div>
         }
     </div>
-    <a class="linkbtn" href="/Admin/Exchanges">← Exchanges</a>
+    <div style="display:flex;gap:14px;align-items:center">
+        <a class="linkbtn" href="/Admin/Instruments?exchange=@e.Code">Instruments →</a>
+        <a class="linkbtn" href="/Admin/Exchanges">← Exchanges</a>
+    </div>
 </div>
 
 @if (TempData["Error"] is string err) { <div class="alert alert-error">@err</div> }
@@ -167,7 +170,7 @@
                 @foreach (var s in Model.Stalest)
                 {
                     var stale = s.AgeSeconds > 30;
-                    <div class="tr" style="grid-template-columns:1fr auto;padding:8px 16px"><span class="mono">@s.Symbol</span><span class="num @(stale ? "fail" : "muted")">@Format.Age(s.AgeSeconds)</span></div>
+                    <a class="tr" style="grid-template-columns:1fr auto;padding:8px 16px" href="/Admin/Instruments/Details/@s.Id"><span class="mono">@s.Symbol</span><span class="num @(stale ? "fail" : "muted")">@Format.Age(s.AgeSeconds)</span></a>
                 }
                 <p class="panel-note">Stale = no snapshot for 3 intervals</p>
             </div>

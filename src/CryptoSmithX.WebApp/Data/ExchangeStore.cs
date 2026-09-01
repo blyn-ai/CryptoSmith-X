@@ -84,7 +84,8 @@ public static class ExchangeStore
         // Stalest trading instruments — the oldest snapshots, which is where a failing feed shows.
         var stalest = (await conn.QueryAsync<StaleInstrument>(new CommandDefinition(
             """
-            select i.exchange_symbol as "Symbol",
+            select i.id as "Id",
+                   i.exchange_symbol as "Symbol",
                    extract(epoch from now() - l.received_at)::double precision as "AgeSeconds"
               from exchange_instrument i
               join market_snapshot_latest l on l.exchange_instrument_id = i.id
