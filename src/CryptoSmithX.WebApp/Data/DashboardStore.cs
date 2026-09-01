@@ -49,7 +49,7 @@ public static class DashboardStore
             c.AvgDurationMs, c.LastError, CollectorHealth(c))).ToList();
 
         var botVms = bots.Select(b => new DashBot(
-            b.TenantCode, b.BotInstanceId, b.LastHeartbeatAgeSeconds,
+            b.Id, b.TenantCode, b.BotInstanceId, b.LastHeartbeatAgeSeconds,
             b.LastHeartbeatAgeSeconds is not null and < 180)).ToList();
 
         var enabled = exchanges.Where(e => e.Status == "enabled").ToList();
@@ -78,7 +78,7 @@ public static class DashboardStore
             Exchanges: exchanges,
             Collectors: collectorVms,
             Bots: botVms,
-            Events: events.Select(e => new DashEvent(e.Utc, e.Type, e.TenantCode, e.BotInstanceId, IsError(e.Type))).ToList(),
+            Events: events.Select(e => new DashEvent(e.Utc, e.Type, e.TenantCode, e.BotId, e.BotInstanceId, IsError(e.Type))).ToList(),
             Tenants: tenants.Select(t => new DashTenant(t.Code, t.BotCount, t.CreatedAt)).ToList(),
             IngestBuckets: buckets,
             IngestPeak: buckets.Count == 0 ? 0 : (int)buckets.Max(),
@@ -171,14 +171,14 @@ public static class DashboardStore
 
     private const string BotSql =
         """
-        select b.tenant_code as "TenantCode", b.bot_instance_id as "BotInstanceId",
+        select b.id as "Id", b.tenant_code as "TenantCode", b.bot_instance_id as "BotInstanceId",
                extract(epoch from now() - b.last_heartbeat_at)::double precision as "LastHeartbeatAgeSeconds"
           from bot b order by b.last_heartbeat_at desc nulls last, b.bot_instance_id
         """;
 
     private const string EvSql =
         """
-        select e.utc as "Utc", e.type as "Type", b.tenant_code as "TenantCode", b.bot_instance_id as "BotInstanceId"
+        select e.utc as "Utc", e.type as "Type", b.tenant_code as "TenantCode", b.id as "BotId", b.bot_instance_id as "BotInstanceId"
           from bot_event e join bot b on b.id = e.bot_id
          order by e.received_at desc limit 8
         """;
@@ -223,8 +223,8 @@ public static class DashboardStore
 
     private sealed record ExRow(string Code, string Name, string Status, int TradingInstruments, int KnownInstruments, double? WorstAgeSeconds);
     private sealed record ColRow(string ExchangeCode, string Collector, double? LastSuccessAgeSeconds, int ConsecutiveFailures, int? AvgDurationMs, string? LastError);
-    private sealed record BotRow(string TenantCode, string BotInstanceId, double? LastHeartbeatAgeSeconds);
-    private sealed record EvRow(DateTime Utc, string Type, string TenantCode, string BotInstanceId);
+    private sealed record BotRow(int Id, string TenantCode, string BotInstanceId, double? LastHeartbeatAgeSeconds);
+    private sealed record EvRow(DateTime Utc, string Type, string TenantCode, int BotId, string BotInstanceId);
     private sealed record TenRow(string Code, int BotCount, DateTime CreatedAt);
     private sealed record SparkRow(string ExchangeCode, double Rows);
 }

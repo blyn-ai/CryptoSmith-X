@@ -45,6 +45,12 @@
                 <header class="head">
                     <span class="env">@env</span>
                     @await RenderSectionAsync("live", required: false)
+                    @if (isAdmin)
+                    {
+                        <form method="get" action="/Admin/Search" class="head-search">
+                            <input type="search" name="q" placeholder="symbol, asset, bot…" autocomplete="off">
+                        </form>
+                    }
                     <span class="who"><b>@name</b> · @(isAdmin ? "ADMIN" : "USER")</span>
                     <form method="post" action="/auth/logout">
                         @Html.AntiForgeryToken()

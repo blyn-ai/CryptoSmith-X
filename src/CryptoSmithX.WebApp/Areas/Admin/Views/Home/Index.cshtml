@@ -91,14 +91,14 @@
                 }
                 @foreach (var c in Model.Collectors)
                 {
-                    <div class="tr r-col @(c.Health == "fail" ? "is-fail" : "")">
+                    <a class="tr r-col @(c.Health == "fail" ? "is-fail" : "")" href="/Admin/Exchanges/Details/@c.ExchangeCode">
                         <span class="cell"><span class="dot @c.Health @(c.Health == "ok" ? "fresh" : "")"></span><span class="name">@c.ExchangeCode</span></span>
                         <span class="mono muted">@c.Collector</span>
                         <span class="num @ColNum(c.Health)">@Format.Age(c.LastSuccessAgeSeconds)</span>
                         <span class="num @(c.ConsecutiveFailures > 0 ? c.Health : "muted")">@c.ConsecutiveFailures</span>
                         <span class="num muted">@(c.AvgDurationMs?.ToString() ?? "—")</span>
                         <span class="mono @(c.LastError is null ? "faint" : c.Health)" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;@(c.LastError is not null && c.Health != "ok" ? "color:var(--gold-300)" : "")">@(c.LastError ?? "—")</span>
-                    </div>
+                    </a>
                 }
             </div>
         </div>
@@ -113,11 +113,11 @@
             }
             @foreach (var b in Model.Bots)
             {
-                <div class="tr" style="grid-template-columns:auto 1fr auto;padding:9px 16px">
+                <a class="tr" style="grid-template-columns:auto 1fr auto;padding:9px 16px" href="/Admin/Bots/Details/@b.Id">
                     <span class="dot @(b.Online ? "ok fresh" : "fail")"></span>
                     <span style="display:flex;flex-direction:column;gap:3px;min-width:0"><span class="name">@b.BotInstanceId</span><span class="code" style="letter-spacing:.08em">@b.TenantCode</span></span>
                     <span class="num @(b.Online ? "muted" : "fail")">@(b.LastHeartbeatAgeSeconds is null ? "never" : Format.Age(b.LastHeartbeatAgeSeconds))</span>
-                </div>
+                </a>
             }
         </div>
 
@@ -129,10 +129,10 @@
             }
             @foreach (var ev in Model.Events)
             {
-                <div class="tr" style="grid-template-columns:66px minmax(0,1fr);gap:10px;padding:6px 16px">
+                <a class="tr" style="grid-template-columns:66px minmax(0,1fr);gap:10px;padding:6px 16px" href="/Admin/Bots/Details/@ev.BotId">
                     <span class="mono faint" style="font-variant-numeric:tabular-nums">@ev.Utc.ToString("HH:mm:ss")</span>
                     <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="name" style="@(ev.IsError ? "color:var(--gold-300)" : "")">@ev.Type</span><span class="code">@ev.TenantCode · @ev.BotInstanceId</span></span>
-                </div>
+                </a>
             }
         </div>
 
@@ -144,7 +144,7 @@
             }
             @foreach (var t in Model.Tenants)
             {
-                <div class="tr" style="grid-template-columns:auto auto;justify-content:space-between;padding:9px 16px;border-bottom:0"><span class="mono">@t.Code</span><span class="code">@t.BotCount bot@(t.BotCount == 1 ? "" : "s") · since @t.CreatedAt.ToString("yyyy-MM-dd")</span></div>
+                <a class="tr" style="grid-template-columns:auto auto;justify-content:space-between;padding:9px 16px;border-bottom:0" href="/Admin/Clients/Details/@t.Code"><span class="mono">@t.Code</span><span class="code">@t.BotCount bot@(t.BotCount == 1 ? "" : "s") · since @t.CreatedAt.ToString("yyyy-MM-dd")</span></a>
             }
         </div>
 

@@ -189,11 +189,22 @@ public static class InstrumentStore
 
         var coverage = await LoadCoverageAsync(conn, id, head.ExchangeCode, head.Status, head.Collect, snapshot?.SnapshotAgeSeconds, ct);
 
+        // The same canonical asset on other venues — the one-click hop between exchanges.
+        var siblings = (await conn.QueryAsync<SiblingListing>(new CommandDefinition(
+            """
+            select i.id as "Id", i.exchange_code as "ExchangeCode", i.exchange_symbol as "Symbol"
+              from exchange_instrument i
+             where i.base_asset = @baseAsset and i.quote_asset = @quoteAsset and i.id <> @id
+             order by i.exchange_code
+            """,
+            new { baseAsset = head.BaseAsset, quoteAsset = head.QuoteAsset, id },
+            cancellationToken: ct))).ToList();
+
         return new InstrumentDetails(
             head.Id, head.ExchangeCode, head.Symbol, head.BaseAsset, head.QuoteAsset, head.Status,
             head.StatusChangedAt, head.ListedAt, head.FirstSeenAt, head.LastSeenAt,
             head.Collect, head.CollectNote, head.CollectChangedAt, head.CollectChangedBy, head.FundingIntervalHours,
-            snapshot, tf, Timeframes, candles, metrics, funding, coverage);
+            snapshot, tf, Timeframes, candles, metrics, funding, coverage, siblings);
     }
 
     /// <summary>Writes the collect toggle and its note, stamping who and when. Returns false if the

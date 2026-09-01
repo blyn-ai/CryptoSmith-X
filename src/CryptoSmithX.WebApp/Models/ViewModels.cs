@@ -240,7 +240,11 @@ public sealed record InstrumentDetails(
     IReadOnlyList<CandlePoint> Candles,
     IReadOnlyList<MetricPoint> Metrics,
     IReadOnlyList<FundingRow> Funding,
-    CoverageView Coverage);
+    CoverageView Coverage,
+    IReadOnlyList<SiblingListing> Siblings);
+
+/// <summary>Another venue's listing of the same canonical asset — the hop between exchanges.</summary>
+public sealed record SiblingListing(int Id, string ExchangeCode, string Symbol);
 
 // ── Admin dashboard ───────────────────────────────────────────────────────
 public sealed record DashExchange(
@@ -253,9 +257,10 @@ public sealed record DashCollector(
     int ConsecutiveFailures, int? AvgDurationMs, string? LastError, string Health);
 
 public sealed record DashBot(
+    int Id,
     string TenantCode, string BotInstanceId, double? LastHeartbeatAgeSeconds, bool Online);
 
-public sealed record DashEvent(DateTime Utc, string Type, string TenantCode, string BotInstanceId, bool IsError);
+public sealed record DashEvent(DateTime Utc, string Type, string TenantCode, int BotId, string BotInstanceId, bool IsError);
 
 public sealed record DashTenant(string Code, int BotCount, DateTime CreatedAt);
 
@@ -278,9 +283,12 @@ public sealed record Dashboard(
 public sealed record ClientListItem(
     string Code, string Name, int BotCount, bool Online, double? HeartbeatAgeSeconds, int Events24h);
 
-public sealed record ClientBot(string BotInstanceId, bool Online, double? HeartbeatAgeSeconds);
+public sealed record ClientBot(int Id, string BotInstanceId, bool Online, double? HeartbeatAgeSeconds);
 
 public sealed record ClientDetails(
     string Code, string Name, bool Online, double? HeartbeatAgeSeconds,
     int BotsOnline, int BotsTotal, int Events24h,
     IReadOnlyList<ClientBot> Bots);
+
+/// <summary>One row of the header search — kind decides the group, url is the landing page.</summary>
+public sealed record SearchHit(string Kind, string Title, string Note, string Url);

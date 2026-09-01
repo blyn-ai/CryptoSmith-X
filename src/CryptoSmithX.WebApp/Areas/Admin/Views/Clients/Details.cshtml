@@ -20,7 +20,7 @@
 
 <div class="page-head">
     <div class="t">
-        <p class="eyebrow">Admin · clients · @Model.Code</p>
+        <p class="eyebrow">Admin · <a href="/Admin/Clients">clients</a> · @Model.Code</p>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>@Model.Name</h1><span style="display:flex;align-items:center;gap:8px"><span class="dot @(Model.Online ? "ok lg fresh" : "fail lg")"></span><span class="sev @(Model.Online ? "ok" : "fail")">@(Model.Online ? "online" : "offline")</span></span></div>
     </div>
     <a class="linkbtn" href="/Admin/Clients">← Clients</a>
@@ -77,7 +77,7 @@
             }
             @foreach (var b in Model.Bots)
             {
-                <div class="tr" style="grid-template-columns:auto 1fr auto;padding:10px 16px"><span class="dot @(b.Online ? "ok fresh" : b.HeartbeatAgeSeconds is null ? "none" : "fail")"></span><span class="name">@b.BotInstanceId</span><span class="num @(b.Online ? "muted" : "fail")">@(b.HeartbeatAgeSeconds is null ? "never" : Format.Age(b.HeartbeatAgeSeconds))</span></div>
+                <a class="tr" style="grid-template-columns:auto 1fr auto;padding:10px 16px" href="/Admin/Bots/Details/@b.Id"><span class="dot @(b.Online ? "ok fresh" : b.HeartbeatAgeSeconds is null ? "none" : "fail")"></span><span class="name">@b.BotInstanceId</span><span class="num @(b.Online ? "muted" : "fail")">@(b.HeartbeatAgeSeconds is null ? "never" : Format.Age(b.HeartbeatAgeSeconds))</span></a>
             }
         </div>
 

@@ -364,3 +364,12 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 [data-theme=dark] .theme-toggle .t-ink,
 [data-theme=light] .theme-toggle .t-paper{background:var(--tint-violet);color:var(--violet-200)}
 .theme-float{position:absolute;top:18px;right:22px;z-index:2}
+
+/* ── header search + breadcrumb links ─────────────────────── */
+.head-search{margin-left:auto;display:flex}
+.head-search input{width:200px;padding:6px 10px;background:var(--surface-glass);border:1px solid var(--border-hairline);border-radius:var(--radius-sm);color:var(--text-body);font:var(--fw-regular) 11px/1 var(--font-mono);letter-spacing:.04em;transition:var(--transition-color)}
+.head-search input:focus{outline:none;border-color:var(--violet-400);background:var(--ink-850)}
+.head-search input::placeholder{color:var(--text-faint)}
+.head-search + .who{margin-left:0}
+.eyebrow a{color:inherit;text-decoration:none}
+.eyebrow a:hover{color:var(--text-heading);text-decoration:underline;text-underline-offset:3px}

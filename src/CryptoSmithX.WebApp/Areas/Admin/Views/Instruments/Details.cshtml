@@ -23,7 +23,7 @@
 
 <div class="page-head">
     <div class="t">
-        <p class="eyebrow">Admin · instruments · @Model.ExchangeCode</p>
+        <p class="eyebrow">Admin · <a href="/Admin/Instruments">instruments</a> · <a href="/Admin/Exchanges/Details/@Model.ExchangeCode">@Model.ExchangeCode</a></p>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <h1 class="mono">@Model.Symbol</h1>
             <span class="tag @StatusTag(Model.Status)">@Model.Status</span>
@@ -35,7 +35,19 @@
             listed @Format.Utc(Model.ListedAt) · first seen @Format.Utc(Model.FirstSeenAt) · last seen @Format.Utc(Model.LastSeenAt)
         </p>
     </div>
-    <a class="linkbtn" href="/Admin/Instruments">← Instruments</a>
+    <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">
+        <a class="linkbtn" href="/Admin/Instruments">← Instruments</a>
+        @if (Model.Siblings.Count > 0)
+        {
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+                <span class="code" style="align-self:center">@Model.BaseAsset also on</span>
+                @foreach (var sib in Model.Siblings)
+                {
+                    <a class="tag" href="/Admin/Instruments/Details/@sib.Id" title="@sib.Symbol">@sib.ExchangeCode</a>
+                }
+            </div>
+        }
+    </div>
 </div>
 
 @if (TempData["Error"] is string err) { <div class="alert alert-error">@err</div> }

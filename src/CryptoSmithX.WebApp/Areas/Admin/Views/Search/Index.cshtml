@@ -1,0 +1,27 @@
+@model IReadOnlyList<SearchHit>
+@{
+    ViewData["Title"] = "Search";
+    var q = ViewData["Query"] as string ?? "";
+    var groups = Model.GroupBy(h => h.Kind);
+}
+<div class="page-head">
+    <div class="t"><p class="eyebrow">Admin · search</p><h1>“@q”</h1></div>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="panel"><div class="empty lg"><h3>Nothing found</h3><p>Symbols, assets, exchanges, bots and clients are searched. Try a shorter fragment — the match is a substring, case-insensitive.</p></div></div>
+}
+@foreach (var g in groups)
+{
+    <div class="section-h"><b>@(g.Key)s</b><i>@g.Count()</i><hr></div>
+    <div class="panel" style="margin-bottom:var(--space-6)">
+        @foreach (var h in g)
+        {
+            <a class="tr" style="grid-template-columns:1fr auto;padding:10px 16px" href="@h.Url">
+                <span class="cell"><span class="name">@h.Title</span><span class="code">@h.Note</span></span>
+                <span class="num muted">open →</span>
+            </a>
+        }
+    </div>
+}

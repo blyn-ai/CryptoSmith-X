@@ -41,13 +41,13 @@ public static class ClientStore
             return null;
         }
 
-        var bots = (await conn.QueryAsync<(string BotInstanceId, double? Age)>(new CommandDefinition(
+        var bots = (await conn.QueryAsync<(int Id, string BotInstanceId, double? Age)>(new CommandDefinition(
             """
-            select bot_instance_id, extract(epoch from now() - last_heartbeat_at)::double precision
+            select id, bot_instance_id, extract(epoch from now() - last_heartbeat_at)::double precision
               from bot where tenant_code = @code order by bot_instance_id
             """,
             new { code }, cancellationToken: ct)))
-            .Select(b => new ClientBot(b.BotInstanceId, b.Age is not null and < OnlineSeconds, b.Age)).ToList();
+            .Select(b => new ClientBot(b.Id, b.BotInstanceId, b.Age is not null and < OnlineSeconds, b.Age)).ToList();
 
         var events24 = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
             """
