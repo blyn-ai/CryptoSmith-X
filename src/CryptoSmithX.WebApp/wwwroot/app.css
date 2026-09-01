@@ -5,7 +5,11 @@
 
    Two rules decided during design — do not spread them:
    1. GOLD owns operational severity. Green/red stay market-only (PnL, side, order
-      status). Severity is a three-step gold ramp: ok (quiet lilac dot) → degraded
+      status) — AMENDED 2026-09-01 by the designer's status palette: green now ALSO
+      marks the ENABLED lifecycle status (the one state meaning "running now"), and a
+      muted rose marks ABANDONED (stopped, not an error — dashed border separates it
+      from real failures). See --status-* in ds/tokens/colors.css for the rules.
+      Severity itself is unchanged: a three-step gold ramp: ok (quiet lilac dot) → degraded
       (hollow gold ring) → failing (solid gold dot + gold row tint). Absence of gold
       IS the ok signal. .down must not return to any operational table.
    2. The ONLY animation in the product is .dot.fresh — a single 280ms brightness
@@ -154,15 +158,15 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
 .sev.paused,.sev.none{color:var(--text-faint)}
 
 .tag{display:inline-block;font:var(--fw-semibold) 9px/1 var(--font-mono);letter-spacing:var(--track-badge);text-transform:uppercase;padding:4px 7px;border-radius:var(--radius-xs);border:1px solid var(--border-hairline);color:var(--text-muted);background:var(--tint-neutral);white-space:nowrap}
-.tag.enabled{color:var(--violet-200);border-color:var(--border-strong);background:var(--tint-violet)}
-.tag.maintenance{color:var(--gold-300);border-color:var(--border-gold);background:var(--tint-gold)}
 .tag.gold{color:var(--gold-300);border-color:var(--border-gold);background:var(--tint-gold)}
 .tag.dashed{border-style:dashed;border-color:var(--border-strong);color:var(--text-faint);background:0}
-/* lifecycle statuses each get a face: future is dashed violet, a human pause is
-   gold, an off switch is solid neutral, history is struck through */
-.tag.planned{color:var(--violet-200);border-style:dashed;border-color:var(--border-strong);background:0}
-.tag.disabled{color:var(--text-body);border-color:var(--border-strong);background:var(--surface-glass)}
-.tag.abandoned{color:var(--text-faint);text-decoration:line-through;background:0}
+/* lifecycle statuses — the designer's five-state palette (tokens: --status-*).
+   Colour is never the only signal: the text label stays in every chip. */
+.tag.planned{color:var(--status-planned);border-color:var(--status-planned-border);background:var(--status-planned-wash)}
+.tag.enabled{color:var(--status-enabled);border-color:var(--status-enabled-border);background:var(--status-enabled-wash)}
+.tag.disabled{color:var(--status-disabled);border-color:var(--status-disabled-border);background:var(--status-disabled-wash)}
+.tag.maintenance{color:var(--status-maintenance);border-color:var(--status-maintenance-border);background:var(--status-maintenance-wash)}
+.tag.abandoned{color:var(--status-abandoned);border-color:var(--status-abandoned-border);border-style:dashed;background:var(--status-abandoned-wash)}
 
 /* ── empty states — the shape a fresh deployment actually ships in ── */
 .empty{display:flex;flex-direction:column;gap:9px;padding:34px 18px;text-align:center}
@@ -424,3 +428,11 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 @keyframes csxPulseGold{0%{box-shadow:0 0 0 0 rgba(245,184,79,.6)}70%{box-shadow:0 0 0 7px rgba(245,184,79,0)}100%{box-shadow:0 0 0 0 rgba(245,184,79,0)}}
 .dot.pulse{animation:csxPulse 2.6s var(--ease) infinite}
 .dot.pulse-gold{animation:csxPulseGold 2.6s var(--ease) infinite}
+
+/* the status picker: the selected chip goes solid in its own status colour */
+[data-status-chips] .chip.is-on{border-color:transparent;color:var(--text-on-action)}
+[data-status-chips] .chip.is-on:has(input[value="planned"]){background:#6B4EDB}
+[data-status-chips] .chip.is-on:has(input[value="enabled"]){background:#1E7A55}
+[data-status-chips] .chip.is-on:has(input[value="disabled"]){background:#6E655A}
+[data-status-chips] .chip.is-on:has(input[value="maintenance"]){background:#8A6320}
+[data-status-chips] .chip.is-on:has(input[value="abandoned"]){background:#A33C46}

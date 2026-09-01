@@ -74,4 +74,27 @@
 /* --- washes: soft field light, gold NW / violet SE, always faint --- */
 --wash-gold:radial-gradient(820px 520px at 2% 0%,rgba(245,184,79,.10),transparent 66%); /* @kind color */
 --wash-violet:radial-gradient(820px 620px at 100% 100%,rgba(107,78,219,.22),transparent 70%); /* @kind color */
+
+/* --- base: green axis (running) --- */
+--green-400:#41EDA0;--green-600:#2E9B6B;--green-700:#1E7A55;--green-800:#186044;
+/* --- base: rose axis (stopped, not an error) --- */
+--rose-400:#FF7C8B;--rose-600:#C4525E;--rose-700:#A33C46;--rose-800:#87313A;
+
+/* --- semantic: lifecycle status (designer's palette, 2026-09-01) ---
+   Rules, recorded:
+   * planned      — violet: future work, the AI axis, nothing new added;
+   * enabled      — green:  the ONLY state meaning "running now". This AMENDS the
+                    old law "green is market-only": green now also carries the
+                    running status. Dark ink #41EDA0, paper #1E7A55 (5.3:1+);
+   * disabled     — stone:  deliberately colourless, no wash — an off switch
+                    must not pull the eye in a list;
+   * maintenance  — gold:   tended right now, same "happening now" gold axis;
+   * abandoned    — rose, DASHED border: a stopped direction, not an error —
+                    the dash separates it from real failures.
+   Colour is never the only signal: the text label stays in every chip. */
+--status-planned:var(--violet-400);     --status-planned-wash:rgba(161,138,255,.10); --status-planned-border:rgba(161,138,255,.42);
+--status-enabled:var(--green-400);      --status-enabled-wash:rgba(65,237,160,.10);  --status-enabled-border:rgba(65,237,160,.38);
+--status-disabled:#82796D;              --status-disabled-wash:transparent;          --status-disabled-border:var(--border-hairline);
+--status-maintenance:var(--gold-300);   --status-maintenance-wash:rgba(245,184,79,.12); --status-maintenance-border:rgba(245,184,79,.44);
+--status-abandoned:var(--rose-400);     --status-abandoned-wash:rgba(255,83,103,.08);   --status-abandoned-border:rgba(255,83,103,.40);
 }

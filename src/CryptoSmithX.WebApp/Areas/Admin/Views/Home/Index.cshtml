@@ -6,7 +6,7 @@
     string Dot(string h) => h switch { "ok" => "ok", "degraded" => "warn", "failing" => "fail", "paused" => "paused", _ => "none" };
     string Sev(string h) => h switch { "ok" => "ok", "degraded" => "warn", "failing" => "fail", "paused" => "paused", _ => "none" };
     string SevText(string h) => h switch { "ok" => "ok", "degraded" => "degraded", "failing" => "failing", "paused" => "paused", _ => "—" };
-    string TagCls(string s) => s switch { "enabled" => "enabled", "maintenance" => "maintenance", _ => "" };
+    string TagCls(string s) => s; // one face per status lives in css (--status-*)
     string ColNum(string h) => h switch { "fail" => "fail", "warn" => "warn", _ => "muted" };
     var clear = Model.Failing == 0 && Model.Degraded == 0;
 }
