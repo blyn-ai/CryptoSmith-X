@@ -4,8 +4,6 @@
 **/obj/
 **/TestResults/
 
-# Linked at build time from src/web/ds, never copied in.
-**/wwwroot/ds/
 
 # Nothing here belongs in a build context.
 .git/

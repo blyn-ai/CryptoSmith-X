@@ -60,7 +60,7 @@ services:
     volumes:
       - /opt/cryptosmithx/webapp-keys:/keys
     ports:
-      # VPN only: bound to the wg0 address, invisible from the internet.
-      # Move behind traefik with a real domain when the admin console goes public.
-      - "10.8.0.1:777:8080"
+      # VPN fallback entrance. The public entrance is traefik on
+      # cryptosmithx.blynai.eu (config lives in /opt/traefik/dynamic/).
+      - "10.8.0.1:7777:8080"
     restart: unless-stopped

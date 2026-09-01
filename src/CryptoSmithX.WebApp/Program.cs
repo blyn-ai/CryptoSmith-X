@@ -57,6 +57,15 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// The public static pages moved from Cloudflare Pages into wwwroot/ui-mocks; their
+// canonical URLs are shared with people and must keep working.
+app.MapGet("/zurnalas", (IWebHostEnvironment env) =>
+    Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "zurnalas.html"), "text/html"));
+app.MapGet("/config", (IWebHostEnvironment env) =>
+    Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "config.html"), "text/html"));
+app.MapGet("/ui-mocks", (IWebHostEnvironment env) =>
+    Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "index.html"), "text/html"));
+
 app.MapControllerRoute("areas", "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 app.MapIngestEndpoints();

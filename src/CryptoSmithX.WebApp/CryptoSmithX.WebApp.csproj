@@ -12,12 +12,4 @@
     <PackageReference Include="Dapper" Version="2.1.66" />
   </ItemGroup>
 
-  <!-- The design system is linked into the output, never copied into the repository.
-       wwwroot/ds is a build artefact and is gitignored. -->
-  <ItemGroup>
-    <Content Include="..\web\ds\**"
-             Link="wwwroot\ds\%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
 </Project>

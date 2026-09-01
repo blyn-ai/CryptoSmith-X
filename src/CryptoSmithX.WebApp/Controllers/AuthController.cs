@@ -18,7 +18,7 @@ public sealed class AuthController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(string? username, string? password, CancellationToken ct)
+    public async Task<IActionResult> Login(string? username, string? password, bool rememberMe, CancellationToken ct)
     {
         await using var conn = await _db.OpenAsync(ct);
         var user = await UserStore.FindAsync(conn, username ?? "", ct);
@@ -40,8 +40,11 @@ public sealed class AuthController : Controller
             new("tenantCode", user.TenantCode ?? ""),
         };
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        // Unchecked box = session cookie, gone when the browser closes; checked = the cookie
+        // persists for the ExpireTimeSpan configured in Program.cs (7 days, sliding).
         await HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+            CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity),
+            new AuthenticationProperties { IsPersistent = rememberMe });
 
         return Redirect(user.Role == "admin" ? "/Admin" : "/My");
     }

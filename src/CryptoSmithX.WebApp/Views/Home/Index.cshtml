@@ -1,43 +1,347 @@
 @{
-    ViewData["Title"] = "CryptoSmith X — prisijungimas";
-    var failed = ViewData["LoginFailed"] is true;
+    Layout = null;
+    ViewData["Title"] = "CryptoSmith X";
+    var failed = TempData["LoginFailed"] is true;
 }
-<div class="auth-wrap">
-    <div class="auth-card">
-        @* The descriptor is two pieces justified across the wordmark's width, not one
-           letter-spaced line — the design system's rule, and the same technique the
-           public site uses in src/web/assets/site.css. Spelling it as one string is
-           what stretched it out of proportion before. *@
-        <div class="auth-brand">
-            @* Two files, one shown per theme: the logo rule is "mark.svg on any dark
-               surface, mark-paper.svg on light" — the ink mark on paper is the washed-out
-               look it forbids. CSS picks; no JS, so it survives the server-rendered theme. *@
-            <img class="mark-ink" src="~/ds/assets/cryptosmith-mark.svg" width="64" height="64" alt="">
-            <img class="mark-paper" src="~/ds/assets/cryptosmith-mark-paper.svg" width="64" height="64" alt="">
-            <div class="auth-lockup">
-                <p class="wordmark">CryptoSmith <span>X</span></p>
-                <p class="auth-tag"><span>Perps &amp; Crypto</span><span>Trade Bot</span></p>
-            </div>
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CryptoSmith X</title>
+<meta name="description" content="CryptoSmith X — perps &amp; crypto trade bot. MB „BlynAI“ produktas. Uždaras testavimas.">
+<meta property="og:title" content="CryptoSmith X">
+<meta property="og:description" content="Netikėk. Patikrink pats. Kiekvienas sprendimas įrašomas ir jį galima atkartoti.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="lt_LT">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/ds/styles.css">
+<link rel="stylesheet" href="/ui-mocks/assets/site.css">
+</head>
+<body>
+<div class="shell">
+  <div class="rule"></div>
+
+  <div class="split">
+
+    <!-- ─── знак и заголовок ─── -->
+    <section class="pane pane--brand">
+      <div class="brand">
+        <img src="/ds/assets/cryptosmith-mark.svg" width="44" height="44" alt="">
+        <div>
+          <p class="wordmark">CryptoSmith <span>X</span></p>
+          <p class="tagline"><span>Perps &amp; Crypto</span><span>Trade Bot</span></p>
+        </div>
+      </div>
+
+      <div class="tags">
+        <a class="tag tag--gold" href="/zurnalas">Uždaras testavimas</a>
+        <a class="tag tag--violet" href="mailto:alfa@@blynai.eu?subject=Alfa%20%E2%80%94%20registracija">Alfa — netrukus</a>
+      </div>
+
+      <h1>Netikėk. <em>Patikrink pats.</em></h1>
+
+      <div class="prose">
+        <p>Euristikų rinkinys ir dirbtinis intelektas dirba kartu. Sistema kas 120 sekundžių
+           nuskaito daugiau kaip pusantro šimto Kraken porų — gyvas skaičius telemetrijoje.
+           Kiekviena pora vertinama pagal šimtus parametrų: EMA sankirtas, RSI, momentum,
+           ATR volatilumą, spread'ą, 24 h apimtis, order-book gylį, koreliaciją su BTC,
+           rinkos režimą ir visą kainų istoriją.</p>
+        <p>Iš viso to gimsta vienas balas — o iš balo sprendimas. Pozicijas atidaro pati,
+           dydį parenka pagal rizikos limitus, stop-loss ir tikslus nustato pati, uždaro
+           anksčiau, nei nuosmukis įsibėgėja, ir užfiksuoja rezultatą. Viskas automatiškai:
+           be rankinio įsikišimo ir be jūsų dalyvavimo.</p>
+        <p>Kiekvienas sprendimas įrašomas — kodėl įėjo, kurie signalai svėrė, kokia buvo
+           rizika. Viską galima atkartoti.</p>
+      </div>
+    </section>
+
+    <!-- ─── карточки ─── -->
+    <section class="pane pane--data">
+      <div class="cards">
+        <div class="card">
+          <div class="card__head">
+            <span>Telemetrija</span>
+            <span class="live" id="live" hidden>Live</span>
+          </div>
+          <svg class="spark" id="spark" viewBox="0 0 300 74" preserveAspectRatio="none" aria-hidden="true" hidden>
+            <defs>
+              <linearGradient id="eqLine" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#F5B84F"/>
+                <stop offset=".55" stop-color="#C98F63"/>
+                <stop offset="1" stop-color="#6B4EDB"/>
+              </linearGradient>
+              <linearGradient id="eqFill" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="rgba(245,184,79,.16)"/>
+                <stop offset="1" stop-color="rgba(107,78,219,.14)"/>
+              </linearGradient>
+            </defs>
+            <path id="sparkFill" d="" fill="url(#eqFill)"/>
+            <path id="sparkLine" d="" fill="none" stroke="url(#eqLine)" stroke-width="2"
+                  stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+          <div class="spark-empty" id="sparkEmpty">—</div>
+          <div class="card__foot" id="stats">—</div>
         </div>
 
-        <p class="eyebrow auth-eyebrow">Prisijungimas</p>
+        <div class="card">
+          <div class="card__head">
+            <span>Pozicijos</span>
+            <span class="meta" id="posCount">—</span>
+          </div>
+          <div id="posList"><div class="pos-loading">—</div></div>
+        </div>
+      </div>
 
-        @if (failed)
-        {
-            <div class="alert alert-error" role="alert">Tokio naudotojo nėra. Prieiga šiuo metu suteikiama tik uždaro testavimo dalyviams.</div>
-        }
+      <p class="venues">Kraken · Binance · WEEX · Hyperliquid</p>
+    </section>
 
-        <form method="post" action="/auth/login">
-            @Html.AntiForgeryToken()
-            <div class="field">
-                <label for="username">Naudotojas</label>
-                <input id="username" name="username" type="text" autocomplete="username" autofocus>
-            </div>
-            <div class="field">
-                <label for="password">Slaptažodis</label>
-                <input id="password" name="password" type="password" autocomplete="current-password">
-            </div>
-            <button class="btn" type="submit" style="width:100%">Prisijungti</button>
-        </form>
-    </div>
+    <!-- ─── вход ─── -->
+    <section class="auth">
+      <p class="auth__label">Prisijungimas</p>
+
+      <form id="login" method="post" action="/Auth/Login" style="display:flex;flex-direction:column;gap:16px">
+        @Html.AntiForgeryToken()
+        <div class="field">
+          <label for="username">Naudotojas</label>
+          <input id="username" name="username" type="text" autocomplete="username" autofocus placeholder="vardas">
+        </div>
+        <div class="field">
+          <label for="pw">Slaptažodis</label>
+          <input id="pw" name="password" type="password" autocomplete="current-password" placeholder="••••••••">
+        </div>
+
+        <div class="row">
+          <label class="check"><input type="checkbox" name="rememberMe" value="true" checked> Prisiminti mane</label>
+          <a href="mailto:alfa@@blynai.eu?subject=Slapta%C5%BEodis">Pamiršai?</a>
+        </div>
+
+        <button class="btn" type="submit">Prisijungti</button>
+        <p class="alert" id="loginError" @(failed ? "" : "hidden") role="alert">Tokio naudotojo nėra. Prieiga šiuo metu suteikiama tik uždaro testavimo dalyviams.</p>
+      </form>
+
+      <p class="or">Arba</p>
+
+      <div class="socials">
+        <button type="button" data-name="Google" aria-label="Google">
+          <svg viewBox="0 0 24 24"><path d="M21.35 11.1H12v2.98h5.35c-.23 1.4-1.66 4.1-5.35 4.1-3.22 0-5.85-2.67-5.85-5.95S8.78 6.28 12 6.28c1.83 0 3.06.78 3.76 1.45l2.56-2.47C16.68 3.72 14.53 2.8 12 2.8 6.92 2.8 2.8 6.92 2.8 12s4.12 9.2 9.2 9.2c5.31 0 8.83-3.73 8.83-8.99 0-.6-.06-1.06-.15-1.51z"/></svg>
+        </button>
+        <button type="button" data-name="Apple" aria-label="Apple">
+          <svg viewBox="0 0 24 24"><path d="M16.36 12.72c-.02-2.2 1.8-3.26 1.88-3.31-1.02-1.5-2.62-1.7-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.87-.76-1.48.02-2.84.86-3.6 2.18-1.53 2.66-.39 6.6 1.1 8.76.73 1.06 1.6 2.25 2.74 2.2 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.87.69 1.19-.02 1.94-1.08 2.66-2.14.84-1.23 1.19-2.42 1.2-2.48-.03-.01-2.3-.88-2.3-3.5zM14.2 6.3c.6-.74 1.01-1.76.9-2.78-.87.04-1.93.58-2.56 1.31-.56.65-1.06 1.7-.93 2.7.97.08 1.97-.49 2.59-1.23z"/></svg>
+        </button>
+        <button type="button" data-name="GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85 0 1.34-.01 2.42-.01 2.75 0 .27.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10z"/></svg>
+        </button>
+        <button type="button" data-name="Facebook" aria-label="Facebook">
+          <svg viewBox="0 0 24 24"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.52 1.49-3.91 3.77-3.91 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57v1.89h2.78l-.45 2.91h-2.33V22c4.78-.76 8.44-4.92 8.44-9.94z"/></svg>
+        </button>
+        <button type="button" data-name="X" aria-label="X">
+          <svg viewBox="0 0 24 24"><path d="M17.53 3h3.02l-6.6 7.54L21.75 21h-5.9l-4.62-6.04L5.94 21H2.92l7.06-8.07L2.5 3h6.05l4.18 5.52L17.53 3z"/></svg>
+        </button>
+      </div>
+      <p class="socials__msg" id="socialMsg" hidden aria-live="polite"></p>
+
+      <p class="auth__note">
+        Paskyros kuriamos tik pakvietus. Registracija į alfą —
+        <a class="link-u" href="mailto:alfa@@blynai.eu">alfa@@blynai.eu</a>
+      </p>
+      <p class="auth__fine">Not investment advice · Own funds only</p>
+    </section>
+  </div>
+
+  <footer>
+    <p>MB „BlynAI“ nėra finansų įstaiga, investicijų valdytojas ar finansinių paslaugų teikėja.
+       <button type="button" class="linkish" id="openLegal">Skaityti plačiau</button></p>
+    <p class="copy">blynai.eu · © 2026 MB „BlynAI“</p>
+  </footer>
 </div>
+
+<dialog class="modal" id="legal" aria-labelledby="legalTitle">
+  <button class="modal__close" type="button" id="closeLegal" aria-label="Uždaryti">&times;</button>
+  <div class="modal__in">
+    <h2 id="legalTitle">MB „BlynAI“</h2>
+    <p>MB „BlynAI“ nėra finansų įstaiga, investicijų valdytojas ar finansinių paslaugų
+       teikėja. Bendrija neteikia investavimo rekomendacijų, nepriima ir nesaugo trečiųjų
+       asmenų pinigų ar kriptoturto ir nevaldo trečiųjų asmenų biržos sąskaitų.
+       Prekiaujama tik savo lėšomis; skelbiami rezultatai yra tyrimo duomenys, o ne
+       pasiūlymas ar prognozė.</p>
+
+    <h3>Prekyba savo lėšomis</h3>
+    <p>Programinė įranga veikia dviem nepriklausomomis instancijomis — LUKO ir BYKO.
+       Tas pats kodas, atskiros paskyros, atskiri žurnalai.</p>
+    <ul>
+      <li>prekiaujama tik bendrijos ir jos narių lėšomis;</li>
+      <li>kiekviena instancija veikia savo biržos paskyroje ir su savo API raktais;</li>
+      <li>strategiją, rizikos ribas ir parametrus nustato patys nariai;</li>
+      <li>klientų lėšų — nėra ir nebus.</li>
+    </ul>
+
+    <h3>Jokio trečiųjų asmenų turto</h3>
+    <p>Bendrija:</p>
+    <ul>
+      <li>nepriima ir nesaugo trečiųjų asmenų pinigų ar kriptoturto;</li>
+      <li>nevaldo trečiųjų asmenų biržos sąskaitų;</li>
+      <li>neturi ir neprašo API teisių, leidžiančių disponuoti kitų asmenų lėšomis;</li>
+      <li>nepriima investicijų ir neteikia individualių investavimo rekomendacijų.</li>
+    </ul>
+
+    <h3>Skelbiami rezultatai</h3>
+    <p>Skelbiami duomenys yra konkrečios instancijos ir konkretaus laikotarpio istoriniai
+       tyrimo duomenys. Jie negarantuoja būsimų rezultatų ir nėra pasiūlymas, prognozė ar
+       individuali investavimo rekomendacija. Nepavykę eksperimentai skelbiami taip pat,
+       kaip pavykę.</p>
+
+    <h3>Bendrijos statusas</h3>
+    <p>MB „BlynAI“ — mažoji bendrija Lietuvos Respublikoje. Nariai — Lukas Peciukonis ir
+       Denisas Bykovas. Vadovas — Lukas Peciukonis. Kontaktas —
+       <a href="mailto:info@@blynai.eu">info@@blynai.eu</a>.</p>
+  </div>
+</dialog>
+
+<script>
+((() => {
+  'use strict';
+
+  /* Живой API бота. CORS открыт (access-control-allow-origin: *). */
+  const CFG = { apiBase: 'https://blynai.meetluko.eu', botInstanceId: 'futures-lukas-live', cycleSeconds: 120 };
+  const DASH = '\u2014';
+  const $ = (id) => document.getElementById(id);
+  const num = (n) => (typeof n === 'number' && isFinite(n)) ? n.toLocaleString('lt-LT') : DASH;
+
+  /* лит. склонение: 1 atvira · 2–9 atviros · 0, 10+, 11–19 atvirų */
+  function atvira(n){
+    if (typeof n !== 'number') return DASH;
+    const d10 = n % 10, d100 = n % 100;
+    if (d10 === 1 && d100 !== 11) return n + ' atvira';
+    if (d10 >= 2 && d10 <= 9 && (d100 < 11 || d100 > 19)) return n + ' atviros';
+    return n + ' atvirų';
+  }
+
+  async function getJSON(path){
+    try {
+      const r = await fetch(CFG.apiBase + path, { headers: { accept: 'application/json' } });
+      if (!r.ok) return null;
+      const ct = r.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) return null;
+      return await r.json();
+    } catch (_) { return null; }
+  }
+
+  function drawSpark(values){
+    const svg = $('spark'), line = $('sparkLine'), fill = $('sparkFill'), empty = $('sparkEmpty');
+    const ys = (values || []).filter((v) => typeof v === 'number' && isFinite(v));
+    if (ys.length < 2){ svg.setAttribute('hidden',''); empty.removeAttribute('hidden'); return; }
+    empty.setAttribute('hidden',''); svg.removeAttribute('hidden');
+    const W = 300, H = 74, PAD = 10;
+    const lo = Math.min(...ys), hi = Math.max(...ys), span = (hi - lo) || 1;
+    const pts = ys.map((v,i) => [
+      (i / (ys.length - 1)) * W,
+      H - PAD - ((v - lo) / span) * (H - PAD * 2)
+    ]);
+    const d = pts.map(([x,y],i) => (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1)).join(' ');
+    line.setAttribute('d', d);
+    fill.setAttribute('d', d + ' L' + W + ' ' + H + ' L0 ' + H + ' Z');
+  }
+
+  async function loadStats(){
+    const d = await getJSON('/api/public-stats');
+    $('stats').textContent =
+      'Porų ' + num(d && d.marketsNow) +
+      ' \u00b7 Ciklas ' + CFG.cycleSeconds + ' s' +
+      ' \u00b7 Sprendimų ' + num(d && d.decisionsTotal);
+  }
+
+  let blackout = false;
+
+  async function loadStatus(){
+    const d = await getJSON('/api/bot-status');
+    const live = $('live');
+    if (!d){ live.setAttribute('hidden',''); return; }
+    blackout = !!(d.entryBlackout && d.entryBlackout.isActive);
+    if (blackout){
+      live.textContent = 'Įėjimai pristabdyti';
+      live.classList.add('is-paused');
+    } else if (d.runtimeState === 'running' && !d.isStale){
+      live.textContent = 'Live';
+      live.classList.remove('is-paused');
+    } else {
+      live.textContent = d.isStale ? 'Duomenys pasenę' : (d.runtimeState || DASH);
+      live.classList.add('is-paused');
+    }
+    live.removeAttribute('hidden');
+  }
+
+  function pnlSpan(v){
+    const el = document.createElement('span');
+    el.className = 'pos__pnl';
+    if (typeof v === 'number' && isFinite(v)){
+      el.textContent = (v > 0 ? '+' : '') + v.toFixed(2) + '%';
+      if (v < 0) el.classList.add('is-down');
+    } else el.textContent = DASH;
+    return el;
+  }
+
+  async function loadDashboard(){
+    const d = await getJSON('/api/dashboard?botInstanceId=' + encodeURIComponent(CFG.botInstanceId));
+
+    drawSpark(d && d.equity && Array.isArray(d.equity.days) ? d.equity.days.map((x) => x.close) : null);
+
+    const open = (d && Array.isArray(d.positions)) ? d.positions : null;
+    $('posCount').textContent = open ? atvira(open.length) : DASH;
+
+    const list = $('posList');
+    list.textContent = '';
+
+    if (open && open.length){
+      for (const p of open){
+        const row  = document.createElement('div'); row.className = 'pos';
+        const sym  = document.createElement('span'); sym.className  = 'pos__pair'; sym.textContent = p.pair || DASH;
+        const side = document.createElement('span'); side.className = 'pos__side'; side.textContent = (p.side || '').toUpperCase() || DASH;
+        if (String(p.side).toUpperCase() === 'LONG') side.classList.add('is-long');
+        row.append(sym, side, pnlSpan(p.unrealizedPnlPercent));
+        list.append(row);
+      }
+      return;
+    }
+
+    const box = document.createElement('div'); box.className = 'pos pos--empty';
+    const head = document.createElement('span'); head.textContent = 'Nėra atvirų pozicijų';
+    box.append(head);
+
+    const trades = d && d.today && Array.isArray(d.today.trades) ? d.today.trades : [];
+    const last = trades[trades.length - 1];
+    if (last){
+      const note = document.createElement('span'); note.className = 'mono';
+      note.textContent = 'Paskutinis \u2014 ' + (last.pair || DASH) + ' ' + (last.side || '');
+      box.append(note);
+    }
+    if (blackout){
+      const bo = document.createElement('span'); bo.className = 'mono muted';
+      bo.textContent = 'ĮĖJIMAI PRISTABDYTI \u2014 NAKTIES LANGAS';
+      box.append(bo);
+    }
+    list.append(box);
+  }
+
+  const msg = $('socialMsg');
+  document.querySelectorAll('.socials button').forEach((b) => {
+    b.addEventListener('click', () => {
+      msg.textContent = b.dataset.name + ' \u2014 currently disabled';
+      msg.removeAttribute('hidden');
+    });
+  });
+
+  const legal = $('legal');
+  $('openLegal').addEventListener('click', () => legal.showModal());
+  $('closeLegal').addEventListener('click', () => legal.close());
+  legal.addEventListener('click', (e) => { if (e.target === legal) legal.close(); });
+
+  async function refresh(){ loadStats(); await loadStatus(); loadDashboard(); }
+  refresh();
+  setInterval(refresh, 60000);
+})());
+</script>
+</body>
+</html>
