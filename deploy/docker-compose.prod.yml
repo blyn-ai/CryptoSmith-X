@@ -45,6 +45,8 @@ services:
         condition: service_completed_successfully
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
+      # Sentry errors (component=hub); DSN lives only in /opt/cryptosmithx/.env.
+      Sentry__Dsn: ${SENTRY_DSN:-}
     restart: unless-stopped
 
   webapp:
@@ -56,6 +58,8 @@ services:
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
       ASPNETCORE_ENVIRONMENT: Production
+      # Sentry errors (component=webapp).
+      Sentry__Dsn: ${SENTRY_DSN:-}
       DataProtection__KeysDirectory: /keys
     volumes:
       - /opt/cryptosmithx/webapp-keys:/keys
