@@ -11,6 +11,12 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 /// </summary>
 public sealed class SnapshotCollector
 {
+    // Instruments to snapshot: everything the venue lists for us, minus the ones an operator turned
+    // collect off for. A ticker for a skipped symbol then finds no id below and is ignored.
+    internal const string TargetInstrumentsSql =
+        "select exchange_symbol, id from exchange_instrument "
+        + "where exchange_code = @code and collect = true";
+
     private readonly IExchangeMarketData _adapter;
     private readonly Db _db;
     private readonly TimeProvider _clock;
@@ -34,7 +40,7 @@ public sealed class SnapshotCollector
         await using var conn = await _db.OpenAsync(ct);
 
         var ids = (await conn.QueryAsync<(string Symbol, int Id)>(new CommandDefinition(
-                "select exchange_symbol, id from exchange_instrument where exchange_code = @code",
+                TargetInstrumentsSql,
                 new { code = _adapter.ExchangeCode },
                 cancellationToken: ct)))
             .ToDictionary(r => r.Symbol, r => r.Id, StringComparer.Ordinal);

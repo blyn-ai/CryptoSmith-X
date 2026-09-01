@@ -36,14 +36,6 @@ public sealed record BotDetails(
 /// <summary>The one-time token banner shown right after a bot is created or its token regenerated.</summary>
 public sealed record NewTokenNotice(string BotInstanceId, string Token);
 
-/// <summary>The market-data console, read straight from the marketdata tables (queries copied from the Api).</summary>
-public sealed record MarketDataConsole(
-    IReadOnlyList<dynamic> Collectors,
-    IReadOnlyList<dynamic> Stale,
-    IReadOnlyList<dynamic> Instruments,
-    IReadOnlyList<dynamic> Snapshot,
-    DateTimeOffset AsOf);
-
 public sealed record ExchangeListItem(
     string Code,
     string Name,
@@ -114,6 +106,141 @@ public sealed record ExchangeDetails(
     IReadOnlyList<ExchangeCollectorRow> Collectors,
     IReadOnlyList<StaleInstrument> Stalest,
     IReadOnlyList<double> Throughput);
+
+// ── Assets ────────────────────────────────────────────────────────────────
+public sealed record AssetListItem(
+    string Code,
+    string? Name,
+    int ListingCount,
+    string? ListingsSummary,          // "kraken-futures 1 · fake 1"
+    double? OpenInterestNotional,     // sum over listings of open_interest * mark
+    double? WorstSnapshotAgeSeconds); // oldest snapshot among the listings
+
+/// <summary>One listing of an asset on one exchange — the row that makes the Asset page a comparison.</summary>
+public sealed record AssetListing(
+    int InstrumentId,
+    string ExchangeCode,
+    string Symbol,
+    string Status,
+    bool Collect,
+    double? LastPrice,
+    double? FundingRate,
+    double? OpenInterestNotional,
+    double? SpreadBps,
+    double? Depth25Notional,          // bid + ask within 25 bps
+    double? SnapshotAgeSeconds);
+
+public sealed record AssetAliasRow(string? ExchangeCode, string Alias, string AssetCode, decimal Multiplier, string? Note);
+
+public sealed record AssetDetails(
+    string Code,
+    string? Name,
+    string? Note,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt,
+    string? UpdatedBy,
+    IReadOnlyList<AssetListing> Listings,
+    IReadOnlyList<AssetAliasRow> Aliases);
+
+// ── Instruments ───────────────────────────────────────────────────────────
+public sealed record InstrumentListItem(
+    int Id,
+    string ExchangeCode,
+    string Symbol,
+    string BaseAsset,
+    string QuoteAsset,
+    string Status,
+    bool Collect,
+    double? LastPrice,
+    double? FundingRate,
+    double? OpenInterestNotional,
+    double? SnapshotAgeSeconds);
+
+/// <summary>One page of the instrument list plus the filter/sort state, so the view can build links.</summary>
+public sealed record InstrumentPage(
+    IReadOnlyList<InstrumentListItem> Items,
+    int Total,
+    int Page,
+    int PageSize,
+    IReadOnlyList<string> Exchanges,
+    string? Exchange,
+    string? Status,
+    bool OnlyTrading,
+    string? Search,
+    string Sort)
+{
+    public int From => Total == 0 ? 0 : ((Page - 1) * PageSize) + 1;
+    public int To => Math.Min(Page * PageSize, Total);
+    public int Pages => Total == 0 ? 1 : (int)Math.Ceiling(Total / (double)PageSize);
+}
+
+/// <summary>The current market snapshot for one instrument, with a separate age per data layer.</summary>
+public sealed record SnapshotView(
+    DateTime ReceivedAt,
+    double? SnapshotAgeSeconds,
+    double LastPrice,
+    double BidPrice,
+    double AskPrice,
+    double BidSize,
+    double AskSize,
+    double? SpreadBps,
+    double MarkPrice,
+    double IndexPrice,
+    double FundingRate,
+    double Turnover24h,
+    double OpenInterest,
+    double OpenInterestNotional,
+    double? DepthBid10,
+    double? DepthAsk10,
+    double? DepthBid25,
+    double? DepthAsk25,
+    double? DepthBid50,
+    double? DepthAsk50,
+    DateTime? DepthAt,
+    double? DepthAgeSeconds);
+
+public sealed record CandlePoint(DateTime OpenTime, double Open, double High, double Low, double Close);
+
+public sealed record MetricPoint(DateTime HourTime, double OpenInterestLast, double FundingRateLast, double? SpreadBpsAvg);
+
+public sealed record FundingRow(DateTime FundingTime, double Rate);
+
+/// <summary>Data-coverage summary for the detail page: 1-minute completeness and the stored ranges.</summary>
+public sealed record CoverageView(
+    int Minutes24h,
+    int Holes24h,
+    DateTime? CandleFrom,
+    DateTime? CandleTo,
+    DateTime? FundingFrom,
+    DateTime? FundingTo,
+    double? LastCandleAgeSeconds,
+    double? LastFundingAgeSeconds,
+    bool ExchangeCollecting,
+    bool Silent);
+
+public sealed record InstrumentDetails(
+    int Id,
+    string ExchangeCode,
+    string Symbol,
+    string BaseAsset,
+    string QuoteAsset,
+    string Status,
+    DateTime StatusChangedAt,
+    DateTime? ListedAt,
+    DateTime FirstSeenAt,
+    DateTime LastSeenAt,
+    bool Collect,
+    string? CollectNote,
+    DateTime? CollectChangedAt,
+    string? CollectChangedBy,
+    short FundingIntervalHours,
+    SnapshotView? Snapshot,
+    int Timeframe,
+    IReadOnlyList<int> Timeframes,
+    IReadOnlyList<CandlePoint> Candles,
+    IReadOnlyList<MetricPoint> Metrics,
+    IReadOnlyList<FundingRow> Funding,
+    CoverageView Coverage);
 
 // ── Admin dashboard ───────────────────────────────────────────────────────
 public sealed record DashExchange(

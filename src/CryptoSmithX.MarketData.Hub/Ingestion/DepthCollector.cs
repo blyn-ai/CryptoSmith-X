@@ -20,6 +20,15 @@ public sealed class DepthCollector
     // and well under the budget, leaving room for the discovery/snapshot/funding loops on the same IP.
     private static readonly TimeSpan Pause = TimeSpan.FromMilliseconds(50);
 
+    // Only trading instruments have a book worth measuring, and only ones an operator left collect on.
+    internal const string TargetInstrumentsSql =
+        """
+        select id, exchange_symbol
+          from exchange_instrument
+         where exchange_code = @code and collect = true and status = 'trading'
+         order by exchange_symbol
+        """;
+
     private readonly IExchangeMarketData _adapter;
     private readonly Db _db;
     private readonly TimeProvider _clock;
@@ -37,12 +46,7 @@ public sealed class DepthCollector
         await using var conn = await _db.OpenAsync(ct);
 
         var targets = (await conn.QueryAsync<(int Id, string Symbol)>(new CommandDefinition(
-            """
-            select id, exchange_symbol
-              from exchange_instrument
-             where exchange_code = @code and status = 'trading'
-             order by exchange_symbol
-            """,
+            TargetInstrumentsSql,
             new { code = _adapter.ExchangeCode },
             cancellationToken: ct))).ToList();
 

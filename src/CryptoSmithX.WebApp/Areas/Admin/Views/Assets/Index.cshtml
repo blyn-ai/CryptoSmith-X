@@ -1,0 +1,36 @@
+@model IReadOnlyList<AssetListItem>
+@{
+    ViewData["Title"] = "Assets";
+    var q = ViewData["Search"] as string;
+    string Dot(double? age) => age is null ? "none" : age > 180 ? "fail" : age > 60 ? "warn" : "ok";
+    const string Cols = "grid-template-columns:minmax(0,1.1fr) minmax(0,1.4fr) minmax(0,2fr) minmax(0,1fr) minmax(0,0.9fr)";
+}
+
+<div class="page-head">
+    <div class="t"><p class="eyebrow">Admin · operations</p><h1>Assets</h1></div>
+    <p class="page-note">Canonical assets across every exchange. One row per canon; open it to compare its listings.</p>
+</div>
+
+<form method="get" action="/Admin/Assets" class="field" style="max-width:340px;margin-bottom:16px">
+    <label for="q">Search</label>
+    <input id="q" name="q" type="text" value="@q" placeholder="code or name" spellcheck="false">
+</form>
+
+<div class="panel scroll">
+    <div class="th" style="@Cols"><span>Asset</span><span>Name</span><span>Listings</span><span>Open interest</span><span style="justify-self:end">Worst snapshot</span></div>
+    @if (Model.Count == 0)
+    {
+        <div class="empty"><h3>No assets</h3><p>@(string.IsNullOrEmpty(q) ? "Nothing has been discovered yet." : "No asset matches that search.")</p></div>
+    }
+    @foreach (var a in Model)
+    {
+        <a class="tr" style="@Cols" href="/Admin/Assets/Details/@a.Code">
+            <span class="cell"><span class="name mono">@a.Code</span></span>
+            <span class="muted">@(string.IsNullOrEmpty(a.Name) ? Format.Dash : a.Name)</span>
+            <span class="code">@(a.ListingCount == 0 ? "no listings" : a.ListingsSummary)</span>
+            <span class="num">@Format.Num(a.OpenInterestNotional, 0)</span>
+            <span class="num" style="justify-self:end;display:flex;align-items:center;gap:8px;justify-content:flex-end"><span class="dot @Dot(a.WorstSnapshotAgeSeconds) @(Dot(a.WorstSnapshotAgeSeconds) == "ok" ? "fresh" : "")"></span>@Format.Age(a.WorstSnapshotAgeSeconds)</span>
+        </a>
+    }
+</div>
+<p class="panel-note">Open interest is summed as notional (open interest × mark) across listings. Worst snapshot is the oldest among them.</p>

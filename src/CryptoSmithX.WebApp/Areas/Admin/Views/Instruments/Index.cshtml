@@ -1,0 +1,92 @@
+@model InstrumentPage
+@{
+    ViewData["Title"] = "Instruments";
+    string Dot(double? age) => age is null ? "none" : age > 180 ? "fail" : age > 60 ? "warn" : "ok";
+    string StatusTag(string s) => s == "trading" ? "enabled" : s is "halted" or "delisted" ? "" : "maintenance";
+    const string Cols = "grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 80px 80px 70px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 90px";
+
+    // Build a query string from the current filter state, overriding sort/page as asked.
+    string Link(string? sort = null, int? page = null)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(Model.Exchange)) { parts.Add("exchange=" + Uri.EscapeDataString(Model.Exchange)); }
+        if (!string.IsNullOrEmpty(Model.Status)) { parts.Add("status=" + Uri.EscapeDataString(Model.Status)); }
+        if (Model.OnlyTrading) { parts.Add("onlyTrading=true"); }
+        if (!string.IsNullOrEmpty(Model.Search)) { parts.Add("q=" + Uri.EscapeDataString(Model.Search)); }
+        parts.Add("sort=" + (sort ?? Model.Sort));
+        parts.Add("page=" + (page ?? Model.Page));
+        return "/Admin/Instruments?" + string.Join("&", parts);
+    }
+
+    string SortHead(string key, string label) =>
+        Model.Sort == key ? $"<a href=\"{Link(sort: key, page: 1)}\" style=\"color:var(--gold-300)\">{label} ↓</a>" : $"<a href=\"{Link(sort: key, page: 1)}\">{label}</a>";
+
+    var statuses = new[] { "trading", "post_only", "reduce_only", "halted", "delisted" };
+}
+
+<div class="page-head">
+    <div class="t"><p class="eyebrow">Admin · operations</p><h1>Instruments</h1></div>
+    <p class="page-note">Every listing on every exchange. Status is observed; collect is ours.</p>
+</div>
+
+<form method="get" action="/Admin/Instruments" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+    <div class="field" style="width:170px">
+        <label for="exchange">Exchange</label>
+        <select id="exchange" name="exchange">
+            <option value="">all</option>
+            @foreach (var ex in Model.Exchanges)
+            {
+                <option value="@ex" selected="@(ex == Model.Exchange)">@ex</option>
+            }
+        </select>
+    </div>
+    <div class="field" style="width:150px">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+            <option value="">all</option>
+            @foreach (var st in statuses)
+            {
+                <option value="@st" selected="@(st == Model.Status)">@st</option>
+            }
+        </select>
+    </div>
+    <label class="chip @(Model.OnlyTrading ? "is-on" : "")" style="height:38px;display:flex;align-items:center">
+        <input type="checkbox" name="onlyTrading" value="true" checked="@Model.OnlyTrading" style="position:absolute;opacity:0;width:0;height:0">only trading
+    </label>
+    <div class="field" style="flex:1;min-width:160px"><label for="q">Symbol</label><input id="q" name="q" type="text" value="@Model.Search" placeholder="search symbol" spellcheck="false"></div>
+    <input type="hidden" name="sort" value="@Model.Sort">
+    <button class="btn" type="submit">Apply</button>
+</form>
+
+<div class="section-h"><b>Instruments</b><i>@Model.From–@Model.To of @Model.Total</i><hr></div>
+
+<div class="panel scroll">
+    <div class="th" style="@Cols"><span>Symbol</span><span>Exchange</span><span>Asset</span><span>Status</span><span>Collect</span><span>Price</span><span>@Html.Raw(SortHead("oi", "Open interest"))</span><span>@Html.Raw(SortHead("funding", "Funding"))</span><span style="justify-self:end">@Html.Raw(SortHead("age", "Snapshot"))</span></div>
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty"><h3>No instruments</h3><p>No instrument matches these filters.</p></div>
+    }
+    @foreach (var i in Model.Items)
+    {
+        <a class="tr" style="@Cols@(i.Collect ? "" : ";opacity:.55")" href="/Admin/Instruments/Details/@i.Id">
+            <span class="cell"><span class="name mono">@i.Symbol</span></span>
+            <span class="mono muted">@i.ExchangeCode</span>
+            <span class="code">@i.BaseAsset</span>
+            <span><span class="tag @StatusTag(i.Status)">@i.Status</span></span>
+            <span>@if (i.Collect) { <span class="sev ok">on</span> } else { <span class="tag">off</span> }</span>
+            <span class="num">@Format.Num(i.LastPrice, 2)</span>
+            <span class="num">@Format.Num(i.OpenInterestNotional, 0)</span>
+            <span class="num">@Format.Num(i.FundingRate, 6)</span>
+            <span class="num" style="justify-self:end;display:flex;align-items:center;gap:7px;justify-content:flex-end"><span class="dot @Dot(i.SnapshotAgeSeconds) @(Dot(i.SnapshotAgeSeconds) == "ok" ? "fresh" : "")"></span>@Format.Age(i.SnapshotAgeSeconds)</span>
+        </a>
+    }
+</div>
+
+@if (Model.Pages > 1)
+{
+    <div style="display:flex;gap:12px;align-items:center;justify-content:center;padding:16px">
+        @if (Model.Page > 1) { <a class="linkbtn" href="@Link(page: Model.Page - 1)">← Prev</a> } else { <span class="linkbtn" style="opacity:.4">← Prev</span> }
+        <span class="code">Page @Model.Page of @Model.Pages</span>
+        @if (Model.Page < Model.Pages) { <a class="linkbtn" href="@Link(page: Model.Page + 1)">Next →</a> } else { <span class="linkbtn" style="opacity:.4">Next →</span> }
+    </div>
+}

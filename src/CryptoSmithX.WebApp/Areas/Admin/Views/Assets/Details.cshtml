@@ -1,0 +1,109 @@
+@model AssetDetails
+@{
+    ViewData["Title"] = Model.Code;
+    string Dot(double? age) => age is null ? "none" : age > 180 ? "fail" : age > 60 ? "warn" : "ok";
+    string StatusTag(string s) => s == "trading" ? "enabled" : s is "halted" or "delisted" ? "" : "maintenance";
+    const string Cols = "grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 90px 70px minmax(0,0.9fr) minmax(0,0.9fr) minmax(0,1fr) 80px minmax(0,1fr) 90px";
+}
+
+<div class="page-head">
+    <div class="t">
+        <p class="eyebrow">Admin · assets · @Model.Code</p>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>@(string.IsNullOrEmpty(Model.Name) ? Model.Code : Model.Name)</h1><span class="tag mono">@Model.Code</span></div>
+    </div>
+    <a class="linkbtn" href="/Admin/Assets">← Assets</a>
+</div>
+
+@if (TempData["Error"] is string err) { <div class="alert alert-error">@err</div> }
+@if (TempData["Saved"] is string saved) { <div class="alert alert-ok">@saved</div> }
+
+<div class="panel" style="padding:18px;margin-bottom:var(--gap-card)">
+    <h2 style="margin-bottom:12px">Canon</h2>
+    <form method="post" action="/Admin/Assets/Save/@Model.Code" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+        @Html.AntiForgeryToken()
+        <div class="field" style="flex:1;min-width:200px"><label for="name">Name</label><input id="name" name="name" type="text" value="@Model.Name" placeholder="human name, e.g. Bitcoin"></div>
+        <div class="field" style="flex:2;min-width:240px"><label for="note">Note</label><input id="note" name="note" type="text" value="@Model.Note"></div>
+        <button class="btn" type="submit">Save</button>
+    </form>
+    <p class="panel-note">Registered @Format.Utc(Model.CreatedAt)@(Model.UpdatedBy is null ? "" : $" · last edited by {Model.UpdatedBy} {Format.Utc(Model.UpdatedAt)}")</p>
+</div>
+
+<div class="panel" style="margin-bottom:var(--gap-card)">
+    <div class="panel-h"><h2>Listings</h2><span class="meta">@Model.Listings.Count across exchanges</span></div>
+    <div class="scroll">
+        <div class="th" style="@Cols"><span>Exchange</span><span>Symbol</span><span>Status</span><span>Collect</span><span>Price</span><span>Funding</span><span>Open interest</span><span>Spread</span><span>Depth 25bps</span><span style="justify-self:end">Snapshot</span></div>
+        @if (Model.Listings.Count == 0)
+        {
+            <div class="empty"><h3>No listings</h3><p>No exchange lists this asset. It can be deleted below.</p></div>
+        }
+        @foreach (var l in Model.Listings)
+        {
+            <a class="tr" style="@Cols@(l.Collect ? "" : ";opacity:.55")" href="/Admin/Instruments/Details/@l.InstrumentId">
+                <span class="mono">@l.ExchangeCode</span>
+                <span class="cell"><span class="name mono">@l.Symbol</span></span>
+                <span><span class="tag @StatusTag(l.Status)">@l.Status</span></span>
+                <span>@if (l.Collect) { <span class="sev ok">on</span> } else { <span class="tag">off</span> }</span>
+                <span class="num">@Format.Num(l.LastPrice, 2)</span>
+                <span class="num">@Format.Num(l.FundingRate, 6)</span>
+                <span class="num">@Format.Num(l.OpenInterestNotional, 0)</span>
+                <span class="num">@Format.Num(l.SpreadBps, 1)</span>
+                <span class="num">@Format.Num(l.Depth25Notional, 0)</span>
+                <span class="num" style="justify-self:end;display:flex;align-items:center;gap:7px;justify-content:flex-end"><span class="dot @Dot(l.SnapshotAgeSeconds) @(Dot(l.SnapshotAgeSeconds) == "ok" ? "fresh" : "")"></span>@Format.Age(l.SnapshotAgeSeconds)</span>
+            </a>
+        }
+    </div>
+</div>
+
+<div class="grid2">
+    <div class="panel" style="padding:18px">
+        <h2 style="margin-bottom:5px">Aliases</h2>
+        <p style="margin:0 0 14px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">How exchanges spell this asset. Discovery resolves a venue's raw string through the exchange alias, then a global one (— exchange), then identity.</p>
+        @if (Model.Aliases.Count > 0)
+        {
+            <div class="scroll" style="margin-bottom:14px">
+                <div class="th" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) 80px 60px"><span>Alias</span><span>Exchange</span><span>Mult</span><span></span></div>
+                @foreach (var al in Model.Aliases)
+                {
+                    <div class="tr" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) 80px 60px">
+                        <span class="mono">@al.Alias</span>
+                        <span class="code">@(al.ExchangeCode ?? "— global")</span>
+                        <span class="num">@al.Multiplier.ToString(System.Globalization.CultureInfo.InvariantCulture)</span>
+                        <form method="post" action="/Admin/Assets/DeleteAlias/@Model.Code" style="justify-self:end">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="alias" value="@al.Alias">
+                            <input type="hidden" name="exchangeCode" value="@al.ExchangeCode">
+                            <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        }
+        <form method="post" action="/Admin/Assets/AddAlias/@Model.Code">
+            @Html.AntiForgeryToken()
+            <div class="form-row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+                <div class="field" style="flex:1;min-width:110px"><label for="alias">Alias</label><input id="alias" name="alias" type="text" placeholder="XBT" spellcheck="false"></div>
+                <div class="field" style="flex:1;min-width:130px"><label for="exchangeCode">Exchange</label><input id="exchangeCode" name="exchangeCode" type="text" placeholder="blank = global" spellcheck="false"></div>
+                <div class="field" style="width:90px"><label for="multiplier">Mult</label><input id="multiplier" name="multiplier" type="text" value="1"></div>
+                <button class="btn" type="submit">Add</button>
+            </div>
+        </form>
+        <p class="panel-note">To fix an auto-registered code: alias the wrong code onto the real canon — discovery re-binds its instruments on the next pass, and the emptied asset can then be deleted.</p>
+    </div>
+
+    <div class="panel" style="padding:18px">
+        <h2 style="margin-bottom:5px">Delete</h2>
+        <p style="margin:0 0 14px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">A canon can be removed only when nothing lists it and no alias points to it.</p>
+        <form method="post" action="/Admin/Assets/Delete/@Model.Code">
+            @Html.AntiForgeryToken()
+            <button class="btn" type="submit" disabled="@(Model.Listings.Count > 0 || Model.Aliases.Count > 0)">Delete @Model.Code</button>
+        </form>
+        @if (Model.Listings.Count > 0)
+        {
+            <p class="panel-note">@Model.Listings.Count listing(s) still point here.</p>
+        }
+        else if (Model.Aliases.Count > 0)
+        {
+            <p class="panel-note">Remove the aliases above first.</p>
+        }
+    </div>
+</div>

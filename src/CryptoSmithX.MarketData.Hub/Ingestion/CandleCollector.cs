@@ -10,6 +10,20 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 /// </summary>
 public sealed class CandleCollector
 {
+    // Back-fill targets: not delisted, and not turned off by an operator.
+    internal const string TargetInstrumentsSql =
+        """
+        select i.id,
+               i.exchange_symbol,
+               (select max(c.open_time)
+                  from market_candle c
+                 where c.exchange_instrument_id = i.id and c.timeframe = 1) as latest
+          from exchange_instrument i
+         where i.exchange_code = @code
+           and i.status <> 'delisted'
+           and i.collect = true
+        """;
+
     private readonly IExchangeMarketData _adapter;
     private readonly DbSettings _settings;
     private readonly Db _db;
@@ -32,16 +46,7 @@ public sealed class CandleCollector
         await Partitions.EnsureAsync(conn, now, ct);
 
         var targets = (await conn.QueryAsync<(int Id, string Symbol, DateTimeOffset? Latest)>(new CommandDefinition(
-            """
-            select i.id,
-                   i.exchange_symbol,
-                   (select max(c.open_time)
-                      from market_candle c
-                     where c.exchange_instrument_id = i.id and c.timeframe = 1) as latest
-              from exchange_instrument i
-             where i.exchange_code = @code
-               and i.status <> 'delisted'
-            """,
+            TargetInstrumentsSql,
             new { code = _adapter.ExchangeCode },
             cancellationToken: ct))).ToList();
 

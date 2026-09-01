@@ -58,8 +58,9 @@ public sealed class SideNavViewComponent : ViewComponent
         return View(new SideNavModel([
             new NavGroup("Operations", [
                 new NavItem("Dashboard", "/Admin", p),
-                new NavItem("Market data", "/Admin/MarketData"),
                 new NavItem("Exchanges", "/Admin/Exchanges", p),
+                new NavItem("Assets", "/Admin/Assets"),
+                new NavItem("Instruments", "/Admin/Instruments"),
             ]),
             new NavGroup("Fleet", [
                 new NavItem("Bots", "/Admin/Bots", b),
