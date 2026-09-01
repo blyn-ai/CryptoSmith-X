@@ -23,7 +23,7 @@
     <p class="panel-note" style="padding:10px 16px 0">@Model.Caption. The rows are matched by timestamp — data is upserted with no run id, so the window [start, start + duration + 2 s] is the honest join.</p>
     @if (Model.Rows.Count == 0)
     {
-        <div class="empty"><h3>Nothing matched the window</h3><p>Either the run wrote nothing, or (funding) the table carries no insert stamp to match on.</p></div>
+        <div class="empty"><h3>Nothing matched the window</h3><p>Either the run wrote nothing; or (funding) the table carries no insert stamp; or (older snapshot runs) the latest-state rows were already overwritten by newer runs and this minute wrote no history row. The items counter above is the run's own truth.</p></div>
     }
     @foreach (var row in Model.Rows)
     {

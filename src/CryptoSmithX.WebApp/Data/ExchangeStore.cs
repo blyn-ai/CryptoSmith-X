@@ -269,12 +269,20 @@ public static class RunStore
 
         (string caption, string sql) = r.Collector switch
         {
-            "snapshot" => ("market_snapshot rows received inside the run window",
+            // The loop upserts market_snapshot_latest every run but writes minute-history only
+            // once a minute — history alone left most run pages empty. The union adds latest rows
+            // still stamped inside this window (i.e. not yet overwritten by a newer run).
+            "snapshot" => ("snapshot rows stamped inside the run window (minute-history plus current-latest)",
                 """
-                select i.exchange_symbol as "Symbol", 'last ' || round(m.last_price::numeric, 4) as "What", m.received_at as "When"
-                  from market_snapshot m join exchange_instrument i on i.id = m.exchange_instrument_id
-                 where i.exchange_code = @code and m.received_at >= @winStart and m.received_at < @winEnd
-                 order by m.received_at desc
+                select "Symbol", "What", "When" from (
+                    select i.exchange_symbol as "Symbol", 'last ' || round(m.last_price::numeric, 4) as "What", m.received_at as "When"
+                      from market_snapshot m join exchange_instrument i on i.id = m.exchange_instrument_id
+                     where i.exchange_code = @code and m.received_at >= @winStart and m.received_at < @winEnd
+                    union all
+                    select i.exchange_symbol, 'last ' || round(l.last_price::numeric, 4), l.received_at
+                      from market_snapshot_latest l join exchange_instrument i on i.id = l.exchange_instrument_id
+                     where i.exchange_code = @code and l.received_at >= @winStart and l.received_at < @winEnd
+                ) w order by "When" desc, "Symbol"
                 """),
             "depth" => ("latest-snapshot depth measurements stamped inside the window",
                 """
