@@ -373,3 +373,10 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 .head-search + .who{margin-left:0}
 .eyebrow a{color:inherit;text-decoration:none}
 .eyebrow a:hover{color:var(--text-heading);text-decoration:underline;text-underline-offset:3px}
+
+/* row is one target, but a cell inside may link elsewhere: the row anchor
+   stretches over the row, lifted cells sit above it */
+.tr.has-stretch{position:relative}
+.tr .stretch::after{content:"";position:absolute;inset:0}
+.tr .lift{position:relative;z-index:1}
+.tr .lift:hover{color:var(--text-heading);text-decoration:underline;text-underline-offset:3px}

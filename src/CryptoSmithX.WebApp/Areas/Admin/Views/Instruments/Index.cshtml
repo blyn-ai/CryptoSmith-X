@@ -61,24 +61,24 @@
 <div class="section-h"><b>Instruments</b><i>@Model.From–@Model.To of @Model.Total</i><hr></div>
 
 <div class="panel scroll">
-    <div class="th" style="@Cols"><span>Symbol</span><span>Exchange</span><span>Asset</span><span>Status</span><span>Collect</span><span>Price</span><span>@Html.Raw(SortHead("oi", "Open interest"))</span><span>@Html.Raw(SortHead("funding", "Funding"))</span><span style="justify-self:end">@Html.Raw(SortHead("age", "Snapshot"))</span></div>
+    <div class="th" style="@Cols"><span>Symbol</span><span>Exchange</span><span>Pair</span><span>Status</span><span>Collect</span><span>Price</span><span>@Html.Raw(SortHead("oi", "Open interest"))</span><span>@Html.Raw(SortHead("funding", "Funding"))</span><span style="justify-self:end">@Html.Raw(SortHead("age", "Snapshot"))</span></div>
     @if (Model.Items.Count == 0)
     {
         <div class="empty"><h3>No instruments</h3><p>No instrument matches these filters.</p></div>
     }
     @foreach (var i in Model.Items)
     {
-        <a class="tr" style="@Cols@(i.Collect ? "" : ";opacity:.55")" href="/Admin/Instruments/Details/@i.Id">
-            <span class="cell"><span class="name mono">@i.Symbol</span></span>
+        <div class="tr has-stretch" style="@Cols@(i.Collect ? "" : ";opacity:.55")">
+            <span class="cell"><a class="name mono stretch" href="/Admin/Instruments/Details/@i.Id">@i.Symbol</a></span>
             <span class="mono muted">@i.ExchangeCode</span>
-            <span class="code">@i.BaseAsset</span>
+            <a class="code lift" href="/Admin/Assets/Details/@i.BaseAsset" title="@i.BaseAsset across all exchanges">@i.BaseAsset/@i.QuoteAsset</a>
             <span><span class="tag @StatusTag(i.Status)">@i.Status</span></span>
             <span>@if (i.Collect) { <span class="sev ok">on</span> } else { <span class="tag">off</span> }</span>
             <span class="num">@Format.Num(i.LastPrice, 2)</span>
             <span class="num">@Format.Num(i.OpenInterestNotional, 0)</span>
             <span class="num">@Format.Num(i.FundingRate, 6)</span>
             <span class="num" style="justify-self:end;display:flex;align-items:center;gap:7px;justify-content:flex-end"><span class="dot @Dot(i.SnapshotAgeSeconds) @(Dot(i.SnapshotAgeSeconds) == "ok" ? "fresh" : "")"></span>@Format.Age(i.SnapshotAgeSeconds)</span>
-        </a>
+        </div>
     }
 </div>
 
