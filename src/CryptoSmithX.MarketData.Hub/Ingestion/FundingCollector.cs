@@ -53,9 +53,18 @@ public sealed class FundingCollector
             cancellationToken: ct))).ToList();
 
         var written = 0;
+
+        // One venue symbol whose endpoint is broken (WEEX serves 400 for a live market's
+        // candles) must not starve every symbol after it. Per-symbol isolation: remember the
+        // failure, keep walking; only an all-symbols failure fails the pass — that is an
+        // outage, not a pothole.
+        var failed = 0;
+        Exception? lastError = null;
         foreach (var (id, symbol, latest) in targets)
         {
             ct.ThrowIfCancellationRequested();
+            try
+            {
 
             // From the newest stored payment (nothing before it can be missing), bounded so a first
             // run cannot ask a venue for years of history.
@@ -77,6 +86,21 @@ public sealed class FundingCollector
                     new { Id = id, rate.FundingTime, rate.Rate },
                     cancellationToken: ct));
             }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                lastError = ex;
+            }
+        }
+
+        if (failed > 0 && written == 0 && lastError is not null)
+        {
+            throw new InvalidOperationException($"every symbol failed; last: {lastError.Message}", lastError);
         }
 
         return written;

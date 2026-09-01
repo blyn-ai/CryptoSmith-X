@@ -51,9 +51,18 @@ public sealed class CandleCollector
             cancellationToken: ct))).ToList();
 
         var written = 0;
+
+        // One venue symbol whose endpoint is broken (WEEX serves 400 for a live market's
+        // candles) must not starve every symbol after it. Per-symbol isolation: remember the
+        // failure, keep walking; only an all-symbols failure fails the pass — that is an
+        // outage, not a pothole.
+        var failed = 0;
+        Exception? lastError = null;
         foreach (var (id, symbol, latest) in targets)
         {
             ct.ThrowIfCancellationRequested();
+            try
+            {
 
             // Re-ask for the newest stored minute as well: a venue that back-fills a late bar
             // then has a chance to correct it, and the rollup repairs the parents from there.
@@ -93,6 +102,21 @@ public sealed class CandleCollector
             }
 
             await tx.CommitAsync(ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                lastError = ex;
+            }
+        }
+
+        if (failed > 0 && written == 0 && lastError is not null)
+        {
+            throw new InvalidOperationException($"every symbol failed; last: {lastError.Message}", lastError);
         }
 
         return written;
