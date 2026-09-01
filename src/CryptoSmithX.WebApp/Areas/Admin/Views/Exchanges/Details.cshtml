@@ -131,6 +131,7 @@
                 @{
                     var cfg = Model.Config;
                     string GlobalHint(string key) => Model.GlobalIntervals.TryGetValue(key, out var v) ? $"global {v}" : "global";
+                    string OverrideNote(int? val, string key) => val is null ? "" : $"overrides {GlobalHint(key)}";
                 }
                 <div class="field"><label>Adapter</label><input type="text" value="@cfg.Adapter" disabled></div>
                 <div class="field"><label for="baseUrl">Base URL</label><input id="baseUrl" name="baseUrl" type="text" value="@cfg.BaseUrl" placeholder="https://…"></div>
@@ -140,13 +141,13 @@
 
                 <p class="eyebrow" style="margin:14px 0 2px">Intervals — empty uses the global</p>
                 <div class="form-row">
-                    <div class="field"><label for="snapshotIntervalS">Snapshot (s)</label><input id="snapshotIntervalS" name="snapshotIntervalS" type="text" value="@(cfg.SnapshotIntervalS?.ToString())" placeholder="@GlobalHint("snapshot_interval_s")"></div>
-                    <div class="field"><label for="candleIntervalS">Candles (s)</label><input id="candleIntervalS" name="candleIntervalS" type="text" value="@(cfg.CandleIntervalS?.ToString())" placeholder="@GlobalHint("candle_interval_s")"></div>
-                    <div class="field"><label for="depthIntervalS">Depth (s)</label><input id="depthIntervalS" name="depthIntervalS" type="text" value="@(cfg.DepthIntervalS?.ToString())" placeholder="@GlobalHint("depth_interval_s")"></div>
+                    <div class="field"><label for="snapshotIntervalS">Snapshot (s)</label><input id="snapshotIntervalS" name="snapshotIntervalS" type="text" value="@(cfg.SnapshotIntervalS?.ToString())" placeholder="@GlobalHint("snapshot_interval_s")">@if (!string.IsNullOrEmpty(OverrideNote(cfg.SnapshotIntervalS, "snapshot_interval_s"))) { <span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.SnapshotIntervalS, "snapshot_interval_s")</span> }</div>
+                    <div class="field"><label for="candleIntervalS">Candles (s)</label><input id="candleIntervalS" name="candleIntervalS" type="text" value="@(cfg.CandleIntervalS?.ToString())" placeholder="@GlobalHint("candle_interval_s")">@if (!string.IsNullOrEmpty(OverrideNote(cfg.CandleIntervalS, "candle_interval_s"))) { <span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.CandleIntervalS, "candle_interval_s")</span> }</div>
+                    <div class="field"><label for="depthIntervalS">Depth (s)</label><input id="depthIntervalS" name="depthIntervalS" type="text" value="@(cfg.DepthIntervalS?.ToString())" placeholder="@GlobalHint("depth_interval_s")">@if (!string.IsNullOrEmpty(OverrideNote(cfg.DepthIntervalS, "depth_interval_s"))) { <span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.DepthIntervalS, "depth_interval_s")</span> }</div>
                 </div>
                 <div class="form-row">
-                    <div class="field"><label for="discoveryIntervalMin">Discovery (min)</label><input id="discoveryIntervalMin" name="discoveryIntervalMin" type="text" value="@(cfg.DiscoveryIntervalMin?.ToString())" placeholder="@GlobalHint("discovery_interval_min")"></div>
-                    <div class="field"><label for="fundingIntervalMin">Funding (min)</label><input id="fundingIntervalMin" name="fundingIntervalMin" type="text" value="@(cfg.FundingIntervalMin?.ToString())" placeholder="@GlobalHint("funding_interval_min")"></div>
+                    <div class="field"><label for="discoveryIntervalMin">Discovery (min)</label><input id="discoveryIntervalMin" name="discoveryIntervalMin" type="text" value="@(cfg.DiscoveryIntervalMin?.ToString())" placeholder="@GlobalHint("discovery_interval_min")">@if (!string.IsNullOrEmpty(OverrideNote(cfg.DiscoveryIntervalMin, "discovery_interval_min"))) { <span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.DiscoveryIntervalMin, "discovery_interval_min")</span> }</div>
+                    <div class="field"><label for="fundingIntervalMin">Funding (min)</label><input id="fundingIntervalMin" name="fundingIntervalMin" type="text" value="@(cfg.FundingIntervalMin?.ToString())" placeholder="@GlobalHint("funding_interval_min")">@if (!string.IsNullOrEmpty(OverrideNote(cfg.FundingIntervalMin, "funding_interval_min"))) { <span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.FundingIntervalMin, "funding_interval_min")</span> }</div>
                 </div>
 
                 <button class="btn" type="submit" style="margin-top:6px">Save changes</button>
