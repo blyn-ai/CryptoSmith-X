@@ -16,7 +16,7 @@
     var discovery = Model.Collectors.FirstOrDefault(c => c.Collector == "discovery");
     var statuses = new[] { "planned", "enabled", "disabled", "maintenance", "abandoned" };
 
-    string StatusTag(string s) => s == "enabled" ? "enabled" : s is "maintenance" or "planned" ? "maintenance" : "";
+    string StatusTag(string s) => s; // css carries one face per lifecycle status
     var overrides = new int?[] { cfg.SnapshotIntervalS, cfg.CandleIntervalS, cfg.DiscoveryIntervalMin, cfg.FundingIntervalMin, cfg.DepthIntervalS }.Count(x => x is not null);
     var worstStale = Model.Stalest.Count > 0 ? Model.Stalest.Max(s => s.AgeSeconds ?? 0) : (double?)null;
 
@@ -201,7 +201,7 @@ else
             @if (e.Status == "enabled" && Model.Stalest.Count > 0)
             {
                 <div class="panel" id="stalest">
-                    <div class="panel-h"><h2>Stalest instruments</h2><span class="meta">3 intervals = stale</span></div>
+                    <div class="panel-h"><h2>Stalest instruments</h2><span class="meta">@(worstStale is not null and <= 30 ? "all fresh · tail of the ranking" : "3 intervals = stale")</span></div>
                     @foreach (var s in Model.Stalest)
                     {
                         var stale = s.AgeSeconds > 30;

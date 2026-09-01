@@ -158,6 +158,11 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
 .tag.maintenance{color:var(--gold-300);border-color:var(--border-gold);background:var(--tint-gold)}
 .tag.gold{color:var(--gold-300);border-color:var(--border-gold);background:var(--tint-gold)}
 .tag.dashed{border-style:dashed;border-color:var(--border-strong);color:var(--text-faint);background:0}
+/* lifecycle statuses each get a face: future is dashed violet, a human pause is
+   gold, an off switch is solid neutral, history is struck through */
+.tag.planned{color:var(--violet-200);border-style:dashed;border-color:var(--border-strong);background:0}
+.tag.disabled{color:var(--text-body);border-color:var(--border-strong);background:var(--surface-glass)}
+.tag.abandoned{color:var(--text-faint);text-decoration:line-through;background:0}
 
 /* ── empty states — the shape a fresh deployment actually ships in ── */
 .empty{display:flex;flex-direction:column;gap:9px;padding:34px 18px;text-align:center}

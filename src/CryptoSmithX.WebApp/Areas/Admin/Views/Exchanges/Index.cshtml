@@ -43,7 +43,7 @@
     @foreach (var e in quiet)
     {
         <a class="tr" href="/Admin/Exchanges/Details/@e.Code">
-            <span class="tag @(e.Status == "maintenance" ? "maintenance" : "")">@e.Status</span>
+            <span class="tag @e.Status">@e.Status</span>
             <span class="cell"><span class="n">@e.Name</span><span class="code">@e.Code@(string.IsNullOrEmpty(e.Description) ? "" : " · " + e.Description)</span></span>
         </a>
     }
