@@ -1,0 +1,43 @@
+@model IReadOnlyList<CollectorRunRow>
+@{
+    var code = ViewData["Code"] as string ?? "";
+    var collector = ViewData["Collector"] as string;
+    ViewData["Title"] = $"Runs · {code}";
+    var collectors = new[] { "snapshot", "depth", "candles", "discovery", "funding", "rollup" };
+}
+@section live { <span class="live">live · 10 s</span> }
+
+<div class="page-head">
+    <div class="t">
+        <p class="eyebrow">Admin · <a href="/Admin/Exchanges">exchanges</a> · <a href="/Admin/Exchanges/Details/@code">@code</a></p>
+        <h1>Collector runs</h1>
+    </div>
+    <a class="linkbtn" href="/Admin/Exchanges/Details/@code">← @code</a>
+</div>
+
+<div class="chips" style="margin-bottom:var(--space-5)">
+    <a class="chip @(collector is null ? "is-on" : "")" href="/Admin/Exchanges/Runs/@code">all</a>
+    @foreach (var c in collectors)
+    {
+        <a class="chip @(collector == c ? "is-on" : "")" href="/Admin/Exchanges/Runs/@code?collector=@c">@c</a>
+    }
+</div>
+
+<div class="panel scroll">
+    <div class="th" style="grid-template-columns:auto 110px minmax(0,1fr) 90px 90px"><span>Started</span><span>Collector</span><span>Result</span><span style="justify-self:end">Duration</span><span style="justify-self:end">Items</span></div>
+    @if (Model.Count == 0)
+    {
+        <div class="empty lg"><h3>No runs recorded yet</h3><p>Rows appear as the loops iterate; history is kept for 7 days.</p></div>
+    }
+    @foreach (var r in Model)
+    {
+        <a class="tr @(r.Ok ? "" : "is-fail")" style="grid-template-columns:auto 110px minmax(0,1fr) 90px 90px" href="/Admin/Exchanges/Run/@r.Id">
+            <span class="mono muted" style="font-variant-numeric:tabular-nums">@r.StartedAt.ToString("MM-dd HH:mm:ss")Z</span>
+            <span class="mono">@r.Collector</span>
+            <span class="mono @(r.Ok ? "muted" : "")" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;@(r.Ok ? "" : "color:var(--gold-300)")">@(r.Ok ? "ok" : r.Error ?? "failed")</span>
+            <span class="num muted">@r.DurationMs ms</span>
+            <span class="num">@(r.Items?.ToString() ?? "—")</span>
+        </a>
+    }
+</div>
+<p class="panel-note" style="padding:10px 0 0">Latest 200 runs@(collector is null ? "" : $" of {collector}"). Click one to see the data written inside its window.</p>

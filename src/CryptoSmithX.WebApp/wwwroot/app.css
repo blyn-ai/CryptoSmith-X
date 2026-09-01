@@ -65,14 +65,14 @@ a:hover{color:var(--link-hover)}
 .linkbtn{background:0;border:0;padding:0;cursor:pointer;font:var(--type-nav);letter-spacing:var(--track-nav);text-transform:uppercase;color:var(--link);transition:var(--transition-color)}
 .linkbtn:hover{color:var(--link-hover)}
 
-.main{flex:1;width:100%;padding:26px var(--pad-header-x) 40px}
+.main{flex:1;width:100%;padding:16px var(--pad-header-x) 32px}
 .foot{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:14px var(--pad-header-x);border-top:1px solid var(--border-hairline)}
 .foot span,.foot a{font:400 10px/1.4 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint)}
 .foot a{color:var(--link)}
 .foot .sp{margin-left:auto}
 
 /* ── page furniture ───────────────────────────────────────── */
-.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-7);flex-wrap:wrap;margin-bottom:var(--space-7)}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-7);flex-wrap:wrap;margin-bottom:var(--space-5)}
 .page-head .t{display:flex;flex-direction:column;gap:7px}
 .eyebrow{margin:0;font:var(--type-eyebrow);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--eyebrow)}
 h1{margin:0;font:var(--type-h1);letter-spacing:var(--track-h1);color:var(--text-heading)}
@@ -92,9 +92,9 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
 .verdict.is-clear .lbl{color:var(--text-muted)}
 
 /* ── KPI strips ───────────────────────────────────────────── */
-.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--gap-card);margin-bottom:var(--space-7)}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--gap-card);margin-bottom:var(--space-5)}
 .kpis-4{grid-template-columns:repeat(4,minmax(0,1fr))}
-.kpi{background:var(--surface-card);border:var(--hairline-card);border-radius:var(--radius-md);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.kpi{background:var(--surface-card);border:var(--hairline-card);border-radius:var(--radius-md);padding:9px 14px;display:flex;flex-direction:column;gap:3px}
 .kpi-l{margin:0;font:var(--type-eyebrow);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--eyebrow)}
 .kpi-v{margin:0;font:var(--type-stat);letter-spacing:var(--track-stat);color:var(--text-heading)}
 .kpi-v.warn{color:var(--gold-300)}
@@ -330,10 +330,6 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
   color:var(--text-muted)}
 
 /* KPI strip — the "what to look at first" row above a detail page's tables. */
-.kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap-grid); margin-bottom:var(--space-7)}
-.kpi{background:var(--surface-card); border:var(--hairline-card); border-radius:var(--radius-md); padding:var(--pad-card)}
-.kpi-l{margin:0 0 var(--space-2); font:var(--type-eyebrow); letter-spacing:var(--track-eyebrow); text-transform:uppercase; color:var(--eyebrow)}
-.kpi-v{margin:0; font:var(--type-stat); letter-spacing:var(--track-stat); color:var(--text-heading)}
 @media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 
@@ -384,3 +380,6 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 /* candlesticks — the one legal green/red: market direction */
 .candle-up{fill:var(--up-500);stroke:var(--up-500)}
 .candle-down{fill:var(--down-500);stroke:var(--down-500)}
+
+/* the right rail follows the scroll: no more bouncing between the form and the data */
+.grid2 > .stack:last-child{position:sticky;top:58px;max-height:calc(100vh - 72px);overflow-y:auto;scrollbar-width:thin}

@@ -11,8 +11,14 @@
     </div>
 </div>
 
-@if (TempData["Error"] is string err) { <div class="alert alert-error">@err</div> }
-@if (TempData["Saved"] is string saved) { <div class="alert alert-ok">@saved</div> }
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-error">@err</div>
+}
+@if (TempData["Saved"] is string saved)
+{
+    <div class="alert alert-ok">@saved</div>
+}
 
 <div class="panel scroll">
     <div class="th" style="grid-template-columns:minmax(0,1.4fr) minmax(0,2fr) minmax(0,1.4fr) minmax(0,1fr)">

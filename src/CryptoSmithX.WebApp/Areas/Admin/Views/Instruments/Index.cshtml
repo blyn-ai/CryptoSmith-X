@@ -73,7 +73,7 @@
             <span class="mono muted">@i.ExchangeCode</span>
             <a class="code lift" href="/Admin/Assets/Details/@i.BaseAsset" title="@i.BaseAsset across all exchanges">@i.BaseAsset/@i.QuoteAsset</a>
             <span><span class="tag @StatusTag(i.Status)">@i.Status</span></span>
-            <span>@if (i.Collect) { <span class="sev ok">on</span> } else { <span class="tag">off</span> }</span>
+            <span><span class="@(i.Collect ? "sev ok" : "tag")">@(i.Collect ? "on" : "off")</span></span>
             <span class="num">@Format.Num(i.LastPrice, 2)</span>
             <span class="num">@Format.Num(i.OpenInterestNotional, 0)</span>
             <span class="num">@Format.Num(i.FundingRate, 6)</span>
@@ -85,8 +85,22 @@
 @if (Model.Pages > 1)
 {
     <div style="display:flex;gap:12px;align-items:center;justify-content:center;padding:16px">
-        @if (Model.Page > 1) { <a class="linkbtn" href="@Link(page: Model.Page - 1)">← Prev</a> } else { <span class="linkbtn" style="opacity:.4">← Prev</span> }
+        @if (Model.Page > 1)
+        {
+            <a class="linkbtn" href="@Link(page: Model.Page - 1)">← Prev</a>
+        }
+        else
+        {
+            <span class="linkbtn" style="opacity:.4">← Prev</span>
+        }
         <span class="code">Page @Model.Page of @Model.Pages</span>
-        @if (Model.Page < Model.Pages) { <a class="linkbtn" href="@Link(page: Model.Page + 1)">Next →</a> } else { <span class="linkbtn" style="opacity:.4">Next →</span> }
+        @if (Model.Page < Model.Pages)
+        {
+            <a class="linkbtn" href="@Link(page: Model.Page + 1)">Next →</a>
+        }
+        else
+        {
+            <span class="linkbtn" style="opacity:.4">Next →</span>
+        }
     </div>
 }

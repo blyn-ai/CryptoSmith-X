@@ -10,9 +10,8 @@
     string ColNum(string h) => h switch { "fail" => "fail", "warn" => "warn", _ => "muted" };
     var clear = Model.Failing == 0 && Model.Degraded == 0;
 }
-@section head { <meta http-equiv="refresh" content="10"> }
 @section live {
-    <span class="live"><span class="dot @(clear ? "ok" : "fail") fresh"></span>as of <b>@Model.AsOf.ToString("HH:mm:ss")Z</b> · refreshes 10 s</span>
+    <span class="live"><span class="dot @(clear ? "ok" : "fail") fresh"></span>as of <b>@Model.AsOf.ToString("HH:mm:ss")Z</b> · live · 10 s</span>
 }
 
 <div class="page-head"><div class="t"><p class="eyebrow">Admin · overview</p><h1>Status</h1></div></div>

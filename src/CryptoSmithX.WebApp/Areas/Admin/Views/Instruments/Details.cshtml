@@ -27,7 +27,10 @@
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <h1 class="mono">@Model.Symbol</h1>
             <span class="tag @StatusTag(Model.Status)">@Model.Status</span>
-            @if (!Model.Collect) { <span class="tag gold">collect off</span> }
+            @if (!Model.Collect)
+            {
+                <span class="tag gold">collect off</span>
+            }
         </div>
         <p class="page-note" style="margin-top:6px">
             <a href="/Admin/Exchanges/Details/@Model.ExchangeCode">@Model.ExchangeCode</a> ·
@@ -50,8 +53,14 @@
     </div>
 </div>
 
-@if (TempData["Error"] is string err) { <div class="alert alert-error">@err</div> }
-@if (TempData["Saved"] is string saved) { <div class="alert alert-ok">@saved</div> }
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-error">@err</div>
+}
+@if (TempData["Saved"] is string saved)
+{
+    <div class="alert alert-ok">@saved</div>
+}
 
 <div class="grid2">
     <div class="stack">

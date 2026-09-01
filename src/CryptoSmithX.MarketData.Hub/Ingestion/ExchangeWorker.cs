@@ -248,6 +248,16 @@ public sealed class ExchangeWorker : BackgroundService
                 a.DurationMs,
             },
             cancellationToken: ct));
+
+        // The run history behind the UI's runs list and latency trend. Same connection,
+        // separate statement — a failed insert here must not lose the status upsert above.
+        await conn.ExecuteAsync(new CommandDefinition(
+            """
+            insert into collector_run (exchange_code, collector, started_at, duration_ms, ok, error, items)
+            values (@ExchangeCode, @Collector, @AttemptAt, @DurationMs, @Success, @Error, @InstrumentsExpected)
+            """,
+            new { a.ExchangeCode, a.Collector, a.AttemptAt, a.DurationMs, a.Success, a.Error, a.InstrumentsExpected },
+            cancellationToken: ct));
     }
 
     private static IExchangeMarketData Build(ExchangeConfig config) => config.Adapter switch

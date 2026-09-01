@@ -4,8 +4,7 @@
     var tenant = User.FindFirst("tenantCode")?.Value ?? "";
     bool Online(BotListItem b) => b.HeartbeatAgeSeconds is not null and < 180;
 }
-@section head { <meta http-equiv="refresh" content="10"> }
-@section live { <span class="live">refreshes 10 s</span> }
+@section live { <span class="live">live · 10 s</span> }
 
 <div class="page-head"><div class="t"><p class="eyebrow">@tenant · my instance</p><h1>My bots</h1></div></div>
 

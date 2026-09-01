@@ -137,7 +137,7 @@ public static class ExchangeStore
             cancellationToken: ct)))
             .ToDictionary(r => r.Key, r => r.Value, StringComparer.Ordinal);
 
-        return new ExchangeDetails(exchange, config, globals, collectors, stalest, throughput);
+        return new ExchangeDetails(exchange, config, globals, collectors, stalest, throughput, await RunStore.LatencyAsync(conn, code, ct));
     }
 
     /// <summary>
@@ -191,4 +191,129 @@ public static class ExchangeStore
         "enabled" => "ok",
         _ => "none",
     };
+}
+
+/// <summary>Run history (0009): the list behind "runs →" and the window-based "what arrived" view.</summary>
+public static class RunStore
+{
+    public static async Task<IReadOnlyList<CollectorRunRow>> ListAsync(
+        DbConnection conn, string code, string? collector, CancellationToken ct)
+    {
+        return (await conn.QueryAsync<CollectorRunRow>(new CommandDefinition(
+            """
+            select id as "Id", collector as "Collector", started_at as "StartedAt",
+                   duration_ms as "DurationMs", ok as "Ok", error as "Error", items as "Items"
+              from collector_run
+             where exchange_code = @code and (@collector is null or collector = @collector)
+             order by started_at desc
+             limit 200
+            """,
+            new { code, collector },
+            cancellationToken: ct))).ToList();
+    }
+
+    /// <summary>Per-collector average duration in 15-min buckets over 12 h, for the trend panel.</summary>
+    public static async Task<IReadOnlyList<LatencySeries>> LatencyAsync(
+        DbConnection conn, string code, CancellationToken ct)
+    {
+        var rows = (await conn.QueryAsync<(string Collector, int Bucket, double AvgMs)>(new CommandDefinition(
+            """
+            select collector,
+                   (floor(extract(epoch from now() - started_at) / 900))::int as bucket,
+                   avg(duration_ms)::double precision
+              from collector_run
+             where exchange_code = @code and started_at > now() - interval '12 hours' and ok
+             group by collector, bucket
+            """,
+            new { code },
+            cancellationToken: ct))).ToList();
+
+        return rows.GroupBy(r => r.Collector).OrderBy(g => g.Key).Select(g =>
+        {
+            var byBucket = g.ToDictionary(r => r.Bucket, r => r.AvgMs);
+            // bucket 47 = oldest, 0 = now; absent bucket repeats the last known value so the
+            // line stays continuous without inventing a zero.
+            var series = new List<double>(48);
+            var last = 0.0;
+            for (var b = 47; b >= 0; b--)
+            {
+                if (byBucket.TryGetValue(b, out var v)) { last = v; }
+                series.Add(last);
+            }
+            return new LatencySeries(g.Key, series);
+        }).ToList();
+    }
+
+    public static async Task<RunDetails?> GetAsync(DbConnection conn, long id, CancellationToken ct)
+    {
+        var run = await conn.QuerySingleOrDefaultAsync<(string ExchangeCode, long Id, string Collector, DateTime StartedAt, int DurationMs, bool Ok, string? Error, int? Items)?>(
+            new CommandDefinition(
+                """
+                select exchange_code as "ExchangeCode", id as "Id", collector as "Collector",
+                       started_at as "StartedAt", duration_ms as "DurationMs", ok as "Ok",
+                       error as "Error", items as "Items"
+                  from collector_run where id = @id
+                """,
+                new { id },
+                cancellationToken: ct));
+        if (run is null)
+        {
+            return null;
+        }
+
+        var r = run.Value;
+        // The window: rows stamped between the run's start and its end (+2 s of write slack).
+        // Data is upserted with no run id, so time is the only honest join.
+        var winStart = r.StartedAt;
+        var winEnd = r.StartedAt.AddMilliseconds(r.DurationMs).AddSeconds(2);
+
+        (string caption, string sql) = r.Collector switch
+        {
+            "snapshot" => ("market_snapshot rows received inside the run window",
+                """
+                select i.exchange_symbol as "Symbol", 'last ' || round(m.last_price::numeric, 4) as "What", m.received_at as "When"
+                  from market_snapshot m join exchange_instrument i on i.id = m.exchange_instrument_id
+                 where i.exchange_code = @code and m.received_at >= @winStart and m.received_at < @winEnd
+                 order by m.received_at desc
+                """),
+            "depth" => ("latest-snapshot depth measurements stamped inside the window",
+                """
+                select i.exchange_symbol as "Symbol", 'depth25 ' || coalesce(round(l.depth_bid_25bps::numeric, 0)::text, '—') as "What", l.depth_at as "When"
+                  from market_snapshot_latest l join exchange_instrument i on i.id = l.exchange_instrument_id
+                 where i.exchange_code = @code and l.depth_at >= @winStart and l.depth_at < @winEnd
+                 order by l.depth_at desc
+                """),
+            "discovery" => ("instruments confirmed by this discovery pass",
+                """
+                select i.exchange_symbol as "Symbol", i.status as "What", i.last_seen_at as "When"
+                  from exchange_instrument i
+                 where i.exchange_code = @code and i.last_seen_at >= @winStart and i.last_seen_at < @winEnd
+                 order by i.exchange_symbol
+                """),
+            "candles" => ("1m bars written or repaired inside the window",
+                """
+                select i.exchange_symbol as "Symbol", '1m ' || to_char(c.open_time, 'HH24:MI') || ' close ' || round(c.close::numeric, 4) as "What", c.updated_at as "When"
+                  from market_candle c join exchange_instrument i on i.id = c.exchange_instrument_id
+                 where i.exchange_code = @code and c.timeframe = 1 and c.updated_at >= @winStart and c.updated_at < @winEnd
+                 order by c.updated_at desc
+                """),
+            "rollup" => ("derived bars recomputed inside the window",
+                """
+                select i.exchange_symbol as "Symbol", c.timeframe || 'm ' || to_char(c.open_time, 'HH24:MI') as "What", c.updated_at as "When"
+                  from market_candle c join exchange_instrument i on i.id = c.exchange_instrument_id
+                 where i.exchange_code = @code and c.timeframe > 1 and c.updated_at >= @winStart and c.updated_at < @winEnd
+                 order by c.updated_at desc
+                """),
+            _ => ("funding_rate_history has no insert stamp (funding_time is the payment time) — the run's items counter is the source of truth here",
+                "select null::text as \"Symbol\", null::text as \"What\", null::timestamptz as \"When\" where false"),
+        };
+
+        var all = (await conn.QueryAsync<RunDataRow>(new CommandDefinition(
+            sql, new { code = r.ExchangeCode, winStart, winEnd }, cancellationToken: ct))).ToList();
+
+        return new RunDetails(
+            r.ExchangeCode,
+            new CollectorRunRow(r.Id, r.Collector, r.StartedAt, r.DurationMs, r.Ok, r.Error, r.Items),
+            caption, all.Count, all.Take(40).ToList());
+    }
 }

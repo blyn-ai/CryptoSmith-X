@@ -74,6 +74,10 @@
         <div class="theme-float"><partial name="_ThemeToggle" /></div>
         @RenderBody()
     }
-    <script src="~/theme-toggle.js" asp-append-version="true"></script>
+    @* Scripts carry a manual cache-bust: the Script TagHelper's asp-append-version
+       trips a Razor compiler bug on this SDK line, while the link helper is fine.
+       Bump v= when either file changes. *@
+    <script src="~/theme-toggle.js?v=2"></script>
+    <script defer src="~/live.js?v=1"></script>
 </body>
 </html>

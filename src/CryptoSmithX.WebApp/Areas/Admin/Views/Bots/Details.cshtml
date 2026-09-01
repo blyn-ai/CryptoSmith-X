@@ -32,7 +32,7 @@
 
     <div class="panel">
         <div class="actions">
-            <span>Status: @if (Model.IsEnabled) { <span class="badge badge-on">enabled</span> } else { <span class="badge badge-off">disabled</span> }</span>
+            <span>Status: <span class="badge @(Model.IsEnabled ? "badge-on" : "badge-off")">@(Model.IsEnabled ? "enabled" : "disabled")</span></span>
             <form method="post" action="/Admin/Bots/SetEnabled">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@Model.Id">

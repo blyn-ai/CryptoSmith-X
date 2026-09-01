@@ -14,8 +14,14 @@
     <a class="linkbtn" href="/Admin/Assets">← Assets</a>
 </div>
 
-@if (TempData["Error"] is string err) { <div class="alert alert-error">@err</div> }
-@if (TempData["Saved"] is string saved) { <div class="alert alert-ok">@saved</div> }
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-error">@err</div>
+}
+@if (TempData["Saved"] is string saved)
+{
+    <div class="alert alert-ok">@saved</div>
+}
 
 <div class="panel" style="padding:18px;margin-bottom:var(--gap-card)">
     <h2 style="margin-bottom:12px">Canon</h2>
@@ -42,7 +48,7 @@
                 <span class="mono">@l.ExchangeCode</span>
                 <span class="cell"><span class="name mono">@l.Symbol</span></span>
                 <span><span class="tag @StatusTag(l.Status)">@l.Status</span></span>
-                <span>@if (l.Collect) { <span class="sev ok">on</span> } else { <span class="tag">off</span> }</span>
+                <span><span class="@(l.Collect ? "sev ok" : "tag")">@(l.Collect ? "on" : "off")</span></span>
                 <span class="num">@Format.Num(l.LastPrice, 2)</span>
                 <span class="num">@Format.Num(l.FundingRate, 6)</span>
                 <span class="num">@Format.Num(l.OpenInterestNotional, 0)</span>

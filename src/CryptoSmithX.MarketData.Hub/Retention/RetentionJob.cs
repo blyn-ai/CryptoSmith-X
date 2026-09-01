@@ -25,6 +25,14 @@ public sealed class RetentionJob
     /// <summary>Returns the number of partitions dropped.</summary>
     public async Task<int> RunAsync(CancellationToken ct)
     {
+        // Run history is small but unbounded; a week is plenty for the UI's list and trend.
+        await using (var runsConn = await _db.OpenAsync(ct))
+        {
+            await runsConn.ExecuteAsync(new CommandDefinition(
+                "delete from collector_run where started_at < now() - interval '7 days'",
+                cancellationToken: ct));
+        }
+
         var now = _clock.GetUtcNow();
         await using var conn = await _db.OpenAsync(ct);
 

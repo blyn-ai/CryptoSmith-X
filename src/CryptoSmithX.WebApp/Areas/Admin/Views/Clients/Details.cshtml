@@ -15,8 +15,7 @@
         ("Contact for support", "Email, so we can reach them when something breaks on our side.", true, false),
     };
 }
-@section head { <meta http-equiv="refresh" content="10"> }
-@section live { <span class="live">refreshes 10 s</span> }
+@section live { <span class="live">live · 10 s</span> }
 
 <div class="page-head">
     <div class="t">
@@ -39,16 +38,30 @@
                     <button class="sw" role="switch" aria-checked="@(s.On ? "true" : "false")" disabled><i></i></button>
                     <span class="body">
                         <span class="t">@s.T
-                            @if (s.Locked) { <span class="tag gold" style="font-size:8.5px">Locked</span> }
-                            else if (s.On) { <span class="tag enabled" style="font-size:8.5px">Shared</span> }
-                            else { <span class="tag" style="font-size:8.5px">Not shared</span> }
+                            @if (s.Locked)
+                            {
+                                <span class="tag gold" style="font-size:8.5px">Locked</span>
+                            }
+                            else if (s.On)
+                            {
+                                <span class="tag enabled" style="font-size:8.5px">Shared</span>
+                            }
+                            else
+                            {
+                                <span class="tag" style="font-size:8.5px">Not shared</span>
+                            }
                         </span>
                         <span class="d">@s.D</span>
                         <span class="m">@(s.Locked ? "required · cannot be withdrawn while a bot is registered" : s.On ? "shared" : "declined")</span>
                     </span>
                     @if (!s.Locked)
                     {
-                        <span style="justify-self:end">@if (!s.On) { <button class="btn btn-ghost btn-sm" type="button" disabled>Request</button> }</span>
+                        <span style="justify-self:end">
+                            @if (!s.On)
+                            {
+                                <button class="btn btn-ghost btn-sm" type="button" disabled>Request</button>
+                            }
+                        </span>
                     }
                 </div>
             }

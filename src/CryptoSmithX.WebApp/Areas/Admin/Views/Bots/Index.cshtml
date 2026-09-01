@@ -7,12 +7,14 @@
     NewTokenNotice? token = TempData["NewToken"] is string j ? JsonSerializer.Deserialize<NewTokenNotice>(j) : null;
     bool Online(BotListItem b) => b.HeartbeatAgeSeconds is not null and < 180;
 }
-@section head { <meta http-equiv="refresh" content="10"> }
-@section live { <span class="live">refreshes 10 s</span> }
+@section live { <span class="live">live · 10 s</span> }
 
 <div class="page-head"><div class="t"><p class="eyebrow">Admin · fleet</p><h1>Bots</h1></div></div>
 
-@if (TempData["Error"] is string err) { <div class="alert alert-error">@err</div> }
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-error">@err</div>
+}
 @if (token is not null)
 {
     <div class="token-alert">
@@ -55,7 +57,12 @@
                 }
                 else
                 {
-                    <select id="tc" name="tenantCode">@foreach (var t in tenants) { <option value="@t">@t</option> }</select>
+                    <select id="tc" name="tenantCode">
+                        @foreach (var t in tenants)
+                        {
+                            <option value="@t">@t</option>
+                        }
+                    </select>
                 }
             </div>
             <div class="field"><label for="bid">Instance id</label><input id="bid" name="botInstanceId" type="text" placeholder="futures-live"></div>

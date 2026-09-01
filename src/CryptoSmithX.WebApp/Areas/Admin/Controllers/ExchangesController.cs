@@ -108,4 +108,21 @@ public sealed class ExchangesController : Controller
 
         return false;
     }
+    [HttpGet]
+    public async Task<IActionResult> Runs(string id, string? collector, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenAsync(ct);
+        ViewData["Code"] = id;
+        ViewData["Collector"] = collector;
+        return View(await RunStore.ListAsync(conn, id, collector, ct));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Run(long id, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenAsync(ct);
+        var details = await RunStore.GetAsync(conn, id, ct);
+        return details is null ? NotFound() : View(details);
+    }
+
 }

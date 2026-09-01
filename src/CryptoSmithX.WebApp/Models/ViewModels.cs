@@ -105,7 +105,8 @@ public sealed record ExchangeDetails(
     IReadOnlyDictionary<string, int> GlobalIntervals,
     IReadOnlyList<ExchangeCollectorRow> Collectors,
     IReadOnlyList<StaleInstrument> Stalest,
-    IReadOnlyList<double> Throughput);
+    IReadOnlyList<double> Throughput,
+    IReadOnlyList<LatencySeries> Latency);
 
 // ── Assets ────────────────────────────────────────────────────────────────
 public sealed record AssetListItem(
@@ -292,3 +293,17 @@ public sealed record ClientDetails(
 
 /// <summary>One row of the header search — kind decides the group, url is the landing page.</summary>
 public sealed record SearchHit(string Kind, string Title, string Note, string Url);
+
+// ── collector runs (0009): история прогонов и «что пришло» ────────────────
+public sealed record CollectorRunRow(
+    long Id, string Collector, DateTime StartedAt, int DurationMs, bool Ok, string? Error, int? Items);
+
+/// <summary>One latency series per collector for the exchange page trend.</summary>
+public sealed record LatencySeries(string Collector, IReadOnlyList<double> AvgMs);
+
+public sealed record RunDataRow(string Symbol, string What, DateTime When);
+
+/// <summary>A run plus the data whose timestamps fall inside its window (time-based, not run-id based).</summary>
+public sealed record RunDetails(
+    string ExchangeCode, CollectorRunRow Run,
+    string Caption, int Total, IReadOnlyList<RunDataRow> Rows);

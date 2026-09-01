@@ -12,8 +12,7 @@
     var discovery = Model.Collectors.FirstOrDefault(c => c.Collector == "discovery");
     var statuses = new[] { "planned", "enabled", "disabled", "maintenance", "abandoned" };
 }
-@section head { <meta http-equiv="refresh" content="10"> }
-@section live { <span class="live">refreshes 10 s</span> }
+@section live { <span class="live">live · 10 s</span> }
 
 <div class="page-head">
     <div class="t">
@@ -30,8 +29,14 @@
     </div>
 </div>
 
-@if (TempData["Error"] is string err) { <div class="alert alert-error">@err</div> }
-@if (TempData["Saved"] is string saved) { <div class="alert alert-ok">@saved</div> }
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-error">@err</div>
+}
+@if (TempData["Saved"] is string saved)
+{
+    <div class="alert alert-ok">@saved</div>
+}
 
 @if (e.Status == "enabled" && worst is not null && CollHealth(worst) != "ok")
 {
@@ -65,7 +70,7 @@
                 {
                     var ch = CollHealth(c);
                     <div class="coll @(ch == "fail" ? "is-fail" : "")">
-                        <div class="coll-h"><span class="dot @ch @(ch == "ok" ? "fresh" : "")"></span><span class="n">@c.Collector</span><span class="sev @ch">@(ch == "ok" ? "ok" : ch == "warn" ? "degraded" : "failing")</span><span class="iv">@Interval(c.Collector)</span></div>
+                        <div class="coll-h"><span class="dot @ch @(ch == "ok" ? "fresh" : "")"></span><span class="n">@c.Collector</span><span class="sev @ch">@(ch == "ok" ? "ok" : ch == "warn" ? "degraded" : "failing")</span><span class="iv">@Interval(c.Collector)</span><a class="linkbtn" style="font-size:10px" href="/Admin/Exchanges/Runs/@e.Code?collector=@c.Collector">runs →</a></div>
                         <div class="coll-g">
                             <span><i>Last success</i><b style="@(ch != "ok" ? "color:var(--gold-300)" : "")">@Format.Age(c.LastSuccessAgeSeconds)</b></span>
                             <span><i>Failures</i><b style="@(c.ConsecutiveFailures > 0 ? "color:var(--gold-300)" : "")">@c.ConsecutiveFailures</b></span>
@@ -99,9 +104,19 @@
                 </div>
             </div>
 
-            <div class="notwired">
-                <div class="hd"><span class="tag gold">Not wired</span><h3>Per-collector latency trend</h3></div>
-                <p>avg_duration_ms is a running figure on collector_status — there is no history to plot. Migration request: collector_status_history (exchange_code text, collector text, sampled_at timestamptz, duration_ms int, ok boolean), one row per loop, retained 7 days. Until it exists this panel shows nothing rather than a shape.</p>
+            <div class="panel">
+                <div class="panel-h"><h2>Latency</h2><span class="meta">collector_run · avg ms · 15 min buckets · 12 h</span></div>
+                @if (Model.Latency.Count == 0)
+                {
+                    <div class="empty"><h3>No runs recorded yet</h3><p>The trend appears as collector_run fills; history is kept 7 days.</p></div>
+                }
+                @foreach (var serie in Model.Latency)
+                {
+                    <div class="panel-b" style="border-bottom:1px solid var(--border-hairline)">
+                        <div style="display:flex;justify-content:space-between;align-items:baseline"><p class="eyebrow" style="margin-bottom:6px">@serie.Collector</p><span class="code">@Format.Num(serie.AvgMs[^1], 0) ms now</span></div>
+                        <svg class="chart" height="34" viewBox="0 0 600 34" preserveAspectRatio="none"><polyline points="@Spark.Points(serie.AvgMs, 600, 34)" stroke="var(--violet-400)" stroke-width="1.5" fill="none"></polyline></svg>
+                    </div>
+                }
             </div>
         }
         else
@@ -141,13 +156,13 @@
 
                 <p class="eyebrow" style="margin:14px 0 2px">Intervals — empty uses the global</p>
                 <div class="form-row">
-                    <div class="field"><label for="snapshotIntervalS">Snapshot (s)</label><input id="snapshotIntervalS" name="snapshotIntervalS" type="text" value="@(cfg.SnapshotIntervalS?.ToString())" placeholder="@GlobalHint("snapshot_interval_s")">@if (!string.IsNullOrEmpty(OverrideNote(cfg.SnapshotIntervalS, "snapshot_interval_s"))) { <span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.SnapshotIntervalS, "snapshot_interval_s")</span> }</div>
-                    <div class="field"><label for="candleIntervalS">Candles (s)</label><input id="candleIntervalS" name="candleIntervalS" type="text" value="@(cfg.CandleIntervalS?.ToString())" placeholder="@GlobalHint("candle_interval_s")">@if (!string.IsNullOrEmpty(OverrideNote(cfg.CandleIntervalS, "candle_interval_s"))) { <span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.CandleIntervalS, "candle_interval_s")</span> }</div>
-                    <div class="field"><label for="depthIntervalS">Depth (s)</label><input id="depthIntervalS" name="depthIntervalS" type="text" value="@(cfg.DepthIntervalS?.ToString())" placeholder="@GlobalHint("depth_interval_s")">@if (!string.IsNullOrEmpty(OverrideNote(cfg.DepthIntervalS, "depth_interval_s"))) { <span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.DepthIntervalS, "depth_interval_s")</span> }</div>
+                    <div class="field"><label for="snapshotIntervalS">Snapshot (s)</label><input id="snapshotIntervalS" name="snapshotIntervalS" type="text" value="@(cfg.SnapshotIntervalS?.ToString())" placeholder="@GlobalHint("snapshot_interval_s")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.SnapshotIntervalS, "snapshot_interval_s")</span></div>
+                    <div class="field"><label for="candleIntervalS">Candles (s)</label><input id="candleIntervalS" name="candleIntervalS" type="text" value="@(cfg.CandleIntervalS?.ToString())" placeholder="@GlobalHint("candle_interval_s")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.CandleIntervalS, "candle_interval_s")</span></div>
+                    <div class="field"><label for="depthIntervalS">Depth (s)</label><input id="depthIntervalS" name="depthIntervalS" type="text" value="@(cfg.DepthIntervalS?.ToString())" placeholder="@GlobalHint("depth_interval_s")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.DepthIntervalS, "depth_interval_s")</span></div>
                 </div>
                 <div class="form-row">
-                    <div class="field"><label for="discoveryIntervalMin">Discovery (min)</label><input id="discoveryIntervalMin" name="discoveryIntervalMin" type="text" value="@(cfg.DiscoveryIntervalMin?.ToString())" placeholder="@GlobalHint("discovery_interval_min")">@if (!string.IsNullOrEmpty(OverrideNote(cfg.DiscoveryIntervalMin, "discovery_interval_min"))) { <span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.DiscoveryIntervalMin, "discovery_interval_min")</span> }</div>
-                    <div class="field"><label for="fundingIntervalMin">Funding (min)</label><input id="fundingIntervalMin" name="fundingIntervalMin" type="text" value="@(cfg.FundingIntervalMin?.ToString())" placeholder="@GlobalHint("funding_interval_min")">@if (!string.IsNullOrEmpty(OverrideNote(cfg.FundingIntervalMin, "funding_interval_min"))) { <span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.FundingIntervalMin, "funding_interval_min")</span> }</div>
+                    <div class="field"><label for="discoveryIntervalMin">Discovery (min)</label><input id="discoveryIntervalMin" name="discoveryIntervalMin" type="text" value="@(cfg.DiscoveryIntervalMin?.ToString())" placeholder="@GlobalHint("discovery_interval_min")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.DiscoveryIntervalMin, "discovery_interval_min")</span></div>
+                    <div class="field"><label for="fundingIntervalMin">Funding (min)</label><input id="fundingIntervalMin" name="fundingIntervalMin" type="text" value="@(cfg.FundingIntervalMin?.ToString())" placeholder="@GlobalHint("funding_interval_min")"><span class="code" style="color:var(--gold-400)">@OverrideNote(cfg.FundingIntervalMin, "funding_interval_min")</span></div>
                 </div>
 
                 <button class="btn" type="submit" style="margin-top:6px">Save changes</button>

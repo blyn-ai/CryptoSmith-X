@@ -8,8 +8,7 @@
     var collecting = Model.Where(e => e.Status == "enabled").ToList();
     var quiet = Model.Where(e => e.Status != "enabled").ToList();
 }
-@section head { <meta http-equiv="refresh" content="10"> }
-@section live { <span class="live">refreshes 10 s</span> }
+@section live { <span class="live">live · 10 s</span> }
 
 <div class="page-head">
     <div class="t"><p class="eyebrow">Admin · integrations</p><h1>Exchanges</h1></div>

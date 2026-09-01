@@ -1,0 +1,40 @@
+@model RunDetails
+@{
+    var r = Model.Run;
+    ViewData["Title"] = $"Run · {r.Collector}";
+}
+
+<div class="page-head">
+    <div class="t">
+        <p class="eyebrow">Admin · <a href="/Admin/Exchanges/Details/@Model.ExchangeCode">@Model.ExchangeCode</a> · <a href="/Admin/Exchanges/Runs/@Model.ExchangeCode?collector=@r.Collector">@r.Collector runs</a></p>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>@r.Collector</h1><span class="sev @(r.Ok ? "ok" : "fail")">@(r.Ok ? "ok" : "failed")</span></div>
+        <span class="code">@r.StartedAt.ToString("yyyy-MM-dd HH:mm:ss")Z · @r.DurationMs ms · items @(r.Items?.ToString() ?? "—")</span>
+    </div>
+    <a class="linkbtn" href="/Admin/Exchanges/Runs/@Model.ExchangeCode">← Runs</a>
+</div>
+
+@if (!r.Ok && r.Error is not null)
+{
+    <div class="err"><b>Error</b><div><span class="t">@r.Error</span><span class="m">@Model.ExchangeCode · @r.Collector · collector_run.error</span></div></div>
+}
+
+<div class="panel">
+    <div class="panel-h"><h2>What arrived</h2><span class="meta">@Model.Total rows in the window</span></div>
+    <p class="panel-note" style="padding:10px 16px 0">@Model.Caption. The rows are matched by timestamp — data is upserted with no run id, so the window [start, start + duration + 2 s] is the honest join.</p>
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="empty"><h3>Nothing matched the window</h3><p>Either the run wrote nothing, or (funding) the table carries no insert stamp to match on.</p></div>
+    }
+    @foreach (var row in Model.Rows)
+    {
+        <div class="tr" style="grid-template-columns:170px minmax(0,1fr) auto;padding:7px 16px">
+            <span class="mono">@row.Symbol</span>
+            <span class="mono muted">@row.What</span>
+            <span class="num faint">@row.When.ToString("HH:mm:ss")Z</span>
+        </div>
+    }
+    @if (Model.Total > Model.Rows.Count)
+    {
+        <p class="panel-note">Showing @Model.Rows.Count of @Model.Total.</p>
+    }
+</div>
