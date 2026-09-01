@@ -3,8 +3,23 @@ using CryptoSmithX.WebApp.Api;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Sentry.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Sentry: errors go to the shared cryptosmith-x project, tagged by component so hub/api/webapp are
+// separable in the UI. The DSN comes from the environment (Sentry__Dsn); with none set — local dev
+// — the SDK stays disabled and silent. Errors only, no performance tracing.
+var sentryDsn = builder.Configuration["Sentry:Dsn"];
+if (!string.IsNullOrWhiteSpace(sentryDsn))
+{
+    builder.WebHost.UseSentry(o =>
+    {
+        o.Dsn = sentryDsn;
+        o.Environment = builder.Environment.EnvironmentName;
+        o.TracesSampleRate = 0;
+    });
+}
 
 // TLS is terminated by an upstream proxy (traefik) that sets X-Forwarded-Proto. Honour it so
 // Request.IsHttps is true behind the proxy and the auth cookie's SameAsRequest policy marks it
@@ -47,6 +62,11 @@ builder.Services.AddDataProtection()
     .SetApplicationName("CryptoSmithX.WebApp");
 
 var app = builder.Build();
+
+if (!string.IsNullOrWhiteSpace(sentryDsn))
+{
+    SentrySdk.ConfigureScope(scope => scope.SetTag("component", "webapp"));
+}
 
 // The schema is owned by CryptoSmithX.Database; refuse to serve on one that is missing or behind.
 await Migrator.VerifyAsync(app.Services.GetRequiredService<Db>(), CancellationToken.None);

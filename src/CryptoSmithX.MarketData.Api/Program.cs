@@ -1,11 +1,25 @@
 using CryptoSmithX.Database;
 using CryptoSmithX.MarketData.Api;
 using Scalar.AspNetCore;
+using Sentry.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
+
+// Sentry: shared cryptosmith-x project, tagged component=api. DSN from the environment
+// (Sentry__Dsn); empty locally means the SDK is disabled. Errors only, no tracing.
+var sentryDsn = builder.Configuration["Sentry:Dsn"];
+if (!string.IsNullOrWhiteSpace(sentryDsn))
+{
+    builder.WebHost.UseSentry(o =>
+    {
+        o.Dsn = sentryDsn;
+        o.Environment = builder.Environment.EnvironmentName;
+        o.TracesSampleRate = 0;
+    });
+}
 
 builder.Services.AddSingleton(_ => new Db(
     builder.Configuration.GetConnectionString("Database")
@@ -15,6 +29,11 @@ builder.Services.AddSingleton(_ => new Db(
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+if (!string.IsNullOrWhiteSpace(sentryDsn))
+{
+    SentrySdk.ConfigureScope(scope => scope.SetTag("component", "api"));
+}
 
 // /openapi/v1.json (the document) and /scalar/v1 (the interactive page).
 app.MapOpenApi();

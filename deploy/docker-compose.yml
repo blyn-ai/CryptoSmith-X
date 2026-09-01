@@ -47,6 +47,8 @@ services:
         condition: service_completed_successfully
     environment:
       ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=marketdata}
+      # Sentry errors (component=hub). Empty locally → SDK stays disabled.
+      Sentry__Dsn: ${SENTRY_DSN:-}
     restart: unless-stopped
 
   api:
@@ -60,6 +62,8 @@ services:
         condition: service_completed_successfully
     environment:
       ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=marketdata}
+      # Sentry errors (component=api). Empty locally → SDK stays disabled.
+      Sentry__Dsn: ${SENTRY_DSN:-}
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -75,6 +79,8 @@ services:
         condition: service_completed_successfully
     environment:
       ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=marketdata}
+      # Sentry errors (component=webapp). Empty locally → SDK stays disabled.
+      Sentry__Dsn: ${SENTRY_DSN:-}
       # Development enables local conveniences; sign-in accounts live in the database either way.
       ASPNETCORE_ENVIRONMENT: ${WEBAPP_ENVIRONMENT:-Development}
       # DataProtection keys must survive a restart, or every redeploy logs everyone out.
