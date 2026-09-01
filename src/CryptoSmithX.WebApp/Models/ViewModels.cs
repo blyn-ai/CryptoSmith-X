@@ -307,4 +307,4 @@ public sealed record RunDataRow(string Symbol, string What, DateTime When);
 /// <summary>A run plus the data whose timestamps fall inside its window (time-based, not run-id based).</summary>
 public sealed record RunDetails(
     string ExchangeCode, CollectorRunRow Run,
-    string Caption, int Total, IReadOnlyList<RunDataRow> Rows);
+    string Caption, int Total, IReadOnlyList<RunDataRow> Rows, string EmptyNote);

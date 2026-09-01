@@ -282,8 +282,18 @@ public static class RunStore
         var r = run.Value;
         // The window: rows stamped between the run's start and its end (+2 s of write slack).
         // Data is upserted with no run id, so time is the only honest join.
+        // The attribution window runs to the NEXT run of the same collector: work like the
+        // minute-history flush lands in exactly one run instead of falling between two.
+        // For the newest run the fallback is the run's own span plus write slack.
         var winStart = r.StartedAt;
-        var winEnd = r.StartedAt.AddMilliseconds(r.DurationMs).AddSeconds(2);
+        var nextStart = await conn.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
+            """
+            select min(started_at) from collector_run
+             where exchange_code = @code and collector = @collector and started_at > @start
+            """,
+            new { code = r.ExchangeCode, collector = r.Collector, start = r.StartedAt },
+            cancellationToken: ct));
+        var winEnd = nextStart ?? r.StartedAt.AddMilliseconds(r.DurationMs).AddSeconds(2);
 
         (string caption, string sql) = r.Collector switch
         {
@@ -337,9 +347,19 @@ public static class RunStore
         var all = (await conn.QueryAsync<RunDataRow>(new CommandDefinition(
             sql, new { code = r.ExchangeCode, winStart, winEnd }, cancellationToken: ct))).ToList();
 
+        // Each collector explains its own empty page instead of one generic wall of maybes.
+        var emptyNote = r.Collector switch
+        {
+            "snapshot" => $"This run refreshed the live snapshot for its {r.Items?.ToString() ?? "—"} instruments; that state has since been overwritten by newer runs. Minute-history rows are flushed once a minute, and none fell to this run — open a run that crossed a minute boundary to see them.",
+            "depth" => "Depth stamps live on the latest-state rows and are overwritten by newer sweeps — only the most recent run still shows its measurements.",
+            "funding" => "funding_rate_history has no insert stamp (funding_time is the payment time), so rows cannot be matched to a run. The items counter above is the source of truth.",
+            "discovery" => "No instrument re-confirmations landed inside this run's window.",
+            _ => "No bars were written or repaired inside this run's window.",
+        };
+
         return new RunDetails(
             r.ExchangeCode,
             new CollectorRunRow(r.Id, r.Collector, r.StartedAt, r.DurationMs, r.Ok, r.Error, r.Items),
-            caption, all.Count, all.Take(40).ToList());
+            caption, all.Count, all.Take(40).ToList(), emptyNote);
     }
 }
