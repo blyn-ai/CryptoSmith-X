@@ -89,6 +89,8 @@ app.MapGet("/zurnalas", (IWebHostEnvironment env) =>
     Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "zurnalas.html"), "text/html"));
 app.MapGet("/config", (IWebHostEnvironment env) =>
     Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "config.html"), "text/html"));
+app.MapGet("/strategy-modeler", (IWebHostEnvironment env) =>
+    Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "strategy-modeler.html"), "text/html"));
 app.MapGet("/ui-mocks", (IWebHostEnvironment env) =>
     Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "index.html"), "text/html"));
 

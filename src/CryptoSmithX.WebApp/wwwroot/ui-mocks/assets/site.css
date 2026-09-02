@@ -234,6 +234,14 @@ h1 em{
   font:600 10px/1.5 var(--font-mono); letter-spacing:.16em; text-transform:uppercase;
 }
 
+.features{
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 12px; margin-top:16px;
+  font:500 10px/1.6 var(--font-mono); letter-spacing:.15em; text-transform:uppercase;
+}
+.features span{color:var(--eyebrow)}
+.features a{color:var(--text-muted); text-decoration:none; border-bottom:1px solid var(--border-hairline)}
+.features a:hover{color:var(--text-body); border-bottom-color:currentColor}
+
 .auth__note{
   margin-top:6px; padding-top:18px; border-top:1px solid var(--border-hairline);
   font:400 13.5px/1.55 var(--font-body); color:var(--text-body); text-align:center;
