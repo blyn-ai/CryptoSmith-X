@@ -239,8 +239,16 @@ h1 em{
   font:500 10px/1.6 var(--font-mono); letter-spacing:.15em; text-transform:uppercase;
 }
 .features span{color:var(--eyebrow)}
-.features a{color:var(--text-muted); text-decoration:none; border-bottom:1px solid var(--border-hairline)}
-.features a:hover{color:var(--text-body); border-bottom-color:currentColor}
+/* Muted grey on a hairline made these read as more label, not as links — the row
+   looked like one dead caption. They take the page's own link treatment instead. */
+.features a{
+  color:var(--link); text-decoration:none;
+  border-bottom:1px solid rgba(161,138,255,.3); transition:var(--transition-color);
+  /* 10px mono gave a 17px-tall target. Padding buys a hittable strip without
+     moving the baseline the row is aligned on. */
+  padding:5px 0;
+}
+.features a:hover{color:var(--link-hover); border-bottom-color:var(--link-hover)}
 
 .auth__note{
   margin-top:6px; padding-top:18px; border-top:1px solid var(--border-hairline);
