@@ -17,8 +17,8 @@
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/ds/styles.css">
-<link rel="stylesheet" href="/ui-mocks/assets/site.css">
+<link rel="stylesheet" href="~/ds/styles.css" asp-append-version="true">
+<link rel="stylesheet" href="~/ui-mocks/assets/site.css" asp-append-version="true">
 </head>
 <body>
 <div class="shell">
@@ -29,11 +29,11 @@
     <!-- ─── знак и заголовок ─── -->
     <section class="pane pane--brand">
       <div class="brand">
-        <img src="/ds/assets/cryptosmith-mark.svg" width="44" height="44" alt="">
-        <div>
-          <p class="wordmark">CryptoSmith <span>X</span></p>
-          <p class="tagline"><span>Perps &amp; Crypto</span><span>Trade Bot</span></p>
-        </div>
+        <img class="brand-lockup"
+             src="/ds/assets/cryptosmith-lockup-descriptor.svg"
+             width="267" height="48"
+             alt="CryptoSmith X — perps &amp; crypto trade bot">
+      </div>
       </div>
 
       <div class="tags">

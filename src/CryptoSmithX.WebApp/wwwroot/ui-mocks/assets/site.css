@@ -44,16 +44,12 @@ body{
 /* ── левая колонка ───────────────────────────────────────── */
 .pane{display:flex; flex-direction:column; gap:22px; min-width:0}
 .pane--brand{grid-area:brand; padding:48px 52px 0}
+/* The lockup is one asset, not two text lines: the descriptor is pinned to the
+   wordmark's width by textLength inside the SVG, so it cannot drift with font
+   substitution. Set ONE dimension — height follows the viewBox. */
+.brand{display:flex}
+.brand-lockup{width:var(--brand-lockup-w,300px); height:auto; flex:none}
 .pane--data{grid-area:data; padding:30px 52px 40px; align-content:start}
-.brand{display:flex; align-items:center; gap:16px}
-.brand img{width:44px; height:44px; flex:none}
-.wordmark{margin:0; font:600 26px/1 var(--font-display); letter-spacing:-.02em; color:var(--text-heading)}
-.wordmark span{color:var(--violet-400)}
-.tagline{
-  margin:6px 0 0; display:flex; justify-content:space-between; gap:16px;
-  font:500 10.5px/1 var(--font-mono); letter-spacing:.1em;
-  color:var(--text-muted); text-transform:uppercase;
-}
 
 .tags{display:flex; flex-wrap:wrap; gap:9px; margin-top:6px}
 .tag{
@@ -70,8 +66,12 @@ a.tag:focus-visible{outline:var(--focus-ring); outline-offset:2px}
 .tag--violet{color:var(--violet-400); border-color:var(--border-strong); background:var(--tint-violet)}
 
 h1{
+  /* Fluid: the auth column is a fixed 428px, so between the 960px stack point and
+     the 1240px shell cap the headline column is squeezed to ~350-530px. A fixed
+     36px overflowed it — the English headline is longer than the Lithuanian one
+     this page was cut for. */
   margin:6px 0 0; max-width:560px;
-  font:600 36px/1.15 var(--font-display); letter-spacing:-.01em;
+  font:600 clamp(26px, 2.6vw + 8px, 36px)/1.15 var(--font-display); letter-spacing:-.01em;
   color:var(--text-heading);
 }
 h1 em{
