@@ -254,11 +254,15 @@ public static class InstrumentStore
                 new { id },
                 cancellationToken: ct));
 
-        // Effective snapshot interval: the exchange's override, or the global setting.
+        // Effective snapshot interval: the exchange_collection override, or the collection default.
+        // Fixes a bug 0014 (collections) left behind — snapshot_interval_s moved off `exchange` and
+        // this query was not updated with it, so this page 500'd on every visit since that migration.
         var interval = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
             """
-            select coalesce(e.snapshot_interval_s, (select value::int from setting where key = 'snapshot_interval_s'))
-              from exchange e where e.code = @exchangeCode
+            select coalesce(ec.interval_s, c.default_interval_s)
+              from collection c
+              left join exchange_collection ec on ec.exchange_code = @exchangeCode and ec.collection_code = c.code
+             where c.code = 'snapshot'
             """,
             new { exchangeCode },
             cancellationToken: ct));

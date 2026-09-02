@@ -213,6 +213,11 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
 .chart-x span{font:400 10.5px/1 var(--font-mono);color:var(--text-faint)}
 .chart-x .mid{color:var(--text-muted)}
 
+/* Price panel only (Instruments/Details.cshtml): TradingView Lightweight Charts
+   draws into this box at its own pixel size — everywhere else on the console
+   stays server SVG, see plans/notes-charts-and-tradingview.md. */
+.chart-lwc{width:100%;height:280px}
+
 /* ── forms ────────────────────────────────────────────────── */
 .field{display:flex;flex-direction:column;gap:8px;margin-bottom:var(--space-5)}
 .field label{font:var(--fw-medium) 10.5px/1 var(--font-mono);letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted)}
@@ -387,10 +392,6 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 .tr .stretch::after{content:"";position:absolute;inset:0}
 .tr .lift{position:relative;z-index:1}
 .tr .lift:hover{color:var(--text-heading);text-decoration:underline;text-underline-offset:3px}
-
-/* candlesticks — the one legal green/red: market direction */
-.candle-up{fill:var(--up-500);stroke:var(--up-500)}
-.candle-down{fill:var(--down-500);stroke:var(--down-500)}
 
 /* the right rail follows the scroll: no more bouncing between the form and the data */
 .grid2 > .stack:last-child{position:sticky;top:58px;max-height:calc(100vh - 72px);overflow-y:auto;scrollbar-width:thin}

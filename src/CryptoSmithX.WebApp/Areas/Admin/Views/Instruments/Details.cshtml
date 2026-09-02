@@ -99,8 +99,15 @@
             }
         </div>
 
-        @* ── Price ────────────────────────────────────────────── *@
-        <div class="panel">
+        @* ── Price ────────────────────────────────────────────────────────
+           The one genuinely financial chart with history — TradingView
+           Lightweight Charts, self-hosted (wwwroot/vendor/lightweight-charts).
+           Every other chart on the console stays server SVG (Spark.cs): these
+           are 18–96px operational strips, and a charting library for those
+           would be absurd. See plans/notes-charts-and-tradingview.md.
+           data-live-skip: live.js's morph must never touch this subtree — see
+           instrument-chart.js for why a canvas chart needs that guarantee. *@
+        <div class="panel" data-live-skip>
             <div class="panel-h">
                 <h2>Price</h2>
                 <span class="chips">
@@ -111,11 +118,19 @@
                     }
                 </span>
             </div>
-            <div class="panel-b">
+            <div class="panel-b" style="padding:0">
                 @if (Model.Candles.Count >= 2)
                 {
-                    <svg class="chart" height="140" viewBox="0 0 600 140" preserveAspectRatio="none">@Html.Raw(SparkCandles.Render(Model.Candles, 600, 140))</svg>
-                    <div class="chart-x"><span>@Format.Utc(Model.Candles[0].OpenTime)</span><span class="mid">OHLC · @Model.Candles.Count bars · low @Format.Num(Model.Candles.Min(c => c.Low), 2) — high @Format.Num(Model.Candles.Max(c => c.High), 2)</span><span>@Format.Utc(Model.Candles[^1].OpenTime)</span></div>
+                    var candleJson = System.Text.Json.JsonSerializer.Serialize(Model.Candles.Select(c => new
+                    {
+                        time = new DateTimeOffset(c.OpenTime, TimeSpan.Zero).ToUnixTimeSeconds(),
+                        open = c.Open,
+                        high = c.High,
+                        low = c.Low,
+                        close = c.Close,
+                    }));
+                    <div class="chart-lwc" data-candles="@candleJson"></div>
+                    <div class="chart-x" style="padding:9px 16px"><span>@Format.Utc(Model.Candles[0].OpenTime)</span><span class="mid">OHLC · @Model.Candles.Count bars · low @Format.Num(Model.Candles.Min(c => c.Low), 2) — high @Format.Num(Model.Candles.Max(c => c.High), 2)</span><span>@Format.Utc(Model.Candles[^1].OpenTime)</span></div>
                 }
                 else
                 {
@@ -203,3 +218,11 @@
         </div>
     </div>
 </div>
+
+@* Manual cache-bust, not asp-append-version: the Script TagHelper trips a Razor
+   compiler bug on this SDK (see the same note in _Layout.cshtml). Bump v= on change. *@
+@if (Model.Candles.Count >= 2)
+{
+    <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
+    <script src="~/instrument-chart.js?v=1"></script>
+}
