@@ -238,7 +238,10 @@ footer{
   padding:16px 52px; border-top:1px solid var(--border-hairline);
   font:400 12.5px/1.5 var(--font-body); color:var(--text-faint);
 }
-footer p{margin:0; max-width:78ch}
+/* No measure cap here: the disclaimer is one legal sentence, not a paragraph to
+   read at length, and it fits on a single line at desktop widths. The footer's own
+   flex-wrap still lets it break on narrow screens rather than overflow. */
+footer p{margin:0}
 .copy{font:500 10px/1 var(--font-mono); letter-spacing:.15em; text-transform:uppercase; white-space:nowrap}
 
 .linkish{
