@@ -13,9 +13,11 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 /// <summary>
 /// The supervisor. Rollup and retention run once for the whole service; the per-exchange collectors
 /// are started and stopped to match each exchange's <c>status</c> in the database, reconciled every
-/// ~30 s. Flipping an exchange to <c>enabled</c> in the admin UI starts its loops without a restart;
-/// flipping it away cancels them. Configuration and intervals come from <see cref="DbSettings"/>,
-/// read live, so the process holds no static options at all.
+/// ~30 s — and, since 0014, so is the SET of collector loops within an already-running exchange: which
+/// ones run is data (<c>exchange_collection.mode='collect'</c> AND the adapter's declared capability),
+/// not a fixed array. Toggling one collection off cancels only that loop; the others are undisturbed.
+/// Configuration comes from <see cref="DbSettings"/>, read live, so the process holds no static
+/// options at all.
 /// </summary>
 public sealed class ExchangeWorker : BackgroundService
 {
@@ -24,6 +26,11 @@ public sealed class ExchangeWorker : BackgroundService
     // Rollup and retention are service-wide; their status rows are recorded against the fake
     // exchange, which is always present (seeded in 0002), so the collector_status FK holds.
     private const string ServiceExchange = "fake";
+
+    /// <summary>The only collections that have a real <c>Collector</c> class today. 'rollup' is the
+    /// service-wide loop below, not a per-exchange one; trades/open_interest/liquidations have no
+    /// implementation yet regardless of what policy says.</summary>
+    internal static readonly string[] KnownCollectorCollections = ["discovery", "snapshot", "depth", "candles", "funding"];
 
     private readonly DbSettings _settings;
     private readonly Db _db;
@@ -83,13 +90,14 @@ public sealed class ExchangeWorker : BackgroundService
                 runner.Cts.Cancel();
             }
 
-            await SafeWhenAll(running.Values.Select(r => r.Loops));
+            await SafeWhenAll(running.Values.SelectMany(r => r.Collectors.Values.Select(h => h.Task)));
         }
 
         await SafeWhenAll(serviceLoops);
     }
 
-    /// <summary>Start the loops of newly-enabled exchanges; stop those no longer enabled.</summary>
+    /// <summary>Start/stop exchanges to match <c>status</c>; for every exchange left running,
+    /// reconcile which collector loops it should have.</summary>
     private async Task ReconcileAsync(Dictionary<string, ExchangeRunner> running, CancellationToken ct)
     {
         var snapshot = await _settings.CurrentAsync(ct);
@@ -106,71 +114,116 @@ public sealed class ExchangeWorker : BackgroundService
 
         foreach (var (code, config) in enabled)
         {
-            if (running.ContainsKey(code))
+            if (!running.TryGetValue(code, out var runner))
             {
-                continue;
+                // The per-exchange token is created first: a streaming adapter starts its socket from
+                // Build and must die with this token when the exchange is disabled.
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                IExchangeMarketData adapter;
+                try
+                {
+                    adapter = Build(config, cts.Token);
+                }
+                catch (Exception ex)
+                {
+                    // A misconfigured enabled exchange must not take the supervisor down.
+                    cts.Dispose();
+                    _logger.LogWarning(ex, "Exchange {Exchange} is enabled but its adapter cannot be built; skipping", code);
+                    continue;
+                }
+
+                try
+                {
+                    await WriteDeclaredCapabilityAsync(adapter, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "{Exchange}: writing declared capability failed", code);
+                }
+
+                runner = new ExchangeRunner(cts, adapter, BuildBodies(adapter));
+                running[code] = runner;
+
+                // One discovery pass before the other loops so the first snapshot has rows to join to.
+                try
+                {
+                    var found = await runner.Bodies["discovery"](cts.Token);
+                    _logger.LogInformation("{Exchange}: initial discovery found {Count} instruments", code, found);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "{Exchange}: initial discovery failed", code);
+                }
+
+                _logger.LogInformation("Exchange {Exchange} is enabled; started", code);
             }
 
-            // The per-exchange token is created first: a streaming adapter starts its socket from
-            // Build and must die with this token when the exchange is disabled.
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            IExchangeMarketData adapter;
-            try
-            {
-                adapter = Build(config, cts.Token);
-            }
-            catch (Exception ex)
-            {
-                // A misconfigured enabled exchange must not take the supervisor down.
-                cts.Dispose();
-                _logger.LogWarning(ex, "Exchange {Exchange} is enabled but its adapter cannot be built; skipping", code);
-                continue;
-            }
-
-            var loops = await StartExchangeAsync(adapter, cts.Token);
-            running[code] = new ExchangeRunner(cts, loops);
-            _logger.LogInformation("Exchange {Exchange} is enabled; started its collectors", code);
+            ReconcileCollectors(runner, snapshot, code, ct);
         }
     }
 
-    private async Task<Task> StartExchangeAsync(IExchangeMarketData adapter, CancellationToken ct)
+    /// <summary>Which collections a running exchange's loops should cover right now: policy says
+    /// 'collect' AND the adapter actually implements it. Stops loops no longer wanted; starts loops
+    /// newly wanted. Loops that stay wanted are left alone — their own interval keeps applying live,
+    /// CollectorLoop already reads it fresh every iteration.</summary>
+    private void ReconcileCollectors(ExchangeRunner runner, SettingsSnapshot snapshot, string code, CancellationToken parentCt)
     {
-        var code = adapter.ExchangeCode;
+        var implemented = runner.Adapter.Capabilities.Select(c => c.CollectionCode);
+        var desired = DesiredCollectors(snapshot, code, implemented).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var stale in runner.Collectors.Keys.Where(c => !desired.Contains(c)).ToList())
+        {
+            runner.Collectors[stale].Cts.Cancel();
+            runner.Collectors.Remove(stale);
+            _logger.LogInformation("{Exchange}/{Collector} no longer collected; loop stopped", code, stale);
+        }
+
+        foreach (var wanted in desired.Where(c => !runner.Collectors.ContainsKey(c)))
+        {
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(runner.Cts.Token);
+            var collectionCode = wanted;
+            var task = Loop(code, collectionCode, () => IntervalFor(code, collectionCode), runner.Bodies[wanted], cts.Token);
+            runner.Collectors[wanted] = new CollectorHandle(cts, task);
+            _logger.LogInformation("{Exchange}/{Collector} now collected; loop started", code, wanted);
+        }
+    }
+
+    /// <summary>Desired loop set for one exchange: known-implementable collections whose effective
+    /// mode is 'collect' and whose adapter actually declares it. Pure, so the selection logic is
+    /// testable without a supervisor or a database.</summary>
+    internal static IReadOnlyList<string> DesiredCollectors(
+        SettingsSnapshot snapshot, string exchangeCode, IEnumerable<string> implementedCollections)
+    {
+        var implemented = implementedCollections.ToHashSet(StringComparer.Ordinal);
+        return KnownCollectorCollections
+            .Where(c => implemented.Contains(c) && snapshot.Mode(exchangeCode, c) == "collect")
+            .ToList();
+    }
+
+    /// <summary>One collector instance per known collection, wired to this adapter — built once per
+    /// exchange start so <see cref="ReconcileCollectors"/> only ever starts/stops the loops around
+    /// them, never rebuilds them.</summary>
+    private Dictionary<string, Func<CancellationToken, Task<int>>> BuildBodies(IExchangeMarketData adapter)
+    {
         var discovery = new DiscoveryCollector(adapter, _settings, _db);
         var snapshot = new SnapshotCollector(adapter, _db, _clock);
         var depth = new DepthCollector(adapter, _db, _clock);
         var candles = new CandleCollector(adapter, _settings, _db, _clock);
         var funding = new FundingCollector(adapter, _settings, _db, _clock);
 
-        // One discovery pass before the other loops so the first snapshot has rows to join to.
-        try
+        return new Dictionary<string, Func<CancellationToken, Task<int>>>(StringComparer.Ordinal)
         {
-            var found = await discovery.RunAsync(ct);
-            _logger.LogInformation("{Exchange}: initial discovery found {Count} instruments", code, found);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogWarning(ex, "{Exchange}: initial discovery failed", code);
-        }
-
-        var loops = new[]
-        {
-            Loop(code, "discovery", () => IntervalFor(code, (s, e) => s.DiscoveryInterval(e), TimeSpan.FromMinutes(60)), discovery.RunAsync, ct),
-            Loop(code, "snapshot", () => IntervalFor(code, (s, e) => s.SnapshotInterval(e), TimeSpan.FromSeconds(10)), snapshot.RunAsync, ct),
-            Loop(code, "depth", () => IntervalFor(code, (s, e) => s.DepthInterval(e), TimeSpan.FromSeconds(60)), depth.RunAsync, ct),
-            Loop(code, "candles", () => IntervalFor(code, (s, e) => s.CandleInterval(e), TimeSpan.FromSeconds(60)), candles.RunAsync, ct),
-            Loop(code, "funding", () => IntervalFor(code, (s, e) => s.FundingInterval(e), TimeSpan.FromMinutes(60)), funding.RunAsync, ct),
+            ["discovery"] = discovery.RunAsync,
+            ["snapshot"] = snapshot.RunAsync,
+            ["depth"] = depth.RunAsync,
+            ["candles"] = candles.RunAsync,
+            ["funding"] = funding.RunAsync,
         };
-        return Task.WhenAll(loops);
     }
 
     /// <summary>The effective interval for a collector, read live from the cached settings.</summary>
-    private TimeSpan IntervalFor(string code, Func<SettingsSnapshot, ExchangeConfig, TimeSpan> pick, TimeSpan fallback)
-    {
-        var snapshot = _settings.Latest;
-        var config = snapshot.Exchange(code);
-        return config is null ? fallback : pick(snapshot, config);
-    }
+    private TimeSpan IntervalFor(string code, string collectionCode) =>
+        _settings.Latest.CollectionInterval(code, collectionCode);
 
     private Task Loop(
         string exchangeCode, string collector, Func<TimeSpan> interval,
@@ -265,6 +318,63 @@ public sealed class ExchangeWorker : BackgroundService
             cancellationToken: ct));
     }
 
+    /// <summary>Declares this adapter's capability into the matrix — 'we_implement' and
+    /// 'transports_us' for every collection, true/set where <see cref="IExchangeMarketData.Capabilities"/>
+    /// lists it and false/empty otherwise. Runs once per exchange start (capability is a fixed fact
+    /// about the adapter instance, not something that changes tick to tick). Never touches policy
+    /// columns — only exchange_collection_capability.</summary>
+    private async Task WriteDeclaredCapabilityAsync(IExchangeMarketData adapter, CancellationToken ct)
+    {
+        var implemented = adapter.Capabilities.ToDictionary(c => c.CollectionCode, StringComparer.Ordinal);
+
+        await using var conn = await _db.OpenAsync(ct);
+        // 'rollup' is excluded: it is hub-declared once by the 0014 migration seed, the same fact
+        // for every exchange regardless of adapter (rollup has no real per-exchange axis — see the
+        // migration header) — an adapter never mentions it in its own Capabilities, and this must
+        // not read that silence as "we_implement=false" and clobber the seeded true.
+        var collections = await conn.QueryAsync<string>(new CommandDefinition(
+            "select code from collection where code <> 'rollup'", cancellationToken: ct));
+
+        foreach (var collectionCode in collections)
+        {
+            var weImplement = implemented.ContainsKey(collectionCode);
+            var transportsUs = implemented.TryGetValue(collectionCode, out var cap) ? cap.TransportsUs : "";
+            await DeclareAsync(conn, adapter.ExchangeCode, collectionCode, "we_implement", weImplement ? "true" : "false", ct);
+            await DeclareAsync(conn, adapter.ExchangeCode, collectionCode, "transports_us", transportsUs, ct);
+        }
+    }
+
+    /// <summary>Writes one declared capability value, logging to capability_log only when it actually
+    /// changed from what was stored — so a routine restart, which declares the same facts again,
+    /// leaves no noise.</summary>
+    private static async Task DeclareAsync(
+        System.Data.Common.DbConnection conn, string exchangeCode, string collectionCode, string key, string newValue, CancellationToken ct)
+    {
+        var old = await conn.ExecuteScalarAsync<string?>(new CommandDefinition(
+            "select value from exchange_collection_capability where exchange_code = @exchangeCode and collection_code = @collectionCode and capability_key = @key",
+            new { exchangeCode, collectionCode, key }, cancellationToken: ct));
+
+        if (old == newValue)
+        {
+            return;
+        }
+
+        await conn.ExecuteAsync(new CommandDefinition(
+            """
+            update exchange_collection_capability
+               set value = @newValue, source = 'declared', valid_since = now(), filled_at = now(), filled_by = 'reconcile'
+             where exchange_code = @exchangeCode and collection_code = @collectionCode and capability_key = @key
+            """,
+            new { exchangeCode, collectionCode, key, newValue }, cancellationToken: ct));
+
+        await conn.ExecuteAsync(new CommandDefinition(
+            """
+            insert into capability_log (exchange_code, collection_code, capability_key, old_value, new_value, source, changed_by)
+            values (@exchangeCode, @collectionCode, @key, @old, @newValue, 'declared', 'reconcile')
+            """,
+            new { exchangeCode, collectionCode, key, old, newValue }, cancellationToken: ct));
+    }
+
     private IExchangeMarketData Build(ExchangeConfig config, CancellationToken ct) => config.Adapter switch
     {
         "fake" => new FakeExchangeMarketData(),
@@ -349,5 +459,20 @@ public sealed class ExchangeWorker : BackgroundService
         }
     }
 
-    private sealed record ExchangeRunner(CancellationTokenSource Cts, Task Loops);
+    private sealed record CollectorHandle(CancellationTokenSource Cts, Task Task);
+
+    private sealed class ExchangeRunner
+    {
+        public ExchangeRunner(CancellationTokenSource cts, IExchangeMarketData adapter, Dictionary<string, Func<CancellationToken, Task<int>>> bodies)
+        {
+            Cts = cts;
+            Adapter = adapter;
+            Bodies = bodies;
+        }
+
+        public CancellationTokenSource Cts { get; }
+        public IExchangeMarketData Adapter { get; }
+        public Dictionary<string, Func<CancellationToken, Task<int>>> Bodies { get; }
+        public Dictionary<string, CollectorHandle> Collectors { get; } = new(StringComparer.Ordinal);
+    }
 }

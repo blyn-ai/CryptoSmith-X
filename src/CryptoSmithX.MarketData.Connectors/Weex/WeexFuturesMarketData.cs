@@ -33,6 +33,16 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
 
     public string ExchangeCode => "weex-futures";
 
+    // REST-only in V1 (see the commit that added this adapter for why WS was deferred).
+    public IReadOnlyList<CollectionCapability> Capabilities { get; } =
+    [
+        new("discovery", "rest"),
+        new("snapshot", "rest"),
+        new("depth", "rest"),
+        new("candles", "rest"),
+        new("funding", "rest"),
+    ];
+
     public async Task<IReadOnlyList<Instrument>> GetInstrumentsAsync(CancellationToken ct)
     {
         var contracts = await _client.GetContractsAsync(ct);

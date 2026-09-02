@@ -35,6 +35,18 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
 
     public string ExchangeCode => "kraken-futures";
 
+    // Snapshot and depth are WS-first with a REST fallback whenever a feed is wired (see the ctor);
+    // both transports are honest regardless of whether _ws happens to be null right now, since that
+    // is a config fact (ws_url set or not), not a per-request coin flip.
+    public IReadOnlyList<CollectionCapability> Capabilities { get; } =
+    [
+        new("discovery", "rest"),
+        new("snapshot", "rest,ws"),
+        new("depth", "rest,ws"),
+        new("candles", "rest"),
+        new("funding", "rest"),
+    ];
+
     public async Task<IReadOnlyList<Instrument>> GetInstrumentsAsync(CancellationToken ct)
     {
         var instruments = await _client.GetInstrumentsAsync(ct);

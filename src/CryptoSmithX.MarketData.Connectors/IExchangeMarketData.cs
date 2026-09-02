@@ -12,6 +12,16 @@ public interface IExchangeMarketData
     /// <summary>Matches <c>exchange.code</c>.</summary>
     string ExchangeCode { get; }
 
+    /// <summary>
+    /// Which <c>collection.code</c>s this adapter honestly implements, and over which transport(s) —
+    /// a fixed fact about the adapter instance, not something that changes at runtime. A collection
+    /// absent from this list gets <c>we_implement=false</c> when <c>ExchangeWorker</c> declares
+    /// capability into <c>exchange_collection_capability</c> (0014); the fake's depth is the standing
+    /// example: <see cref="GetOrderBookAsync"/> always returns null, so it declares no depth entry
+    /// here even though a <c>DepthCollector</c> could technically be pointed at it.
+    /// </summary>
+    IReadOnlyList<CollectionCapability> Capabilities { get; }
+
     /// <summary>Linear perpetuals with a USD-family quote. Dated and inverse contracts are skipped.</summary>
     Task<IReadOnlyList<Instrument>> GetInstrumentsAsync(CancellationToken ct);
 
@@ -43,3 +53,8 @@ public interface IExchangeMarketData
     /// </summary>
     Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct);
 }
+
+/// <summary>One declared capability: this adapter implements <paramref name="CollectionCode"/>, using
+/// <paramref name="TransportsUs"/> (comma-joined, e.g. "rest" or "rest,ws" — matches the <c>list</c>
+/// kind of <c>capability_key</c> in 0014).</summary>
+public sealed record CollectionCapability(string CollectionCode, string TransportsUs);

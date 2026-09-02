@@ -39,7 +39,7 @@ public sealed class RollupJob
     {
         var startedAt = _clock.GetUtcNow();
         var since = _watermark == DateTimeOffset.UnixEpoch ? _watermark : _watermark - Slack;
-        var derivedTimeframes = (await _settings.CurrentAsync(ct)).DerivedTimeframes;
+        var derivedTimeframes = (await _settings.CurrentAsync(ct)).CollectionSettingIntList("rollup", "derived_timeframes");
 
         await using var conn = await _db.OpenAsync(ct);
         await Partitions.EnsureAsync(conn, startedAt, ct);

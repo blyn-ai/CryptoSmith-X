@@ -40,7 +40,7 @@ public sealed class CandleCollector
     public async Task<int> RunAsync(CancellationToken ct)
     {
         var now = _clock.GetUtcNow();
-        var floor = now - TimeSpan.FromHours((await _settings.CurrentAsync(ct)).CandleBackfillHours);
+        var floor = now - TimeSpan.FromHours((await _settings.CurrentAsync(ct)).CollectionSettingInt("candles", "backfill_hours"));
 
         await using var conn = await _db.OpenAsync(ct);
         await Partitions.EnsureAsync(conn, now, ct);

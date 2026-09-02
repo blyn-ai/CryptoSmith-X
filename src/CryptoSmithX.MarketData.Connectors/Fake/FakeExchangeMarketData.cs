@@ -39,6 +39,16 @@ public sealed class FakeExchangeMarketData : IExchangeMarketData
 
     public string ExchangeCode => "fake";
 
+    // Everything except depth: GetOrderBookAsync always returns null (the book is inline in the
+    // ticker), so depth has no honest entry here — the standing example the 0014 migration cites.
+    public IReadOnlyList<CollectionCapability> Capabilities { get; } =
+    [
+        new("discovery", "rest"),
+        new("snapshot", "rest"),
+        new("candles", "rest"),
+        new("funding", "rest"),
+    ];
+
     public Task<IReadOnlyList<Instrument>> GetInstrumentsAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();

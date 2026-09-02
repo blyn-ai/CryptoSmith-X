@@ -116,35 +116,71 @@ public static class ExchangeStore
             new { code },
             cancellationToken: ct))).ToList();
 
-        var config = await conn.QuerySingleAsync<ExchangeConfigRow>(new CommandDefinition(
+        var head = await conn.QuerySingleAsync<(string Adapter, string? BaseUrl, string? ChartsUrl, string? WsUrl, string[] QuoteAssets, string[] Blacklist, string? UpdatedBy)>(
+            new CommandDefinition(
+                """
+                select adapter      as "Adapter",
+                       base_url     as "BaseUrl",
+                       charts_url   as "ChartsUrl",
+                       ws_url       as "WsUrl",
+                       quote_assets as "QuoteAssets",
+                       blacklist    as "Blacklist",
+                       updated_by   as "UpdatedBy"
+                  from exchange
+                 where code = @code
+                """,
+                new { code },
+                cancellationToken: ct));
+
+        // The five interval overrides used to be columns on exchange; since 0014 they are cells of
+        // the exchange_collection matrix (in seconds uniformly). This view keeps the page's existing
+        // shape (discovery/funding still in minutes) without touching Details.cshtml — that
+        // conversion is the only thing this query still owns on their behalf.
+        var overrides = (await conn.QueryAsync<(string Collection, int? IntervalS)>(new CommandDefinition(
             """
-            select adapter                as "Adapter",
-                   base_url               as "BaseUrl",
-                   charts_url             as "ChartsUrl",
-                   ws_url                 as "WsUrl",
-                   quote_assets           as "QuoteAssets",
-                   blacklist              as "Blacklist",
-                   snapshot_interval_s    as "SnapshotIntervalS",
-                   candle_interval_s      as "CandleIntervalS",
-                   discovery_interval_min as "DiscoveryIntervalMin",
-                   funding_interval_min   as "FundingIntervalMin",
-                   depth_interval_s       as "DepthIntervalS",
-                   updated_by             as "UpdatedBy"
-              from exchange
-             where code = @code
+            select collection_code as "Collection", interval_s as "IntervalS"
+              from exchange_collection
+             where exchange_code = @code
+               and collection_code in ('discovery', 'snapshot', 'depth', 'candles', 'funding')
             """,
             new { code },
-            cancellationToken: ct));
-
-        // Global interval values, to show as placeholders where an override is empty.
-        var globals = (await conn.QueryAsync<(string Key, int Value)>(new CommandDefinition(
-            """
-            select key, value::int from setting
-             where key in ('snapshot_interval_s','candle_interval_s','discovery_interval_min',
-                           'funding_interval_min','depth_interval_s')
-            """,
             cancellationToken: ct)))
-            .ToDictionary(r => r.Key, r => r.Value, StringComparer.Ordinal);
+            .ToDictionary(r => r.Collection, r => r.IntervalS, StringComparer.Ordinal);
+
+        var config = new ExchangeConfigRow
+        {
+            Adapter = head.Adapter,
+            BaseUrl = head.BaseUrl,
+            ChartsUrl = head.ChartsUrl,
+            WsUrl = head.WsUrl,
+            QuoteAssets = head.QuoteAssets,
+            Blacklist = head.Blacklist,
+            SnapshotIntervalS = overrides.GetValueOrDefault("snapshot"),
+            CandleIntervalS = overrides.GetValueOrDefault("candles"),
+            DiscoveryIntervalMin = overrides.GetValueOrDefault("discovery") is { } d ? d / 60 : null,
+            FundingIntervalMin = overrides.GetValueOrDefault("funding") is { } f ? f / 60 : null,
+            DepthIntervalS = overrides.GetValueOrDefault("depth"),
+            UpdatedBy = head.UpdatedBy,
+        };
+
+        // Collection defaults, to show as placeholders where an override is empty — the successor to
+        // the old global setting values, which moved into collection.default_interval_s in 0014.
+        var defaults = (await conn.QueryAsync<(string Code, int DefaultIntervalS)>(new CommandDefinition(
+            """
+            select code as "Code", default_interval_s as "DefaultIntervalS"
+              from collection
+             where code in ('discovery', 'snapshot', 'depth', 'candles', 'funding')
+            """,
+            cancellationToken: ct))).ToList();
+
+        var globals = new Dictionary<string, int>(StringComparer.Ordinal)
+        {
+            ["snapshot_interval_s"] = defaults.Single(r => r.Code == "snapshot").DefaultIntervalS,
+            ["candle_interval_s"] = defaults.Single(r => r.Code == "candles").DefaultIntervalS,
+            ["discovery_interval_min"] = defaults.Single(r => r.Code == "discovery").DefaultIntervalS / 60,
+            ["funding_interval_min"] = defaults.Single(r => r.Code == "funding").DefaultIntervalS / 60,
+            ["depth_interval_s"] = defaults.Single(r => r.Code == "depth").DefaultIntervalS,
+        };
 
         return new ExchangeDetails(exchange, config, globals, collectors, stalest, throughput, await RunStore.LatencyAsync(conn, code, ct));
     }
@@ -156,33 +192,58 @@ public static class ExchangeStore
     /// Writes the editable configuration of an exchange, stamping who did it. Status is NOT written
     /// here — it is the guarded control on the overview (see <see cref="SetStatusAsync"/>) — so this
     /// form can never take a venue offline by accident. Adapter is bound to the code and read-only.
-    /// Interval values are per-exchange overrides; null means "use the global setting".
+    /// Interval values are per-exchange overrides, null means "use the collection default"; since
+    /// 0014 they live in exchange_collection, not on exchange, so this writes both places in one
+    /// transaction — the exchange row keeps its old shape externally, but it has nowhere left to
+    /// write those five values into.
     /// </summary>
     public static async Task<bool> SaveAsync(DbConnection conn, ExchangeSaveInput input, CancellationToken ct)
     {
+        await using var tx = await conn.BeginTransactionAsync(ct);
+
         var rows = await conn.ExecuteAsync(new CommandDefinition(
             """
             update exchange
-               set name                   = @Name,
-                   description            = nullif(@Description, ''),
-                   base_url               = nullif(@BaseUrl, ''),
-                   charts_url             = nullif(@ChartsUrl, ''),
-                   ws_url                 = nullif(@WsUrl, ''),
-                   quote_assets           = @QuoteAssets,
-                   blacklist              = @Blacklist,
-                   snapshot_interval_s    = @SnapshotIntervalS,
-                   candle_interval_s      = @CandleIntervalS,
-                   discovery_interval_min = @DiscoveryIntervalMin,
-                   funding_interval_min   = @FundingIntervalMin,
-                   depth_interval_s       = @DepthIntervalS,
-                   updated_by             = @UpdatedBy,
-                   updated_at             = now()
+               set name        = @Name,
+                   description = nullif(@Description, ''),
+                   base_url    = nullif(@BaseUrl, ''),
+                   charts_url  = nullif(@ChartsUrl, ''),
+                   ws_url      = nullif(@WsUrl, ''),
+                   quote_assets = @QuoteAssets,
+                   blacklist   = @Blacklist,
+                   updated_by  = @UpdatedBy,
+                   updated_at  = now()
              where code = @Code
             """,
-            input,
-            cancellationToken: ct));
-        return rows == 1;
+            input, tx, cancellationToken: ct));
+
+        if (rows != 1)
+        {
+            await tx.RollbackAsync(ct);
+            return false;
+        }
+
+        // The matrix is always complete (0014's invariant), so every one of these UPDATEs matches
+        // exactly the row backfilled by the migration — no insert branch needed.
+        await UpdateIntervalAsync(conn, tx, input.Code, "snapshot", input.SnapshotIntervalS, input.UpdatedBy, ct);
+        await UpdateIntervalAsync(conn, tx, input.Code, "candles", input.CandleIntervalS, input.UpdatedBy, ct);
+        await UpdateIntervalAsync(conn, tx, input.Code, "depth", input.DepthIntervalS, input.UpdatedBy, ct);
+        await UpdateIntervalAsync(conn, tx, input.Code, "discovery", input.DiscoveryIntervalMin is { } d ? d * 60 : null, input.UpdatedBy, ct);
+        await UpdateIntervalAsync(conn, tx, input.Code, "funding", input.FundingIntervalMin is { } f ? f * 60 : null, input.UpdatedBy, ct);
+
+        await tx.CommitAsync(ct);
+        return true;
     }
+
+    private static Task UpdateIntervalAsync(
+        DbConnection conn, DbTransaction tx, string exchangeCode, string collectionCode, int? intervalS, string? updatedBy, CancellationToken ct) =>
+        conn.ExecuteAsync(new CommandDefinition(
+            """
+            update exchange_collection
+               set interval_s = @intervalS, updated_by = @updatedBy, updated_at = now()
+             where exchange_code = @exchangeCode and collection_code = @collectionCode
+            """,
+            new { exchangeCode, collectionCode, intervalS, updatedBy }, tx, cancellationToken: ct));
 
     /// <summary>
     /// The guarded status change — the only control that stops (or starts) collection. Returns false

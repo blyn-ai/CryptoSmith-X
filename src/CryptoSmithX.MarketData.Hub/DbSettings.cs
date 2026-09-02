@@ -7,9 +7,10 @@ namespace CryptoSmithX.MarketData.Hub;
 /// <summary>
 /// The Hub's configuration, read from the database rather than appsettings. A plain class like
 /// <see cref="Db"/>, not IOptions: settings change at runtime from the admin UI, so a static
-/// options object would be a lie. A snapshot of the whole <c>setting</c> table and every
-/// <c>exchange</c> row is cached for ~30 s; loops read the cached copy on every iteration, so an
-/// edit in the UI takes effect within that window plus one loop interval — no restart.
+/// options object would be a lie. A snapshot of the whole <c>setting</c> table, every <c>exchange</c>
+/// row, the <c>collection</c> catalogue, <c>collection_setting</c> and the full <c>exchange_collection</c>
+/// matrix is cached for ~30 s; loops read the cached copy on every iteration, so an edit in the UI
+/// takes effect within that window plus one loop interval — no restart.
 /// </summary>
 public sealed class DbSettings
 {
@@ -70,31 +71,55 @@ public sealed class DbSettings
 
         var exchanges = (await conn.QueryAsync<ExchangeConfig>(new CommandDefinition(
             """
-            select code                   as "Code",
-                   adapter                as "Adapter",
-                   base_url               as "BaseUrl",
-                   charts_url             as "ChartsUrl",
-                   ws_url                 as "WsUrl",
-                   quote_assets           as "QuoteAssets",
-                   blacklist              as "Blacklist",
-                   status                 as "Status",
-                   snapshot_interval_s    as "SnapshotIntervalS",
-                   candle_interval_s      as "CandleIntervalS",
-                   discovery_interval_min as "DiscoveryIntervalMin",
-                   funding_interval_min   as "FundingIntervalMin",
-                   depth_interval_s       as "DepthIntervalS"
+            select code         as "Code",
+                   adapter      as "Adapter",
+                   base_url     as "BaseUrl",
+                   charts_url   as "ChartsUrl",
+                   ws_url       as "WsUrl",
+                   quote_assets as "QuoteAssets",
+                   blacklist    as "Blacklist",
+                   status       as "Status"
               from exchange
              order by code
             """, cancellationToken: ct))).ToList();
 
-        return new SettingsSnapshot(settings, exchanges);
+        var collections = (await conn.QueryAsync<CollectionDefaults>(new CommandDefinition(
+            """
+            select code                   as "Code",
+                   kind                   as "Kind",
+                   default_mode           as "DefaultMode",
+                   default_interval_s     as "DefaultIntervalS",
+                   default_retention_days as "DefaultRetentionDays"
+              from collection
+            """, cancellationToken: ct)))
+            .ToDictionary(c => c.Code, StringComparer.Ordinal);
+
+        var collectionSettings = (await conn.QueryAsync<(string Collection, string Key, string Value)>(
+            new CommandDefinition(
+                "select collection_code, key, value from collection_setting", cancellationToken: ct)))
+            .ToDictionary(r => (r.Collection, r.Key), r => r.Value);
+
+        var matrix = (await conn.QueryAsync<ExchangeCollectionRow>(new CommandDefinition(
+            """
+            select exchange_code   as "ExchangeCode",
+                   collection_code as "CollectionCode",
+                   mode            as "Mode",
+                   interval_s      as "IntervalS",
+                   retention_days  as "RetentionDays",
+                   transport       as "Transport"
+              from exchange_collection
+            """, cancellationToken: ct)))
+            .ToDictionary(r => (r.ExchangeCode, r.CollectionCode));
+
+        return new SettingsSnapshot(settings, exchanges, collections, collectionSettings, matrix);
     }
 }
 
 /// <summary>
-/// One exchange's configuration row. Interval overrides are null when the global wins. Property-init
-/// rather than positional so Dapper materialises it through property setters — its constructor path
-/// does not bind the text[] columns to string[] parameters.
+/// One exchange's configuration row — everything that stays on <c>exchange</c> (how to reach it, and
+/// whether it runs at all). What and how often to collect moved to <c>exchange_collection</c> (0014).
+/// Property-init rather than positional so Dapper materialises it through property setters — its
+/// constructor path does not bind the text[] columns to string[] parameters.
 /// </summary>
 public sealed record ExchangeConfig
 {
@@ -106,22 +131,50 @@ public sealed record ExchangeConfig
     public string[] QuoteAssets { get; init; } = [];
     public string[] Blacklist { get; init; } = [];
     public string Status { get; init; } = "";
-    public int? SnapshotIntervalS { get; init; }
-    public int? CandleIntervalS { get; init; }
-    public int? DiscoveryIntervalMin { get; init; }
-    public int? FundingIntervalMin { get; init; }
-    public int? DepthIntervalS { get; init; }
 }
 
-/// <summary>An immutable read of the whole settings surface. Global values plus every exchange.</summary>
+/// <summary>One row of the <c>collection</c> catalogue — the terminal default of the cascade.</summary>
+public sealed record CollectionDefaults
+{
+    public string Code { get; init; } = "";
+    public string Kind { get; init; } = "";
+    public string DefaultMode { get; init; } = "";
+    public int? DefaultIntervalS { get; init; }
+    public int? DefaultRetentionDays { get; init; }
+}
+
+/// <summary>One cell of the exchange×collection matrix — always present for every pair (0014).</summary>
+public sealed record ExchangeCollectionRow
+{
+    public string ExchangeCode { get; init; } = "";
+    public string CollectionCode { get; init; } = "";
+    public string Mode { get; init; } = "";
+    public int? IntervalS { get; init; }
+    public int? RetentionDays { get; init; }
+    public string? Transport { get; init; }
+}
+
+/// <summary>An immutable read of the whole settings surface: global values, every exchange, the
+/// collection catalogue and the full policy matrix.</summary>
 public sealed class SettingsSnapshot
 {
     private readonly IReadOnlyDictionary<string, string> _settings;
+    private readonly IReadOnlyDictionary<string, CollectionDefaults> _collections;
+    private readonly IReadOnlyDictionary<(string Collection, string Key), string> _collectionSettings;
+    private readonly IReadOnlyDictionary<(string Exchange, string Collection), ExchangeCollectionRow> _matrix;
 
-    public SettingsSnapshot(IReadOnlyDictionary<string, string> settings, IReadOnlyList<ExchangeConfig> exchanges)
+    public SettingsSnapshot(
+        IReadOnlyDictionary<string, string> settings,
+        IReadOnlyList<ExchangeConfig> exchanges,
+        IReadOnlyDictionary<string, CollectionDefaults> collections,
+        IReadOnlyDictionary<(string Collection, string Key), string> collectionSettings,
+        IReadOnlyDictionary<(string Exchange, string Collection), ExchangeCollectionRow> matrix)
     {
         _settings = settings;
         Exchanges = exchanges;
+        _collections = collections;
+        _collectionSettings = collectionSettings;
+        _matrix = matrix;
     }
 
     public IReadOnlyList<ExchangeConfig> Exchanges { get; }
@@ -129,38 +182,71 @@ public sealed class SettingsSnapshot
     public ExchangeConfig? Exchange(string code) =>
         Exchanges.FirstOrDefault(e => string.Equals(e.Code, code, StringComparison.Ordinal));
 
+    public IReadOnlyCollection<CollectionDefaults> Collections => (IReadOnlyCollection<CollectionDefaults>)_collections.Values;
+
     // WS honesty knobs (0010): how fresh a cached WS record must be to be served, and the
-    // REST cross-check cadence and drift threshold that catch a silently frozen book.
+    // REST cross-check cadence and drift threshold that catch a silently frozen book. These stay
+    // global (0014): they are about the transport, not about any one collection.
     public TimeSpan WsStaleAfter => TimeSpan.FromSeconds(GetInt("ws_stale_after_s"));
     public TimeSpan WsCrosscheckInterval => TimeSpan.FromSeconds(GetInt("ws_crosscheck_interval_s"));
     public int WsCrosscheckDriftBps => GetInt("ws_crosscheck_drift_bps");
 
-    // Global settings (were MarketDataOptions).
-    public int SnapshotRetentionDays => GetInt("snapshot_retention_days");
-    public int CandleBackfillHours => GetInt("candle_backfill_hours");
-    public int FundingBackfillHours => GetInt("funding_backfill_hours");
-    public int DelistAfterMissedDiscoveries => GetInt("delist_after_missed_discoveries");
-    public IReadOnlyList<int> DerivedTimeframes => GetIntList("derived_timeframes");
+    /// <summary>
+    /// The matrix cell for one exchange×collection pair, or null if the pair genuinely has no row —
+    /// which should not happen for a real exchange once 0014's backfill has run, but a brand-new
+    /// exchange added by hand outside a migration would hit this until its matrix row exists.
+    /// </summary>
+    public ExchangeCollectionRow? Cell(string exchangeCode, string collectionCode) =>
+        _matrix.GetValueOrDefault((exchangeCode, collectionCode));
 
-    // Effective per-exchange intervals: the exchange override, or the global if it is null.
-    public TimeSpan SnapshotInterval(ExchangeConfig e) =>
-        TimeSpan.FromSeconds(e.SnapshotIntervalS ?? GetInt("snapshot_interval_s"));
-    public TimeSpan CandleInterval(ExchangeConfig e) =>
-        TimeSpan.FromSeconds(e.CandleIntervalS ?? GetInt("candle_interval_s"));
-    public TimeSpan DiscoveryInterval(ExchangeConfig e) =>
-        TimeSpan.FromMinutes(e.DiscoveryIntervalMin ?? GetInt("discovery_interval_min"));
-    public TimeSpan FundingInterval(ExchangeConfig e) =>
-        TimeSpan.FromMinutes(e.FundingIntervalMin ?? GetInt("funding_interval_min"));
-    public TimeSpan DepthInterval(ExchangeConfig e) =>
-        TimeSpan.FromSeconds(e.DepthIntervalS ?? GetInt("depth_interval_s"));
+    /// <summary>The human decision for this pair — 'disabled' / 'on_demand' / 'collect'. Mode has no
+    /// cascade: <c>exchange_collection.mode</c> is never null, unlike interval/retention.</summary>
+    public string Mode(string exchangeCode, string collectionCode) =>
+        Cell(exchangeCode, collectionCode)?.Mode
+        ?? _collections.GetValueOrDefault(collectionCode)?.DefaultMode
+        ?? "disabled";
+
+    /// <summary>Cascade: exchange_collection.interval_s -> collection.default_interval_s. Throws if
+    /// neither level has a value — a collection whose mode can be 'collect' must always resolve one.</summary>
+    public TimeSpan CollectionInterval(string exchangeCode, string collectionCode)
+    {
+        var fromCell = Cell(exchangeCode, collectionCode)?.IntervalS;
+        var fromCollection = _collections.GetValueOrDefault(collectionCode)?.DefaultIntervalS;
+        var seconds = fromCell ?? fromCollection
+            ?? throw new InvalidOperationException(
+                $"No interval resolved for {exchangeCode}/{collectionCode} — neither the matrix cell nor "
+                + "the collection default is set.");
+        return TimeSpan.FromSeconds(seconds);
+    }
+
+    /// <summary>
+    /// Retention for a collection, collection-level only — deliberately NOT overridable per exchange.
+    /// <c>market_snapshot</c> partitions are shared by every exchange; dropping a partition cannot
+    /// spare one exchange's rows, so a per-exchange <c>exchange_collection.retention_days</c> value
+    /// is recorded (visible as the operator's intent) but not honoured here. See the 0014 migration
+    /// header for the full reasoning. null = never rotated.
+    /// </summary>
+    public int? CollectionRetentionDays(string collectionCode) =>
+        _collections.GetValueOrDefault(collectionCode)?.DefaultRetentionDays;
+
+    /// <summary>A <c>collection_setting</c> int value — the four knobs that are neither an interval
+    /// nor a retention (backfill windows, the delist counter).</summary>
+    public int CollectionSettingInt(string collectionCode, string key) =>
+        int.Parse(RequireCollectionSetting(collectionCode, key), NumberStyles.Integer, CultureInfo.InvariantCulture);
+
+    public IReadOnlyList<int> CollectionSettingIntList(string collectionCode, string key) =>
+        RequireCollectionSetting(collectionCode, key)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(v => int.Parse(v, NumberStyles.Integer, CultureInfo.InvariantCulture))
+            .ToList();
+
+    private string RequireCollectionSetting(string collectionCode, string key) =>
+        _collectionSettings.TryGetValue((collectionCode, key), out var value)
+            ? value
+            : throw new InvalidOperationException($"collection_setting '{collectionCode}/{key}' is missing from the database.");
 
     public int GetInt(string key) =>
         int.Parse(Require(key), NumberStyles.Integer, CultureInfo.InvariantCulture);
-
-    public IReadOnlyList<int> GetIntList(string key) =>
-        Require(key).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(v => int.Parse(v, NumberStyles.Integer, CultureInfo.InvariantCulture))
-            .ToList();
 
     private string Require(string key) =>
         _settings.TryGetValue(key, out var value)

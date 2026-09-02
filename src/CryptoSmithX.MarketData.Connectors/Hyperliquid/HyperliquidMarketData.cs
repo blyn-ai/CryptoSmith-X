@@ -44,6 +44,18 @@ public sealed class HyperliquidMarketData : IExchangeMarketData
 
     public string ExchangeCode => "hyperliquid";
 
+    // Snapshot needs the live feed for bid/ask/size (metaAndAssetCtxs carries no book at all), and
+    // depth is served off the same feed — both honestly "rest,ws" once a ws_url is configured, since
+    // the REST book cycler always runs as the baseline (see HyperliquidBookFeed).
+    public IReadOnlyList<CollectionCapability> Capabilities { get; } =
+    [
+        new("discovery", "rest"),
+        new("snapshot", "rest,ws"),
+        new("depth", "rest,ws"),
+        new("candles", "rest"),
+        new("funding", "rest"),
+    ];
+
     public async Task<IReadOnlyList<Instrument>> GetInstrumentsAsync(CancellationToken ct)
     {
         var meta = await _client.GetMetaAsync(ct);

@@ -149,7 +149,8 @@ public sealed class DiscoveryCollector
 
         // Gone for several rounds in a row is a delisting. Age of last_seen_at is used rather than
         // an in-memory miss counter so a restart does not forget what it had seen.
-        var missedFor = snapshot.DiscoveryInterval(config) * snapshot.DelistAfterMissedDiscoveries;
+        var missedFor = snapshot.CollectionInterval(_adapter.ExchangeCode, "discovery")
+            * snapshot.CollectionSettingInt("discovery", "delist_after_missed_discoveries");
         await conn.ExecuteAsync(new CommandDefinition(
             """
             update exchange_instrument
