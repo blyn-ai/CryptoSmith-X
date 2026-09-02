@@ -207,18 +207,31 @@ public static class DashboardStore
         """;
 
     // 5-min buckets over 2 h per exchange, for the row sparklines.
+    // Ingest volume per exchange, read from the run log rather than from the snapshot rows
+    // themselves. Counting market_snapshot re-scanned ~174k rows per dashboard render (three
+    // venues x 25 buckets, each its own pass) and grew with the archive — on a live refresh
+    // every 10 s that was the single heaviest thing the console did, and it starved the very
+    // writers it was measuring. collector_run already carries items per pass: same shape,
+    // 25 ms instead of seconds, and the cost now scales with passes, not with history.
     private const string SparkSql =
         """
         with buckets as (
             select generate_series(date_trunc('hour', now()) - interval '2 hours', now(), interval '5 minutes') as b
         ),
-        ex as (select code from exchange where status = 'enabled')
-        select ex.code as "ExchangeCode", count(m.received_at)::double precision as "Rows"
+        ex as (select code from exchange where status = 'enabled'),
+        agg as (
+            select r.exchange_code as code,
+                   to_timestamp(floor(extract(epoch from r.started_at) / 300) * 300) as b,
+                   sum(r.items)::double precision as rows
+              from collector_run r
+             where r.collector = 'snapshot' and r.ok
+               and r.started_at >= date_trunc('hour', now()) - interval '2 hours'
+             group by 1, 2
+        )
+        select ex.code as "ExchangeCode", coalesce(agg.rows, 0) as "Rows"
           from ex cross join buckets
-          left join market_snapshot m
-            on m.received_at >= buckets.b and m.received_at < buckets.b + interval '5 minutes'
-           and m.exchange_instrument_id in (select id from exchange_instrument where exchange_code = ex.code)
-         group by ex.code, buckets.b order by ex.code, buckets.b
+          left join agg on agg.code = ex.code and agg.b = buckets.b
+         order by ex.code, buckets.b
         """;
 
     private sealed record ExRow(string Code, string Name, string Status, int TradingInstruments, int KnownInstruments, double? WorstAgeSeconds);

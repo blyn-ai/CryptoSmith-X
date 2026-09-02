@@ -95,15 +95,23 @@ public static class ExchangeStore
             new { code },
             cancellationToken: ct))).ToList();
 
-        // Snapshot throughput: rows per 5 min over 2 h, for the detail chart.
+        // Snapshot throughput per 5 min over 2 h, read from the run log — see the note on
+        // DashboardStore.SparkSql: counting market_snapshot rows re-scanned the archive on
+        // every render and got slower as the archive grew.
         var throughput = (await conn.QueryAsync<double>(new CommandDefinition(
             """
-            with buckets as (select generate_series(date_trunc('hour', now()) - interval '2 hours', now(), interval '5 minutes') as b)
-            select count(m.received_at)::double precision
-              from buckets
-              left join market_snapshot m on m.received_at >= buckets.b and m.received_at < buckets.b + interval '5 minutes'
-               and m.exchange_instrument_id in (select id from exchange_instrument where exchange_code = @code)
-             group by buckets.b order by buckets.b
+            with buckets as (select generate_series(date_trunc('hour', now()) - interval '2 hours', now(), interval '5 minutes') as b),
+            agg as (
+                select to_timestamp(floor(extract(epoch from r.started_at) / 300) * 300) as b,
+                       sum(r.items)::double precision as rows
+                  from collector_run r
+                 where r.exchange_code = @code and r.collector = 'snapshot' and r.ok
+                   and r.started_at >= date_trunc('hour', now()) - interval '2 hours'
+                 group by 1
+            )
+            select coalesce(agg.rows, 0)
+              from buckets left join agg on agg.b = buckets.b
+             order by buckets.b
             """,
             new { code },
             cancellationToken: ct))).ToList();
