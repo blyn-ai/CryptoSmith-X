@@ -107,7 +107,83 @@ public sealed record ExchangeDetails(
     IReadOnlyList<ExchangeCollectorRow> Collectors,
     IReadOnlyList<StaleInstrument> Stalest,
     IReadOnlyList<double> Throughput,
-    IReadOnlyList<LatencySeries> Latency);
+    IReadOnlyList<LatencySeries> Latency,
+    IReadOnlyList<FeedRow> Feeds,
+    IReadOnlyList<FeedDetails> FeedDialogs);
+
+// ── Data feeds (collections, 0014 phase 2) ──────────────────────────────────
+
+/// <summary>One row of the "Data feeds" panel: one collection for one exchange, all three axes —
+/// capability (fact), policy (decided) and health (observed) — kept visually and structurally
+/// separate, per plans/design/data-feeds/HANDOFF.md.</summary>
+public sealed record FeedRow(
+    string CollectionCode,
+    string CollectionName,
+    string Kind,
+    short SortOrder,
+    bool? VenueSupports,
+    bool? WeImplement,
+    string? HistoryDepth,
+    string? HistorySource,
+    string Mode,
+    string? Transport,
+    int? EffectiveIntervalS,
+    int? EffectiveRetentionDays,
+    string? Note,
+    double? LastSuccessAgeSeconds,
+    int ConsecutiveFailures,
+    int? LastDurationMs,
+    double? AvgDurationMs);
+
+/// <summary>One capability_key row in the Edit feed dialog's read-only left column — a value with
+/// no source is an opinion, so <see cref="Source"/>/<see cref="FilledBy"/>/<see cref="FilledAt"/> are
+/// shown with equal weight to the value itself.</summary>
+public sealed record FeedCapabilityRow(
+    string Key, string Label, string Kind, bool LossRelevant,
+    string? Value, string? Source, string? FilledBy, DateTime? FilledAt);
+
+/// <summary>Everything the Edit feed dialog needs for one collection: the read-only capability
+/// column and the editable policy column, including the own/collection/global cascade for interval
+/// and retention.</summary>
+public sealed record FeedDetails(
+    string CollectionCode,
+    string CollectionName,
+    string CollectionDescription,
+    string Kind,
+    IReadOnlyList<FeedCapabilityRow> Capabilities,
+    string Mode,
+    bool WeImplement,
+    int? OwnIntervalS,
+    int? CollectionDefaultIntervalS,
+    int? OwnRetentionDays,
+    int? CollectionDefaultRetentionDays,
+    string? Transport,
+    IReadOnlyList<string> TransportOptions,
+    string? Note,
+    string? UpdatedBy,
+    DateTime? UpdatedAt,
+    string? LatestCapabilityLogLine);
+
+/// <summary>The editable policy of one exchange×collection cell.</summary>
+public sealed record FeedSaveInput(
+    string ExchangeCode,
+    string CollectionCode,
+    string Mode,
+    int? IntervalS,
+    int? RetentionDays,
+    string? Transport,
+    string? Note,
+    string? ConfirmCode,
+    string? UpdatedBy);
+
+// ── Collections catalogue (screen 3) ────────────────────────────────────────
+
+public sealed record CollectionCard(
+    string Code, string Name, string Description, string Kind, short SortOrder,
+    string DefaultMode, int? DefaultIntervalS, int? DefaultRetentionDays,
+    IReadOnlyList<CollectionVenueRow> Venues);
+
+public sealed record CollectionVenueRow(string CollectionCode, string ExchangeCode, string ExchangeName, string Mode, string? Note);
 
 // ── Assets ────────────────────────────────────────────────────────────────
 public sealed record AssetListItem(

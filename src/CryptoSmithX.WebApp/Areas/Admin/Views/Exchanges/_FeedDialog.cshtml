@@ -1,0 +1,180 @@
+@model CryptoSmithX.WebApp.Models.FeedDetails
+@{
+    var exchangeCode = (string)ViewData["ExchangeCode"]!;
+    var d = Model;
+
+    string ModeTagClass(string m) => m switch { "collect" => "enabled", "on_demand" => "planned", _ => "disabled" };
+    string ModeLabel(string m) => m switch { "collect" => "collect", "on_demand" => "on demand", _ => "disabled" };
+
+    var history = d.Capabilities.FirstOrDefault(c => c.Key == "history_depth");
+    var historyless = history is null || history.Value is null or "none";
+
+    string FormatCapValue(CryptoSmithX.WebApp.Models.FeedCapabilityRow c) => c.Kind switch
+    {
+        "bool" => c.Value switch { "true" => "yes", "false" => "no", _ => "—" },
+        _ => c.Value ?? "—",
+    };
+
+    (string TagClass, string TagText) SourceTag(string? source) => source switch
+    {
+        "declared" => ("tag", "declared"),
+        "probed" => ("tag planned", "probed"),
+        "manual" => ("tag maintenance", "manual"),
+        _ => ("tag dashed", "no source"),
+    };
+
+    var ownIntervalDisplay = d.OwnIntervalS?.ToString() ?? "";
+    var ownRetentionDisplay = d.OwnRetentionDays?.ToString() ?? "";
+    var intervalPlaceholder = d.CollectionDefaultIntervalS is { } di ? $"collection {di}" : "collection —";
+    var retentionPlaceholder = d.CollectionDefaultRetentionDays is { } dr ? $"collection {dr}" : "collection: never rotate";
+}
+<div class="modal-scrim" id="feed-dialog-@d.CollectionCode" data-feed-dialog data-collection="@d.CollectionCode"
+     data-original-mode="@d.Mode" data-history="@(historyless ? "none" : "established")" style="display:none">
+    <div class="modal">
+        <div class="modal-h">
+            <div style="display:flex;flex-direction:column;gap:7px;min-width:0">
+                <p class="eyebrow">Edit feed · @exchangeCode</p>
+                <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
+                    <h2 style="font:var(--type-h3)">@d.CollectionName</h2>
+                    <span class="tag @ModeTagClass(d.Mode)" data-mode-tag>@ModeLabel(d.Mode)</span>
+                    @if (d.Kind == "derived") { <span class="tag dashed">derived</span> }
+                </div>
+                <p style="margin:0;font:400 12px/1.55 var(--font-body);color:var(--text-muted);max-width:62ch;text-wrap:pretty">@d.CollectionDescription</p>
+            </div>
+            <button class="linkbtn" type="button" data-dialog-close>Close</button>
+        </div>
+
+        <form method="post" action="/Admin/Exchanges/Feed/@exchangeCode">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="collection" value="@d.CollectionCode">
+            <div class="modal-b">
+                <div>
+                    <div class="panel-h" style="padding:0 0 10px;border:0">
+                        <p class="eyebrow">Capability · fact</p>
+                        <span class="code">read-only</span>
+                    </div>
+                    @foreach (var c in d.Capabilities)
+                    {
+                        var (tagClass, tagText) = SourceTag(c.Source);
+                        var valueColor = c.Source is null ? "var(--text-faint)"
+                            : (c.LossRelevant && c.Value == "none") ? "var(--csx-gold-ink)" : "var(--text-data)";
+                        <div class="cap-row">
+                            <div class="k">
+                                <i>@c.Label</i>
+                                <span class="mono" style="color:@valueColor">@FormatCapValue(c)</span>
+                            </div>
+                            <div class="p">
+                                <span class="@tagClass" style="font-size:9px">@tagText</span>
+                                <span class="code">@(c.Source is null ? "never filled" : $"{c.FilledBy} · {Format.Utc(c.FilledAt)}")</span>
+                            </div>
+                        </div>
+                    }
+                    <p style="margin:10px 0 0;font:400 11px/1.5 var(--font-body);color:var(--text-faint)">A value without a source is an opinion. "Not established" is an honest answer, not a failure.</p>
+                </div>
+
+                <div>
+                    <div class="panel-h" style="padding:0 0 10px;border:0">
+                        <p class="eyebrow">Policy · decided by a human</p>
+                        <span class="code">last edited by @(d.UpdatedBy ?? "—") · @Format.Utc(d.UpdatedAt)</span>
+                    </div>
+
+                    <p class="eyebrow" style="margin:0 0 6px">Mode</p>
+                    <div class="chips" data-mode-chips style="margin-bottom:13px">
+                        @foreach (var m in new[] { "disabled", "on_demand", "collect" })
+                        {
+                            var blocked = m != "disabled" && !d.WeImplement;
+                            <label class="chip @(m == d.Mode ? "is-on" : "")" style="@(blocked ? "opacity:.45;cursor:not-allowed" : "")"
+                                   title="@(blocked ? "No collector for this feed yet — both collect and on demand need one" : "")">
+                                <input type="radio" name="mode" value="@m" @(m == d.Mode ? "checked" : "") @(blocked ? "disabled" : "")
+                                       data-mode-radio style="position:absolute;opacity:0;width:0;height:0">@ModeLabel(m)
+                            </label>
+                        }
+                    </div>
+
+                    <div data-guard style="display:none">
+                        <div class="err" style="margin:0 0 12px">
+                            <b>Loss</b>
+                            <div>
+                                <span class="t">@d.CollectionName history does not exist — history depth is @(history?.Value ?? "not established") (@(history?.Source ?? "no source"), @(history?.FilledBy ?? "—")). Whatever is not collected while this feed is off is gone forever: there is nowhere to backfill it from.</span>
+                                <span class="m">The archive keeps what it already has; the gap starts at this click.</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="guardCode-@d.CollectionCode">Type @d.CollectionCode to release the guard</label>
+                            <input id="guardCode-@d.CollectionCode" name="confirmCode" type="text" autocomplete="off" spellcheck="false" placeholder="@d.CollectionCode" data-guard-code>
+                        </div>
+                    </div>
+                    <div data-calm style="display:none;padding:10px 12px;border:1px solid var(--border-hairline);border-radius:var(--radius-sm);margin-bottom:14px">
+                        <span style="font:400 11.5px/1.5 var(--font-body);color:var(--text-muted)">History depth is @(history?.Value ?? "—")@(history?.Source is null ? "" : $", {history.Source} by {history.FilledBy}") — a gap made now can be backfilled later. Stopping is reversible for this feed.</span>
+                    </div>
+
+                    <p class="eyebrow" style="margin:0 0 6px">Primary transport</p>
+                    @if (d.Kind == "derived")
+                    {
+                        <p class="code" style="white-space:normal;margin:0 0 14px">Derived series — nothing is fetched, so there is no transport to choose.</p>
+                    }
+                    else if (d.TransportOptions.Count >= 2)
+                    {
+                        <div class="chips" data-transport-chips style="margin-bottom:8px">
+                            @foreach (var t in d.TransportOptions)
+                            {
+                                <label class="chip @(t == d.Transport ? "is-on" : "")">
+                                    <input type="radio" name="transport" value="@t" @(t == d.Transport ? "checked" : "")
+                                           data-transport-radio style="position:absolute;opacity:0;width:0;height:0">@t
+                                </label>
+                            }
+                        </div>
+                        <p class="code" style="white-space:normal;margin:0 0 14px">Venue @string.Join(", ", d.TransportOptions) · we implement @string.Join(", ", d.TransportOptions). This picks the primary; the WS→REST fallback is always on and cannot be switched off.</p>
+                    }
+                    else if (d.TransportOptions.Count == 1)
+                    {
+                        <input type="hidden" name="transport" value="@d.TransportOptions[0]">
+                        <p style="margin:0 0 14px;font:400 12.5px/1.4 var(--font-mono);color:var(--text-data)">@d.TransportOptions[0]</p>
+                        <p class="code" style="white-space:normal;margin:0 0 14px">Not a choice, so not a dropdown. WS→REST fallback is always on: it is protection against loss, not a setting.</p>
+                    }
+                    else
+                    {
+                        <input type="hidden" name="transport" value="">
+                        <p class="code" style="white-space:normal;margin:0 0 14px">No transport both sides have.</p>
+                    }
+
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 16px">
+                        <div class="field" style="margin-bottom:6px">
+                            <label for="intervalS-@d.CollectionCode">Interval (s)</label>
+                            <input id="intervalS-@d.CollectionCode" name="intervalS" type="text" value="@ownIntervalDisplay" placeholder="@intervalPlaceholder" data-interval>
+                        </div>
+                        <div class="field" style="margin-bottom:6px">
+                            <label for="retentionDays-@d.CollectionCode">Retention (days)</label>
+                            <input id="retentionDays-@d.CollectionCode" name="retentionDays" type="text" value="@ownRetentionDisplay" placeholder="@retentionPlaceholder" data-retention>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 16px;margin-bottom:14px">
+                        <div class="cascade" data-interval-cascade>
+                            <span class="@(d.OwnIntervalS is not null ? "is-eff is-own" : "")"><i>own</i><b>@(d.OwnIntervalS?.ToString() ?? "—")</b></span>
+                            <span class="@(d.OwnIntervalS is null ? "is-eff" : "")"><i>collection</i><b>@(d.CollectionDefaultIntervalS?.ToString() ?? "—")</b></span>
+                            <span><i>global</i><b>—</b></span>
+                        </div>
+                        <div class="cascade" data-retention-cascade>
+                            <span class="@(d.OwnRetentionDays is not null ? "is-eff is-own" : "")"><i>own</i><b>@(d.OwnRetentionDays?.ToString() ?? "—")</b></span>
+                            <span class="@(d.OwnRetentionDays is null ? "is-eff" : "")"><i>collection</i><b>@(d.CollectionDefaultRetentionDays?.ToString() ?? "never")</b></span>
+                            <span><i>global</i><b>—</b></span>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="note-@d.CollectionCode">Note</label>
+                        <input id="note-@d.CollectionCode" name="note" type="text" value="@d.Note" placeholder="why this venue departs from the default">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-f">
+                <div style="flex:1;min-width:0">
+                    <span class="code" style="white-space:normal">@(d.LatestCapabilityLogLine ?? "No entries — this feed has never been probed.")</span>
+                </div>
+                <button class="linkbtn" type="button" data-dialog-close>Cancel</button>
+                <button class="btn btn-sm" type="submit" data-save>Save changes</button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -182,7 +182,9 @@ public static class ExchangeStore
             ["depth_interval_s"] = defaults.Single(r => r.Code == "depth").DefaultIntervalS,
         };
 
-        return new ExchangeDetails(exchange, config, globals, collectors, stalest, throughput, await RunStore.LatencyAsync(conn, code, ct));
+        return new ExchangeDetails(
+            exchange, config, globals, collectors, stalest, throughput, await RunStore.LatencyAsync(conn, code, ct),
+            await FeedStore.ListAsync(conn, code, ct), await FeedStore.DialogsAsync(conn, code, ct));
     }
 
     private static readonly string[] AllowedStatuses =

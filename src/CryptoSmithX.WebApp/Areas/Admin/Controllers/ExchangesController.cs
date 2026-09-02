@@ -137,6 +137,39 @@ public sealed class ExchangesController : Controller
 
         return false;
     }
+    /// <summary>The policy save for one feed (Edit feed dialog). The loss guard — typing the
+    /// collection code to release a stop that would drop unrecoverable history — is enforced again
+    /// server-side in <see cref="FeedStore.SaveAsync"/>, the same way <see cref="Status"/> guards the
+    /// exchange code.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Feed(
+        string id, string collection, string mode, string? intervalS, string? retentionDays,
+        string? transport, string? note, string? confirmCode, CancellationToken ct)
+    {
+        if (!TryInterval(intervalS, out var interval) || !TryInterval(retentionDays, out var retention))
+        {
+            TempData["Error"] = $"{collection}: interval and retention must be a positive whole number, or empty to inherit.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var input = new FeedSaveInput(
+            ExchangeCode: id,
+            CollectionCode: collection,
+            Mode: mode,
+            IntervalS: interval,
+            RetentionDays: retention,
+            Transport: string.IsNullOrWhiteSpace(transport) ? null : transport,
+            Note: note?.Trim(),
+            ConfirmCode: confirmCode,
+            UpdatedBy: User.Identity?.Name);
+
+        await using var conn = await _db.OpenAsync(ct);
+        var error = await FeedStore.SaveAsync(conn, input, ct);
+        TempData[error is null ? "Saved" : "Error"] = error ?? $"{collection}: saved.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
     [HttpGet]
     public async Task<IActionResult> Runs(string id, string? collector, CancellationToken ct)
     {

@@ -4,10 +4,10 @@
     var e = Model.Exchange;
     var cfg = Model.Config;
     ViewData["Title"] = e.Name;
+    ViewData["ExchangeCode"] = e.Code;
     var tab = ViewData["Tab"] as string ?? "overview";
 
     string CollHealth(ExchangeCollectorRow c) => c.ConsecutiveFailures >= 3 ? "fail" : c.ConsecutiveFailures >= 1 ? "warn" : "ok";
-    string Interval(string coll) => coll switch { "snapshot" => "every 10 s", "candles" => "every 60 s", "depth" => "every 60 s", "discovery" => "every 60 min", "funding" => "every 60 min", "rollup" => "every 60 s", _ => "" };
     var worst = Model.Collectors.Where(c => c.LastError is not null).OrderByDescending(c => c.ConsecutiveFailures).FirstOrDefault();
     var maxFails = Model.Collectors.Count == 0 ? 0 : Model.Collectors.Max(c => c.ConsecutiveFailures);
     var health = maxFails >= 3 ? "fail" : maxFails >= 1 ? "warn" : "ok";
@@ -35,7 +35,7 @@
             {
                 <span class="dot @health @pulse"></span>
                 <span class="sev @health">@(health == "ok" ? "ok" : health == "warn" ? "degraded" : "failing")</span>
-                <span class="code">@maxFails consecutive failures, max across collectors</span>
+                <span class="code">@maxFails consecutive failures, max across feeds</span>
             }
         </div>
     </div>
@@ -66,6 +66,7 @@
     @if (e.Status == "enabled")
     {
         <div style="display:flex;gap:24px;flex-wrap:wrap">
+            <span class="ex-stat"><i>Collecting</i><b>@Model.Feeds.Count(f => f.Mode != "disabled" && f.WeImplement == true) of @Model.Feeds.Count feeds</b></span>
             <span class="ex-stat"><i>Trading</i><b>@e.TradingInstruments / @e.KnownInstruments</b></span>
             <span class="ex-stat"><i>Avg response</i><b>@(avg == 0 ? "—" : Format.Num(avg, 0) + " ms")</b></span>
             <span class="ex-stat"><i>Last discovery</i><b style="@(health != "ok" ? "color:var(--csx-gold-ink)" : "")">@Format.Age(discovery?.LastSuccessAgeSeconds)</b></span>
@@ -127,30 +128,92 @@ else
         <div class="stack">
             @if (e.Status == "enabled")
             {
-                <div class="panel">
-                    <div class="panel-h"><h2>Collectors</h2><span class="meta">collector_status</span></div>
-                    @if (Model.Collectors.Count == 0)
+                <div class="panel scroll" style="margin-bottom:14px">
+                    <div class="panel-h">
+                        <h2>Data feeds</h2>
+                        <span class="meta">exchange_collection · @Model.Feeds.Count of @Model.Feeds.Count collections</span>
+                    </div>
+                    <div class="th r-feed">
+                        <span>Feed</span><span>Capability · fact</span><span>Policy · decided</span><span>Health · observed</span><span></span>
+                    </div>
+                    @foreach (var f in Model.Feeds)
                     {
-                        <div class="empty"><h3>Nothing collected yet</h3><p>The first cycle has not completed.</p></div>
-                    }
-                    @foreach (var c in Model.Collectors)
-                    {
-                        var ch = CollHealth(c);
-                        <div class="coll @(ch == "fail" ? "is-fail" : "")">
-                            <div class="coll-h"><span class="dot @ch @(ch == "ok" ? "fresh" : "")"></span><span class="n">@c.Collector</span><span class="sev @ch">@(ch == "ok" ? "ok" : ch == "warn" ? "degraded" : "failing")</span><span class="iv">@Interval(c.Collector)</span><a class="linkbtn" style="font-size:10px" href="/Admin/Exchanges/Runs/@e.Code?collector=@c.Collector">runs →</a></div>
-                            <div class="coll-g">
-                                <span><i>Last success</i><b style="@(ch != "ok" ? "color:var(--gold-300)" : "")">@Format.Age(c.LastSuccessAgeSeconds)</b></span>
-                                <span><i>Failures</i><b style="@(c.ConsecutiveFailures > 0 ? "color:var(--gold-300)" : "")">@c.ConsecutiveFailures</b></span>
-                                <span><i>Last / avg ms</i><b>@(c.LastDurationMs?.ToString() ?? "—") / @Format.Num(c.AvgDurationMs, 0)</b></span>
-                                <span><i>Expected</i><b class="muted">@(c.InstrumentsExpected?.ToString() ?? "—")</b></span>
+                        var feedCh = f.ConsecutiveFailures >= 3 ? "fail" : f.ConsecutiveFailures >= 1 ? "warn" : "ok";
+                        // Priority matters: a human's explicit "off" (mode='disabled') is the most relevant
+                        // fact once it exists, ahead of "we never probed the venue" — otherwise turning a
+                        // feed off would misleadingly read as "not established" again. mode='collect' blocked
+                        // by capability is a different situation (backlog / not established), not "off by hand".
+                        var isCollecting = f.Mode == "collect" && f.WeImplement == true;
+                        var isOffByHand = !isCollecting && f.Mode == "disabled";
+                        var isBacklog = !isCollecting && !isOffByHand && f.VenueSupports == true && f.WeImplement == false;
+                        var isNotEstablished = !isCollecting && !isOffByHand && !isBacklog && f.VenueSupports is null;
+                        var rowDot = isCollecting ? feedCh : isNotEstablished ? "none" : "paused";
+                        <div class="tr r-feed @(isCollecting && feedCh == "fail" ? "is-fail" : "")">
+                            <div style="display:flex;gap:9px">
+                                <span class="dot @rowDot @(isCollecting && feedCh == "ok" ? "fresh" : "")" style="margin-top:3px"></span>
+                                <div style="display:flex;flex-direction:column;gap:4px">
+                                    <span class="mono" style="line-height:1.2">@f.CollectionName</span>
+                                    <span class="code">@f.CollectionCode@(f.Kind == "derived" ? " · derived" : "")</span>
+                                </div>
                             </div>
-                            @if (c.LastError is not null)
-                            {
-                                <span class="e @(ch != "ok" ? "is-err" : "")">@c.LastError · @Format.Age(c.LastErrorAgeSeconds) ago</span>
-                            }
+                            <div class="feed-cell">
+                                <span class="code">@(f.Kind == "derived" ? "derived" : $"venue {(f.VenueSupports == true ? "yes" : f.VenueSupports == false ? "no" : "—")}") · us @(f.WeImplement == true ? "yes" : f.WeImplement == false ? "no" : "—")</span>
+                                <span class="code" style="color:@(f.HistoryDepth == "none" ? "var(--csx-gold-ink)" : "var(--text-faint)")">@(f.HistoryDepth is not null ? $"history {f.HistoryDepth} · {f.HistorySource}" : "history not established")</span>
+                            </div>
+                            <div class="feed-cell">
+                                <span class="tag @(f.Mode switch { "collect" => "enabled", "on_demand" => "planned", _ => "disabled" })">@(f.Mode switch { "collect" => "collect", "on_demand" => "on demand", _ => "disabled" })</span>
+                                @if (f.Mode == "disabled")
+                                {
+                                    <span class="code">—</span>
+                                }
+                                else
+                                {
+                                    <span class="code">@(f.Kind == "derived" ? "internal" : f.Transport ?? "—") · @(f.EffectiveIntervalS is { } iv ? $"{iv} s" : "—") · @(f.EffectiveRetentionDays is { } rd ? $"{rd} d" : "never")</span>
+                                }
+                            </div>
+                            <div class="feed-cell">
+                                @if (isCollecting)
+                                {
+                                    <span class="sev @feedCh">@(feedCh == "ok" ? "ok" : feedCh == "warn" ? "degraded" : "failing")</span>
+                                    <span class="code why" style="color:@(feedCh != "ok" ? "var(--csx-gold-ink)" : "var(--text-faint)")">last success @Format.Age(f.LastSuccessAgeSeconds) · @f.ConsecutiveFailures fails · @(f.LastDurationMs?.ToString() ?? "—") / @Format.Num(f.AvgDurationMs, 0) ms</span>
+                                }
+                                else if (isBacklog)
+                                {
+                                    <span class="sev none">backlog</span>
+                                    <span class="code why">The venue serves it, we have not written the collector. Nothing is being lost that the venue would not still hold.</span>
+                                }
+                                else if (isNotEstablished)
+                                {
+                                    <span class="sev none">not established</span>
+                                    <span class="code why">Never probed — we do not know whether the venue serves it. This is an answer, not an error.</span>
+                                }
+                                else
+                                {
+                                    <span class="sev none">off by hand</span>
+                                    <span class="code why">@(f.Note ?? (f.Mode == "on_demand" ? "On demand — collected only when asked for, not on a background loop." : "Switched off by an operator."))</span>
+                                }
+                            </div>
+                            <div style="display:flex;gap:12px;justify-content:flex-end">
+                                @if (isCollecting)
+                                {
+                                    <a class="linkbtn" style="font-size:10px" href="/Admin/Exchanges/Runs/@e.Code?collector=@f.CollectionCode">runs →</a>
+                                }
+                                <button class="linkbtn" style="font-size:10px" type="button" data-feed-edit="@f.CollectionCode">edit</button>
+                            </div>
                         </div>
                     }
+                    <dl class="legend" style="margin:0;padding:13px 18px">
+                        <dt>capability</dt><dd>what the venue offers and what we implement — a fact, with its source</dd>
+                        <dt>policy</dt><dd>what a human decided: mode, interval, retention, preferred transport</dd>
+                        <dt>health</dt><dd>what we observe right now; never stored on the row</dd>
+                    </dl>
+                    <p class="panel-note" style="padding:0 18px 14px;max-width:78ch">Every collection has a row, always — an empty panel used to mean three different things at once: the venue cannot, we have not written it, or a human switched it off. Those are now three different rows.</p>
                 </div>
+
+                @foreach (var d in Model.FeedDialogs)
+                {
+                    @await Html.PartialAsync("_FeedDialog", d)
+                }
 
                 <div class="panel">
                     <div class="panel-h"><h2>Snapshot throughput</h2><span class="meta">market_snapshot · 5 min buckets · 2 h</span></div>
@@ -309,5 +372,85 @@ else
             apply.style.cursor = ok ? '' : 'not-allowed';
         }
     }
+})();
+</script>
+
+@* Edit feed dialog: mode/transport chips, the loss guard vs. the calm counter-case, and the
+   own/collection cascade highlight. Delegated on document, same reason as above. *@
+<script>
+(function () {
+    if (window.__csxFeedWired) { return; }
+    window.__csxFeedWired = true;
+
+    document.addEventListener('click', function (ev) {
+        var edit = ev.target.closest('[data-feed-edit]');
+        if (edit) {
+            var dlg = document.getElementById('feed-dialog-' + edit.getAttribute('data-feed-edit'));
+            if (dlg) { dlg.style.display = 'flex'; recompute(dlg); }
+            return;
+        }
+        if (ev.target.closest('[data-dialog-close]')) {
+            var open = ev.target.closest('[data-feed-dialog]');
+            if (open) { open.style.display = 'none'; }
+            return;
+        }
+        if (ev.target.classList.contains('modal-scrim')) { ev.target.style.display = 'none'; }
+    });
+
+    document.addEventListener('change', function (ev) {
+        if (ev.target.matches('[data-mode-radio], [data-transport-radio]')) {
+            recompute(ev.target.closest('[data-feed-dialog]'));
+        }
+    });
+    document.addEventListener('input', function (ev) {
+        if (ev.target.matches('[data-guard-code], [data-interval], [data-retention]')) {
+            recompute(ev.target.closest('[data-feed-dialog]'));
+        }
+    });
+
+    function recompute(dlg) {
+        if (!dlg) { return; }
+        var original = dlg.dataset.originalMode, historyless = dlg.dataset.history === 'none', code = dlg.dataset.collection;
+
+        dlg.querySelectorAll('[data-mode-chips] .chip, [data-transport-chips] .chip').forEach(function (l) {
+            var r = l.querySelector('input');
+            l.classList.toggle('is-on', !!(r && r.checked));
+        });
+
+        var pickedEl = dlg.querySelector('[data-mode-radio]:checked');
+        var picked = pickedEl ? pickedEl.value : original;
+        var stops = original === 'collect' && picked !== 'collect';
+
+        var guard = dlg.querySelector('[data-guard]'), calm = dlg.querySelector('[data-calm]');
+        if (guard) { guard.style.display = (stops && historyless) ? '' : 'none'; }
+        if (calm) { calm.style.display = (stops && !historyless) ? '' : 'none'; }
+
+        var tag = dlg.querySelector('[data-mode-tag]');
+        if (tag) { tag.textContent = picked === 'collect' ? 'collect' : picked === 'on_demand' ? 'on demand' : 'disabled'; }
+
+        var save = dlg.querySelector('[data-save]');
+        var typed = (dlg.querySelector('[data-guard-code]') || {}).value || '';
+        var needsGuard = stops && historyless;
+        var ok = !needsGuard || typed.trim().toLowerCase() === code.toLowerCase();
+        if (save) {
+            save.textContent = stops ? 'Stop collecting' : 'Save changes';
+            save.disabled = !ok;
+            save.style.opacity = ok ? '' : '.4';
+            save.style.cursor = ok ? '' : 'not-allowed';
+        }
+
+        ['interval', 'retention'].forEach(function (kind) {
+            var input = dlg.querySelector('[data-' + kind + ']');
+            var strip = dlg.querySelector('[data-' + kind + '-cascade]');
+            if (!input || !strip) { return; }
+            var cells = strip.querySelectorAll('span');
+            var hasOwn = input.value.trim() !== '';
+            cells.forEach(function (c) { c.classList.remove('is-eff', 'is-own'); });
+            cells[hasOwn ? 0 : 1].classList.add('is-eff');
+            if (hasOwn) { cells[0].classList.add('is-own'); }
+        });
+    }
+
+    document.querySelectorAll('[data-feed-dialog]').forEach(recompute);
 })();
 </script>

@@ -59,6 +59,7 @@ public sealed class SideNavViewComponent : ViewComponent
             new NavGroup("Operations", [
                 new NavItem("Dashboard", "/Admin", p),
                 new NavItem("Exchanges", "/Admin/Exchanges", p),
+                new NavItem("Collections", "/Admin/Collections"),
                 new NavItem("Assets", "/Admin/Assets"),
                 new NavItem("Instruments", "/Admin/Instruments"),
             ]),
