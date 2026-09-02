@@ -38,6 +38,9 @@ public sealed class ExchangeWorker : BackgroundService
     private readonly ILoggerFactory _loggers;
     private readonly ILogger<ExchangeWorker> _logger;
 
+    private readonly Dictionary<string, Func<CancellationToken, Task>> _serviceFactories = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Task> _serviceTasks = new(StringComparer.Ordinal);
+
     public ExchangeWorker(
         DbSettings settings,
         Db db,
@@ -61,11 +64,18 @@ public sealed class ExchangeWorker : BackgroundService
         var rollup = new RollupJob(_settings, _db, _clock, _loggers.CreateLogger<RollupJob>());
         var retention = new RetentionJob(_settings, _db, _clock, _loggers.CreateLogger<RetentionJob>());
 
-        var serviceLoops = new List<Task>
+        // Service loops are held by factory so reconcile can restart one that died. They used to be
+        // a bare list nobody awaited: when the rollup loop faulted, the exception went nowhere —
+        // no log, no restart — and rollup silently stopped for three hours while every other
+        // collector kept reporting green. A loop that is gone must never look like a loop that is idle.
+        _serviceFactories["rollup"] = token =>
+            Loop(ServiceExchange, "rollup", () => TimeSpan.FromSeconds(60), rollup.RunAsync, token);
+        _serviceFactories["retention"] = token => RunDailyAsync(retention, token);
+
+        foreach (var (name, factory) in _serviceFactories)
         {
-            Loop(ServiceExchange, "rollup", () => TimeSpan.FromSeconds(60), rollup.RunAsync, ct),
-            RunDailyAsync(retention, ct),
-        };
+            _serviceTasks[name] = factory(ct);
+        }
 
         var running = new Dictionary<string, ExchangeRunner>(StringComparer.Ordinal);
         try
@@ -93,13 +103,39 @@ public sealed class ExchangeWorker : BackgroundService
             await SafeWhenAll(running.Values.SelectMany(r => r.Collectors.Values.Select(h => h.Task)));
         }
 
-        await SafeWhenAll(serviceLoops);
+        await SafeWhenAll(_serviceTasks.Values);
+    }
+
+    /// <summary>
+    /// A loop whose task has completed while its token is still live has crashed: restart it and say
+    /// so loudly. Tracking a task without ever looking at it is the same as not tracking it — the
+    /// dictionary key stays put, so the "is it missing?" check below can never notice.
+    /// </summary>
+    private void SuperviseServiceLoops(CancellationToken ct)
+    {
+        if (ct.IsCancellationRequested)
+        {
+            return;
+        }
+
+        foreach (var (name, task) in _serviceTasks.ToList())
+        {
+            if (!task.IsCompleted)
+            {
+                continue;
+            }
+
+            _logger.LogError(task.Exception, "Service loop {Loop} stopped on its own; restarting", name);
+            _serviceTasks[name] = _serviceFactories[name](ct);
+        }
     }
 
     /// <summary>Start/stop exchanges to match <c>status</c>; for every exchange left running,
     /// reconcile which collector loops it should have.</summary>
     private async Task ReconcileAsync(Dictionary<string, ExchangeRunner> running, CancellationToken ct)
     {
+        SuperviseServiceLoops(ct);
+
         var snapshot = await _settings.CurrentAsync(ct);
         var enabled = snapshot.Exchanges
             .Where(e => e.Status == "enabled")
@@ -176,6 +212,16 @@ public sealed class ExchangeWorker : BackgroundService
             runner.Collectors[stale].Cts.Cancel();
             runner.Collectors.Remove(stale);
             _logger.LogInformation("{Exchange}/{Collector} no longer collected; loop stopped", code, stale);
+        }
+
+        // Same supervision for the per-exchange loops: a crashed one keeps its dictionary key, so
+        // without this sweep it is indistinguishable from a healthy one and never comes back.
+        foreach (var (name, handle) in runner.Collectors
+                     .Where(kv => kv.Value.Task.IsCompleted && !kv.Value.Cts.IsCancellationRequested)
+                     .ToList())
+        {
+            _logger.LogError(handle.Task.Exception, "{Exchange}/{Collector} loop stopped on its own; restarting", code, name);
+            runner.Collectors.Remove(name);
         }
 
         foreach (var wanted in desired.Where(c => !runner.Collectors.ContainsKey(c)))
