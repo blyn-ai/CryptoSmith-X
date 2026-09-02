@@ -61,7 +61,7 @@ public sealed class ExchangeWorker : BackgroundService
         await Partitions.EnsureCurrentAndNextAsync(_db, _clock, ct);
         await _settings.CurrentAsync(ct);   // prime the cache so interval providers can read it
 
-        var rollup = new RollupJob(_settings, _db, _clock, _loggers.CreateLogger<RollupJob>());
+        var rollup = new RollupJob(_settings, _db, _clock, _loggers.CreateLogger<RollupJob>(), ServiceExchange, "rollup");
         var retention = new RetentionJob(_settings, _db, _clock, _loggers.CreateLogger<RetentionJob>());
 
         // Service loops are held by factory so reconcile can restart one that died. They used to be

@@ -22,8 +22,10 @@ public sealed record DerivedBar(
     short BarCount);
 
 /// <summary>
-/// The aggregation rule, with no I/O in sight. It lives here rather than in the SQL so there is
-/// one definition of what a derived bar means and it can be asserted directly.
+/// The aggregation rule, with no I/O in sight. <see cref="RollupJob"/> runs this same rule as a SQL
+/// <c>group by</c> instead of calling these methods — a bar's minutes can be millions of rows, and
+/// this class exists to state precisely, and assert directly, what that SQL is required to compute.
+/// Kept and tested for that reason even though nothing in the runtime path calls it anymore.
 /// </summary>
 public static class Rollup
 {
