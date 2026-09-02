@@ -115,6 +115,14 @@ h1 em{
 .live.is-paused{color:var(--text-muted)}
 .live.is-paused::before{background:var(--text-muted); box-shadow:var(--shadow-none)}
 
+/* The equity curve carries shape but no scale, so the card had no number on it at
+   all. The value line gives the curve its magnitude; change is market P&L, so
+   green/red are legal here — the same pair .pos__pnl already uses. */
+.card__val{display:flex; align-items:baseline; gap:8px; padding:13px 14px 2px}
+.card__val b{font:600 25px/1 var(--font-display); letter-spacing:-.01em; color:var(--text-heading)}
+.card__val .unit{font:500 10px/1 var(--font-mono); letter-spacing:.14em; color:var(--text-faint)}
+.card__val .pos__pnl{margin-left:auto; font:500 11.5px/1 var(--font-mono)}
+
 .spark{display:block; width:100%; height:74px}
 .spark-empty{height:74px; display:grid; place-items:center; font:500 12px var(--font-mono); color:var(--text-faint)}
 .card__foot{

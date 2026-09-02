@@ -69,6 +69,10 @@
             <span>Telemetry</span>
             <span class="live" id="live" hidden>Live</span>
           </div>
+          <div class="card__val">
+            <b id="eqNow">—</b><span class="unit" id="eqUnit" hidden></span>
+            <span class="pos__pnl" id="eqChg" hidden></span>
+          </div>
           <svg class="spark" id="spark" viewBox="0 0 300 74" preserveAspectRatio="none" aria-hidden="true" hidden>
             <defs>
               <linearGradient id="eqLine" x1="0" y1="0" x2="1" y2="0">
@@ -225,13 +229,20 @@
   }
 
   async function getJSON(path){
+    /* public-stats has been answering 503 after a 5.5 s hang. Nothing here is worth
+       waiting on that long: cut every call at 8 s so one sick endpoint costs its own
+       card a dash and not the whole cycle. */
+    const stop = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = stop ? setTimeout(() => stop.abort(), 8000) : 0;
     try {
-      const r = await fetch(CFG.apiBase + path, { headers: { accept: 'application/json' } });
+      const r = await fetch(CFG.apiBase + path, {
+        headers: { accept: 'application/json' }, signal: stop ? stop.signal : undefined });
       if (!r.ok) return null;
       const ct = r.headers.get('content-type') || '';
       if (!ct.includes('application/json')) return null;
       return await r.json();
     } catch (_) { return null; }
+    finally { if (timer) clearTimeout(timer); }
   }
 
   function drawSpark(values){
@@ -250,12 +261,49 @@
     fill.setAttribute('d', d + ' L' + W + ' ' + H + ' L0 ' + H + ' Z');
   }
 
+  /* The footer used to be one endpoint's output, so when public-stats went down the
+     whole line read "Pairs — · Cycle 120 s · Decisions —". Now each fact is filled by
+     whoever can supply it and a fact nobody has is dropped, not printed as a dash. */
+  const foot = { pairs: null, decisions: null };
+
+  function renderFoot(){
+    const bits = ['Cycle ' + CFG.cycleSeconds + ' s'];
+    if (foot.pairs !== null) bits.unshift('Pairs ' + num(foot.pairs));
+    if (foot.decisions !== null) bits.push('Decisions ' + num(foot.decisions));
+    $('stats').textContent = bits.join(' \u00b7 ');
+  }
+
+  /* The wallet, in figures. The API's *Eur suffixes are legacy naming: cashEur and
+     cashQuoteValue carry the same number while cashQuoteCurrency says USD. Print the
+     unit only while those two agree — once they diverge the rate is not 1 and which
+     side totalValueEur is quoted on stops being knowable from the payload. */
+  function drawValue(d){
+    const s = d && d.summary, eq = d && d.equity;
+    const now = s && typeof s.totalValueEur === 'number' && isFinite(s.totalValueEur) ? s.totalValueEur : null;
+    $('eqNow').textContent = now === null ? DASH : now.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const unit = $('eqUnit');
+    if (now !== null && s.cashQuoteCurrency && s.cashEur === s.cashQuoteValue){
+      unit.textContent = s.cashQuoteCurrency; unit.removeAttribute('hidden');
+    } else unit.setAttribute('hidden', '');
+
+    /* Against yesterday's close, which is where the curve ends — the change and the
+       last segment of the line then describe the same move. */
+    const prev = eq && eq.yesterday && typeof eq.yesterday.close === 'number' ? eq.yesterday.close : null;
+    const chg = $('eqChg');
+    if (now === null || prev === null || prev === 0){ chg.setAttribute('hidden', ''); return; }
+    const pct = (now / prev - 1) * 100;
+    chg.textContent = (pct > 0 ? '+' : '') + pct.toFixed(2) + '% today';
+    chg.classList.toggle('is-down', pct < 0);
+    chg.removeAttribute('hidden');
+  }
+
   async function loadStats(){
     const d = await getJSON('/api/public-stats');
-    $('stats').textContent =
-      'Pairs ' + num(d && d.marketsNow) +
-      ' \u00b7 Cycle ' + CFG.cycleSeconds + ' s' +
-      ' \u00b7 Decisions ' + num(d && d.decisionsTotal);
+    if (!d) return;
+    if (typeof d.marketsNow === 'number') foot.pairs = d.marketsNow;
+    if (typeof d.decisionsTotal === 'number') foot.decisions = d.decisionsTotal;
+    renderFoot();
   }
 
   let blackout = false;
@@ -308,7 +356,24 @@
       getJSON('/api/dashboard?botInstanceId=' + encodeURIComponent(b.id)).then((d) => ({ b, d }))));
 
     const first = all[0] && all[0].d;
-    drawSpark(first && first.equity && Array.isArray(first.equity.days) ? first.equity.days.map((x) => x.close) : null);
+    const eq = first && first.equity;
+    drawSpark(eq && Array.isArray(eq.days) ? eq.days.map((x) => x.close) : null);
+    drawValue(first);
+
+    /* Fallback for the footer when public-stats is down. Two instances watch
+       overlapping pair sets and the payload gives no way to dedupe them, so take the
+       larger of the two: understating is honest, summing would invent pairs. */
+    if (foot.pairs === null){
+      let seen = null;
+      for (const { d } of all){
+        for (const w of (d && Array.isArray(d.workers) ? d.workers : [])){
+          if (w.runtimeState === 'running' && typeof w.activePairsCount === 'number'){
+            seen = Math.max(seen === null ? 0 : seen, w.activePairsCount);
+          }
+        }
+      }
+      if (seen !== null){ foot.pairs = seen; renderFoot(); }
+    }
 
     /* Merge both instances, stamp each row with its letter, then sort by pair so the
        list stays positionally stable: a card that reorders itself every minute is
