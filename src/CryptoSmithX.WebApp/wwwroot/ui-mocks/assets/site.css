@@ -234,21 +234,16 @@ h1 em{
   font:600 10px/1.5 var(--font-mono); letter-spacing:.16em; text-transform:uppercase;
 }
 
-.features{
-  display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 12px; margin-top:16px;
-  font:500 10px/1.6 var(--font-mono); letter-spacing:.15em; text-transform:uppercase;
+/* Three times over these went unnoticed as a row of small uppercase links sitting
+   next to a small uppercase label — the whole line scanned as one caption. Chips,
+   the same component the brand pane uses for CLOSED TESTING, are the thing on this
+   page that already reads as "press me". */
+.features{margin-top:20px; padding-top:16px; border-top:1px solid var(--border-hairline)}
+.features__label{
+  margin:0 0 9px; font:600 10px/1 var(--font-mono); letter-spacing:.16em;
+  text-transform:uppercase; color:var(--eyebrow);
 }
-.features span{color:var(--eyebrow)}
-/* Muted grey on a hairline made these read as more label, not as links — the row
-   looked like one dead caption. They take the page's own link treatment instead. */
-.features a{
-  color:var(--link); text-decoration:none;
-  border-bottom:1px solid rgba(161,138,255,.3); transition:var(--transition-color);
-  /* 10px mono gave a 17px-tall target. Padding buys a hittable strip without
-     moving the baseline the row is aligned on. */
-  padding:5px 0;
-}
-.features a:hover{color:var(--link-hover); border-bottom-color:var(--link-hover)}
+.features .tags{margin-top:0}
 
 .auth__note{
   margin-top:6px; padding-top:18px; border-top:1px solid var(--border-hairline);
