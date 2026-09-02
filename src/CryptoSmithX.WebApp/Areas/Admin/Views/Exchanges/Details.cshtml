@@ -87,7 +87,7 @@
             @if (overrides > 0) { <span class="tag maintenance">@overrides override@(overrides == 1 ? "" : "s")</span> }
         </div>
         <p style="margin:0 0 16px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">What a human writes; nothing observed is stored here. Status lives on the overview, behind its guard.</p>
-        <form method="post" action="/Admin/Exchanges/Save/@e.Code">
+        <form method="post" action="/Admin/Exchanges/Save/@e.Code" data-live-skip>
             @Html.AntiForgeryToken()
             <div class="cfg-grid">
                 <div class="field"><label for="name">Name</label><input id="name" name="name" type="text" value="@e.Name"></div>
@@ -273,7 +273,8 @@ else
                 </div>
             }
 
-            <div class="panel guard" style="padding:16px 18px" data-lifecycle>
+            @* data-live-skip: the edit/locked toggle is client state; a tick must not reset it. *@
+            <div class="panel guard" style="padding:16px 18px" data-lifecycle data-live-skip>
                 <div class="panel-h" style="margin-bottom:10px"><h2>Lifecycle</h2><span class="tag gold">protected</span></div>
                 <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
                     <span class="dot @(e.Status == "enabled" ? $"{health} {pulse}" : "none")"></span>
@@ -386,16 +387,23 @@ else
         var edit = ev.target.closest('[data-feed-edit]');
         if (edit) {
             var dlg = document.getElementById('feed-dialog-' + edit.getAttribute('data-feed-edit'));
-            if (dlg) { dlg.style.display = 'flex'; recompute(dlg); }
+            if (dlg) { dlg.style.display = 'flex'; recompute(dlg); syncModal(); }
             return;
         }
         if (ev.target.closest('[data-dialog-close]')) {
             var open = ev.target.closest('[data-feed-dialog]');
-            if (open) { open.style.display = 'none'; }
+            if (open) { open.style.display = 'none'; syncModal(); }
             return;
         }
-        if (ev.target.classList.contains('modal-scrim')) { ev.target.style.display = 'none'; }
+        if (ev.target.classList.contains('modal-scrim')) { ev.target.style.display = 'none'; syncModal(); }
     });
+
+    // body.has-modal pauses live.js while a dialog is open: the page behind a modal has no
+    // business changing, and the dialog itself is data-live-skip so a tick could not touch it anyway.
+    function syncModal() {
+        var anyOpen = Array.prototype.some.call(document.querySelectorAll('[data-feed-dialog]'), function (d) { return d.style.display === 'flex'; });
+        document.body.classList.toggle('has-modal', anyOpen);
+    }
 
     document.addEventListener('change', function (ev) {
         if (ev.target.matches('[data-mode-radio], [data-transport-radio]')) {

@@ -28,7 +28,8 @@
     var intervalPlaceholder = d.CollectionDefaultIntervalS is { } di ? $"collection {di}" : "collection —";
     var retentionPlaceholder = d.CollectionDefaultRetentionDays is { } dr ? $"collection {dr}" : "collection: never rotate";
 }
-<div class="modal-scrim" id="feed-dialog-@d.CollectionCode" data-feed-dialog data-collection="@d.CollectionCode"
+@* data-live-skip: a tick never rewrites an open dialog — the values on screen are the ones being edited. *@
+<div class="modal-scrim" id="feed-dialog-@d.CollectionCode" data-feed-dialog data-live-skip data-collection="@d.CollectionCode"
      data-original-mode="@d.Mode" data-history="@(historyless ? "none" : "established")" style="display:none">
     <div class="modal">
         <div class="modal-h">
