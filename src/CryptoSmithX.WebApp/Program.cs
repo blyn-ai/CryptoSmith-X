@@ -1,5 +1,6 @@
 using CryptoSmithX.Database;
 using CryptoSmithX.WebApp.Api;
+using CryptoSmithX.WebApp.Live;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -38,6 +39,11 @@ builder.Logging.AddJsonConsole();
 builder.Services.AddSingleton(_ => new Db(
     builder.Configuration.GetConnectionString("Database")
     ?? throw new InvalidOperationException("ConnectionStrings:Database is not configured.")));
+
+// One dedicated LISTEN connection for the whole process (not the pool above — see LiveNotifier's own
+// comment on why). Registered as itself, not just IHostedService, so controllers can subscribe to it.
+builder.Services.AddSingleton<LiveNotifier>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveNotifier>());
 
 // Cookie auth only. AddCookie is the seam an OIDC provider (authentik) can be added beside later;
 // nothing here is hand-rolled.

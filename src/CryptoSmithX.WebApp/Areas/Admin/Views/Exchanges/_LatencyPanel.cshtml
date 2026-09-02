@@ -1,0 +1,21 @@
+@model ExchangeDetails
+@using CryptoSmithX.WebApp.Data
+<div class="panel" data-live-region="latency-panel">
+    <div class="panel-h"><h2>Latency</h2><span class="meta">collector_run · avg ms · 15 min buckets · 12 h</span></div>
+    @if (Model.Latency.Count == 0)
+    {
+        <div class="empty"><h3>No runs recorded yet</h3><p>The trend appears as collector_run fills; history is kept 7 days.</p></div>
+    }
+    else
+    {
+        <div class="lat-grid">
+            @foreach (var serie in Model.Latency)
+            {
+                <div class="cell">
+                    <div class="h"><span class="eyebrow">@serie.Collector</span><span class="code">@(serie.AvgMs.Count > 0 ? Format.Num(serie.AvgMs[^1], 0) + " ms now" : "—")</span></div>
+                    <svg class="chart" height="30" viewBox="0 0 600 30" preserveAspectRatio="none"><polyline points="@Spark.Points(serie.AvgMs, 600, 30)" stroke="var(--violet-400)" stroke-width="1.5"></polyline></svg>
+                </div>
+            }
+        </div>
+    }
+</div>

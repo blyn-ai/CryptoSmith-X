@@ -1,0 +1,23 @@
+@model ExchangeDetails
+@{
+    var e = Model.Exchange;
+    var maxFails = Model.Collectors.Count == 0 ? 0 : Model.Collectors.Max(c => c.ConsecutiveFailures);
+    var health = maxFails >= 3 ? "fail" : maxFails >= 1 ? "warn" : "ok";
+    var avg = Model.Collectors.Where(c => c.AvgDurationMs is not null).Select(c => c.AvgDurationMs!.Value).DefaultIfEmpty().Average();
+    var discovery = Model.Collectors.FirstOrDefault(c => c.Collector == "discovery");
+    var worstStale = Model.Stalest.Count > 0 ? Model.Stalest.Max(s => s.AgeSeconds ?? 0) : (double?)null;
+}
+<div data-live-region="stat-row" style="display:flex;gap:24px;flex-wrap:wrap">
+    @if (e.Status == "enabled")
+    {
+        <span class="ex-stat"><i>Collecting</i><b>@Model.Feeds.Count(f => f.Mode != "disabled" && f.WeImplement == true) of @Model.Feeds.Count feeds</b></span>
+        <span class="ex-stat"><i>Trading</i><b>@e.TradingInstruments / @e.KnownInstruments</b></span>
+        <span class="ex-stat"><i>Avg response</i><b>@(avg == 0 ? "—" : Format.Num(avg, 0) + " ms")</b></span>
+        <span class="ex-stat"><i>Last discovery</i><b style="@(health != "ok" ? "color:var(--csx-gold-ink)" : "")">@Format.Age(discovery?.LastSuccessAgeSeconds)</b></span>
+        <span class="ex-stat"><i>Failures</i><b style="@(maxFails > 0 ? "color:var(--gold-300)" : "")">@maxFails</b></span>
+        @if (worstStale is not null)
+        {
+            <a class="ex-stat" href="#stalest" data-scroll="stalest" style="text-decoration:none"><i>Stalest</i><b style="@(worstStale > 30 ? "color:var(--gold-300)" : "")">@Format.Age(worstStale) ↓</b></a>
+        }
+    }
+</div>

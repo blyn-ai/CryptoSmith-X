@@ -1,0 +1,85 @@
+@model ExchangeDetails
+@{
+    var e = Model.Exchange;
+}
+<div class="panel scroll" data-live-region="feeds-panel" style="margin-bottom:14px">
+    <div class="panel-h">
+        <h2>Data feeds</h2>
+        <span class="meta">exchange_collection · @Model.Feeds.Count of @Model.Feeds.Count collections</span>
+    </div>
+    <div class="th r-feed">
+        <span>Feed</span><span>Capability · fact</span><span>Policy · decided</span><span>Health · observed</span><span></span>
+    </div>
+    @foreach (var f in Model.Feeds)
+    {
+        var feedCh = f.ConsecutiveFailures >= 3 ? "fail" : f.ConsecutiveFailures >= 1 ? "warn" : "ok";
+        // Priority matters: a human's explicit "off" (mode='disabled') is the most relevant
+        // fact once it exists, ahead of "we never probed the venue" — otherwise turning a
+        // feed off would misleadingly read as "not established" again. mode='collect' blocked
+        // by capability is a different situation (backlog / not established), not "off by hand".
+        var isCollecting = f.Mode == "collect" && f.WeImplement == true;
+        var isOffByHand = !isCollecting && f.Mode == "disabled";
+        var isBacklog = !isCollecting && !isOffByHand && f.VenueSupports == true && f.WeImplement == false;
+        var isNotEstablished = !isCollecting && !isOffByHand && !isBacklog && f.VenueSupports is null;
+        var rowDot = isCollecting ? feedCh : isNotEstablished ? "none" : "paused";
+        <div class="tr r-feed @(isCollecting && feedCh == "fail" ? "is-fail" : "")">
+            <div style="display:flex;gap:9px">
+                <span class="dot @rowDot @(isCollecting && feedCh == "ok" ? "fresh" : "")" style="margin-top:3px"></span>
+                <div style="display:flex;flex-direction:column;gap:4px">
+                    <span class="mono" style="line-height:1.2">@f.CollectionName</span>
+                    <span class="code">@f.CollectionCode@(f.Kind == "derived" ? " · derived" : "")</span>
+                </div>
+            </div>
+            <div class="feed-cell">
+                <span class="code">@(f.Kind == "derived" ? "derived" : $"venue {(f.VenueSupports == true ? "yes" : f.VenueSupports == false ? "no" : "—")}") · us @(f.WeImplement == true ? "yes" : f.WeImplement == false ? "no" : "—")</span>
+                <span class="code" style="color:@(f.HistoryDepth == "none" ? "var(--csx-gold-ink)" : "var(--text-faint)")">@(f.HistoryDepth is not null ? $"history {f.HistoryDepth} · {f.HistorySource}" : "history not established")</span>
+            </div>
+            <div class="feed-cell">
+                <span class="tag @(f.Mode switch { "collect" => "enabled", "on_demand" => "planned", _ => "disabled" })">@(f.Mode switch { "collect" => "collect", "on_demand" => "on demand", _ => "disabled" })</span>
+                @if (f.Mode == "disabled")
+                {
+                    <span class="code">—</span>
+                }
+                else
+                {
+                    <span class="code">@(f.Kind == "derived" ? "internal" : f.Transport ?? "—") · @(f.EffectiveIntervalS is { } iv ? $"{iv} s" : "—") · @(f.EffectiveRetentionDays is { } rd ? $"{rd} d" : "never")</span>
+                }
+            </div>
+            <div class="feed-cell">
+                @if (isCollecting)
+                {
+                    <span class="sev @feedCh">@(feedCh == "ok" ? "ok" : feedCh == "warn" ? "degraded" : "failing")</span>
+                    <span class="code why" style="color:@(feedCh != "ok" ? "var(--csx-gold-ink)" : "var(--text-faint)")">last success @Format.Age(f.LastSuccessAgeSeconds) · @f.ConsecutiveFailures fails · @(f.LastDurationMs?.ToString() ?? "—") / @Format.Num(f.AvgDurationMs, 0) ms</span>
+                }
+                else if (isBacklog)
+                {
+                    <span class="sev none">backlog</span>
+                    <span class="code why">The venue serves it, we have not written the collector. Nothing is being lost that the venue would not still hold.</span>
+                }
+                else if (isNotEstablished)
+                {
+                    <span class="sev none">not established</span>
+                    <span class="code why">Never probed — we do not know whether the venue serves it. This is an answer, not an error.</span>
+                }
+                else
+                {
+                    <span class="sev none">off by hand</span>
+                    <span class="code why">@(f.Note ?? (f.Mode == "on_demand" ? "On demand — collected only when asked for, not on a background loop." : "Switched off by an operator."))</span>
+                }
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end">
+                @if (isCollecting)
+                {
+                    <a class="linkbtn" style="font-size:10px" href="/Admin/Exchanges/Runs/@e.Code?collector=@f.CollectionCode">runs →</a>
+                }
+                <button class="linkbtn" style="font-size:10px" type="button" data-feed-edit="@f.CollectionCode">edit</button>
+            </div>
+        </div>
+    }
+    <dl class="legend" style="margin:0;padding:13px 18px">
+        <dt>capability</dt><dd>what the venue offers and what we implement — a fact, with its source</dd>
+        <dt>policy</dt><dd>what a human decided: mode, interval, retention, preferred transport</dd>
+        <dt>health</dt><dd>what we observe right now; never stored on the row</dd>
+    </dl>
+    <p class="panel-note" style="padding:0 18px 14px;max-width:78ch">Every collection has a row, always — an empty panel used to mean three different things at once: the venue cannot, we have not written it, or a human switched it off. Those are now three different rows.</p>
+</div>

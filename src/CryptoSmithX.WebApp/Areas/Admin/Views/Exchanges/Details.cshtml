@@ -12,13 +12,10 @@
     var maxFails = Model.Collectors.Count == 0 ? 0 : Model.Collectors.Max(c => c.ConsecutiveFailures);
     var health = maxFails >= 3 ? "fail" : maxFails >= 1 ? "warn" : "ok";
     var pulse = health == "ok" ? "pulse" : "pulse-gold";
-    var avg = Model.Collectors.Where(c => c.AvgDurationMs is not null).Select(c => c.AvgDurationMs!.Value).DefaultIfEmpty().Average();
-    var discovery = Model.Collectors.FirstOrDefault(c => c.Collector == "discovery");
     var statuses = new[] { "planned", "enabled", "disabled", "maintenance", "abandoned" };
 
     string StatusTag(string s) => s; // css carries one face per lifecycle status
     var overrides = new int?[] { cfg.SnapshotIntervalS, cfg.CandleIntervalS, cfg.DiscoveryIntervalMin, cfg.FundingIntervalMin, cfg.DepthIntervalS }.Count(x => x is not null);
-    var worstStale = Model.Stalest.Count > 0 ? Model.Stalest.Max(s => s.AgeSeconds ?? 0) : (double?)null;
 
     string GlobalHint(string key) => Model.GlobalIntervals.TryGetValue(key, out var v) ? $"global {v}" : "global";
     string OverrideNote(int? val, string key) => val is null ? "" : $"overrides {GlobalHint(key)}";
@@ -30,13 +27,7 @@
         <p class="eyebrow">Admin · <a href="/Admin/Exchanges">exchanges</a> · @e.Code</p>
         <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
             <h1>@e.Name</h1>
-            <span class="tag @StatusTag(e.Status)">@e.Status</span>
-            @if (e.Status == "enabled")
-            {
-                <span class="dot @health @pulse"></span>
-                <span class="sev @health">@(health == "ok" ? "ok" : health == "warn" ? "degraded" : "failing")</span>
-                <span class="code">@maxFails consecutive failures, max across feeds</span>
-            }
+            @await Html.PartialAsync("_ExchangeHeadBadge", Model)
         </div>
     </div>
     <div style="display:flex;gap:14px;align-items:center">
@@ -63,20 +54,7 @@
         <a class="chip @(tab == "settings" ? "is-on" : "")" href="/Admin/Exchanges/Details/@e.Code?tab=settings"><span>settings</span>@if (overrides > 0) { <span class="dot warn" style="margin-left:5px"></span> }</a>
     </div>
     <span style="flex:1"></span>
-    @if (e.Status == "enabled")
-    {
-        <div style="display:flex;gap:24px;flex-wrap:wrap">
-            <span class="ex-stat"><i>Collecting</i><b>@Model.Feeds.Count(f => f.Mode != "disabled" && f.WeImplement == true) of @Model.Feeds.Count feeds</b></span>
-            <span class="ex-stat"><i>Trading</i><b>@e.TradingInstruments / @e.KnownInstruments</b></span>
-            <span class="ex-stat"><i>Avg response</i><b>@(avg == 0 ? "—" : Format.Num(avg, 0) + " ms")</b></span>
-            <span class="ex-stat"><i>Last discovery</i><b style="@(health != "ok" ? "color:var(--csx-gold-ink)" : "")">@Format.Age(discovery?.LastSuccessAgeSeconds)</b></span>
-            <span class="ex-stat"><i>Failures</i><b style="@(maxFails > 0 ? "color:var(--gold-300)" : "")">@maxFails</b></span>
-            @if (worstStale is not null)
-            {
-                <a class="ex-stat" href="#stalest" data-scroll="stalest" style="text-decoration:none"><i>Stalest</i><b style="@(worstStale > 30 ? "color:var(--gold-300)" : "")">@Format.Age(worstStale) ↓</b></a>
-            }
-        </div>
-    }
+    @await Html.PartialAsync("_ExchangeStatRow", Model)
 </div>
 
 @if (tab == "settings")
@@ -128,131 +106,15 @@ else
         <div class="stack">
             @if (e.Status == "enabled")
             {
-                <div class="panel scroll" style="margin-bottom:14px">
-                    <div class="panel-h">
-                        <h2>Data feeds</h2>
-                        <span class="meta">exchange_collection · @Model.Feeds.Count of @Model.Feeds.Count collections</span>
-                    </div>
-                    <div class="th r-feed">
-                        <span>Feed</span><span>Capability · fact</span><span>Policy · decided</span><span>Health · observed</span><span></span>
-                    </div>
-                    @foreach (var f in Model.Feeds)
-                    {
-                        var feedCh = f.ConsecutiveFailures >= 3 ? "fail" : f.ConsecutiveFailures >= 1 ? "warn" : "ok";
-                        // Priority matters: a human's explicit "off" (mode='disabled') is the most relevant
-                        // fact once it exists, ahead of "we never probed the venue" — otherwise turning a
-                        // feed off would misleadingly read as "not established" again. mode='collect' blocked
-                        // by capability is a different situation (backlog / not established), not "off by hand".
-                        var isCollecting = f.Mode == "collect" && f.WeImplement == true;
-                        var isOffByHand = !isCollecting && f.Mode == "disabled";
-                        var isBacklog = !isCollecting && !isOffByHand && f.VenueSupports == true && f.WeImplement == false;
-                        var isNotEstablished = !isCollecting && !isOffByHand && !isBacklog && f.VenueSupports is null;
-                        var rowDot = isCollecting ? feedCh : isNotEstablished ? "none" : "paused";
-                        <div class="tr r-feed @(isCollecting && feedCh == "fail" ? "is-fail" : "")">
-                            <div style="display:flex;gap:9px">
-                                <span class="dot @rowDot @(isCollecting && feedCh == "ok" ? "fresh" : "")" style="margin-top:3px"></span>
-                                <div style="display:flex;flex-direction:column;gap:4px">
-                                    <span class="mono" style="line-height:1.2">@f.CollectionName</span>
-                                    <span class="code">@f.CollectionCode@(f.Kind == "derived" ? " · derived" : "")</span>
-                                </div>
-                            </div>
-                            <div class="feed-cell">
-                                <span class="code">@(f.Kind == "derived" ? "derived" : $"venue {(f.VenueSupports == true ? "yes" : f.VenueSupports == false ? "no" : "—")}") · us @(f.WeImplement == true ? "yes" : f.WeImplement == false ? "no" : "—")</span>
-                                <span class="code" style="color:@(f.HistoryDepth == "none" ? "var(--csx-gold-ink)" : "var(--text-faint)")">@(f.HistoryDepth is not null ? $"history {f.HistoryDepth} · {f.HistorySource}" : "history not established")</span>
-                            </div>
-                            <div class="feed-cell">
-                                <span class="tag @(f.Mode switch { "collect" => "enabled", "on_demand" => "planned", _ => "disabled" })">@(f.Mode switch { "collect" => "collect", "on_demand" => "on demand", _ => "disabled" })</span>
-                                @if (f.Mode == "disabled")
-                                {
-                                    <span class="code">—</span>
-                                }
-                                else
-                                {
-                                    <span class="code">@(f.Kind == "derived" ? "internal" : f.Transport ?? "—") · @(f.EffectiveIntervalS is { } iv ? $"{iv} s" : "—") · @(f.EffectiveRetentionDays is { } rd ? $"{rd} d" : "never")</span>
-                                }
-                            </div>
-                            <div class="feed-cell">
-                                @if (isCollecting)
-                                {
-                                    <span class="sev @feedCh">@(feedCh == "ok" ? "ok" : feedCh == "warn" ? "degraded" : "failing")</span>
-                                    <span class="code why" style="color:@(feedCh != "ok" ? "var(--csx-gold-ink)" : "var(--text-faint)")">last success @Format.Age(f.LastSuccessAgeSeconds) · @f.ConsecutiveFailures fails · @(f.LastDurationMs?.ToString() ?? "—") / @Format.Num(f.AvgDurationMs, 0) ms</span>
-                                }
-                                else if (isBacklog)
-                                {
-                                    <span class="sev none">backlog</span>
-                                    <span class="code why">The venue serves it, we have not written the collector. Nothing is being lost that the venue would not still hold.</span>
-                                }
-                                else if (isNotEstablished)
-                                {
-                                    <span class="sev none">not established</span>
-                                    <span class="code why">Never probed — we do not know whether the venue serves it. This is an answer, not an error.</span>
-                                }
-                                else
-                                {
-                                    <span class="sev none">off by hand</span>
-                                    <span class="code why">@(f.Note ?? (f.Mode == "on_demand" ? "On demand — collected only when asked for, not on a background loop." : "Switched off by an operator."))</span>
-                                }
-                            </div>
-                            <div style="display:flex;gap:12px;justify-content:flex-end">
-                                @if (isCollecting)
-                                {
-                                    <a class="linkbtn" style="font-size:10px" href="/Admin/Exchanges/Runs/@e.Code?collector=@f.CollectionCode">runs →</a>
-                                }
-                                <button class="linkbtn" style="font-size:10px" type="button" data-feed-edit="@f.CollectionCode">edit</button>
-                            </div>
-                        </div>
-                    }
-                    <dl class="legend" style="margin:0;padding:13px 18px">
-                        <dt>capability</dt><dd>what the venue offers and what we implement — a fact, with its source</dd>
-                        <dt>policy</dt><dd>what a human decided: mode, interval, retention, preferred transport</dd>
-                        <dt>health</dt><dd>what we observe right now; never stored on the row</dd>
-                    </dl>
-                    <p class="panel-note" style="padding:0 18px 14px;max-width:78ch">Every collection has a row, always — an empty panel used to mean three different things at once: the venue cannot, we have not written it, or a human switched it off. Those are now three different rows.</p>
-                </div>
+                @await Html.PartialAsync("_DataFeedsPanel", Model)
 
                 @foreach (var d in Model.FeedDialogs)
                 {
                     @await Html.PartialAsync("_FeedDialog", d)
                 }
 
-                <div class="panel">
-                    <div class="panel-h"><h2>Snapshot throughput</h2><span class="meta">market_snapshot · 5 min buckets · 2 h</span></div>
-                    <div class="panel-b">
-                        @if (Model.Throughput.Sum() > 0)
-                        {
-                            <svg class="chart" height="84" viewBox="0 0 600 84" preserveAspectRatio="none">
-                                <defs><linearGradient id="csxFillD" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--tint-violet)"/><stop offset="100%" stop-color="transparent"/></linearGradient></defs>
-                                <polygon points="@Spark.Area(Model.Throughput, 600, 84)" fill="url(#csxFillD)"></polygon>
-                                <polyline points="@Spark.Points(Model.Throughput, 600, 84)" stroke="var(--violet-400)" stroke-width="1.75"></polyline>
-                            </svg>
-                            <div class="chart-x"><span>−2 h</span><span class="mid">rows per 5 min</span><span>now</span></div>
-                        }
-                        else
-                        {
-                            <div class="empty"><h3>No snapshots yet</h3><p>Nothing recorded in the last two hours.</p></div>
-                        }
-                    </div>
-                </div>
-
-                <div class="panel">
-                    <div class="panel-h"><h2>Latency</h2><span class="meta">collector_run · avg ms · 15 min buckets · 12 h</span></div>
-                    @if (Model.Latency.Count == 0)
-                    {
-                        <div class="empty"><h3>No runs recorded yet</h3><p>The trend appears as collector_run fills; history is kept 7 days.</p></div>
-                    }
-                    else
-                    {
-                        <div class="lat-grid">
-                            @foreach (var serie in Model.Latency)
-                            {
-                                <div class="cell">
-                                    <div class="h"><span class="eyebrow">@serie.Collector</span><span class="code">@(serie.AvgMs.Count > 0 ? Format.Num(serie.AvgMs[^1], 0) + " ms now" : "—")</span></div>
-                                    <svg class="chart" height="30" viewBox="0 0 600 30" preserveAspectRatio="none"><polyline points="@Spark.Points(serie.AvgMs, 600, 30)" stroke="var(--violet-400)" stroke-width="1.5"></polyline></svg>
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
+                @await Html.PartialAsync("_ThroughputPanel", Model)
+                @await Html.PartialAsync("_LatencyPanel", Model)
             }
             else
             {
@@ -261,17 +123,7 @@ else
         </div>
 
         <div class="stack">
-            @if (e.Status == "enabled" && Model.Stalest.Count > 0)
-            {
-                <div class="panel" id="stalest">
-                    <div class="panel-h"><h2>Stalest instruments</h2><span class="meta">@(worstStale is not null and <= 30 ? "all fresh · tail of the ranking" : "3 intervals = stale")</span></div>
-                    @foreach (var s in Model.Stalest)
-                    {
-                        var stale = s.AgeSeconds > 30;
-                        <a class="tr" style="grid-template-columns:1fr auto;padding:8px 16px" href="/Admin/Instruments/Details/@s.Id"><span class="mono">@s.Symbol</span><span class="num @(stale ? "fail" : "muted")">@Format.Age(s.AgeSeconds)</span></a>
-                    }
-                </div>
-            }
+            @await Html.PartialAsync("_StalestPanel", Model)
 
             @* data-live-skip: the edit/locked toggle is client state; a tick must not reset it. *@
             <div class="panel guard" style="padding:16px 18px" data-lifecycle data-live-skip>

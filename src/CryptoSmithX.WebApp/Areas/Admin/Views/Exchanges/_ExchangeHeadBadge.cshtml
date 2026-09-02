@@ -1,0 +1,18 @@
+@model ExchangeDetails
+@{
+    var e = Model.Exchange;
+    var maxFails = Model.Collectors.Count == 0 ? 0 : Model.Collectors.Max(c => c.ConsecutiveFailures);
+    var health = maxFails >= 3 ? "fail" : maxFails >= 1 ? "warn" : "ok";
+    var pulse = health == "ok" ? "pulse" : "pulse-gold";
+}
+@* display:contents: this fragment sits inside the parent's flex row (h1, tag, dot, sev, failures) —
+   the wrapper must not become a flex item of its own or the layout shifts on every live update. *@
+<span data-live-region="head-badge" style="display:contents">
+    <span class="tag @e.Status">@e.Status</span>
+    @if (e.Status == "enabled")
+    {
+        <span class="dot @health @pulse"></span>
+        <span class="sev @health">@(health == "ok" ? "ok" : health == "warn" ? "degraded" : "failing")</span>
+        <span class="code">@maxFails consecutive failures, max across feeds</span>
+    }
+</span>

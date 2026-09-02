@@ -1,0 +1,18 @@
+@model ExchangeDetails
+@{
+    var worstStale = Model.Stalest.Count > 0 ? Model.Stalest.Max(s => s.AgeSeconds ?? 0) : (double?)null;
+}
+@* Absent entirely when there is nothing stale to show — same as before this became a live region.
+   A transition from "nothing to show" to "something to show" only appears on the next full load;
+   this fragment can only update a panel that already exists, not conjure one from nothing. *@
+@if (Model.Exchange.Status == "enabled" && Model.Stalest.Count > 0)
+{
+    <div class="panel" id="stalest" data-live-region="stalest-panel">
+        <div class="panel-h"><h2>Stalest instruments</h2><span class="meta">@(worstStale is not null and <= 30 ? "all fresh · tail of the ranking" : "3 intervals = stale")</span></div>
+        @foreach (var s in Model.Stalest)
+        {
+            var stale = s.AgeSeconds > 30;
+            <a class="tr" style="grid-template-columns:1fr auto;padding:8px 16px" href="/Admin/Instruments/Details/@s.Id"><span class="mono">@s.Symbol</span><span class="num @(stale ? "fail" : "muted")">@Format.Age(s.AgeSeconds)</span></a>
+        }
+    </div>
+}

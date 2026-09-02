@@ -1,22 +1,33 @@
-// Quiet live refresh: refetch the current page and MORPH <main> in place.
-// No SignalR, no reload jerk. The old version replaced every child of <main>,
-// which recreated the SVG charts (flicker), reset every inner scroll, and killed
-// any open dialog on the next tick. Now the fresh tree is diffed against the live
-// one: only changed text and attributes are written, identical nodes stay put.
-// Guards: hidden tab — skip; user typed into any form — stop until they save or
-// leave; focus inside a field — skip this tick; a modal is open — skip this tick.
-// Subtrees marked data-live-skip (forms, dialogs) are never touched by a tick:
-// that is the user's territory, and live data does not live there.
+// Live updates: push where the page opts in (Server-Sent Events, one server-rendered
+// fragment per [data-live-region]), the 10 s refetch-and-morph poll everywhere else and
+// as the fallback when push is not open. Two update paths share one rule: never touch
+// what the user is doing. Guards, unchanged from the poll-only version this replaced:
+//   * a dirty form (the user typed into one) stops ALL updates until saved or left;
+//   * focus inside a field skips this tick/fragment;
+//   * a hidden tab updates nothing;
+//   * a modal (body.has-modal) pauses updates, same reason as a dirty form.
+// Fragments and subtrees marked data-live-skip (forms, dialogs, the Lifecycle panel) are
+// never touched by either path — that is the user's or a library's territory.
 (() => {
   'use strict';
   let dirty = false;
   document.addEventListener('input', (e) => { if (e.target.closest('form')) dirty = true; });
 
-  const INTERVAL = 10000;
-  setInterval(async () => {
-    if (document.hidden || dirty || document.body.classList.contains('has-modal')) return;
+  function blocked() {
+    if (document.hidden || dirty || document.body.classList.contains('has-modal')) return true;
     const ae = document.activeElement;
-    if (ae && ae.matches('input, select, textarea')) return;
+    return !!(ae && ae.matches('input, select, textarea'));
+  }
+
+  const INTERVAL = 10000;
+  let pushOpen = false;
+
+  setInterval(() => {
+    if (pushOpen || blocked()) return;
+    refresh();
+  }, INTERVAL);
+
+  async function refresh() {
     try {
       const r = await fetch(location.href, { headers: { 'X-Live': '1' } });
       if (!r.ok) return;
@@ -27,7 +38,33 @@
       const nav = doc.querySelector('.nav'), curNav = document.querySelector('.nav');
       if (nav && curNav) morphChildren(curNav, nav); // badges stay honest
     } catch { /* transient network blip — next tick retries */ }
-  }, INTERVAL);
+  }
+
+  // Push: only on pages that opted in by rendering at least one [data-live-region] — today
+  // that is the exchange overview tab. The exchange code comes straight out of the URL
+  // rather than a data attribute: it is already the one honest source (works after live.js
+  // itself is cached and the page is reused across two exchanges via back/forward).
+  const detailsMatch = location.pathname.match(/^\/Admin\/Exchanges\/Details\/([^/]+)/);
+  if (detailsMatch && document.querySelector('[data-live-region]')) {
+    connectLive(detailsMatch[1]);
+  }
+
+  function connectLive(exchangeCode) {
+    const es = new EventSource('/Admin/Exchanges/Live/' + encodeURIComponent(exchangeCode));
+
+    es.addEventListener('open', () => { pushOpen = true; });
+    // EventSource retries on its own with backoff; while it is down the 10 s poll above covers
+    // the page exactly as it did before push existed — a stalled stream must never look live.
+    es.addEventListener('error', () => { pushOpen = false; });
+
+    es.addEventListener('panel', (ev) => {
+      if (blocked()) return; // the fragment is simply skipped this round, not queued
+      const region = document.querySelector('[data-live-region="' + ev.lastEventId + '"]');
+      if (!region) return; // e.g. the settings tab, where none of these regions exist
+      const next = new DOMParser().parseFromString(ev.data, 'text/html').body.firstElementChild;
+      if (next) { morph(region, next); }
+    });
+  }
 
   // Patch `from` until it looks like `to`. Positional: children are matched by index
   // and tag, which is all this console needs — nothing here reorders under the user.
