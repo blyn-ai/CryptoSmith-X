@@ -87,7 +87,10 @@ h1 em{
 .prose p{margin:0}
 
 /* ── карточки ────────────────────────────────────────────── */
-.cards{display:grid; grid-template-columns:1fr 1fr; gap:14px; max-width:640px; margin-top:8px}
+/* No max-width here on purpose: prose is capped at 580px because ~82 characters is
+   already a long measure and a wider line hurts reading — but a table has no measure
+   to protect, and the five columns of the open-position rows want the room. */
+.cards{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:8px}
 .card{
   background:var(--surface-sunken); border:1px solid var(--border-hairline);
   border-radius:var(--radius-md); overflow:hidden;
