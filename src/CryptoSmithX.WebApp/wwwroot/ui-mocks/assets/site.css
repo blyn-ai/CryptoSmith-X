@@ -117,7 +117,7 @@ h1 em{
 }
 
 .pos{
-  display:grid; grid-template-columns:auto 1fr auto auto; gap:14px;
+  display:grid; grid-template-columns:auto 1fr auto auto auto; gap:14px;
   padding:9px 14px; border-bottom:1px solid var(--border-hairline);
   font:500 11.5px/1 var(--font-mono);
 }
@@ -126,6 +126,8 @@ h1 em{
 .pos__pair{color:var(--lilac-200)}
 .pos__side{color:var(--short)}
 .pos__side.is-long{color:var(--long)}
+/* age is context, not the headline: it sits quiet next to the number that matters */
+.pos__age{color:var(--text-faint); text-align:right; min-width:52px}
 .pos__pnl{color:var(--pnl-up)}
 .pos__pnl.is-down{color:var(--pnl-down)}
 .pos--empty{

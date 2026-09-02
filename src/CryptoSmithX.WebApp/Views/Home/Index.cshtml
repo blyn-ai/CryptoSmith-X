@@ -278,6 +278,21 @@
     live.removeAttribute('hidden');
   }
 
+  /* How long it has been open. Same units as the admin console so the two never
+     disagree: seconds, then minutes, then hours, then days. */
+  function ageSpan(iso){
+    const el = document.createElement('span');
+    el.className = 'pos__age';
+    const t = iso ? Date.parse(iso) : NaN;
+    if (!isFinite(t)){ el.textContent = DASH; return el; }
+    const sec = Math.max(0, (Date.now() - t) / 1000);
+    el.textContent = sec < 60  ? Math.floor(sec) + ' s'
+                   : sec < 3600 ? Math.floor(sec / 60) + ' min'
+                   : sec < 86400 ? Math.floor(sec / 3600) + ' h'
+                   : Math.floor(sec / 86400) + ' d';
+    return el;
+  }
+
   function pnlSpan(v){
     const el = document.createElement('span');
     el.className = 'pos__pnl';
@@ -318,7 +333,7 @@
         const sym  = document.createElement('span'); sym.className  = 'pos__pair'; sym.textContent = p.pair || DASH;
         const side = document.createElement('span'); side.className = 'pos__side'; side.textContent = (p.side || '').toUpperCase() || DASH;
         if (String(p.side).toUpperCase() === 'LONG') side.classList.add('is-long');
-        row.append(who, sym, side, pnlSpan(p.unrealizedPnlPercent));
+        row.append(who, sym, side, pnlSpan(p.unrealizedPnlPercent), ageSpan(p.openedAtUtc));
         list.append(row);
       }
       return;
