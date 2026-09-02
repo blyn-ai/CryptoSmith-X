@@ -234,16 +234,22 @@ h1 em{
   font:600 10px/1.5 var(--font-mono); letter-spacing:.16em; text-transform:uppercase;
 }
 
-/* Three times over these went unnoticed as a row of small uppercase links sitting
-   next to a small uppercase label — the whole line scanned as one caption. Chips,
-   the same component the brand pane uses for CLOSED TESTING, are the thing on this
-   page that already reads as "press me". */
-.features{margin-top:20px; padding-top:16px; border-top:1px solid var(--border-hairline)}
+/* Sits between the status chips and the headline, where the eye already is on the
+   way down the pane. Gold on the label, light grey on the links: gold is the only
+   one left on this pane now that both chips are violet, and grey link text at body
+   size reads as something to press rather than as another small caption. */
+.features{display:flex; flex-wrap:wrap; align-items:baseline; gap:7px 16px; margin:16px 0 0}
 .features__label{
-  margin:0 0 9px; font:600 10px/1 var(--font-mono); letter-spacing:.16em;
-  text-transform:uppercase; color:var(--eyebrow);
+  font:600 10px/1 var(--font-mono); letter-spacing:.16em;
+  text-transform:uppercase; color:var(--gold-400);
 }
-.features .tags{margin-top:0}
+.features a{
+  font:400 14px/1.2 var(--font-body); color:var(--text-body); text-decoration:none;
+  border-bottom:1px solid rgba(245,184,79,.4); padding-bottom:3px;
+  transition:var(--transition-color);
+}
+.features a:hover{color:var(--gold-300); border-bottom-color:var(--gold-400)}
+.features a:focus-visible{outline:var(--focus-ring); outline-offset:3px}
 
 .auth__note{
   margin-top:6px; padding-top:18px; border-top:1px solid var(--border-hairline);
