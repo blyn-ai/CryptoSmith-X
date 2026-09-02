@@ -91,7 +91,7 @@
 
         <div class="card">
           <div class="card__head">
-            <span>Positions</span>
+            <span>Opened now</span>
             <span class="meta" id="posCount">—</span>
           </div>
           <div id="posList"><div class="pos-loading">—</div></div>
@@ -206,7 +206,14 @@
   'use strict';
 
   /* Живой API бота. CORS открыт (access-control-allow-origin: *). */
-  const CFG = { apiBase: 'https://blynai.meetluko.eu', botInstanceId: 'futures-lukas-live', cycleSeconds: 120 };
+  /* Two instances, same code, separate accounts and journals. The letter is how the
+     card tells them apart in one glyph: D — Denisas, L — Lukas. Equity still comes
+     from the first one; merging two curves would be a different chart, not this one. */
+  const CFG = {
+    apiBase: 'https://blynai.meetluko.eu',
+    bots: [{ id: 'futures-live', letter: 'D' }, { id: 'futures-lukas-live', letter: 'L' }],
+    cycleSeconds: 120
+  };
   const DASH = '\u2014';
   const $ = (id) => document.getElementById(id);
   const num = (n) => (typeof n === 'number' && isFinite(n)) ? n.toLocaleString('en-GB') : DASH;
@@ -282,12 +289,24 @@
   }
 
   async function loadDashboard(){
-    const d = await getJSON('/api/dashboard?botInstanceId=' + encodeURIComponent(CFG.botInstanceId));
+    const all = await Promise.all(CFG.bots.map((b) =>
+      getJSON('/api/dashboard?botInstanceId=' + encodeURIComponent(b.id)).then((d) => ({ b, d }))));
 
-    drawSpark(d && d.equity && Array.isArray(d.equity.days) ? d.equity.days.map((x) => x.close) : null);
+    const first = all[0] && all[0].d;
+    drawSpark(first && first.equity && Array.isArray(first.equity.days) ? first.equity.days.map((x) => x.close) : null);
 
-    const open = (d && Array.isArray(d.positions)) ? d.positions : null;
-    $('posCount').textContent = open ? openLabel(open.length) : DASH;
+    /* Merge both instances, stamp each row with its letter, then sort by pair so the
+       list stays positionally stable: a card that reorders itself every minute is
+       unreadable, and alphabetical is the one order that never depends on the market. */
+    let open = null;
+    for (const { b, d } of all){
+      if (d && Array.isArray(d.positions)){
+        open = (open || []).concat(d.positions.map((p) => Object.assign({ __who: b.letter }, p)));
+      }
+    }
+    if (open) open.sort((x, y) => String(x.pair || '').localeCompare(String(y.pair || '')));
+
+    $('posCount').textContent = open ? String(open.length) : DASH;
 
     const list = $('posList');
     list.textContent = '';
@@ -295,20 +314,21 @@
     if (open && open.length){
       for (const p of open){
         const row  = document.createElement('div'); row.className = 'pos';
+        const who  = document.createElement('span'); who.className  = 'pos__who';  who.textContent = p.__who;
         const sym  = document.createElement('span'); sym.className  = 'pos__pair'; sym.textContent = p.pair || DASH;
         const side = document.createElement('span'); side.className = 'pos__side'; side.textContent = (p.side || '').toUpperCase() || DASH;
         if (String(p.side).toUpperCase() === 'LONG') side.classList.add('is-long');
-        row.append(sym, side, pnlSpan(p.unrealizedPnlPercent));
+        row.append(who, sym, side, pnlSpan(p.unrealizedPnlPercent));
         list.append(row);
       }
       return;
     }
 
     const box = document.createElement('div'); box.className = 'pos pos--empty';
-    const head = document.createElement('span'); head.textContent = 'No open positions';
+    const head = document.createElement('span'); head.textContent = 'Nothing open right now';
     box.append(head);
 
-    const trades = d && d.today && Array.isArray(d.today.trades) ? d.today.trades : [];
+    const trades = first && first.today && Array.isArray(first.today.trades) ? first.today.trades : [];
     const last = trades[trades.length - 1];
     if (last){
       const note = document.createElement('span'); note.className = 'mono';
@@ -336,7 +356,12 @@
   $('closeLegal').addEventListener('click', () => legal.close());
   legal.addEventListener('click', (e) => { if (e.target === legal) legal.close(); });
 
-  async function refresh(){ loadStats(); await loadStatus(); loadDashboard(); }
+  /* Three independent endpoints on the bot API (~0.13s, ~0.32s, ~0.79s). Chained,
+     they cost the sum; in parallel only the slowest one. The dashboard's empty
+     state reads `blackout`, which loadStatus sets — on the very first paint it may
+     still be false, and the next tick corrects it. A stale blackout note for one
+     cycle is a far smaller sin than two seconds of blank cards on the front door. */
+  function refresh(){ return Promise.all([loadStats(), loadStatus(), loadDashboard()]); }
   refresh();
   setInterval(refresh, 60000);
 })());

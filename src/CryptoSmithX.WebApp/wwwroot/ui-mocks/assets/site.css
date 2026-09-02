@@ -117,10 +117,12 @@ h1 em{
 }
 
 .pos{
-  display:grid; grid-template-columns:1fr auto auto; gap:14px;
+  display:grid; grid-template-columns:auto 1fr auto auto; gap:14px;
   padding:9px 14px; border-bottom:1px solid var(--border-hairline);
   font:500 11.5px/1 var(--font-mono);
 }
+/* one glyph for the instance — D or L; the empty row spans it so the notes stay flush */
+.pos__who{color:var(--text-faint); letter-spacing:.08em}
 .pos__pair{color:var(--lilac-200)}
 .pos__side{color:var(--short)}
 .pos__side.is-long{color:var(--long)}
