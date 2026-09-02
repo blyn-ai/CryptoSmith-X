@@ -80,8 +80,12 @@ h1 em{
 }
 @supports ((-webkit-background-clip:text) or (background-clip:text)){h1 em{color:transparent}}
 
+/* Deliberate exception, owner's call: the prose runs the full column width so its
+   right edge lines up with the cards below. The usual rule — cap body text near 75
+   characters — is traded here for that alignment. Do not "fix" this back without
+   asking; it is a decision, not an oversight. */
 .prose{
-  display:flex; flex-direction:column; gap:12px; max-width:580px;
+  display:flex; flex-direction:column; gap:12px;
   font:400 14px/1.65 var(--font-body); color:var(--text-body);
 }
 .prose p{margin:0}
