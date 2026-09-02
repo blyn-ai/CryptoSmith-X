@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/cryptosmith-x-design-system-d88f99a3-abfb-4fd7-8805-49fd2192a9e2/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/cryptosmith-x-design-system-d88f99a3-abfb-4fd7-8805-49fd2192a9e2/tokens/colors.css">
+<link rel="stylesheet" href="_ds/cryptosmith-x-design-system-d88f99a3-abfb-4fd7-8805-49fd2192a9e2/tokens/typography.css">
+<link rel="stylesheet" href="_ds/cryptosmith-x-design-system-d88f99a3-abfb-4fd7-8805-49fd2192a9e2/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/cryptosmith-x-design-system-d88f99a3-abfb-4fd7-8805-49fd2192a9e2/tokens/effects.css">
+<link rel="stylesheet" href="_ds/cryptosmith-x-design-system-d88f99a3-abfb-4fd7-8805-49fd2192a9e2/tokens/base.css">
+<link rel="stylesheet" href="src/CryptoSmithX.WebApp/wwwroot/ds/tokens/colors.css">
+<link rel="stylesheet" href="src/CryptoSmithX.WebApp/wwwroot/app.css">
+<link rel="stylesheet" href="src/CryptoSmithX.WebApp/wwwroot/theme-light.css">
+</helmet>
+<div class="top-rule"></div>
+<div class="shell">
+  <aside class="side">
+    <div class="side-brand">
+      <img class="mark-ink" src="src/CryptoSmithX.WebApp/wwwroot/ds/assets/cryptosmith-mark.svg" alt="">
+      <img class="mark-paper" src="src/CryptoSmithX.WebApp/wwwroot/ds/assets/cryptosmith-mark-paper.svg" alt="">
+      <div>
+        <span class="wordmark">CryptoSmith <span>X</span></span>
+        <span class="side-sub">Admin console</span>
+      </div>
+    </div>
+    <nav class="nav">
+      <sc-for list="{{ navGroups }}" as="g" hint-placeholder-count="4">
+        <div class="nav-group">
+          <span class="nav-label">{{ g.label }}</span>
+          <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="3">
+            <a class="{{ it.cls }}" href="#" onClick="{{ it.open }}"><span class="bar"></span><span class="lbl">{{ it.label }}</span><span class="bdg">{{ it.badge }}</span></a>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+  </aside>
+  <div class="col">
+    <header class="head">
+      <span class="env">Local</span>
+      <span class="live">live · 10 s</span>
+      <form method="get" action="#" class="head-search">
+        <input type="search" name="q" placeholder="symbol, asset, bot…" autocomplete="off">
+      </form>
+      <span class="who"><b>denis</b> · ADMIN</span>
+      <form method="post" action="#">
+        <button class="linkbtn" type="submit">Sign out</button>
+      </form>
+      <button class="theme-toggle" type="button" onClick="{{ toggleTheme }}" aria-label="Switch between dark and light theme" title="Switch theme">
+        <span class="t-ink" aria-hidden="true">
+          <svg viewBox="0 0 16 16" width="15" height="15" focusable="false">
+            <path fill="currentColor" d="M13.9 10.4A6.3 6.3 0 0 1 5.6 2.1a6.6 6.6 0 1 0 8.3 8.3z"></path>
+          </svg>
+        </span><span class="t-paper" aria-hidden="true">
+          <svg viewBox="0 0 16 16" width="15" height="15" focusable="false">
+            <circle cx="8" cy="8" r="3.1" fill="currentColor"></circle>
+            <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <path d="M8 1v1.7M8 13.3V15M15 8h-1.7M2.7 8H1M12.95 3.05l-1.2 1.2M4.25 11.75l-1.2 1.2M12.95 12.95l-1.2-1.2M4.25 4.25l-1.2-1.2"></path>
+            </g>
+          </svg>
+        </span>
+      </button>
+    </header>
+    <main class="main">
+
+      <sc-if value="{{ isFeeds }}" hint-placeholder-val="{{ true }}">
+      <div data-screen-label="Data feeds">
+        <div class="page-head" style="align-items:center;margin-bottom:12px;gap:18px">
+          <div class="t" style="gap:6px">
+            <p class="eyebrow">Admin · exchanges · kraken-futures</p>
+            <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap"><h1>Kraken Futures</h1><span class="tag enabled">enabled</span><span class="dot ok pulse"></span><span class="sev ok">ok</span><span class="code">0 consecutive failures, max across feeds</span></div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:center">
+            <a class="linkbtn" href="#">Instruments →</a>
+            <a class="linkbtn" href="#">← Exchanges</a>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+          <div class="chips">
+            <a class="chip is-on" href="#">overview</a>
+            <a class="chip" href="#">runs</a>
+            <a class="chip" href="#" style="display:flex;align-items:center;gap:6px">settings<span class="dot warn" title="has overrides"></span></a>
+          </div>
+          <span style="flex:1"></span>
+          <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+            <span class="ex-stat"><i>Trading</i><b>274 / 318</b></span>
+            <span class="ex-stat"><i>Collecting</i><b>6 of 9 feeds</b></span>
+            <span class="ex-stat"><i>Avg response</i><b>178 ms</b></span>
+            <span class="ex-stat"><i>Failures</i><b>0</b></span>
+          </div>
+        </div>
+
+        <div class="panel scroll" style="margin-bottom:14px">
+          <div class="panel-h">
+            <h2>Data feeds</h2>
+            <span class="meta">exchange_collection · 9 of 9 collections</span>
+          </div>
+          <div class="th" style="grid-template-columns:164px 184px 188px minmax(190px,1fr) 92px;min-width:900px">
+            <span>Feed</span><span>Capability · fact</span><span>Policy · decided</span><span>Health · observed</span><span></span>
+          </div>
+          <sc-for list="{{ feedRows }}" as="f" hint-placeholder-count="9">
+            <div class="{{ f.rowClass }}" style="grid-template-columns:164px 184px 188px minmax(190px,1fr) 92px;min-width:900px;align-items:start;padding:11px 18px">
+              <span style="display:flex;align-items:center;gap:9px;min-width:0">
+                <span class="{{ f.dotClass }}"></span>
+                <span style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span class="mono" style="line-height:1.2">{{ f.name }}</span>
+                  <span class="code">{{ f.codeLine }}</span>
+                </span>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:5px;min-width:0">
+                <span class="code" style="color:var(--text-muted)">{{ f.capLine }}</span>
+                <span class="code" style="{{ f.historyStyle }}">{{ f.historyLine }}</span>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;min-width:0">
+                <span class="{{ f.modeTagClass }}">{{ f.modeLabel }}</span>
+                <span class="code" style="{{ f.policyStyle }}">{{ f.policyLine }}</span>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:5px;min-width:0">
+                <span class="{{ f.sevClass }}">{{ f.sevText }}</span>
+                <span class="code" style="{{ f.healthStyle }};white-space:normal;text-wrap:pretty">{{ f.healthLine }}</span>
+              </span>
+              <span style="display:flex;gap:12px;align-items:center;justify-content:flex-end">
+                <sc-if value="{{ f.hasRuns }}"><a class="linkbtn" style="font-size:10px" href="#">runs →</a></sc-if>
+                <button class="linkbtn" style="font-size:10px" type="button" onClick="{{ f.openEdit }}">edit</button>
+              </span>
+            </div>
+          </sc-for>
+          <dl class="legend" style="margin:0;padding:13px 18px;grid-template-columns:auto 1fr">
+            <dt>capability</dt><dd>what the venue offers and what we implement — a fact, with its source</dd>
+            <dt>policy</dt><dd>what a human decided: mode, interval, retention, preferred transport</dd>
+            <dt>health</dt><dd>what we observe right now; never stored on the row</dd>
+          </dl>
+        </div>
+
+        <p class="panel-note" style="padding:0;max-width:78ch">Every collection has a row, always — an empty panel used to mean three different things at once: the venue cannot, we have not written it, or a human switched it off. Those are now three different rows.</p>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isCollections }}">
+      <div data-screen-label="Collections">
+        <div class="page-head">
+          <div class="t"><p class="eyebrow">Admin · operations</p><h1>Collections</h1></div>
+          <p class="page-note">The catalogue of data kinds. Defaults live here; a venue row appears only where a human departed from them.</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:14px">
+          <sc-for list="{{ collectionCards }}" as="c" hint-placeholder-count="9">
+            <div class="panel">
+              <div class="panel-h">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0"><h2>{{ c.name }}</h2><sc-if value="{{ c.isDerived }}"><span class="tag dashed">derived</span></sc-if></div>
+                <span class="meta">{{ c.code }}</span>
+              </div>
+              <div class="panel-b" style="padding:14px 18px 12px;display:flex;flex-direction:column;gap:13px">
+                <p style="margin:0;font:400 12.5px/1.55 var(--font-body);color:var(--text-body);text-wrap:pretty">{{ c.desc }}</p>
+                <div style="display:flex;gap:26px;flex-wrap:wrap">
+                  <span class="ex-stat"><i>Default mode</i><b>{{ c.defMode }}</b></span>
+                  <span class="ex-stat"><i>Interval</i><b>{{ c.defInterval }}</b></span>
+                  <span class="ex-stat"><i>Retention</i><b>{{ c.defRetention }}</b></span>
+                </div>
+              </div>
+              <div class="th" style="grid-template-columns:132px 92px minmax(0,1fr)"><span>Venue</span><span>Mode</span><span>Departs from default</span></div>
+              <sc-for list="{{ c.venues }}" as="v" hint-placeholder-count="4">
+                <div class="tr" style="grid-template-columns:132px 92px minmax(0,1fr);padding:9px 18px;align-items:center">
+                  <span class="mono" style="font-size:12px">{{ v.name }}</span>
+                  <span class="{{ v.modeTagClass }}">{{ v.mode }}</span>
+                  <span class="code" style="{{ v.noteStyle }};white-space:normal;text-wrap:pretty">{{ v.note }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ dialogOpen }}">
+        <div style="position:fixed;inset:0;z-index:20;background:var(--surface-overlay);display:flex;align-items:flex-start;justify-content:center;padding:44px 20px;overflow-y:auto">
+          <div style="width:min(880px,100%);background:var(--surface-raised);border:1px solid var(--border-strong);border-radius:var(--radius-lg);overflow:hidden" data-screen-label="Edit feed">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:17px 20px;border-bottom:1px solid var(--border-hairline)">
+              <div style="display:flex;flex-direction:column;gap:7px;min-width:0">
+                <p class="eyebrow">Edit feed · kraken-futures</p>
+                <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap"><h2 style="font:var(--type-h3)">{{ dlg.name }}</h2><span class="{{ dlg.modeTagClass }}">{{ dlg.modeLabel }}</span><sc-if value="{{ dlg.isDerived }}"><span class="tag dashed">derived</span></sc-if></div>
+                <p style="margin:0;max-width:62ch;font:400 12px/1.55 var(--font-body);color:var(--text-muted);text-wrap:pretty">{{ dlg.desc }}</p>
+              </div>
+              <button class="linkbtn" type="button" onClick="{{ closeDialog }}">Close</button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:1px;background:var(--border-hairline)">
+              <div style="background:var(--surface-raised);padding:16px 20px 20px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+                  <p class="eyebrow">Capability · fact</p>
+                  <span class="code">read-only</span>
+                </div>
+                <sc-for list="{{ dlg.capRows }}" as="r" hint-placeholder-count="8">
+                  <div style="display:flex;flex-direction:column;gap:5px;padding-bottom:10px;border-bottom:1px solid var(--border-hairline)">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+                      <span class="code" style="color:var(--eyebrow);letter-spacing:.1em;text-transform:uppercase;font-size:9.5px">{{ r.label }}</span>
+                      <span class="mono" style="font-size:12px;{{ r.valueStyle }}">{{ r.value }}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span class="{{ r.tagClass }}">{{ r.source }}</span>
+                      <span class="code">{{ r.meta }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+                <p style="margin:0;font:400 11px/1.5 var(--font-body);color:var(--text-faint);text-wrap:pretty">A value without a source is an opinion. “Not established” is an honest answer, not a failure.</p>
+              </div>
+
+              <div style="background:var(--surface-raised);padding:16px 20px 20px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px">
+                  <p class="eyebrow">Policy · decided by a human</p>
+                  <span class="code">{{ dlg.editedBy }}</span>
+                </div>
+
+                <p class="eyebrow" style="margin:0 0 7px">Mode</p>
+                <div class="chips" style="margin-bottom:13px">
+                  <sc-for list="{{ dlg.modeOptions }}" as="m" hint-placeholder-count="3">
+                    <button class="{{ m.cls }}" type="button" style="{{ m.style }}" disabled="{{ m.disabled }}" title="{{ m.title }}" onClick="{{ m.pick }}">{{ m.label }}</button>
+                  </sc-for>
+                </div>
+
+                <sc-if value="{{ dlg.guardOn }}">
+                  <div class="err" style="margin:0 0 12px">
+                    <b>Loss</b>
+                    <div>
+                      <span class="t">{{ dlg.guardText }}</span>
+                      <span class="m">{{ dlg.guardMeta }}</span>
+                    </div>
+                  </div>
+                  <div class="field" style="margin-bottom:13px">
+                    <label for="guardCode">{{ dlg.guardLabel }}</label>
+                    <input id="guardCode" type="text" autocomplete="off" spellcheck="false" placeholder="{{ dlg.code }}" value="{{ dlg.guardValue }}" onInput="{{ onGuardInput }}">
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ dlg.safeNoteOn }}">
+                  <p style="margin:0 0 13px;padding:10px 12px;border:1px solid var(--border-hairline);border-radius:var(--radius-sm);font:400 11.5px/1.5 var(--font-body);color:var(--text-muted);text-wrap:pretty">{{ dlg.safeNote }}</p>
+                </sc-if>
+
+                <p class="eyebrow" style="margin:0 0 7px">Primary transport</p>
+                <sc-if value="{{ dlg.transportPickable }}">
+                  <div class="chips" style="margin-bottom:8px">
+                    <sc-for list="{{ dlg.transportOptions }}" as="t" hint-placeholder-count="2">
+                      <button class="{{ t.cls }}" type="button" onClick="{{ t.pick }}">{{ t.label }}</button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ dlg.transportFixed }}">
+                  <p style="margin:0 0 8px;font:400 12.5px/1.4 var(--font-mono);color:var(--text-data)">{{ dlg.transportFixedLabel }}</p>
+                </sc-if>
+                <p class="code" style="display:block;margin:0 0 13px;white-space:normal;text-wrap:pretty">{{ dlg.transportNote }}</p>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 16px">
+                  <div class="field" style="margin-bottom:14px">
+                    <label for="intervalS">Interval (s)</label>
+                    <input id="intervalS" type="text" autocomplete="off" placeholder="{{ dlg.intervalPlaceholder }}" value="{{ dlg.intervalValue }}" onInput="{{ onIntervalInput }}">
+                    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--border-hairline);border:1px solid var(--border-hairline);border-radius:var(--radius-xs);overflow:hidden">
+                      <sc-for list="{{ dlg.intervalCascade }}" as="s" hint-placeholder-count="3">
+                        <span style="display:flex;flex-direction:column;gap:4px;padding:7px 9px;background:var(--surface-raised)">
+                          <span style="flex:none;font:400 9px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint)">{{ s.step }}</span>
+                          <span class="mono" style="font-size:11.5px;{{ s.style }}">{{ s.value }}</span>
+                        </span>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <div class="field" style="margin-bottom:14px">
+                    <label for="retentionD">Retention (days)</label>
+                    <input id="retentionD" type="text" autocomplete="off" placeholder="{{ dlg.retentionPlaceholder }}" value="{{ dlg.retentionValue }}" onInput="{{ onRetentionInput }}">
+                    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--border-hairline);border:1px solid var(--border-hairline);border-radius:var(--radius-xs);overflow:hidden">
+                      <sc-for list="{{ dlg.retentionCascade }}" as="s" hint-placeholder-count="3">
+                        <span style="display:flex;flex-direction:column;gap:4px;padding:7px 9px;background:var(--surface-raised)">
+                          <span style="flex:none;font:400 9px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint)">{{ s.step }}</span>
+                          <span class="mono" style="font-size:11.5px;{{ s.style }}">{{ s.value }}</span>
+                        </span>
+                      </sc-for>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="field" style="margin-bottom:6px">
+                  <label for="feedNote">Note</label>
+                  <input id="feedNote" type="text" autocomplete="off" placeholder="why this venue departs from the default" value="{{ dlg.noteValue }}" onInput="{{ onNoteInput }}">
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 20px;border-top:1px solid var(--border-hairline)">
+              <div style="display:flex;flex-direction:column;gap:4px;min-width:0;flex:1">
+                <span class="code" style="white-space:normal">{{ dlg.logLine }}</span>
+                <a class="linkbtn" style="font-size:10px;align-self:flex-start" href="#">capability log →</a>
+              </div>
+              <button class="linkbtn" type="button" onClick="{{ closeDialog }}">Cancel</button>
+              <button class="btn btn-sm" type="button" disabled="{{ dlg.saveDisabled }}" style="{{ dlg.saveStyle }}" onClick="{{ saveDialog }}">{{ dlg.saveLabel }}</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </main>
+    <footer class="foot">
+      <span>CryptoSmith X · Local</span>
+      <span class="sp"></span>
+      <a href="https://blynai.eu">blynai.eu</a>
+    </footer>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;,&quot;section&quot;:&quot;View&quot;},&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;feeds&quot;,&quot;collections&quot;],&quot;default&quot;:&quot;feeds&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;View&quot;},&quot;feed&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;snapshot&quot;,&quot;depth&quot;,&quot;candles&quot;,&quot;funding&quot;,&quot;discovery&quot;,&quot;rollup&quot;,&quot;trades&quot;,&quot;open_interest&quot;,&quot;liquidations&quot;],&quot;default&quot;:&quot;depth&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Edit dialog&quot;},&quot;dialog&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Edit dialog&quot;}}">
+const DASH = "\u2014";
+const MID = " \u00b7 ";
+
+const GOLD = "color:var(--csx-gold-ink)";
+const MUTED = "color:var(--text-muted)";
+const FAINT = "color:var(--text-faint)";
+
+// ── catalogue: collection (plans/csx-proto-seed.sql), descriptions in product English
+const COLLS = [
+  { code: "snapshot", name: "Snapshot", kind: "feed", defMode: "collect", defInt: 10, defRet: 90,
+    desc: "Market slice: price, spread, mark/index, funding, open interest. Cannot be reconstructed afterwards." },
+  { code: "depth", name: "Depth", kind: "feed", defMode: "collect", defInt: 60, defRet: 90,
+    desc: "Book depth in 10/25/50 bps bands \u2014 what slippage will cost. No history exists anywhere." },
+  { code: "candles", name: "Candles", kind: "feed", defMode: "collect", defInt: 60, defRet: null,
+    desc: "1-minute OHLCV bars. Never rotated: the only source for long runs, and delisted instruments keep backtests honest." },
+  { code: "funding", name: "Funding", kind: "feed", defMode: "collect", defInt: 3600, defRet: null,
+    desc: "Funding rate and its history." },
+  { code: "discovery", name: "Discovery", kind: "feed", defMode: "collect", defInt: 3600, defRet: null,
+    desc: "Which instruments trade: listings, delistings, status changes." },
+  { code: "rollup", name: "Rollup", kind: "derived", defMode: "collect", defInt: 60, defRet: null,
+    desc: "Derived timeframes from the 1m bars. Computed by us, never fetched from a venue." },
+  { code: "trades", name: "Trades", kind: "feed", defMode: "disabled", defInt: null, defRet: null,
+    desc: "Trade tape. A different order of volume \u2014 needs its own storage decision first." },
+  { code: "open_interest", name: "Open interest", kind: "feed", defMode: "disabled", defInt: null, defRet: null,
+    desc: "Open interest. On several venues it arrives inside the ticker and needs no loop of its own." },
+  { code: "liquidations", name: "Liquidations", kind: "feed", defMode: "disabled", defInt: null, defRet: null,
+    desc: "Liquidations. Socket-only almost everywhere, and nobody keeps history." }
+];
+
+// global settings fallback (the third cascade step)
+const GLOBAL_INT = { snapshot: 10, depth: 30, candles: 60, funding: 3600, discovery: 3600, rollup: 60,
+                     trades: 60, open_interest: 60, liquidations: 60 };
+const GLOBAL_RET = 90;
+
+// ── kraken-futures policy, seeded by hand (exchange_collection)
+const POLICY = {
+  snapshot: { mode: "collect", transport: "ws", interval: null, retention: null, note: "" },
+  depth: { mode: "collect", transport: "ws", interval: null, retention: null, note: "" },
+  candles: { mode: "collect", transport: "rest", interval: null, retention: null, note: "" },
+  funding: { mode: "collect", transport: "rest", interval: null, retention: null, note: "" },
+  discovery: { mode: "collect", transport: "rest", interval: null, retention: null, note: "" },
+  rollup: { mode: "collect", transport: null, interval: null, retention: null, note: "" },
+  trades: { mode: "disabled", transport: null, interval: null, retention: null,
+            note: "Venue serves it, we have not written it \u2014 backlog, not a refusal" },
+  open_interest: { mode: "disabled", transport: null, interval: null, retention: null,
+                   note: "Arrives inside snapshot: no separate loop, and none needed" },
+  liquidations: { mode: "disabled", transport: null, interval: null, retention: null, note: "" }
+};
+
+// ── capability values: [value, source, filled_by, filled_at]. Missing key = not established.
+const CAP = {
+  snapshot: {
+    venue_supports: ["true", "declared", "kraken adapter", "31.08"],
+    we_implement: ["true", "declared", "kraken adapter", "31.08"],
+    transports_venue: ["rest, ws", "manual", "denis", "31.08"],
+    transports_us: ["rest, ws", "declared", "kraken adapter", "01.09"],
+    api_versions_venue: ["v3", "manual", "denis", "31.08"],
+    api_versions_us: ["v3", "declared", "kraken adapter", "31.08"],
+    history_depth: ["none", "manual", "denis", "31.08"],
+    auth: ["public", "declared", "kraken adapter", "31.08"]
+  },
+  depth: {
+    venue_supports: ["true", "declared", "kraken adapter", "31.08"],
+    we_implement: ["true", "declared", "deploy 6424c23", "01.09"],
+    transports_venue: ["rest, ws", "manual", "denis", "31.08"],
+    transports_us: ["rest, ws", "declared", "deploy 6424c23", "01.09"],
+    history_depth: ["none", "manual", "denis", "31.08"],
+    auth: ["public", "declared", "kraken adapter", "31.08"]
+  },
+  candles: {
+    venue_supports: ["true", "declared", "kraken adapter", "31.08"],
+    we_implement: ["true", "declared", "kraken adapter", "31.08"],
+    transports_venue: ["rest", "manual", "denis", "31.08"],
+    transports_us: ["rest", "declared", "kraken adapter", "31.08"],
+    history_depth: ["full", "probed", "dump probe", "22.08"],
+    auth: ["public", "declared", "kraken adapter", "31.08"]
+  },
+  funding: {
+    venue_supports: ["true", "declared", "kraken adapter", "31.08"],
+    we_implement: ["true", "declared", "kraken adapter", "31.08"],
+    transports_venue: ["rest", "manual", "denis", "31.08"],
+    transports_us: ["rest", "declared", "kraken adapter", "31.08"],
+    history_depth: ["full", "probed", "funding backfill", "01.09"],
+    auth: ["public", "declared", "kraken adapter", "31.08"]
+  },
+  discovery: {
+    venue_supports: ["true", "declared", "kraken adapter", "31.08"],
+    we_implement: ["true", "declared", "kraken adapter", "31.08"],
+    transports_venue: ["rest", "manual", "denis", "31.08"],
+    transports_us: ["rest", "declared", "kraken adapter", "31.08"],
+    history_depth: ["none", "manual", "denis", "31.08"],
+    auth: ["public", "declared", "kraken adapter", "31.08"]
+  },
+  rollup: {
+    venue_supports: ["false", "declared", "hub", "31.08"],
+    we_implement: ["true", "declared", "hub", "31.08"]
+  },
+  trades: {
+    venue_supports: ["true", "manual", "denis", "02.09"],
+    we_implement: ["false", "declared", "kraken adapter", "02.09"],
+    transports_venue: ["rest, ws", "manual", "denis", "02.09"],
+    transports_us: ["none", "declared", "kraken adapter", "02.09"]
+  },
+  open_interest: {
+    venue_supports: ["true", "manual", "denis", "02.09"],
+    we_implement: ["false", "declared", "kraken adapter", "02.09"],
+    history_depth: ["none", "manual", "denis", "02.09"]
+  },
+  liquidations: {
+    we_implement: ["false", "declared", "kraken adapter", "02.09"]
+  }
+};
+
+const CAP_KEYS = [
+  ["venue_supports", "Venue serves it"],
+  ["we_implement", "We implement it"],
+  ["transports_venue", "Transports · venue"],
+  ["transports_us", "Transports · us"],
+  ["api_versions_venue", "API versions · venue"],
+  ["api_versions_us", "API versions · us"],
+  ["history_depth", "History depth"],
+  ["auth", "Auth"],
+  ["rate_limit", "Rate limit"]
+];
+
+// ── health, observed on this render (collector_status)
+const HEALTH = {
+  snapshot: { last: 8, fails: 0, lastMs: 128, avgMs: 142 },
+  depth: { last: 7, fails: 0, lastMs: 96, avgMs: 104 },
+  candles: { last: 47, fails: 0, lastMs: 402, avgMs: 388 },
+  funding: { last: 1480, fails: 0, lastMs: 640, avgMs: 705 },
+  discovery: { last: 720, fails: 0, lastMs: 1180, avgMs: 1204 },
+  rollup: { last: 31, fails: 0, lastMs: 74, avgMs: 81 }
+};
+
+const LOG = {
+  depth: "01.09 12:28 \u00b7 we_implement false \u2192 true \u00b7 deploy 6424c23 \u2014 WS book collector: snapshot + deltas with seq check; depth freshness across 274 pairs fell from ~60 s to 7 s.",
+  candles: "22.08 08:20 \u00b7 history_depth \u2014 \u2192 full \u00b7 dump probe \u2014 300,231,107 bars pulled for 2025-01-01\u20262026-08-22 without a single error.",
+  funding: "01.09 \u00b7 history_depth \u2014 \u2192 full \u00b7 funding backfill \u2014 historicalfundingrates walked to the first listing.",
+  snapshot: "01.09 \u00b7 transports_us rest \u2192 rest, ws \u00b7 kraken adapter \u2014 REST stays as degradation and cross-check.",
+  trades: "02.09 \u00b7 venue_supports \u2014 \u2192 true \u00b7 denis \u2014 checked by hand: the venue serves the tape, we have no collector.",
+  open_interest: "02.09 \u00b7 we_implement \u2014 \u2192 false \u00b7 kraken adapter \u2014 value arrives inside the ticker.",
+  liquidations: "No entries \u2014 this feed has never been probed.",
+  discovery: "31.08 \u00b7 history_depth \u2014 \u2192 none \u00b7 denis \u2014 the venue shows today's list only.",
+  rollup: "31.08 \u00b7 we_implement \u2014 \u2192 true \u00b7 hub \u2014 derived series, computed from the 1m bars."
+};
+
+// ── the other three venues: policy only (capability is seeded for kraken-futures alone)
+const VENUES = [
+  { code: "kraken-futures", name: "Kraken Futures" },
+  { code: "hyperliquid", name: "Hyperliquid" },
+  { code: "binance", name: "Binance" },
+  { code: "weex", name: "WEEX" }
+];
+
+const VENUE_POLICY = {
+  snapshot: {
+    hyperliquid: { mode: "collect", transport: "ws" },
+    binance: { mode: "collect", transport: "ws", interval: 5, why: "own 5 s \u2014 the venue's stream is cheap and the book moves fast" },
+    weex: { mode: "collect", transport: "rest", interval: 30, why: "own 30 s \u2014 REST-only venue, 503 since 01.09" }
+  },
+  depth: {
+    hyperliquid: { mode: "collect", transport: "ws" },
+    binance: { mode: "collect", transport: "ws" },
+    weex: { mode: "disabled", why: "Off by hand: the book endpoint has answered 503 since 01.09" }
+  },
+  candles: {
+    hyperliquid: { mode: "collect", transport: "rest" },
+    binance: { mode: "collect", transport: "rest", interval: 30, why: "own 30 s \u2014 611 instruments, weight budget spent in bursts" },
+    weex: { mode: "collect", transport: "rest" }
+  },
+  funding: {
+    hyperliquid: { mode: "collect", transport: "rest" },
+    binance: { mode: "collect", transport: "rest" },
+    weex: { mode: "disabled", why: "Not established: never probed on this venue" }
+  },
+  discovery: {
+    hyperliquid: { mode: "collect", transport: "rest" },
+    binance: { mode: "collect", transport: "rest" },
+    weex: { mode: "collect", transport: "rest" }
+  },
+  rollup: {
+    hyperliquid: { mode: "collect" },
+    binance: { mode: "collect" },
+    weex: { mode: "disabled", why: "Nothing to roll up while the 1m feed is failing" }
+  },
+  trades: {
+    hyperliquid: { mode: "disabled", why: "Backlog: venue serves it, we have not written it" },
+    binance: { mode: "disabled", why: "Backlog: venue serves it, we have not written it" },
+    weex: { mode: "disabled", why: "Not established: never probed" }
+  },
+  open_interest: {
+    hyperliquid: { mode: "disabled", why: "Arrives inside snapshot; no loop needed" },
+    binance: { mode: "disabled", why: "Backlog: served on its own endpoint, we have not written it" },
+    weex: { mode: "disabled", why: "Not established: never probed" }
+  },
+  liquidations: {
+    hyperliquid: { mode: "disabled", why: "Not established: socket-only, never probed" },
+    binance: { mode: "disabled", why: "Not established: socket-only, never probed" },
+    weex: { mode: "disabled", why: "Not established: never probed" }
+  }
+};
+
+const MODE_LABEL = { collect: "collect", on_demand: "on demand", disabled: "disabled" };
+const MODE_TAG = { collect: "tag enabled", on_demand: "tag planned", disabled: "tag disabled" };
+
+function secs(v) {
+  if (v === null || v === undefined) return DASH;
+  if (v < 90) return v + " s";
+  if (v < 5400) return Math.round(v / 60) + " min";
+  return Math.round(v / 3600) + " h";
+}
+function ret(v) {
+  if (v === "never" || v === null || v === undefined) return "never";
+  return v + " d";
+}
+function age(s) {
+  if (s === null || s === undefined) return DASH;
+  if (s < 90) return Math.round(s) + " s";
+  if (s < 5400) return Math.round(s / 60) + " min";
+  return Math.round(s / 3600) + " h";
+}
+function capVal(coll, key) {
+  const row = CAP[coll] || {};
+  return row[key] || null;
+}
+function isTrue(coll, key) {
+  const v = capVal(coll, key);
+  return !!v && v[0] === "true";
+}
+
+class Component extends DCLogic {
+  state = { screen: null, theme: null, feed: null, dialog: null,
+            mode: null, transport: null, interval: "", retention: "", note: "", guard: "", saved: false };
+
+  get theme() { return this.state.theme || this.props.theme || "dark"; }
+  get screen() { return this.state.screen || this.props.screen || "feeds"; }
+  get feed() { return this.state.feed || this.props.feed || "depth"; }
+  get dialogOpen() {
+    if (this.state.dialog === null || this.state.dialog === undefined) return !!this.props.dialog;
+    return this.state.dialog;
+  }
+
+  componentDidMount() { this.syncTheme(); }
+  componentDidUpdate() { this.syncTheme(); }
+  syncTheme() {
+    const el = document.documentElement;
+    if (el.getAttribute("data-theme") !== this.theme) el.setAttribute("data-theme", this.theme);
+  }
+
+  openEdit(code) {
+    return (ev) => {
+      if (ev && ev.preventDefault) ev.preventDefault();
+      const p = POLICY[code];
+      this.setState({ dialog: true, feed: code, mode: p.mode, transport: p.transport,
+                      interval: "", retention: "", note: p.note || "", guard: "", saved: false });
+    };
+  }
+
+  // ── row state: which of the three axes explains this row
+  rowState(code) {
+    const p = POLICY[code];
+    const venue = capVal(code, "venue_supports");
+    const us = capVal(code, "we_implement");
+    if (p.mode !== "disabled" && isTrue(code, "we_implement")) {
+      const h = HEALTH[code];
+      const sev = !h ? "none" : h.fails >= 3 ? "fail" : h.fails >= 1 ? "warn" : "ok";
+      return { kind: "running", sev: sev };
+    }
+    if (us && us[0] === "false" && venue && venue[0] === "true") return { kind: "backlog", sev: "none" };
+    if (!venue) return { kind: "unknown", sev: "none" };
+    return { kind: "off", sev: "none" };
+  }
+
+  feedRow(c) {
+    const p = POLICY[c.code];
+    const st = this.rowState(c.code);
+    const hist = capVal(c.code, "history_depth");
+    const h = HEALTH[c.code];
+    const interval = p.interval !== null && p.interval !== undefined ? p.interval : c.defInt;
+    const retention = p.retention !== null && p.retention !== undefined ? p.retention
+      : (c.defRet === null ? "never" : c.defRet);
+
+    let sevText = "";
+    let healthLine = "";
+    let healthStyle = FAINT;
+    let dotClass = "dot none";
+    if (st.kind === "running") {
+      sevText = st.sev === "ok" ? "ok" : st.sev === "warn" ? "degraded" : "failing";
+      healthLine = "last success " + age(h.last) + MID + h.fails + " fails" + MID + h.lastMs + " / " + h.avgMs + " ms";
+      healthStyle = st.sev === "ok" ? MUTED : GOLD;
+      dotClass = "dot " + (st.sev === "ok" ? "ok fresh" : st.sev);
+    } else if (st.kind === "backlog") {
+      sevText = "backlog";
+      healthLine = "The venue serves it, we have not written the collector. Nothing is being lost that the venue would not still hold.";
+      dotClass = "dot paused";
+    } else if (st.kind === "unknown") {
+      sevText = "not established";
+      healthLine = "Never probed \u2014 we do not know whether the venue serves it. This is an answer, not an error.";
+      dotClass = "dot none";
+    } else {
+      sevText = "off by hand";
+      healthLine = p.note || "Switched off by a human.";
+      dotClass = "dot paused";
+    }
+
+    const venueCap = capVal(c.code, "venue_supports");
+    const usCap = capVal(c.code, "we_implement");
+    const capLine = (c.kind === "derived" ? "derived" : "venue " + (venueCap ? (venueCap[0] === "true" ? "yes" : "no") : DASH))
+      + MID + "us " + (usCap ? (usCap[0] === "true" ? "yes" : "no") : DASH);
+
+    return {
+      rowClass: "tr" + (st.kind === "running" && st.sev === "fail" ? " is-fail" : ""),
+      dotClass: dotClass,
+      name: c.name,
+      codeLine: c.code + (c.kind === "derived" ? MID + "derived" : ""),
+      capLine: capLine,
+      historyLine: hist ? "history " + hist[0] + MID + hist[1] : "history not established",
+      historyStyle: hist && hist[0] === "none" ? GOLD : FAINT,
+      modeTagClass: MODE_TAG[p.mode],
+      modeLabel: MODE_LABEL[p.mode],
+      policyLine: p.mode === "disabled" ? DASH
+        : (p.transport ? p.transport : "internal") + MID + secs(interval) + MID + ret(retention),
+      policyStyle: MUTED,
+      sevClass: "sev " + (st.kind === "running" ? st.sev : "none"),
+      sevText: sevText,
+      healthLine: healthLine,
+      healthStyle: healthStyle,
+      hasRuns: st.kind === "running",
+      openEdit: this.openEdit(c.code)
+    };
+  }
+
+  // ── dialog
+  dialogData() {
+    const c = COLLS.filter((x) => x.code === this.feed)[0] || COLLS[0];
+    const p = POLICY[c.code];
+    const mode = this.state.mode || p.mode;
+    const hist = capVal(c.code, "history_depth");
+    const historyNone = !hist || hist[0] === "none";
+    const wasCollecting = p.mode === "collect";
+    const stopping = wasCollecting && mode !== "collect";
+    const guardOn = stopping && historyNone;
+    const guardOk = this.state.guard.trim().toLowerCase() === c.code;
+
+    const capRows = CAP_KEYS.map((k) => {
+      const v = capVal(c.code, k[0]);
+      const loss = k[0] === "history_depth";
+      let valueStyle = "color:var(--text-data)";
+      if (!v) valueStyle = FAINT;
+      else if (loss && v[0] === "none") valueStyle = GOLD;
+      return {
+        label: k[1],
+        value: v ? v[0] : "not established",
+        valueStyle: valueStyle,
+        tagClass: v ? (v[1] === "probed" ? "tag planned" : v[1] === "manual" ? "tag maintenance" : "tag") : "tag dashed",
+        source: v ? v[1] : "no source",
+        meta: v ? v[2] + MID + v[3] : "never filled"
+      };
+    });
+
+    // transport options = intersection of what the venue offers and what we implement
+    const parse = (raw) => !raw || raw === "none" ? [] : raw.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    const tv = capVal(c.code, "transports_venue");
+    const tu = capVal(c.code, "transports_us");
+    const venueT = parse(tv ? tv[0] : null);
+    const usT = parse(tu ? tu[0] : null);
+    const both = venueT.filter((t) => usT.indexOf(t) >= 0);
+    const transport = this.state.transport !== null && this.state.transport !== undefined
+      ? this.state.transport : p.transport;
+
+    let transportNote;
+    if (c.kind === "derived") transportNote = "Derived series \u2014 nothing is fetched, so there is no transport to choose.";
+    else if (both.length === 0) transportNote = "No transport both sides have: venue " + (venueT.length ? venueT.join(", ") : "not established") + ", us " + (usT.length ? usT.join(", ") : "none") + ".";
+    else if (both.length === 1) transportNote = "Only " + both[0] + " \u2014 venue " + venueT.join(", ") + ", we implement " + usT.join(", ") + ". Not a choice, so not a dropdown. WS\u2192REST fallback is always on: it is protection against loss, not a setting.";
+    else transportNote = "Venue " + venueT.join(", ") + " \u00b7 we implement " + usT.join(", ") + ". This picks the primary; the WS\u2192REST fallback is always on and cannot be switched off.";
+
+    const cascade = (own, coll, glob, fmt) => {
+      const steps = [
+        { step: "own", raw: own },
+        { step: "collection", raw: coll },
+        { step: "global", raw: glob }
+      ];
+      let effective = -1;
+      for (let i = 0; i < steps.length; i++) {
+        if (steps[i].raw !== null && steps[i].raw !== undefined && steps[i].raw !== "") { effective = i; break; }
+      }
+      return steps.map((s, i) => ({
+        step: s.step,
+        value: s.raw === null || s.raw === undefined || s.raw === "" ? DASH : fmt(s.raw),
+        style: i === effective ? (i === 0 ? GOLD : "color:var(--text-data)") : FAINT
+      }));
+    };
+
+    const ownInterval = this.state.interval !== "" ? Number(this.state.interval) : p.interval;
+    const ownRetention = this.state.retention !== "" ? Number(this.state.retention) : p.retention;
+    const collRet = c.defRet === null ? "never" : c.defRet;
+
+    const saveDisabled = guardOn && !guardOk;
+
+    return {
+      code: c.code,
+      name: c.name,
+      desc: c.desc,
+      isDerived: c.kind === "derived",
+      modeTagClass: MODE_TAG[mode],
+      modeLabel: MODE_LABEL[mode],
+      editedBy: "last edited by denis \u00b7 01.09",
+      capRows: capRows,
+      modeOptions: ["disabled", "on_demand", "collect"].map((m) => {
+        const blocked = m !== "disabled" && !isTrue(c.code, "we_implement");
+        return {
+          label: MODE_LABEL[m],
+          cls: "chip" + (mode === m ? " is-on" : ""),
+          style: blocked ? "opacity:.45;cursor:not-allowed" : "",
+          disabled: blocked,
+          title: blocked ? "No collector for this feed yet \u2014 both collect and on demand need one" : "",
+          pick: blocked ? (ev) => { if (ev && ev.preventDefault) ev.preventDefault(); }
+            : () => this.setState({ mode: m, guard: "", saved: false })
+        };
+      }),
+      guardOn: guardOn,
+      guardText: c.name + " history does not exist \u2014 history depth is " +
+        (hist ? hist[0] + " (" + hist[1] + ", " + hist[2] + MID + hist[3] + ")" : "not established") +
+        ". Whatever is not collected while this feed is off is gone forever: there is nowhere to backfill it from.",
+      guardMeta: "Stopping now also drops " + (HEALTH[c.code] ? "the live loop for 274 instruments" : "the loop") +
+        ". The archive keeps what it already has; the gap starts at this click.",
+      guardLabel: "Type " + c.code + " to release the guard",
+      guardValue: this.state.guard,
+      safeNoteOn: stopping && !historyNone,
+      safeNote: "History depth is " + (hist ? hist[0] : "") + ", probed by " + (hist ? hist[2] + " on " + hist[3] : "") +
+        " \u2014 a gap made now can be backfilled later. Stopping is reversible for this feed.",
+      transportPickable: both.length > 1,
+      transportFixed: both.length === 1,
+      transportFixedLabel: both.length === 1 ? both[0] : "",
+      transportOptions: both.map((t) => ({
+        label: t,
+        cls: "chip" + (transport === t ? " is-on" : ""),
+        pick: () => this.setState({ transport: t, saved: false })
+      })),
+      transportNote: transportNote,
+      intervalValue: this.state.interval,
+      intervalPlaceholder: c.defInt === null ? "collection has no default" : "collection " + c.defInt,
+      intervalCascade: cascade(ownInterval, c.defInt, GLOBAL_INT[c.code], (v) => secs(Number(v))),
+      retentionValue: this.state.retention,
+      retentionPlaceholder: collRet === "never" ? "collection: never rotate" : "collection " + collRet,
+      retentionCascade: cascade(ownRetention, collRet, GLOBAL_RET, (v) => ret(v)),
+      noteValue: this.state.note,
+      logLine: LOG[c.code] || "No entries.",
+      saveDisabled: saveDisabled,
+      saveStyle: saveDisabled ? "opacity:.4;cursor:not-allowed" : "",
+      saveLabel: this.state.saved ? "Saved" : stopping ? "Stop collecting" : "Save changes"
+    };
+  }
+
+  renderVals() {
+    const screen = this.screen;
+    const navGroups = [
+      { label: "Operations", items: [
+        { label: "Dashboard", badge: "0" },
+        { label: "Exchanges", badge: "0", screen: "feeds", active: screen === "feeds" },
+        { label: "Collections", badge: "", screen: "collections", active: screen === "collections" },
+        { label: "Assets", badge: "" },
+        { label: "Instruments", badge: "" }
+      ] },
+      { label: "Fleet", items: [
+        { label: "Bots", badge: "3" },
+        { label: "Tenants", badge: "" }
+      ] },
+      { label: "Clients", items: [
+        { label: "Clients", badge: "" },
+        { label: "Sharing", badge: "soon", soon: true },
+        { label: "Billing", badge: "soon", soon: true }
+      ] },
+      { label: "System", items: [
+        { label: "Users", badge: "soon", soon: true },
+        { label: "Audit", badge: "soon", soon: true },
+        { label: "Settings", badge: "" }
+      ] }
+    ].map((g) => ({
+      label: g.label,
+      items: g.items.map((it) => ({
+        label: it.label, badge: it.badge,
+        cls: "nav-item" + (it.soon ? " is-soon" : "") + (it.active ? " is-active" : ""),
+        open: (ev) => {
+          if (ev && ev.preventDefault) ev.preventDefault();
+          if (it.screen) this.setState({ screen: it.screen, dialog: false });
+        }
+      }))
+    }));
+
+    const collectionCards = COLLS.map((c) => ({
+      name: c.name,
+      code: c.code,
+      desc: c.desc,
+      isDerived: c.kind === "derived",
+      defMode: MODE_LABEL[c.defMode],
+      defInterval: c.defInt === null ? DASH : secs(c.defInt),
+      defRetention: c.defRet === null ? "never" : c.defRet + " d",
+      venues: VENUES.map((v) => {
+        const own = v.code === "kraken-futures" ? POLICY[c.code] : (VENUE_POLICY[c.code] || {})[v.code];
+        const pol = own || { mode: c.defMode };
+        let note = "";
+        let noteStyle = FAINT;
+        if (own && own.why) { note = own.why; noteStyle = MUTED; }
+        else if (v.code === "kraken-futures" && POLICY[c.code].note) { note = POLICY[c.code].note; noteStyle = MUTED; }
+        else if (pol.mode === c.defMode) { note = "follows the default"; }
+        else { note = "mode " + MODE_LABEL[pol.mode] + " \u2014 no reason recorded"; noteStyle = GOLD; }
+        return {
+          name: v.name,
+          mode: MODE_LABEL[pol.mode],
+          modeTagClass: MODE_TAG[pol.mode],
+          note: note,
+          noteStyle: noteStyle
+        };
+      })
+    }));
+
+    return {
+      navGroups: navGroups,
+      isFeeds: screen === "feeds",
+      isCollections: screen === "collections",
+      dialogOpen: this.dialogOpen,
+      feedRows: COLLS.map((c) => this.feedRow(c)),
+      collectionCards: collectionCards,
+      dlg: this.dialogData(),
+      closeDialog: (ev) => { if (ev && ev.preventDefault) ev.preventDefault(); this.setState({ dialog: false }); },
+      saveDialog: () => this.setState({ saved: true }),
+      onGuardInput: (ev) => this.setState({ guard: ev.target.value }),
+      onIntervalInput: (ev) => this.setState({ interval: ev.target.value, saved: false }),
+      onRetentionInput: (ev) => this.setState({ retention: ev.target.value, saved: false }),
+      onNoteInput: (ev) => this.setState({ note: ev.target.value, saved: false }),
+      toggleTheme: () => this.setState({ theme: this.theme === "dark" ? "light" : "dark" })
+    };
+  }
+}
+</script>
+</body>
+</html>

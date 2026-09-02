@@ -62,13 +62,7 @@ html[data-theme="light"]{
 
   /* gold as text: 4.7:1 for degraded. Failing keeps --gold-300 (#7E4A08, 7.4:1). */
   --csx-gold-ink:#9A6A16;
-}
 
-html[data-theme="light"] ::selection{background:rgba(107,78,219,.22);color:var(--lilac-100)}
-
-/* brightness() washes a dot out on white, so the fresh beat saturates down instead */
-@keyframes csxFreshLight{0%{filter:saturate(2.4) brightness(.78)}100%{filter:none}}
-html[data-theme="light"] .dot.fresh{animation-name:csxFreshLight
 /* lifecycle status — the paper row of the designer's palette */
 --status-planned:#6B4EDB;     --status-planned-wash:rgba(107,78,219,.07);  --status-planned-border:rgba(107,78,219,.42);
 --status-enabled:#1E7A55;     --status-enabled-wash:rgba(30,122,85,.08);   --status-enabled-border:rgba(30,122,85,.42);
@@ -76,3 +70,9 @@ html[data-theme="light"] .dot.fresh{animation-name:csxFreshLight
 --status-maintenance:#8A6320; --status-maintenance-wash:rgba(245,184,79,.14); --status-maintenance-border:rgba(138,99,32,.48);
 --status-abandoned:#A33C46;   --status-abandoned-wash:rgba(163,60,70,.06);    --status-abandoned-border:rgba(163,60,70,.42);
 }
+
+html[data-theme="light"] ::selection{background:rgba(107,78,219,.22);color:var(--lilac-100)}
+
+/* brightness() washes a dot out on white, so the fresh beat saturates down instead */
+@keyframes csxFreshLight{0%{filter:saturate(2.4) brightness(.78)}100%{filter:none}}
+html[data-theme="light"] .dot.fresh{animation-name:csxFreshLight}
