@@ -64,6 +64,12 @@ a.tag--violet:hover{color:var(--violet-200); border-color:var(--violet-400); bac
 a.tag:focus-visible{outline:var(--focus-ring); outline-offset:2px}
 .tag--gold{color:var(--gold-400); border-color:var(--border-gold); background:var(--tint-gold)}
 .tag--violet{color:var(--violet-400); border-color:var(--border-strong); background:var(--tint-violet)}
+/* The one honest neutral left: green and rose belong to the market, gold is taken by
+   Closed testing and violet is wanted for the doors. Sand is the DS's only other warm
+   accent and next to a gold chip it just reads as faded gold. Grey also happens to say
+   the right thing — Alpha is a state that has not started. */
+.tag--grey{color:var(--text-muted); border-color:var(--border-hairline); background:var(--tint-neutral)}
+a.tag--grey:hover{color:var(--text-body); border-color:var(--border-card)}
 
 h1{
   /* Fluid: the auth column is a fixed 428px, so between the 960px stack point and
@@ -243,13 +249,9 @@ h1 em{
   font:600 10px/1 var(--font-mono); letter-spacing:.16em;
   text-transform:uppercase; color:var(--gold-400);
 }
-.features a{
-  font:400 14px/1.2 var(--font-body); color:var(--text-body); text-decoration:none;
-  border-bottom:1px solid rgba(245,184,79,.4); padding-bottom:3px;
-  transition:var(--transition-color);
-}
-.features a:hover{color:var(--gold-300); border-bottom-color:var(--gold-400)}
-.features a:focus-visible{outline:var(--focus-ring); outline-offset:3px}
+/* Chips, not link text: on the line with the gold label, link text kept reading as a
+   continuation of the label — which is exactly how this row went unseen three times. */
+.features .tag{border-radius:var(--radius-xs)}
 
 .auth__note{
   margin-top:6px; padding-top:18px; border-top:1px solid var(--border-hairline);
