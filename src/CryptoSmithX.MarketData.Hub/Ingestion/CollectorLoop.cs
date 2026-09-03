@@ -23,6 +23,13 @@ public sealed class CollectorLoop
     /// <summary>Backoff never grows past this multiple of the configured interval.</summary>
     public const int MaxBackoffFactor = 5;
 
+    /// <summary>
+    /// Consecutive failures after which the loop stops whispering. Three, to match the threshold
+    /// the dashboard already calls "failing", so the console and the alert never disagree about
+    /// what is broken.
+    /// </summary>
+    public const int FailuresBeforeAlert = 3;
+
     private readonly string _exchangeCode;
     private readonly string _collector;
     private readonly Func<TimeSpan> _interval;
@@ -99,9 +106,24 @@ public sealed class CollectorLoop
                 attempt = new CollectorAttempt(
                     _exchangeCode, _collector, attemptAt, false, Describe(ex), ConsecutiveFailures, null,
                     ElapsedMs(startedTicks));
-                _logger.LogWarning(
-                    ex, "{Exchange}/{Collector} failed ({Failures} in a row)",
-                    _exchangeCode, _collector, ConsecutiveFailures);
+                // Level by persistence, not by the exception. A venue rate-limiting one pass is
+                // noise — Hyperliquid alone produced 68 of these in six hours and none of them
+                // needed a person. A collector that has missed every attempt since the last two
+                // is not having a bad minute, and it is the case Sentry exists for: the whole of
+                // the last six hours logged not one Error, so nothing was sent while rollup sat
+                // dead for four of them. Warning stays a breadcrumb, Error becomes an event.
+                if (ConsecutiveFailures >= FailuresBeforeAlert)
+                {
+                    _logger.LogError(
+                        ex, "{Exchange}/{Collector} failed ({Failures} in a row)",
+                        _exchangeCode, _collector, ConsecutiveFailures);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        ex, "{Exchange}/{Collector} failed ({Failures} in a row)",
+                        _exchangeCode, _collector, ConsecutiveFailures);
+                }
             }
 
             try
