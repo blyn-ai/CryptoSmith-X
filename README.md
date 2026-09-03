@@ -16,6 +16,13 @@ single server.
 > **Status:** early. Nothing here trades yet; trading-bot remains the live system
 > until the rewrite takes over.
 
+## What this is meant to become
+
+Three products on one foundation — Studio & API (market data and a public gateway),
+Agent (an autonomous execution environment) and Arena (a verified strategy
+leaderboard) — and an honest account of how much of each exists today:
+[docs/product-vision.md](docs/product-vision.md).
+
 ## Disclaimer
 
 The Lithuanian text published on https://blynai.eu is the authoritative version.
