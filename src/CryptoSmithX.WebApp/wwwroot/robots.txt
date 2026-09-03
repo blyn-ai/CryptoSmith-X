@@ -1,4 +1,5 @@
-# Cloudflare appends its managed AI-crawler block below this file.
+# Cloudflare puts its managed AI-crawler block ahead of this file at the edge, so
+# what a crawler fetches is that block first and these rules after it.
 #
 # The prototype pages are not listed here on purpose. They carry
 # X-Robots-Tag: noindex instead: a Disallow would stop a crawler before it ever
