@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="lt">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -11,7 +11,9 @@
 <link rel="stylesheet" href="/ds/styles.css">
 <link rel="stylesheet" href="/ui-mocks/assets/site.css">
 <style>
-  body{min-height:100dvh}
+  /* site.css lays the body out for the two-column shell; here there is one card and
+     it should sit in the middle rather than stretch to the viewport. */
+  body{min-height:100dvh; display:grid; place-items:center; padding:24px}
   .nf{
     width:min(560px,100%); padding:56px 44px; text-align:center;
     background:var(--wash-gold),var(--wash-violet),var(--surface-page);
@@ -28,9 +30,9 @@
   <main class="nf">
     <img src="/ds/assets/cryptosmith-mark.svg" width="44" height="44" alt="">
     <p class="code">404</p>
-    <h1>Puslapis nerastas</h1>
-    <p>Tokio puslapio nėra arba jis buvo perkeltas.</p>
-    <a href="/">Grįžti į pradžią</a>
+    <h1>Page not found</h1>
+    <p>There is no such page, or it has moved.</p>
+    <a href="/">Back to the start</a>
   </main>
 </body>
 </html>

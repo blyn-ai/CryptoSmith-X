@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Only pages that are server-rendered, carry their own title and are meant to be
+  found. The prototypes at /agent, /arena, /strategy-modeler and /config are
+  deliberately absent: they render invented figures for products that do not exist
+  yet, and they answer with X-Robots-Tag: noindex.
+  lastmod is edited by hand when a page changes — a date that moves on its own says
+  nothing.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://cryptosmithx.blynai.eu/</loc>
+    <lastmod>2026-09-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://cryptosmithx.blynai.eu/zurnalas</loc>
+    <lastmod>2026-09-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>

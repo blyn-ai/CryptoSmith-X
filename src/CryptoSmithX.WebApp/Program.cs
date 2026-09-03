@@ -78,6 +78,14 @@ if (!string.IsNullOrWhiteSpace(sentryDsn))
 await Migrator.VerifyAsync(app.Services.GetRequiredService<Db>(), CancellationToken.None);
 
 app.UseForwardedHeaders();
+
+// A missing page answered with a blank body and no content type, which is what every
+// wrong URL on the domain looked like. Re-execute into the branded page instead — but
+// not under /api, where an ingest client asking for JSON must not be handed HTML.
+app.UseWhen(
+    ctx => !ctx.Request.Path.StartsWithSegments("/api"),
+    branch => branch.UseStatusCodePagesWithReExecute("/not-found"));
+
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
@@ -87,16 +95,41 @@ app.UseAuthorization();
 // canonical URLs are shared with people and must keep working.
 app.MapGet("/zurnalas", (IWebHostEnvironment env) =>
     Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "zurnalas.html"), "text/html"));
-app.MapGet("/config", (IWebHostEnvironment env) =>
-    Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "config.html"), "text/html"));
-app.MapGet("/agent", (IWebHostEnvironment env) =>
-    Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "agent.html"), "text/html"));
-app.MapGet("/arena", (IWebHostEnvironment env) =>
-    Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "arena.html"), "text/html"));
-app.MapGet("/strategy-modeler", (IWebHostEnvironment env) =>
-    Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "strategy-modeler.html"), "text/html"));
-app.MapGet("/ui-mocks", (IWebHostEnvironment env) =>
-    Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "index.html"), "text/html"));
+// Prototypes: reachable by anyone holding the link, deliberately kept out of search.
+// They render invented numbers for products that do not exist — /arena alone shows
+// "128 strategies · telemetry verified 100% · 4,489 observations" — and a search
+// result carrying those under the company's own domain stops being a mockup and
+// becomes a claim, from a company whose published position is that its figures are
+// research data and not an offer. noindex rather than a robots Disallow on purpose:
+// a disallowed URL can still be listed, because the crawler never gets far enough to
+// read the instruction telling it not to.
+// /ui-mocks is the superseded Lithuanian landing, a near-duplicate of the front page.
+foreach (var (route, page) in new[]
+         {
+             ("/config", "config.html"),
+             ("/agent", "agent.html"),
+             ("/arena", "arena.html"),
+             ("/strategy-modeler", "strategy-modeler.html"),
+             ("/ui-mocks", "index.html"),
+         })
+{
+    var file = page;
+    app.MapGet(route, (HttpContext ctx, IWebHostEnvironment env) =>
+    {
+        ctx.Response.Headers["X-Robots-Tag"] = "noindex";
+        return Results.File(Path.Combine(env.WebRootPath, "ui-mocks", file), "text/html");
+    });
+}
+
+// The re-execute target. Sends the status through itself so the page a person reads
+// and the code a crawler records say the same thing.
+app.MapGet("/not-found", async (HttpContext ctx, IWebHostEnvironment env) =>
+{
+    ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+    ctx.Response.ContentType = "text/html; charset=utf-8";
+    ctx.Response.Headers["X-Robots-Tag"] = "noindex";
+    await ctx.Response.SendFileAsync(Path.Combine(env.WebRootPath, "ui-mocks", "404.html"));
+});
 
 app.MapControllerRoute("areas", "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");

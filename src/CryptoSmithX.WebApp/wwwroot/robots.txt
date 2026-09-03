@@ -1,0 +1,12 @@
+# Cloudflare appends its managed AI-crawler block below this file.
+#
+# The prototype pages are not listed here on purpose. They carry
+# X-Robots-Tag: noindex instead: a Disallow would stop a crawler before it ever
+# read the instruction, and a blocked URL can still be listed by reference.
+
+User-agent: *
+Disallow: /Admin
+Disallow: /api/
+Allow: /
+
+Sitemap: https://cryptosmithx.blynai.eu/sitemap.xml
