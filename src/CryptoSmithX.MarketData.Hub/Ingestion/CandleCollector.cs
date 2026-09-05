@@ -20,7 +20,11 @@ public sealed class CandleCollector
                  where c.exchange_instrument_id = i.id and c.timeframe = 1) as latest
           from exchange_instrument i
          where i.exchange_code = @code
-           and i.status <> 'delisted'
+           -- Halted as well as delisted. A halted contract has no trades to return, and WEEX's
+           -- dead tail 400s on /candles rather than answering empty; they used to be kept out by
+           -- being dropped from discovery entirely, which cost us the lifecycle fact. Now the fact
+           -- is recorded and the exclusion happens here, where it belongs.
+           and i.status not in ('delisted', 'halted')
            and i.collect = true
         """;
 

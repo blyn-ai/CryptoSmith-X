@@ -63,10 +63,13 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
         var list = new List<Instrument>(contracts.Count);
         foreach (var c in contracts)
         {
-            if (!live.Contains(c.Symbol))
-            {
-                continue;
-            }
+            // A contract WEEX still lists but whose ticker shows no price and no volume is reported
+            // as Halted, not dropped. Dropping it made discovery lose sight of the symbol, and three
+            // passes later the delisting sweep wrote 'delisted' — a lifecycle event we invented from
+            // an absence of trades on a venue that never said any such thing. Halted is what we can
+            // actually see: listed, not trading. The collectors still skip it because collect is
+            // driven by status, so the reason for excluding it survives.
+            var status = live.Contains(c.Symbol) ? InstrumentStatus.Trading : InstrumentStatus.Halted;
 
             // Funding interval varies per symbol (60/240/480 min observed) — unlike Kraken there is
             // no single constant, so it comes from the same batched call GetTickersAsync also merges.
@@ -93,7 +96,7 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
                 // WEEX gives no halt/delist signal on this endpoint; a contract with no live market
                 // (price 0) is caught in GetTickersAsync instead — its snapshot simply never gets a
                 // fresh row rather than this call inventing a status the venue does not report.
-                Status: InstrumentStatus.Trading,
+                Status: status,
                 RawJson: RawJson(c)));
         }
 

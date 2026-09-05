@@ -289,7 +289,13 @@ public sealed class RollupJob
                                - greatest(g.gap_start, @HourTime)))::int as seconds
                         from collection_gap g
                        where g.exchange_code = ei.exchange_code
-                         and g.collector = 'snapshot'
+                         -- Every collector that feeds this row, not just snapshot. depth and funding
+                         -- land in the same hourly record, so an hour blind to depth was being
+                         -- reported as fully observed. An instrument-scoped gap counts only for that
+                         -- instrument; an exchange-wide one counts for all of them.
+                         and g.collector in ('snapshot', 'depth', 'funding')
+                         and (g.exchange_instrument_id is null
+                              or g.exchange_instrument_id = ei.id)
                          and g.gap_start < @HourTime + interval '1 hour'
                          and coalesce(g.gap_end, now()) > @HourTime) gap on true
                  where ei.id = @InstrumentId

@@ -23,11 +23,23 @@ public sealed class HyperliquidMarketDataTests
 
     // ── Discovery ────────────────────────────────────────────────────────
     [Fact]
-    public async Task Discovery_excludes_delisted_coins_and_converts_szDecimals_to_steps()
+    public async Task Discovery_reports_delisted_coins_as_delisted_and_converts_szDecimals_to_steps()
     {
         var instruments = await Adapter().GetInstrumentsAsync(CancellationToken.None);
 
-        Assert.Equal(new[] { "BTC", "ETH", "DOGE", "kPEPE" }, instruments.Select(i => i.ExchangeSymbol).ToArray());
+        // Every coin the venue listed, including the delisted one. isDelisted is Hyperliquid SAYING
+        // the contract is gone, and that is the strongest lifecycle fact available; dropping the
+        // symbol threw it away and left discovery to rediscover the delisting by absence three
+        // passes later, dating it hours late and turning an observation into an inference.
+        Assert.Equal(
+            new[] { "BTC", "ETH", "DOGE", "kPEPE", "MATIC" },
+            instruments.Select(i => i.ExchangeSymbol).ToArray());
+        Assert.Equal(
+            InstrumentStatus.Delisted,
+            instruments.Single(i => i.ExchangeSymbol == "MATIC").Status);
+        Assert.All(
+            instruments.Where(i => i.ExchangeSymbol != "MATIC"),
+            i => Assert.Equal(InstrumentStatus.Trading, i.Status));
 
         var btc = instruments.Single(i => i.ExchangeSymbol == "BTC");
         Assert.Equal("BTC", btc.BaseAssetRaw);
@@ -55,7 +67,7 @@ public sealed class HyperliquidMarketDataTests
         var kpepe = instruments.Single(i => i.ExchangeSymbol == "kPEPE");
         Assert.Equal("kPEPE", kpepe.BaseAssetRaw);
 
-        Assert.DoesNotContain(instruments, i => i.ExchangeSymbol == "MATIC");   // isDelisted: true
+        // MATIC is present and marked Delisted — asserted at the top of this test.
     }
 
     // ── Ticker merge: happy path + honest omission ─────────────────────

@@ -58,7 +58,10 @@ internal sealed record HlCandle
     [JsonPropertyName("l")] public string Low { get; init; } = "0";
     [JsonPropertyName("c")] public string Close { get; init; } = "0";
     [JsonPropertyName("v")] public string Volume { get; init; } = "0";
-    [JsonPropertyName("n")] public int TradeCount { get; init; }
+    // Nullable, because a bar the venue sent without "n" is a bar whose trade count we do not know,
+    // and a non-nullable int turned that into a measured zero — the one series in this system that
+    // carries trade counts at all was quietly inventing "nobody traded".
+    [JsonPropertyName("n")] public int? TradeCount { get; init; }
 }
 
 /// <summary>One row of <c>fundingHistory</c>. Unlike WEEX, the venue honours start/end time on this

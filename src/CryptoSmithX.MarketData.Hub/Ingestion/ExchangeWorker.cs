@@ -253,7 +253,7 @@ public sealed class ExchangeWorker : BackgroundService
     private Dictionary<string, Func<CancellationToken, Task<int>>> BuildBodies(IExchangeMarketData adapter)
     {
         var discovery = new DiscoveryCollector(adapter, _settings, _db);
-        var snapshot = new SnapshotCollector(adapter, _db, _clock);
+        var snapshot = new SnapshotCollector(adapter, _db, _clock, _loggers.CreateLogger<SnapshotCollector>());
         var depth = new DepthCollector(adapter, _db, _clock);
         var candles = new CandleCollector(adapter, _settings, _db, _clock);
         var funding = new FundingCollector(adapter, _settings, _db, _clock);

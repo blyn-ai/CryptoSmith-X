@@ -18,7 +18,12 @@
         // feed off would misleadingly read as "not established" again. mode='collect' blocked
         // by capability is a different situation (backlog / not established), not "off by hand".
         var isCollecting = f.Mode == "collect" && f.WeImplement == true;
-        var isOffByHand = !isCollecting && f.Mode == "disabled";
+        // No collector class exists for this collection, whatever the policy says: the hub filters
+        // the desired set against a hard-coded list of the five it can actually run. That fact
+        // outranks "an operator switched it off", because switching it back on would do nothing —
+        // and a console that answers a click with silence is worse than one that says no.
+        var notImplemented = !isCollecting && f.Kind != "derived" && f.WeImplement != true;
+        var isOffByHand = !isCollecting && !notImplemented && f.Mode == "disabled";
         var isBacklog = !isCollecting && !isOffByHand && f.VenueSupports == true && f.WeImplement == false;
         var isNotEstablished = !isCollecting && !isOffByHand && !isBacklog && f.VenueSupports is null;
         var rowDot = isCollecting ? feedCh : isNotEstablished ? "none" : "paused";
@@ -35,7 +40,7 @@
                 <span class="code" style="color:@(f.HistoryDepth == "none" ? "var(--csx-gold-ink)" : "var(--text-faint)")">@(f.HistoryDepth is not null ? $"history {f.HistoryDepth} · {f.HistorySource}" : "history not established")</span>
             </div>
             <div class="feed-cell">
-                <span class="tag @(f.Mode switch { "collect" => "enabled", "on_demand" => "planned", _ => "disabled" })">@(f.Mode switch { "collect" => "collect", "on_demand" => "on demand", _ => "disabled" })</span>
+                <span class="tag @(notImplemented ? "disabled" : f.Mode switch { "collect" => "enabled", "on_demand" => "planned", _ => "disabled" })">@(notImplemented ? "inert" : f.Mode switch { "collect" => "collect", "on_demand" => "on demand", _ => "disabled" })</span>
                 @if (f.Mode == "disabled")
                 {
                     <span class="code">—</span>
@@ -50,6 +55,11 @@
                 {
                     <span class="sev @feedCh">@(feedCh == "ok" ? "ok" : feedCh == "warn" ? "degraded" : "failing")</span>
                     <span class="code why" style="color:@(feedCh != "ok" ? "var(--csx-gold-ink)" : "var(--text-faint)")">last success @Format.Age(f.LastSuccessAgeSeconds) · @f.ConsecutiveFailures fails · @(f.LastDurationMs?.ToString() ?? "—") / @Format.Num(f.AvgDurationMs, 0) ms</span>
+                }
+                else if (notImplemented)
+                {
+                    <span class="sev none">no collector</span>
+                    <span class="code why">There is no collector for this feed, so the policy control above changes nothing — turning it to collect leaves it exactly as it is. @(f.VenueSupports == true ? "The venue does serve it, so this is work we have not done." : "Whether the venue serves it has not been established.")</span>
                 }
                 else if (isBacklog)
                 {

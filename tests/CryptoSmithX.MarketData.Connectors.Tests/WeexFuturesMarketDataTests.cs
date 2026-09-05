@@ -25,10 +25,11 @@ public sealed class WeexFuturesMarketDataTests
     {
         var instruments = await Adapter().GetInstrumentsAsync(CancellationToken.None);
 
-        // gastown is excluded: its ticker last=0 (no live market) — a symbol /contracts still lists
-        // but WEEX's own /candles and /depth reject with an error. See Discovery_excludes_symbols...
+        // Every contract WEEX lists, including the dead tail — those are reported Halted rather
+        // than hidden. See Discovery_reports_symbols_with_no_live_market_as_halted.
         Assert.Equal(
-            new[] { "cmt_btcusdt", "cmt_ethusdt", "cmt_dogeusdt", "cmt_ltcusdt", "cmt_1000flokiusdt" },
+            new[] { "cmt_btcusdt", "cmt_ethusdt", "cmt_dogeusdt", "cmt_ltcusdt", "cmt_1000flokiusdt",
+                    "cmt_gastownusdt", "cmt_usdcusdt" },
             instruments.Select(i => i.ExchangeSymbol).ToArray());
 
         var btc = instruments.Single(i => i.ExchangeSymbol == "cmt_btcusdt");
@@ -50,30 +51,37 @@ public sealed class WeexFuturesMarketDataTests
         var floki = instruments.Single(i => i.ExchangeSymbol == "cmt_1000flokiusdt");
         Assert.Equal("1000FLOKI", floki.BaseAssetRaw);
 
-        Assert.All(instruments, i => Assert.Equal(InstrumentStatus.Trading, i.Status));
+        // Live contracts trade; the dead tail is Halted, not hidden — see the two status tests.
+        Assert.All(
+            instruments.Where(i => i.ExchangeSymbol is not ("cmt_gastownusdt" or "cmt_usdcusdt")),
+            i => Assert.Equal(InstrumentStatus.Trading, i.Status));
         Assert.Contains("cmt_btcusdt", instruments.Single(i => i.ExchangeSymbol == "cmt_btcusdt").RawJson);
     }
 
     [Fact]
-    public async Task Discovery_excludes_symbols_with_no_live_market()
+    public async Task Discovery_reports_symbols_with_no_live_market_as_halted()
     {
-        // Found live: WEEX's own /contracts lists a tail of abandoned symbols (ticker last=0) whose
-        // /candles and /depth calls 400/return null rather than an empty result. CandleCollector and
-        // DepthCollector have no per-symbol try/catch — a venue is assumed not to need one — so one
-        // such symbol discovered would wedge every later pass at the same point, forever. Keeping it
-        // out of exchange_instrument in the first place is the adapter-level fix.
+        // WEEX's /contracts lists a tail of abandoned symbols (ticker last=0) whose /candles and
+        // /depth calls 400 rather than answering empty. They must stay out of those collectors —
+        // but by status, not by being hidden: dropping them made discovery lose sight of the symbol
+        // and invent a delisting three passes later, on a venue that never said any such thing.
+        // Halted is what is actually observable: listed, not trading.
         var instruments = await Adapter().GetInstrumentsAsync(CancellationToken.None);
-        Assert.DoesNotContain(instruments, i => i.ExchangeSymbol == "cmt_gastownusdt");
+        Assert.Equal(
+            InstrumentStatus.Halted,
+            instruments.Single(i => i.ExchangeSymbol == "cmt_gastownusdt").Status);
     }
 
     [Fact]
-    public async Task Discovery_excludes_a_symbol_with_a_stale_price_but_zero_24h_volume()
+    public async Task Discovery_halts_a_symbol_with_a_stale_price_but_zero_24h_volume()
     {
         // Found live: cmt_usdcusdt carries last=1.000581 (not zero) but volume_24h=0 — a stale
         // reference price on a contract with no real trades. Its /candles call still 400s, so a
         // price-only check would have missed exactly the case that matters.
         var instruments = await Adapter().GetInstrumentsAsync(CancellationToken.None);
-        Assert.DoesNotContain(instruments, i => i.ExchangeSymbol == "cmt_usdcusdt");
+        Assert.Equal(
+            InstrumentStatus.Halted,
+            instruments.Single(i => i.ExchangeSymbol == "cmt_usdcusdt").Status);
     }
 
     // ── Ticker merge: happy path + honest omission ──────────────────────

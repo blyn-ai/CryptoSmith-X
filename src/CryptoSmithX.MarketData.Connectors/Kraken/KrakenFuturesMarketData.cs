@@ -116,7 +116,10 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
                 // Kraken's ticker funding rate is absolute (quote per contract); the schema wants the
                 // fraction of notional per interval, so divide by mark. (The funding *history*
                 // endpoint already returns a relative rate and is used as-is in GetFundingHistory.)
-                FundingRate: t.MarkPrice > 0 ? t.FundingRate / t.MarkPrice : 0,
+                // No mark price means the division cannot be done, and "cannot be computed" is not
+                // "the funding rate is zero" — a stored zero is a claim we never observed. NaN
+                // travels as the absence and SnapshotCollector drops the row rather than write it.
+                FundingRate: t.MarkPrice > 0 ? t.FundingRate / t.MarkPrice : double.NaN,
                 Turnover24h: t.VolumeQuote,
                 OpenInterest: t.OpenInterest,
                 // Kraken serves OI in the same call as the ticker, so it shares its timestamp.

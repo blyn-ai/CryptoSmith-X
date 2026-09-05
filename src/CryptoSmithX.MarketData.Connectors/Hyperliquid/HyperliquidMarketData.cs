@@ -63,12 +63,11 @@ public sealed class HyperliquidMarketData : IExchangeMarketData
         var list = new List<Instrument>(meta.Universe.Count);
         foreach (var u in meta.Universe)
         {
-            // isDelisted is the venue's own signal, unlike WEEX's silent zero-price/zero-volume
-            // symbols — nothing more to infer here.
-            if (u.IsDelisted)
-            {
-                continue;
-            }
+            // isDelisted is the venue SAYING so, which is the strongest lifecycle fact we can get —
+            // and dropping the symbol threw it away. Discovery then rediscovered the delisting three
+            // passes later by absence, dating it hours after it happened and calling an observation
+            // an inference. It is reported as Delisted instead, so the store records what the venue
+            // said and when we heard it.
 
             var qtyStep = Step(u.SzDecimals);
             list.Add(new Instrument(
@@ -85,7 +84,7 @@ public sealed class HyperliquidMarketData : IExchangeMarketData
                 FundingIntervalHours: FundingIntervalHours,
                 // No listing-date field on /meta.
                 ListedAt: null,
-                Status: InstrumentStatus.Trading,
+                Status: u.IsDelisted ? InstrumentStatus.Delisted : InstrumentStatus.Trading,
                 RawJson: RawJson(u)));
         }
 

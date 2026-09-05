@@ -76,10 +76,18 @@ public sealed class RetentionJob
                 continue;
             }
 
-            _logger.LogInformation("Dropping snapshot partition {Partition}", name);
-            await conn.ExecuteAsync(new CommandDefinition(
-                $"drop table if exists {Quote(name)}", cancellationToken: ct));
-            dropped++;
+            // NOT DROPPED. Snapshots carry spread, order-book depth and open interest at a moment,
+            // and no venue will sell those back to us at any price — deleting them destroys the only
+            // copy in existence. The rework brief settles this: nothing is deleted, retention is
+            // decided after thirty days of measured volumes, and the default answer is keep.
+            //
+            // The scan above is left in place deliberately rather than deleted with the drop, because
+            // it is what will drive the export when a partition moves to Parquet on the archive
+            // volume. A move is allowed; this was not a move.
+            _logger.LogInformation(
+                "Snapshot partition {Partition} is past the {Days}-day window and is being KEPT; "
+                + "deletion is disabled until an export path exists",
+                name, retentionDays.Value);
         }
 
         return dropped;

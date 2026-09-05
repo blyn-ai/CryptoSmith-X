@@ -20,13 +20,15 @@ public sealed class SnapshotCollector
     private readonly IExchangeMarketData _adapter;
     private readonly Db _db;
     private readonly TimeProvider _clock;
+    private readonly ILogger _logger;
     private long _lastHistoryMinute = -1;
 
-    public SnapshotCollector(IExchangeMarketData adapter, Db db, TimeProvider clock)
+    public SnapshotCollector(IExchangeMarketData adapter, Db db, TimeProvider clock, ILogger logger)
     {
         _adapter = adapter;
         _db = db;
         _clock = clock;
+        _logger = logger;
     }
 
     public async Task<int> RunAsync(CancellationToken ct)
@@ -53,6 +55,7 @@ public sealed class SnapshotCollector
         }
 
         var written = 0;
+        var skipped = 0;
         await using var tx = await conn.BeginTransactionAsync(ct);
 
         foreach (var t in tickers)
@@ -60,6 +63,19 @@ public sealed class SnapshotCollector
             if (!ids.TryGetValue(t.ExchangeSymbol, out var id))
             {
                 // Seen by the ticker call but not yet by discovery; it will exist next round.
+                continue;
+            }
+
+            // An adapter signals "the venue did not give me this number" as NaN, because the columns
+            // here are NOT NULL and a row is written whole or not at all. Writing it anyway would
+            // store a value we never observed, which is the one thing this system must not do — so
+            // the observation is skipped and the minute simply has no row for this instrument. That
+            // absence is honest; a zero would not be.
+            if (double.IsNaN(t.LastPrice) || double.IsNaN(t.BidPrice) || double.IsNaN(t.AskPrice)
+                || double.IsNaN(t.MarkPrice) || double.IsNaN(t.IndexPrice) || double.IsNaN(t.FundingRate)
+                || double.IsNaN(t.Turnover24h) || double.IsNaN(t.OpenInterest))
+            {
+                skipped++;
                 continue;
             }
 
@@ -169,6 +185,15 @@ public sealed class SnapshotCollector
         if (writeHistory)
         {
             _lastHistoryMinute = minute;
+        }
+
+        if (skipped > 0)
+        {
+            // Loud on purpose: a venue that stopped sending a field looks exactly like a quiet
+            // market in the row count, and only this line says which it was.
+            _logger.LogWarning(
+                "{Exchange}/snapshot skipped {Skipped} instruments whose ticker was missing a required field",
+                _adapter.ExchangeCode, skipped);
         }
 
         return written;
