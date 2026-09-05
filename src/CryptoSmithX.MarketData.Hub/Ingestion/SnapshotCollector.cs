@@ -6,8 +6,9 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 
 /// <summary>
 /// Writes the current state of every instrument. <c>market_snapshot_latest</c> is upserted on every
-/// pass; the same rows are appended to the history once a minute. A row goes in whole or not at
-/// all — a half-written row would hide staleness behind a fresh received_at.
+/// pass; the same rows are appended to the history every <c>snapshot/history_interval_s</c> seconds.
+/// A row goes in whole or not at all — a half-written row would hide staleness behind a fresh
+/// received_at, and an observation missing a field is skipped rather than completed with a zero.
 /// </summary>
 public sealed class SnapshotCollector
 {
@@ -19,14 +20,17 @@ public sealed class SnapshotCollector
 
     private readonly IExchangeMarketData _adapter;
     private readonly Db _db;
+    private readonly DbSettings _settings;
     private readonly TimeProvider _clock;
     private readonly ILogger _logger;
-    private long _lastHistoryMinute = -1;
+    private long _lastHistoryBucket = -1;
 
-    public SnapshotCollector(IExchangeMarketData adapter, Db db, TimeProvider clock, ILogger logger)
+    public SnapshotCollector(
+        IExchangeMarketData adapter, Db db, DbSettings settings, TimeProvider clock, ILogger logger)
     {
         _adapter = adapter;
         _db = db;
+        _settings = settings;
         _clock = clock;
         _logger = logger;
     }
@@ -47,8 +51,16 @@ public sealed class SnapshotCollector
                 cancellationToken: ct)))
             .ToDictionary(r => r.Symbol, r => r.Id, StringComparer.Ordinal);
 
-        var minute = _clock.GetUtcNow().ToUnixTimeSeconds() / 60;
-        var writeHistory = minute != _lastHistoryMinute;
+        // How often an observation is kept, in seconds, read live from the database like every other
+        // knob here. It used to be a constant minute, which meant five of every six observations
+        // existed only in the mutable latest cache and were overwritten by the next pass — and
+        // spread, top-of-book sizes, open interest and depth at a moment cannot be re-fetched from
+        // any venue at any price, so those five sixths stopped existing anywhere. A site with disk
+        // sets this to its poll interval and keeps everything it sees.
+        var historyInterval = (await _settings.CurrentAsync(ct))
+            .CollectionSettingInt("snapshot", "history_interval_s");
+        var bucket = _clock.GetUtcNow().ToUnixTimeSeconds() / Math.Max(1, historyInterval);
+        var writeHistory = bucket != _lastHistoryBucket;
         if (writeHistory)
         {
             await Partitions.EnsureAsync(conn, _clock.GetUtcNow(), ct);
@@ -184,7 +196,7 @@ public sealed class SnapshotCollector
         await tx.CommitAsync(ct);
         if (writeHistory)
         {
-            _lastHistoryMinute = minute;
+            _lastHistoryBucket = bucket;
         }
 
         if (skipped > 0)
