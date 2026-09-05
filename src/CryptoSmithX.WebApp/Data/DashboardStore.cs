@@ -107,7 +107,12 @@ public static class DashboardStore
             return "failing";
         }
 
-        if (mine.Any(c => c.ConsecutiveFailures >= 1) || e.WorstAgeSeconds > StaleSnapshotSeconds)
+        // Two, not one. A single failed pass is the normal texture of talking to an exchange:
+        // Hyperliquid rate-limited the 10-second snapshot 76 times in six hours, and 69 of those
+        // recovered on the very next pass. At one, the banner flipped to degraded every few
+        // minutes and back — which teaches an operator to ignore the banner, the opposite of
+        // what it is for. Two in a row means the recovery itself did not work.
+        if (mine.Any(c => c.ConsecutiveFailures >= 2) || e.WorstAgeSeconds > StaleSnapshotSeconds)
         {
             return "degraded";
         }
