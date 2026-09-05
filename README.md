@@ -23,6 +23,12 @@ Agent (an autonomous execution environment) and Arena (a verified strategy
 leaderboard) — and an honest account of how much of each exists today:
 [docs/product-vision.md](docs/product-vision.md).
 
+## Decisions
+
+Forks worth remembering, and why the road not taken was not taken:
+[docs/decisions.md](docs/decisions.md). Operations, and what can still be
+recovered after data goes missing: [docs/recovery-playbook.md](docs/recovery-playbook.md).
+
 ## Disclaimer
 
 The Lithuanian text published on https://blynai.eu is the authoritative version.

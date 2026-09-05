@@ -1,54 +1,52 @@
 flowchart LR
-  %% Стрелка = кто инициирует вызов (всегда HTTP, инициатор → адресат).
-  %% В бота никто не звонит. Общих таблиц между компонентами нет.
-  %% Цвета текста заданы явно, чтобы схема читалась и в тёмной, и в светлой теме.
+  %% Состояние на 5 сентября 2026. Сплошная линия — построено, пунктир — нет.
+  %% Стрелка = кто инициирует. Hub и WebApp делят ОДНУ базу намеренно (решение A,
+  %% см. docs/decisions.md): консоль читает Postgres напрямую, без слоя API.
 
-  LEG["Легенда<br/>Стрелка = кто кого вызывает (инициатор → адресат), всё по HTTP<br/>В бота никто не звонит: он только сам ходит наружу<br/>Общих таблиц нет: у каждого своя БД, обмен только через API"]
+  LEG["Легенда<br/>Сплошная — работает сегодня, пунктир — не построено<br/>Стрелка = кто кого вызывает<br/>Hub и WebApp делят одну базу: это решение, а не недоделка"]
 
-  subgraph CALLERS["Кто принимает решения"]
+  subgraph OURS["Одна площадка — docker compose"]
     direction TB
-    B1["bot — 1 контейнер на биржевой аккаунт, × N<br/>Стратегия + риск: чистые функции → TargetPosition<br/>OrderPlanner → Executor: журнал до отправки, client order id<br/>BlynAI.Exchanges внутри: адаптеры Kraken / Hyperliquid / Paper<br/>Ledger: позиции, cost basis, reconcile с биржей<br/>Outbox событий, heartbeat<br/>Хранит: SQLite, 1 файл на инстанс"]
-    B3["bot self-hosted — тот же образ на чужом сервере<br/>свои ключи, свой SQLite<br/>platform опционален"]
-    U["Оператор / пользователь<br/>браузер"]
+    HUB["Hub — воркер, HTTP не слушает<br/>Коллекторы: snapshot 10 с, candles и depth 60 с,<br/>discovery и funding 60 мин, rollup 60 с<br/>Обнаружение инструментов и их жизненный цикл<br/>Роллап: 5…1440 каскадом, watermark шагами<br/>Часовая микроструктура: OI, спред, глубина"]
+    DB[("PostgreSQL 16<br/>Месячные партиции, BRIN<br/>Снапшоты ротируются 90 дней<br/>Свечи не ротируются никогда<br/>LISTEN/NOTIFY канал csx_live")]
+    WEB["WebApp — три роли в одном процессе<br/>1. Админская консоль (Razor, сырой SQL)<br/>2. Публичная входная страница и прототипы<br/>3. Приём событий ботов /api/ingest/events"]
+    API["Api — 5 читающих эндпоинтов /v1<br/>health, exchanges, instruments, snapshot, candles<br/>Заготовка публичного шлюза"]
   end
 
-  subgraph OURS["Наш хостинг — docker compose"]
+  subgraph EXT["Биржи — только публичные эндпоинты, ключей нет"]
     direction TB
-    MD["marketdata — 1 процесс<br/>Собирает: тикеры каждые 10 с, свечи 1m 5m 15m 1h 4h 12h 1d<br/>Ведёт: реестр инструментов (точность, минимумы), retention по таймфрейму<br/>Intelligence раз в 12 ч: кластеры, режим, ликвидность, риск (правила, LLM позже)<br/>Отдаёт: read-only HTTP API, asOf в каждом ответе<br/>Хранит: Postgres marketdata"]
-    PL["platform — 1 процесс<br/>Реестр тенантов и ботов, токены<br/>Политики: кому торговать, какие рынки, лимиты, TTL<br/>Приём событий идемпотентно, heartbeat, silent-bot alert<br/>История сделок всех ботов, проекции, dashboard<br/>Уведомления: Telegram, другие каналы позже<br/>Хранит: Postgres platform"]
+    KF["Kraken Futures<br/>REST + WS"]
+    WX["WEEX Futures<br/>REST"]
+    HL["Hyperliquid<br/>REST + WS"]
+    BN["Binance USD-M<br/>запланирована"]
   end
 
-  subgraph EXT["Внешние системы"]
-    direction TB
-    KS["Kraken Spot"]
-    KF["Kraken Futures"]
-    HL["Hyperliquid"]
-    LLM["LLM API"]
-    TG["Telegram"]
-  end
+  U["Оператор<br/>браузер через VPN"]
+  BOT["Боты — не построены<br/>tenant и bot существуют, но пусты"]
 
-  MD -->|"public REST: тикеры, свечи, инструменты"| KS
-  MD -->|"public REST"| KF
-  MD -->|"public REST"| HL
-  MD -.->|"раз в 12 ч, позже"| LLM
+  HUB -->|"public REST + WS"| KF
+  HUB -->|"public REST"| WX
+  HUB -->|"public REST + WS"| HL
+  HUB -.->|"адаптера ещё нет"| BN
 
-  B1 -->|"GET snapshot, candles, instruments, intelligence"| MD
-  B1 -->|"private REST со своими ключами: ордера, балансы, позиции, fills"| KF
-  B1 -->|"POST heartbeat + events, в ответе policy"| PL
+  HUB -->|"пишет"| DB
+  WEB -->|"читает и пишет напрямую, ~94 запроса"| DB
+  WEB -->|"LISTEN csx_live, отдельное соединение"| DB
+  API -->|"читает"| DB
 
-  B3 -->|"GET snapshot, candles, ..."| MD
-  B3 -->|"private REST со своими ключами"| HL
-  B3 -.->|"POST heartbeat + events, опционально"| PL
-
-  U -->|"dashboard, admin API: создать бота, политика, стоп"| PL
-  PL -->|"sendMessage"| TG
-  PL -.->|"только GET /health, watchdog свежести"| MD
+  U -->|"консоль, SSE"| WEB
+  BOT -.->|"POST событий, ключ тенанта"| WEB
+  BOT -.->|"GET рыночных данных"| API
 
   classDef ours fill:#dbe9ff,stroke:#2b6cb0,stroke-width:2px,color:#111111
+  classDef store fill:#e6f6ec,stroke:#2f855a,stroke-width:2px,color:#111111
   classDef ext fill:#eeeeee,stroke:#777777,stroke-width:1.5px,color:#111111
+  classDef todo fill:#ffffff,stroke:#999999,stroke-width:1.5px,stroke-dasharray:5 4,color:#555555
   classDef plain fill:#ffffff,stroke:#555555,stroke-width:1.5px,color:#111111
   classDef leg fill:#fff6cc,stroke:#b8860b,stroke-width:1.5px,stroke-dasharray:4 3,color:#111111
-  class MD,PL,B1,B3 ours
-  class KS,KF,HL,LLM,TG ext
+  class HUB,WEB,API ours
+  class DB store
+  class KF,WX,HL ext
+  class BN,BOT todo
   class U plain
   class LEG leg
