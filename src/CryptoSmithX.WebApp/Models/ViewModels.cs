@@ -240,6 +240,94 @@ public sealed record AssetListing(
     double? Depth25Notional,          // bid + ask within 25 bps
     double? SnapshotAgeSeconds);
 
+/// <summary>
+/// One venue's snapshot measurements for this asset at the requested instant. Every value carries
+/// its own lag because every venue is on its own clock: since 0020 the keep interval is per segment,
+/// so two venues' newest-at-or-before-T rows are systematically different distances behind T. That
+/// is why nothing here is averaged or differenced across venues — see <see cref="AssetVenueBar"/>,
+/// which is the measurement that IS comparable.
+/// </summary>
+public sealed record AssetVenueMeasurement(
+    int InstrumentId,
+    string SegmentCode,
+    string ExchangeCode,
+    string Symbol,
+    string Status,
+    bool Collect,
+    DateTime? ReceivedAt,
+    double? PriceLagSeconds,
+    double? LastPrice,
+    double? SpreadBps,
+    double? BidSize,
+    double? AskSize,
+    double? OpenInterest,
+    double? OpenInterestLagSeconds,
+    double? FundingRate,
+    double? Depth25Notional,
+    DateTime? DepthAt,
+    double? DepthLagSeconds);
+
+/// <summary>
+/// One venue's bar covering the requested instant. This is the only measurement in the system taken
+/// over the SAME wall-clock window on every venue, which is what makes closes comparable across them
+/// at all. <paramref name="BarCount"/> below the timeframe means the bar is incomplete — a venue that
+/// contributed four minutes of a five-minute bar must not be read as agreeing or disagreeing with one
+/// that contributed five.
+/// </summary>
+public sealed record AssetVenueBar(
+    string SegmentCode,
+    string Symbol,
+    DateTime OpenTime,
+    short Timeframe,
+    double Open,
+    double High,
+    double Low,
+    double Close,
+    double Volume,
+    int? TradeCount,
+    short BarCount)
+{
+    public bool Complete => BarCount >= Timeframe;
+}
+
+/// <summary>Closes for the bars leading up to the instant, one series per venue, for the sparkline.</summary>
+public sealed record AssetVenueSeries(string SegmentCode, IReadOnlyList<double> Closes);
+
+/// <summary>
+/// The asset across every venue that lists it, at one instant. Two panels on purpose: bars, which
+/// share a wall clock and can therefore be compared to each other, and snapshot measurements, which
+/// do not and therefore are only ever shown side by side with their own lags.
+/// </summary>
+public sealed record AssetAtInstant(
+    string Code,
+    string? Name,
+    DateTime At,
+    short Timeframe,
+    IReadOnlyList<AssetVenueMeasurement> Venues,
+    IReadOnlyList<AssetVenueBar> Bars,
+    IReadOnlyList<AssetVenueSeries> Series,
+    DateTime? EarliestStored)
+{
+    /// <summary>
+    /// Closes of the complete bars for this instant's window. Incomplete bars are excluded rather
+    /// than quietly included: they cover less of the minute than the others and would widen the
+    /// spread with a number that is about coverage, not about price.
+    /// </summary>
+    public IReadOnlyList<AssetVenueBar> Comparable => Bars.Where(b => b.Complete).ToList();
+
+    public double? SpreadBps
+    {
+        get
+        {
+            var c = Comparable;
+            if (c.Count < 2) { return null; }
+            double lo = c.Min(b => b.Close), hi = c.Max(b => b.Close);
+            var mid = (lo + hi) / 2;
+            return mid > 0 ? (hi - lo) / mid * 10000 : null;
+        }
+    }
+}
+
 public sealed record AssetAliasRow(string? SegmentCode, string Alias, string AssetCode, decimal Multiplier, string? Note);
 
 public sealed record AssetDetails(

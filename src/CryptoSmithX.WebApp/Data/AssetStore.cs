@@ -42,6 +42,128 @@ public static class AssetStore
             cancellationToken: ct))).ToList();
     }
 
+    /// <summary>
+    /// This asset on every venue that lists it, as it was at one instant.
+    ///
+    /// Two reads, deliberately kept apart. Snapshot measurements use the same newest-at-or-before-T
+    /// lateral as <see cref="MarketStateStore"/>, and each venue's row carries its own lag, because
+    /// the venues are not observed together: poll passes are unsynchronised, a depth sweep is minutes
+    /// wide, and since 0020 the keep interval is per segment, so one venue's newest row before T can
+    /// be seconds behind while another's is minutes. Differencing those two prices would report a
+    /// clock gap as market structure, so nothing here is differenced.
+    ///
+    /// Bars are the opposite case and the reason this page can compare at all: every venue's bar for
+    /// a given minute covers the same wall-clock window, so their closes are comparable by
+    /// construction. That is where the cross-venue figure comes from, and only from bars that are
+    /// complete.
+    /// </summary>
+    public static async Task<AssetAtInstant?> AtAsync(
+        DbConnection conn, string code, DateTime at, short timeframe, CancellationToken ct)
+    {
+        var head = await conn.QuerySingleOrDefaultAsync<(string Code, string? Name)?>(new CommandDefinition(
+            "select code as \"Code\", name as \"Name\" from asset where code = @code",
+            new { code }, cancellationToken: ct));
+        if (head is null)
+        {
+            return null;
+        }
+
+        var venues = (await conn.QueryAsync<AssetVenueMeasurement>(new CommandDefinition(
+            """
+            select i.id                                                      as "InstrumentId",
+                   i.segment_code                                            as "SegmentCode",
+                   sg.exchange_code                                          as "ExchangeCode",
+                   i.exchange_symbol                                         as "Symbol",
+                   i.status                                                  as "Status",
+                   i.collect                                                 as "Collect",
+                   s.received_at                                             as "ReceivedAt",
+                   extract(epoch from (@at - s.received_at))::double precision       as "PriceLagSeconds",
+                   s.last_price                                              as "LastPrice",
+                   case when (s.bid_price + s.ask_price) > 0
+                        then (s.ask_price - s.bid_price) / ((s.bid_price + s.ask_price) / 2) * 10000
+                   end                                                       as "SpreadBps",
+                   s.bid_size                                                as "BidSize",
+                   s.ask_size                                                as "AskSize",
+                   s.open_interest                                           as "OpenInterest",
+                   extract(epoch from (@at - s.open_interest_at))::double precision  as "OpenInterestLagSeconds",
+                   s.funding_rate                                            as "FundingRate",
+                   (s.depth_bid_25bps + s.depth_ask_25bps)                   as "Depth25Notional",
+                   s.depth_at                                                as "DepthAt",
+                   extract(epoch from (@at - s.depth_at))::double precision         as "DepthLagSeconds"
+              from exchange_instrument i
+              join segment sg on sg.code = i.segment_code
+              left join lateral (
+                  select s.*
+                    from market_snapshot s
+                   where s.exchange_instrument_id = i.id and s.received_at <= @at
+                   order by s.received_at desc
+                   limit 1
+              ) s on true
+             where i.base_asset = @code
+             order by i.segment_code
+            """,
+            new { code, at }, cancellationToken: ct))).ToList();
+
+        // The bar covering the instant, one per venue. open_time is the bar's start, so the bar that
+        // contains T is the newest one that started at or before T within one timeframe of it.
+        var bars = (await conn.QueryAsync<AssetVenueBar>(new CommandDefinition(
+            """
+            select i.segment_code    as "SegmentCode",
+                   i.exchange_symbol as "Symbol",
+                   c.open_time       as "OpenTime",
+                   c.timeframe       as "Timeframe",
+                   c.open            as "Open",
+                   c.high            as "High",
+                   c.low             as "Low",
+                   c.close           as "Close",
+                   c.volume          as "Volume",
+                   c.trade_count     as "TradeCount",
+                   c.bar_count       as "BarCount"
+              from exchange_instrument i
+              join lateral (
+                  select c.* from market_candle c
+                   where c.exchange_instrument_id = i.id
+                     and c.timeframe = @timeframe
+                     and c.open_time <= @at
+                     and c.open_time > @at - (@timeframe || ' minutes')::interval
+                   order by c.open_time desc limit 1
+              ) c on true
+             where i.base_asset = @code
+             order by i.segment_code
+            """,
+            new { code, at, timeframe = (int)timeframe }, cancellationToken: ct))).ToList();
+
+        // A short run-up per venue, so divergence over time is visible rather than inferred from one
+        // instant. Ordered oldest-first for drawing.
+        var seriesRows = (await conn.QueryAsync<(string SegmentCode, double Close)>(new CommandDefinition(
+            """
+            select segment_code as "SegmentCode", close as "Close" from (
+                select i.segment_code, c.close, c.open_time,
+                       row_number() over (partition by i.segment_code order by c.open_time desc) as rn
+                  from market_candle c
+                  join exchange_instrument i on i.id = c.exchange_instrument_id
+                 where i.base_asset = @code and c.timeframe = @timeframe and c.open_time <= @at
+            ) x where rn <= 60 order by segment_code, open_time
+            """,
+            new { code, at, timeframe = (int)timeframe }, cancellationToken: ct))).ToList();
+
+        var series = seriesRows
+            .GroupBy(r => r.SegmentCode, StringComparer.Ordinal)
+            .Select(g => new AssetVenueSeries(g.Key, g.Select(r => r.Close).ToList()))
+            .ToList();
+
+        var earliest = await conn.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
+            """
+            select min(s.received_at) from market_snapshot s
+              join exchange_instrument i on i.id = s.exchange_instrument_id
+             where i.base_asset = @code
+            """,
+            new { code }, cancellationToken: ct));
+
+        return new AssetAtInstant(
+            head.Value.Code, head.Value.Name, at, timeframe, venues, bars, series, earliest);
+    }
+
     public static async Task<AssetDetails?> GetAsync(DbConnection conn, string code, CancellationToken ct)
     {
         var head = await conn.QuerySingleOrDefaultAsync<(string Code, string? Name, string? Note, DateTime CreatedAt, DateTime? UpdatedAt, string? UpdatedBy)>(

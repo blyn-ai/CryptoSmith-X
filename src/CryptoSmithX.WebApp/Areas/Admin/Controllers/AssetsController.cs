@@ -33,6 +33,35 @@ public sealed class AssetsController : Controller
         return details is null ? NotFound() : View(details);
     }
 
+    /// <summary>
+    /// One asset across every venue that lists it, at one instant — reached by clicking the
+    /// normalised name on the market-state page, which carries its moment across. Kept apart from
+    /// <see cref="Details"/> on purpose: that page is the registry entry an operator edits, this one
+    /// is a reading of the market and owns nothing.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> At(string id, string? at, short? tf, CancellationToken ct)
+    {
+        // Parsed as UTC explicitly. A page whose whole point is which instant you are looking at
+        // must not quietly reinterpret it in the server's local time.
+        var moment = DateTime.TryParse(
+            at, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal,
+            out var parsed)
+            ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc)
+            : DateTime.UtcNow;
+
+        // Only the timeframes the rollup actually produces; anything else would render an empty
+        // table that looks like missing data rather than a bad request.
+        var timeframe = tf is { } t && Timeframes.Contains(t) ? t : (short)1;
+
+        await using var conn = await _db.OpenAsync(ct);
+        var slice = await AssetStore.AtAsync(conn, id, moment, timeframe, ct);
+        return slice is null ? NotFound() : View(slice);
+    }
+
+    internal static readonly short[] Timeframes = [1, 5, 15, 60, 240, 720, 1440];
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(string id, string? name, string? note, CancellationToken ct)

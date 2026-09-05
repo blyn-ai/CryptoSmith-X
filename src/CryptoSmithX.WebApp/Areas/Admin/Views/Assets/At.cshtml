@@ -1,0 +1,143 @@
+@model AssetAtInstant
+@using CryptoSmithX.WebApp.Data
+@{
+    ViewData["Title"] = $"{Model.Code} across venues";
+    var at = Model.At;
+
+    // Same vocabulary as the market-state page: signed, to the second, never a rounded "age". The
+    // whole point of this page is that the numbers in two rows were measured at different times.
+    string Lag(double? seconds) => seconds is null
+        ? "—"
+        : (seconds < 0 ? "+" : "−") + Format.Age(Math.Abs(seconds.Value));
+    string N(double? v, int d = 2) => v is null ? "—" : Format.Num(v, d);
+
+    var tfs = new (short Tf, string Label)[]
+        { (1, "1m"), (5, "5m"), (15, "15m"), (60, "1h"), (240, "4h"), (720, "12h"), (1440, "1d") };
+
+    var comparable = Model.Comparable;
+    var spread = Model.SpreadBps;
+    var incomplete = Model.Bars.Count - comparable.Count;
+
+    const string BarCols = "grid-template-columns:150px minmax(0,1fr) 92px 92px 92px 92px 100px 74px minmax(120px,1fr)";
+    const string MeasCols = "grid-template-columns:150px minmax(0,1fr) 84px 96px 84px 78px 78px 110px 84px 96px 84px";
+}
+
+<div class="page-head">
+    <div class="t">
+        <p class="eyebrow">Admin · <a href="/Admin/Assets">assets</a> · <a href="/Admin/Assets/Details/@Model.Code">@Model.Code</a></p>
+        <h1>@(string.IsNullOrEmpty(Model.Name) ? Model.Code : Model.Name) across venues</h1>
+    </div>
+    <p class="page-note">As of @Format.Utc(at). One asset, every venue that lists it. Bars share a wall clock and can be compared to each other; snapshot measurements do not, and are only ever shown side by side with their own lags.</p>
+</div>
+
+<form method="get" action="/Admin/Assets/At/@Model.Code" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+    <div class="field" style="width:230px">
+        <label for="at">Moment (UTC)</label>
+        <input id="at" name="at" type="text" value="@at.ToString("yyyy-MM-dd HH:mm:ss")" spellcheck="false">
+    </div>
+    <div class="field" style="width:120px">
+        <label for="tf">Timeframe</label>
+        <select id="tf" name="tf">
+            @foreach (var (tf, label) in tfs)
+            {
+                <option value="@tf" selected="@(tf == Model.Timeframe)">@label</option>
+            }
+        </select>
+    </div>
+    <button class="btn" type="submit">Show</button>
+</form>
+
+@* ── Bars: the only cross-venue comparison this data supports ──────────────────────────────── *@
+<div class="section-h"><b>Bars</b><i>@(tfs.First(t => t.Tf == Model.Timeframe).Label) · the comparable measurement</i><hr></div>
+
+<div class="panel" style="padding:14px 18px;margin-bottom:var(--gap-card)">
+    <div style="display:flex;gap:26px;flex-wrap:wrap;font:400 12px/1.6 var(--font-body);color:var(--text-muted)">
+        <span>close spread <b class="mono" style="color:@(spread is null ? "var(--text-faint)" : "var(--text-data)")">@(spread is null ? "—" : Format.Num(spread, 1) + " bps")</b></span>
+        <span>across <b class="mono" style="color:var(--text-data)">@comparable.Count</b> complete bars@(incomplete > 0 ? $" · {incomplete} incomplete excluded" : "")</span>
+        <span>stored from <b class="mono" style="color:var(--text-data)">@Format.Utc(Model.EarliestStored)</b></span>
+    </div>
+    @if (spread is null)
+    {
+        <p class="panel-note" style="margin-top:10px">@(comparable.Count == 1
+            ? "One venue has a complete bar for this window, so there is nothing to compare it against."
+            : "No two venues have a complete bar covering this instant, so no spread can be stated. A bar that covers less of the window than another is about coverage, not price, and is left out rather than widening the figure.")</p>
+    }
+</div>
+
+<div class="panel scroll" style="margin-bottom:var(--gap-card)">
+    <div class="th" style="@BarCols">
+        <span>Venue</span><span>Symbol</span>
+        <span style="justify-self:end">Open</span><span style="justify-self:end">High</span>
+        <span style="justify-self:end">Low</span><span style="justify-self:end">Close</span>
+        <span style="justify-self:end">Volume</span><span style="justify-self:end">Bar</span>
+        <span>Run-up</span>
+    </div>
+    @if (Model.Bars.Count == 0)
+    {
+        <div class="empty"><h3>No bars</h3><p>No venue has a @(tfs.First(t => t.Tf == Model.Timeframe).Label) bar covering this instant. The venue's own 1m bars are fetched by the candles collector and the longer timeframes are derived from them, so a gap here is a gap in both.</p></div>
+    }
+    @foreach (var b in Model.Bars.OrderBy(b => b.SegmentCode, StringComparer.Ordinal))
+    {
+        var series = Model.Series.FirstOrDefault(s => s.SegmentCode == b.SegmentCode)?.Closes ?? [];
+        <div class="tr" style="@BarCols@(b.Complete ? "" : ";opacity:.6")">
+            <span class="mono">@b.SegmentCode</span>
+            <span class="cell"><span class="name mono">@b.Symbol</span><span class="code">@Format.Utc(b.OpenTime)</span></span>
+            <span class="num" style="justify-self:end">@N(b.Open, 4)</span>
+            <span class="num" style="justify-self:end">@N(b.High, 4)</span>
+            <span class="num" style="justify-self:end">@N(b.Low, 4)</span>
+            <span class="num" style="justify-self:end">@N(b.Close, 4)</span>
+            <span class="num" style="justify-self:end">@N(b.Volume, 0)</span>
+            @* bar_count below the timeframe means the venue contributed fewer minutes than the bar
+               claims to cover. Gold, because it changes how every other number in the row reads. *@
+            <span class="num @(b.Complete ? "muted" : "fail")" style="justify-self:end" title="@b.BarCount of @b.Timeframe minutes present">@b.BarCount/@b.Timeframe</span>
+            <span>
+                @if (series.Count >= 2)
+                {
+                    <svg class="chart" height="26" viewBox="0 0 200 26" preserveAspectRatio="none" style="width:100%">
+                        <polyline points="@Spark.Points(series, 200, 26)" fill="none" stroke="var(--violet-400)" stroke-width="1.5"></polyline>
+                    </svg>
+                }
+                else
+                {
+                    <span class="code">—</span>
+                }
+            </span>
+        </div>
+    }
+    <p class="panel-note">Each run-up is the last @Model.Series.Select(s => s.Closes.Count).DefaultIfEmpty(0).Max() closes up to this instant, scaled to its own range — so the shapes are comparable even when two venues quote the same asset at different levels, and the levels themselves are the numbers to the left. <b>Bar</b> is minutes present of minutes claimed.</p>
+</div>
+
+@* ── Snapshot measurements: side by side, never differenced ────────────────────────────────── *@
+<div class="section-h"><b>Measurements</b><i>@Model.Venues.Count listings · each on its own clock</i><hr></div>
+
+<div class="panel scroll">
+    <div class="th" style="@MeasCols">
+        <span>Venue</span><span>Symbol</span><span>State</span>
+        <span style="justify-self:end">Price at</span><span style="justify-self:end">Last</span>
+        <span style="justify-self:end">Spread bps</span><span style="justify-self:end">Funding</span>
+        <span style="justify-self:end">Open interest</span><span style="justify-self:end">OI at</span>
+        <span style="justify-self:end">Depth 25bps</span><span style="justify-self:end">Depth at</span>
+    </div>
+    @foreach (var v in Model.Venues)
+    {
+        var observed = v.ReceivedAt is not null;
+        <div class="tr" style="@MeasCols@(observed ? "" : ";opacity:.6")">
+            <span class="mono">@v.SegmentCode</span>
+            <span class="cell"><a class="name mono" href="/Admin/Instruments/Details/@v.InstrumentId">@v.Symbol</a><span class="code">@v.ExchangeCode</span></span>
+            <span><span class="tag @(observed && v.Collect ? "enabled" : "")">@(observed ? (v.Collect ? "observed" : "not collected") : "no observation")</span></span>
+            <span class="num muted" style="justify-self:end" title="@Format.Utc(v.ReceivedAt)">@Lag(v.PriceLagSeconds)</span>
+            <span class="num" style="justify-self:end">@N(v.LastPrice, 4)</span>
+            <span class="num" style="justify-self:end">@N(v.SpreadBps, 3)</span>
+            <span class="num" style="justify-self:end">@N(v.FundingRate, 6)</span>
+            <span class="num" style="justify-self:end">@N(v.OpenInterest, 0)</span>
+            <span class="num muted" style="justify-self:end">@Lag(v.OpenInterestLagSeconds)</span>
+            <span class="num" style="justify-self:end">@N(v.Depth25Notional, 0)</span>
+            <span class="num muted" style="justify-self:end" title="@Format.Utc(v.DepthAt)">@Lag(v.DepthLagSeconds)</span>
+        </div>
+    }
+</div>
+
+<p class="panel-note" style="margin-top:12px">
+    These rows are <b>not</b> differenced against each other, and the page states no spread from them. Venues are not observed together: poll passes are unsynchronised, a depth sweep across a large venue takes minutes, and since 0020 the keep interval is set per segment — so one venue's newest observation before this instant can be seconds old while another's is minutes. Subtracting those two prices would report a clock gap as market structure. The lags are shown for exactly that reason, and the spread above comes from bars, which cover the same wall-clock window on every venue.
+    <b>—</b> means not measured. It never means zero.
+</p>

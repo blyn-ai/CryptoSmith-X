@@ -98,7 +98,7 @@
 
 <div class="panel scroll">
     <div class="th r-state">
-        <span>Instrument</span><span>State</span><span style="justify-self:end">Price at</span>
+        <span>Instrument</span><span>Asset</span><span>State</span><span style="justify-self:end">Price at</span>
         <span style="justify-self:end">Last</span><span style="justify-self:end">Spread bps</span>
         <span style="justify-self:end">Bid sz</span><span style="justify-self:end">Ask sz</span>
         <span style="justify-self:end">Open interest</span><span style="justify-self:end">OI at</span>
@@ -112,7 +112,20 @@
         <div class="tr has-stretch r-state" style="@(state == "observed" ? "" : "opacity:.6")">
             <span class="cell">
                 <a class="name mono stretch" href="/Admin/Instruments/Details/@r.InstrumentId">@r.Symbol</a>
-                <span class="code">@r.SegmentCode@(r.BaseAsset is null ? "" : " · " + r.BaseAsset)</span>
+                <span class="code">@r.SegmentCode</span>
+            </span>
+            @* The normalised asset, and the way across to the same asset on every other venue at
+               this same instant. The symbol above is the venue's own string — XBTUSD, PF_XBTUSD,
+               BTCUSDT are three names for one thing, and only this column says which thing. *@
+            <span>
+                @if (r.BaseAsset is null)
+                {
+                    <span class="code">—</span>
+                }
+                else
+                {
+                    <a class="name mono" href="/Admin/Assets/At/@r.BaseAsset?at=@Uri.EscapeDataString(at.ToString("yyyy-MM-dd HH:mm:ss"))">@r.BaseAsset</a>
+                }
             </span>
             <span><span class="tag @(state == "observed" ? "enabled" : "")">@state</span></span>
             <span class="num @(stale ? "fail" : "muted")" style="justify-self:end" title="@Format.Utc(r.ReceivedAt)">@Lag(r.PriceLagSeconds)</span>

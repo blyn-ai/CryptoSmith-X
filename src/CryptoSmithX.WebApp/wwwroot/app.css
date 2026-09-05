@@ -144,7 +144,7 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
    clocks — price, open interest and depth — and collapsing those into one age is the lie the
    page exists to prevent. min-width so the container scrolls rather than squeezing the numbers
    into each other. */
-.r-state{grid-template-columns:minmax(200px,1.4fr) 96px 84px minmax(90px,0.8fr) 84px 78px 78px minmax(110px,1fr) 80px minmax(170px,1.2fr) 80px;min-width:1300px}
+.r-state{grid-template-columns:minmax(190px,1.3fr) 72px 96px 84px minmax(90px,0.8fr) 84px 78px 78px minmax(110px,1fr) 80px minmax(170px,1.2fr) 80px;min-width:1390px}
 .r-cli{grid-template-columns:minmax(190px,1fr) 90px 96px 104px 128px 96px;min-width:790px;gap:14px}
 .r-trade{grid-template-columns:96px 74px minmax(90px,1fr) 96px 96px;min-width:500px;gap:14px}
 .cell{display:flex;align-items:center;gap:9px;min-width:0}

@@ -11,7 +11,10 @@
         <p class="eyebrow">Admin · <a href="/Admin/Assets">assets</a> · @Model.Code</p>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>@(string.IsNullOrEmpty(Model.Name) ? Model.Code : Model.Name)</h1><span class="tag mono">@Model.Code</span></div>
     </div>
-    <a class="linkbtn" href="/Admin/Assets">← Assets</a>
+    <div style="display:flex;gap:14px;align-items:center">
+        <a class="linkbtn" href="/Admin/Assets/At/@Model.Code">Across venues at a moment →</a>
+        <a class="linkbtn" href="/Admin/Assets">← Assets</a>
+    </div>
 </div>
 
 @if (TempData["Error"] is string err)
