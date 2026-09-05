@@ -5,9 +5,10 @@ using Dapper;
 namespace CryptoSmithX.WebApp.Data;
 
 /// <summary>
-/// The integrations registry. Lifecycle columns (status, name, description) are the admin's to
-/// write; everything observed — collector state, durations, instrument counts — is read-only here
-/// and always derived, never stored on the exchange row.
+/// The integrations registry. A row here is a segment — one venue's trading surface, with its own
+/// base URL, symbol space and adapter — joined to the venue that owns it. Lifecycle columns
+/// (status, name, description) are the admin's to write; everything observed — collector state,
+/// durations, instrument counts — is read-only here and always derived, never stored on the row.
 /// </summary>
 public static class ExchangeStore
 {
@@ -19,18 +20,22 @@ public static class ExchangeStore
                    e.name                as "Name",
                    e.status              as "Status",
                    e.description         as "Description",
+                   e.exchange_code       as "ExchangeCode",
+                   x.name                as "ExchangeName",
+                   e.kind                as "Kind",
                    (select count(*)::int from exchange_instrument i
-                     where i.exchange_code = e.code and i.status = 'trading')          as "TradingInstruments",
+                     where i.segment_code = e.code and i.status = 'trading')          as "TradingInstruments",
                    (select count(*)::int from exchange_instrument i
-                     where i.exchange_code = e.code)                                   as "KnownInstruments",
+                     where i.segment_code = e.code)                                   as "KnownInstruments",
                    (select max(s.consecutive_failures) from collector_status s
-                     where s.exchange_code = e.code)                                   as "MaxFailures",
+                     where s.segment_code = e.code)                                   as "MaxFailures",
                    (select avg(s.avg_duration_ms) from collector_status s
-                     where s.exchange_code = e.code and s.avg_duration_ms is not null) as "AvgDurationMs",
+                     where s.segment_code = e.code and s.avg_duration_ms is not null) as "AvgDurationMs",
                    (select extract(epoch from now() - max(s.last_success_at))::double precision
                       from collector_status s
-                     where s.exchange_code = e.code and s.collector = 'discovery')     as "DiscoveryAgeSeconds"
-              from exchange e
+                     where s.segment_code = e.code and s.collector = 'discovery')     as "DiscoveryAgeSeconds"
+              from segment e
+              join exchange x on x.code = e.exchange_code
              order by case e.status when 'enabled' then 0 when 'maintenance' then 1
                                     when 'disabled' then 2 when 'planned' then 3 else 4 end,
                       e.code
@@ -42,18 +47,22 @@ public static class ExchangeStore
     {
         var exchange = await conn.QuerySingleOrDefaultAsync<ExchangeListItem>(new CommandDefinition(
             """
-            select e.code        as "Code",
-                   e.name        as "Name",
-                   e.status      as "Status",
-                   e.description as "Description",
+            select e.code          as "Code",
+                   e.name          as "Name",
+                   e.status        as "Status",
+                   e.description   as "Description",
+                   e.exchange_code as "ExchangeCode",
+                   x.name          as "ExchangeName",
+                   e.kind          as "Kind",
                    (select count(*)::int from exchange_instrument i
-                     where i.exchange_code = e.code and i.status = 'trading') as "TradingInstruments",
+                     where i.segment_code = e.code and i.status = 'trading') as "TradingInstruments",
                    (select count(*)::int from exchange_instrument i
-                     where i.exchange_code = e.code)                          as "KnownInstruments",
+                     where i.segment_code = e.code)                          as "KnownInstruments",
                    null::int                                                  as "MaxFailures",
                    null::double precision                                     as "AvgDurationMs",
                    null::double precision                                     as "DiscoveryAgeSeconds"
-              from exchange e
+              from segment e
+              join exchange x on x.code = e.exchange_code
              where e.code = @code
             """,
             new { code },
@@ -75,7 +84,7 @@ public static class ExchangeStore
                    s.last_error                                                         as "LastError",
                    extract(epoch from now() - s.last_error_at)::double precision        as "LastErrorAgeSeconds"
               from collector_status s
-             where s.exchange_code = @code
+             where s.segment_code = @code
              order by s.collector
             """,
             new { code },
@@ -89,7 +98,7 @@ public static class ExchangeStore
                    extract(epoch from now() - l.received_at)::double precision as "AgeSeconds"
               from exchange_instrument i
               join market_snapshot_latest l on l.exchange_instrument_id = i.id
-             where i.exchange_code = @code and i.status = 'trading'
+             where i.segment_code = @code and i.status = 'trading'
              order by l.received_at asc limit 6
             """,
             new { code },
@@ -105,7 +114,7 @@ public static class ExchangeStore
                 select to_timestamp(floor(extract(epoch from r.started_at) / 300) * 300) as b,
                        sum(r.items)::double precision as rows
                   from collector_run r
-                 where r.exchange_code = @code and r.collector = 'snapshot' and r.ok
+                 where r.segment_code = @code and r.collector = 'snapshot' and r.ok
                    and r.started_at >= date_trunc('hour', now()) - interval '2 hours'
                  group by 1
             )
@@ -126,26 +135,26 @@ public static class ExchangeStore
                        quote_assets as "QuoteAssets",
                        blacklist    as "Blacklist",
                        updated_by   as "UpdatedBy"
-                  from exchange
+                  from segment
                  where code = @code
                 """,
                 new { code },
                 cancellationToken: ct));
 
         // The five interval overrides used to be columns on exchange; since 0014 they are cells of
-        // the exchange_collection matrix (in seconds uniformly). This view keeps the page's existing
+        // the segment_dataset matrix (in seconds uniformly). This view keeps the page's existing
         // shape (discovery/funding still in minutes) without touching Details.cshtml — that
         // conversion is the only thing this query still owns on their behalf.
-        var overrides = (await conn.QueryAsync<(string Collection, int? IntervalS)>(new CommandDefinition(
+        var overrides = (await conn.QueryAsync<(string Dataset, int? IntervalS)>(new CommandDefinition(
             """
-            select collection_code as "Collection", interval_s as "IntervalS"
-              from exchange_collection
-             where exchange_code = @code
-               and collection_code in ('discovery', 'snapshot', 'depth', 'candles', 'funding')
+            select dataset_code as "Dataset", interval_s as "IntervalS"
+              from segment_dataset
+             where segment_code = @code
+               and dataset_code in ('discovery', 'snapshot', 'depth', 'candles', 'funding')
             """,
             new { code },
             cancellationToken: ct)))
-            .ToDictionary(r => r.Collection, r => r.IntervalS, StringComparer.Ordinal);
+            .ToDictionary(r => r.Dataset, r => r.IntervalS, StringComparer.Ordinal);
 
         var config = new ExchangeConfigRow
         {
@@ -163,12 +172,12 @@ public static class ExchangeStore
             UpdatedBy = head.UpdatedBy,
         };
 
-        // Collection defaults, to show as placeholders where an override is empty — the successor to
-        // the old global setting values, which moved into collection.default_interval_s in 0014.
+        // Dataset defaults, to show as placeholders where an override is empty — the successor to
+        // the old global setting values, which moved into dataset.default_interval_s in 0014.
         var defaults = (await conn.QueryAsync<(string Code, int DefaultIntervalS)>(new CommandDefinition(
             """
             select code as "Code", default_interval_s as "DefaultIntervalS"
-              from collection
+              from dataset
              where code in ('discovery', 'snapshot', 'depth', 'candles', 'funding')
             """,
             cancellationToken: ct))).ToList();
@@ -184,7 +193,7 @@ public static class ExchangeStore
 
         // Intervals this venue was not observed for. Open ones first: a hole that has not closed
         // is still happening, and it is the only thing on this page that is about right now.
-        var gaps = (await conn.QueryAsync<CollectionGapRow>(new CommandDefinition(
+        var gaps = (await conn.QueryAsync<CollectorGapRow>(new CommandDefinition(
             """
             select g.collector                                            as "Collector",
                    g.gap_start                                            as "GapStart",
@@ -193,8 +202,8 @@ public static class ExchangeStore
                    g.detail                                               as "Detail",
                    extract(epoch from coalesce(g.gap_end, now()) - g.gap_start)::double precision
                                                                           as "SecondsLong"
-              from collection_gap g
-             where g.exchange_code = @code
+              from collector_gap g
+             where g.segment_code = @code
                and (g.gap_end is null or g.gap_start > now() - interval '48 hours')
              order by (g.gap_end is null) desc, g.gap_start desc
              limit 20
@@ -214,8 +223,8 @@ public static class ExchangeStore
     /// Writes the editable configuration of an exchange, stamping who did it. Status is NOT written
     /// here — it is the guarded control on the overview (see <see cref="SetStatusAsync"/>) — so this
     /// form can never take a venue offline by accident. Adapter is bound to the code and read-only.
-    /// Interval values are per-exchange overrides, null means "use the collection default"; since
-    /// 0014 they live in exchange_collection, not on exchange, so this writes both places in one
+    /// Interval values are per-segment overrides, null means "use the dataset default"; since
+    /// 0014 they live in segment_dataset, not on exchange, so this writes both places in one
     /// transaction — the exchange row keeps its old shape externally, but it has nowhere left to
     /// write those five values into.
     /// </summary>
@@ -225,7 +234,7 @@ public static class ExchangeStore
 
         var rows = await conn.ExecuteAsync(new CommandDefinition(
             """
-            update exchange
+            update segment
                set name        = @Name,
                    description = nullif(@Description, ''),
                    base_url    = nullif(@BaseUrl, ''),
@@ -258,17 +267,17 @@ public static class ExchangeStore
     }
 
     private static Task UpdateIntervalAsync(
-        DbConnection conn, DbTransaction tx, string exchangeCode, string collectionCode, int? intervalS, string? updatedBy, CancellationToken ct) =>
+        DbConnection conn, DbTransaction tx, string segmentCode, string datasetCode, int? intervalS, string? updatedBy, CancellationToken ct) =>
         conn.ExecuteAsync(new CommandDefinition(
             """
-            update exchange_collection
+            update segment_dataset
                set interval_s = @intervalS, updated_by = @updatedBy, updated_at = now()
-             where exchange_code = @exchangeCode and collection_code = @collectionCode
+             where segment_code = @segmentCode and dataset_code = @datasetCode
             """,
-            new { exchangeCode, collectionCode, intervalS, updatedBy }, tx, cancellationToken: ct));
+            new { segmentCode, datasetCode, intervalS, updatedBy }, tx, cancellationToken: ct));
 
     /// <summary>
-    /// The guarded status change — the only control that stops (or starts) collection. Returns false
+    /// The guarded status change — the only control that stops (or starts) dataset. Returns false
     /// on an unknown exchange or a status the CHECK would reject. The confirm-code guard lives in the
     /// controller; this stamps who and when.
     /// </summary>
@@ -281,7 +290,7 @@ public static class ExchangeStore
         }
 
         var rows = await conn.ExecuteAsync(new CommandDefinition(
-            "update exchange set status = @status, updated_by = @updatedBy, updated_at = now() where code = @code",
+            "update segment set status = @status, updated_by = @updatedBy, updated_at = now() where code = @code",
             new { code, status, updatedBy },
             cancellationToken: ct));
         return rows == 1;
@@ -313,7 +322,7 @@ public static class RunStore
             select id as "Id", collector as "Collector", started_at as "StartedAt",
                    duration_ms as "DurationMs", ok as "Ok", error as "Error", items as "Items"
               from collector_run
-             where exchange_code = @code and (@collector is null or collector = @collector)
+             where segment_code = @code and (@collector is null or collector = @collector)
              order by started_at desc
              limit 200
             """,
@@ -331,7 +340,7 @@ public static class RunStore
                    (floor(extract(epoch from now() - started_at) / 900))::int as bucket,
                    avg(duration_ms)::double precision
               from collector_run
-             where exchange_code = @code and started_at > now() - interval '12 hours' and ok
+             where segment_code = @code and started_at > now() - interval '12 hours' and ok
              group by collector, bucket
             """,
             new { code },
@@ -355,10 +364,10 @@ public static class RunStore
 
     public static async Task<RunDetails?> GetAsync(DbConnection conn, long id, CancellationToken ct)
     {
-        var run = await conn.QuerySingleOrDefaultAsync<(string ExchangeCode, long Id, string Collector, DateTime StartedAt, int DurationMs, bool Ok, string? Error, int? Items)?>(
+        var run = await conn.QuerySingleOrDefaultAsync<(string SegmentCode, long Id, string Collector, DateTime StartedAt, int DurationMs, bool Ok, string? Error, int? Items)?>(
             new CommandDefinition(
                 """
-                select exchange_code as "ExchangeCode", id as "Id", collector as "Collector",
+                select segment_code as "SegmentCode", id as "Id", collector as "Collector",
                        started_at as "StartedAt", duration_ms as "DurationMs", ok as "Ok",
                        error as "Error", items as "Items"
                   from collector_run where id = @id
@@ -380,9 +389,9 @@ public static class RunStore
         var nextStart = await conn.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
             """
             select min(started_at) from collector_run
-             where exchange_code = @code and collector = @collector and started_at > @start
+             where segment_code = @code and collector = @collector and started_at > @start
             """,
-            new { code = r.ExchangeCode, collector = r.Collector, start = r.StartedAt },
+            new { code = r.SegmentCode, collector = r.Collector, start = r.StartedAt },
             cancellationToken: ct));
         var winEnd = nextStart ?? r.StartedAt.AddMilliseconds(r.DurationMs).AddSeconds(2);
 
@@ -396,39 +405,39 @@ public static class RunStore
                 select "Symbol", "What", "When" from (
                     select i.exchange_symbol as "Symbol", 'last ' || round(m.last_price::numeric, 4) as "What", m.received_at as "When"
                       from market_snapshot m join exchange_instrument i on i.id = m.exchange_instrument_id
-                     where i.exchange_code = @code and m.received_at >= @winStart and m.received_at < @winEnd
+                     where i.segment_code = @code and m.received_at >= @winStart and m.received_at < @winEnd
                     union all
                     select i.exchange_symbol, 'last ' || round(l.last_price::numeric, 4), l.received_at
                       from market_snapshot_latest l join exchange_instrument i on i.id = l.exchange_instrument_id
-                     where i.exchange_code = @code and l.received_at >= @winStart and l.received_at < @winEnd
+                     where i.segment_code = @code and l.received_at >= @winStart and l.received_at < @winEnd
                 ) w order by "When" desc, "Symbol"
                 """),
             "depth" => ("latest-snapshot depth measurements stamped inside the window",
                 """
                 select i.exchange_symbol as "Symbol", 'depth25 ' || coalesce(round(l.depth_bid_25bps::numeric, 0)::text, '—') as "What", l.depth_at as "When"
                   from market_snapshot_latest l join exchange_instrument i on i.id = l.exchange_instrument_id
-                 where i.exchange_code = @code and l.depth_at >= @winStart and l.depth_at < @winEnd
+                 where i.segment_code = @code and l.depth_at >= @winStart and l.depth_at < @winEnd
                  order by l.depth_at desc
                 """),
             "discovery" => ("instruments confirmed by this discovery pass",
                 """
                 select i.exchange_symbol as "Symbol", i.status as "What", i.last_seen_at as "When"
                   from exchange_instrument i
-                 where i.exchange_code = @code and i.last_seen_at >= @winStart and i.last_seen_at < @winEnd
+                 where i.segment_code = @code and i.last_seen_at >= @winStart and i.last_seen_at < @winEnd
                  order by i.exchange_symbol
                 """),
             "candles" => ("1m bars written or repaired inside the window",
                 """
                 select i.exchange_symbol as "Symbol", '1m ' || to_char(c.open_time, 'HH24:MI') || ' close ' || round(c.close::numeric, 4) as "What", c.updated_at as "When"
                   from market_candle c join exchange_instrument i on i.id = c.exchange_instrument_id
-                 where i.exchange_code = @code and c.timeframe = 1 and c.updated_at >= @winStart and c.updated_at < @winEnd
+                 where i.segment_code = @code and c.timeframe = 1 and c.updated_at >= @winStart and c.updated_at < @winEnd
                  order by c.updated_at desc
                 """),
             "rollup" => ("derived bars recomputed inside the window",
                 """
                 select i.exchange_symbol as "Symbol", c.timeframe || 'm ' || to_char(c.open_time, 'HH24:MI') as "What", c.updated_at as "When"
                   from market_candle c join exchange_instrument i on i.id = c.exchange_instrument_id
-                 where i.exchange_code = @code and c.timeframe > 1 and c.updated_at >= @winStart and c.updated_at < @winEnd
+                 where i.segment_code = @code and c.timeframe > 1 and c.updated_at >= @winStart and c.updated_at < @winEnd
                  order by c.updated_at desc
                 """),
             _ => ("funding_rate_history has no insert stamp (funding_time is the payment time) — the run's items counter is the source of truth here",
@@ -439,10 +448,10 @@ public static class RunStore
         // candle rows, and dragging them into memory to call .Count froze the page.
         var total = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
             $"select count(*) from ({sql}) w",
-            new { code = r.ExchangeCode, winStart, winEnd }, cancellationToken: ct));
+            new { code = r.SegmentCode, winStart, winEnd }, cancellationToken: ct));
         var rows = (await conn.QueryAsync<RunDataRow>(new CommandDefinition(
             sql + " limit 40",
-            new { code = r.ExchangeCode, winStart, winEnd }, cancellationToken: ct))).ToList();
+            new { code = r.SegmentCode, winStart, winEnd }, cancellationToken: ct))).ToList();
 
         // Each collector explains its own empty page instead of one generic wall of maybes.
         var emptyNote = r.Collector switch
@@ -455,7 +464,7 @@ public static class RunStore
         };
 
         return new RunDetails(
-            r.ExchangeCode,
+            r.SegmentCode,
             new CollectorRunRow(r.Id, r.Collector, r.StartedAt, r.DurationMs, r.Ok, r.Error, r.Items),
             caption, total, rows, emptyNote);
     }

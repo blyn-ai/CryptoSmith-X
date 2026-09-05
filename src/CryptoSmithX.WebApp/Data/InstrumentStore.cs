@@ -17,15 +17,15 @@ public static class InstrumentStore
     public static readonly IReadOnlyList<int> Timeframes = [1, 5, 15, 60, 240];
 
     public static async Task<InstrumentPage> ListAsync(
-        DbConnection conn, string? exchange, string? status, bool onlyTrading, string? search,
+        DbConnection conn, string? segment, string? status, bool onlyTrading, string? search,
         string sort, int page, int pageSize, CancellationToken ct)
     {
         var where = new StringBuilder("where 1 = 1");
         var p = new DynamicParameters();
-        if (!string.IsNullOrWhiteSpace(exchange))
+        if (!string.IsNullOrWhiteSpace(segment))
         {
-            where.Append(" and i.exchange_code = @exchange");
-            p.Add("exchange", exchange);
+            where.Append(" and i.segment_code = @segment");
+            p.Add("segment", segment);
         }
 
         if (!string.IsNullOrWhiteSpace(status))
@@ -51,7 +51,7 @@ public static class InstrumentStore
             "oi" => "(l.open_interest * l.mark_price) desc nulls last, i.exchange_symbol",
             "funding" => "l.funding_rate desc nulls last, i.exchange_symbol",
             "age" => "l.received_at asc nulls first, i.exchange_symbol",
-            _ => "i.exchange_code, i.exchange_symbol",
+            _ => "i.segment_code, i.exchange_symbol",
         };
 
         var total = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
@@ -63,7 +63,7 @@ public static class InstrumentStore
         var items = (await conn.QueryAsync<InstrumentListItem>(new CommandDefinition(
             $"""
              select i.id              as "Id",
-                    i.exchange_code   as "ExchangeCode",
+                    i.segment_code   as "SegmentCode",
                     i.exchange_symbol as "Symbol",
                     i.base_asset      as "BaseAsset",
                     i.quote_asset     as "QuoteAsset",
@@ -81,10 +81,10 @@ public static class InstrumentStore
              """,
             p, cancellationToken: ct))).ToList();
 
-        var exchanges = (await conn.QueryAsync<string>(new CommandDefinition(
-            "select code from exchange order by code", cancellationToken: ct))).ToList();
+        var segments = (await conn.QueryAsync<string>(new CommandDefinition(
+            "select code from segment order by code", cancellationToken: ct))).ToList();
 
-        return new InstrumentPage(items, total, page, pageSize, exchanges, exchange, status, onlyTrading, search, sort);
+        return new InstrumentPage(items, total, page, pageSize, segments, segment, status, onlyTrading, search, sort);
     }
 
     public static async Task<InstrumentDetails?> GetAsync(DbConnection conn, int id, int timeframe, CancellationToken ct)
@@ -94,7 +94,7 @@ public static class InstrumentStore
         var head = await conn.QuerySingleOrDefaultAsync<InstrumentHead>(new CommandDefinition(
             """
             select id                     as "Id",
-                   exchange_code          as "ExchangeCode",
+                   segment_code          as "SegmentCode",
                    exchange_symbol        as "Symbol",
                    base_asset             as "BaseAsset",
                    quote_asset            as "QuoteAsset",
@@ -187,21 +187,21 @@ public static class InstrumentStore
             new { id },
             cancellationToken: ct))).ToList();
 
-        var coverage = await LoadCoverageAsync(conn, id, head.ExchangeCode, head.Status, head.Collect, snapshot?.SnapshotAgeSeconds, ct);
+        var coverage = await LoadCoverageAsync(conn, id, head.SegmentCode, head.Status, head.Collect, snapshot?.SnapshotAgeSeconds, ct);
 
         // The same canonical asset on other venues — the one-click hop between exchanges.
         var siblings = (await conn.QueryAsync<SiblingListing>(new CommandDefinition(
             """
-            select i.id as "Id", i.exchange_code as "ExchangeCode", i.exchange_symbol as "Symbol"
+            select i.id as "Id", i.segment_code as "SegmentCode", i.exchange_symbol as "Symbol"
               from exchange_instrument i
              where i.base_asset = @baseAsset and i.quote_asset = @quoteAsset and i.id <> @id
-             order by i.exchange_code
+             order by i.segment_code
             """,
             new { baseAsset = head.BaseAsset, quoteAsset = head.QuoteAsset, id },
             cancellationToken: ct))).ToList();
 
         return new InstrumentDetails(
-            head.Id, head.ExchangeCode, head.Symbol, head.BaseAsset, head.QuoteAsset, head.Status,
+            head.Id, head.SegmentCode, head.Symbol, head.BaseAsset, head.QuoteAsset, head.Status,
             head.StatusChangedAt, head.ListedAt, head.FirstSeenAt, head.LastSeenAt,
             head.Collect, head.CollectNote, head.CollectChangedAt, head.CollectChangedBy, head.FundingIntervalHours,
             snapshot, tf, Timeframes, candles, metrics, funding, coverage, siblings);
@@ -227,7 +227,7 @@ public static class InstrumentStore
     }
 
     private static async Task<CoverageView> LoadCoverageAsync(
-        DbConnection conn, int id, string exchangeCode, string status, bool collect, double? snapshotAge, CancellationToken ct)
+        DbConnection conn, int id, string segmentCode, string status, bool collect, double? snapshotAge, CancellationToken ct)
     {
         var c = await conn.QuerySingleAsync<(int Minutes24h, DateTime? CandleFrom, DateTime? CandleTo, double? LastCandleAge)>(
             new CommandDefinition(
@@ -254,30 +254,30 @@ public static class InstrumentStore
                 new { id },
                 cancellationToken: ct));
 
-        // Effective snapshot interval: the exchange_collection override, or the collection default.
-        // Fixes a bug 0014 (collections) left behind — snapshot_interval_s moved off `exchange` and
+        // Effective snapshot interval: the segment_dataset override, or the dataset default.
+        // Fixes a bug 0014 (datasets) left behind — snapshot_interval_s moved off `exchange` and
         // this query was not updated with it, so this page 500'd on every visit since that migration.
         var interval = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
             """
             select coalesce(ec.interval_s, c.default_interval_s)
-              from collection c
-              left join exchange_collection ec on ec.exchange_code = @exchangeCode and ec.collection_code = c.code
+              from dataset c
+              left join segment_dataset ec on ec.segment_code = @segmentCode and ec.dataset_code = c.code
              where c.code = 'snapshot'
             """,
-            new { exchangeCode },
+            new { segmentCode },
             cancellationToken: ct));
 
         // The exchange is collecting if it is enabled and its snapshot loop has succeeded recently.
         var exchangeCollecting = await conn.ExecuteScalarAsync<bool>(new CommandDefinition(
             """
             select exists (
-                select 1 from exchange e
-                 where e.code = @exchangeCode and e.status = 'enabled'
+                select 1 from segment e
+                 where e.code = @segmentCode and e.status = 'enabled'
                    and exists (select 1 from collector_status s
-                                where s.exchange_code = e.code and s.collector = 'snapshot'
+                                where s.segment_code = e.code and s.collector = 'snapshot'
                                   and s.last_success_at > now() - interval '3 minutes'))
             """,
-            new { exchangeCode },
+            new { segmentCode },
             cancellationToken: ct));
 
         var minutes = c.Minutes24h;
@@ -294,7 +294,7 @@ public static class InstrumentStore
     }
 
     private sealed record InstrumentHead(
-        int Id, string ExchangeCode, string Symbol, string BaseAsset, string QuoteAsset, string Status,
+        int Id, string SegmentCode, string Symbol, string BaseAsset, string QuoteAsset, string Status,
         DateTime StatusChangedAt, DateTime? ListedAt, DateTime FirstSeenAt, DateTime LastSeenAt,
         bool Collect, string? CollectNote, DateTime? CollectChangedAt, string? CollectChangedBy,
         short FundingIntervalHours);

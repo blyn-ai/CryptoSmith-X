@@ -31,10 +31,10 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
         _openInterest = openInterest;
     }
 
-    public string ExchangeCode => "weex-futures";
+    public string SegmentCode => "weex-futures";
 
     // REST-only in V1 (see the commit that added this adapter for why WS was deferred).
-    public IReadOnlyList<CollectionCapability> Capabilities { get; } =
+    public IReadOnlyList<DatasetCapability> Capabilities { get; } =
     [
         new("discovery", "rest"),
         new("snapshot", "rest"),

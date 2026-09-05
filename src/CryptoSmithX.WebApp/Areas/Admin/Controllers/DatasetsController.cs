@@ -12,16 +12,16 @@ namespace CryptoSmithX.WebApp.Areas.Admin.Controllers;
 /// </summary>
 [Area("Admin")]
 [Authorize(Roles = "admin")]
-public sealed class CollectionsController : Controller
+public sealed class DatasetsController : Controller
 {
     private readonly Db _db;
 
-    public CollectionsController(Db db) => _db = db;
+    public DatasetsController(Db db) => _db = db;
 
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         await using var conn = await _db.OpenAsync(ct);
-        return View(await CollectionStore.ListAsync(conn, ct));
+        return View(await DatasetStore.ListAsync(conn, ct));
     }
 }

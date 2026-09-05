@@ -22,11 +22,11 @@ public sealed class InstrumentsController : Controller
 
     [HttpGet]
     public async Task<IActionResult> Index(
-        string? exchange, string? status, bool onlyTrading, string? q, string? sort, int page, CancellationToken ct)
+        string? segment, string? status, bool onlyTrading, string? q, string? sort, int page, CancellationToken ct)
     {
         await using var conn = await _db.OpenAsync(ct);
         var model = await InstrumentStore.ListAsync(
-            conn, exchange, status, onlyTrading, q, sort ?? "symbol", Math.Max(1, page), PageSize, ct);
+            conn, segment, status, onlyTrading, q, sort ?? "symbol", Math.Max(1, page), PageSize, ct);
         return View(model);
     }
 

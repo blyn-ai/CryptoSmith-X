@@ -1,6 +1,6 @@
 @model CryptoSmithX.WebApp.Models.FeedDetails
 @{
-    var exchangeCode = (string)ViewData["ExchangeCode"]!;
+    var segmentCode = (string)ViewData["SegmentCode"]!;
     var d = Model;
 
     string ModeTagClass(string m) => m switch { "collect" => "enabled", "on_demand" => "planned", _ => "disabled" };
@@ -25,29 +25,29 @@
 
     var ownIntervalDisplay = d.OwnIntervalS?.ToString() ?? "";
     var ownRetentionDisplay = d.OwnRetentionDays?.ToString() ?? "";
-    var intervalPlaceholder = d.CollectionDefaultIntervalS is { } di ? $"collection {di}" : "collection —";
-    var retentionPlaceholder = d.CollectionDefaultRetentionDays is { } dr ? $"collection {dr}" : "collection: never rotate";
+    var intervalPlaceholder = d.DatasetDefaultIntervalS is { } di ? $"dataset {di}" : "dataset —";
+    var retentionPlaceholder = d.DatasetDefaultRetentionDays is { } dr ? $"dataset {dr}" : "dataset: never rotate";
 }
 @* data-live-skip: a tick never rewrites an open dialog — the values on screen are the ones being edited. *@
-<div class="modal-scrim" id="feed-dialog-@d.CollectionCode" data-feed-dialog data-live-skip data-collection="@d.CollectionCode"
+<div class="modal-scrim" id="feed-dialog-@d.DatasetCode" data-feed-dialog data-live-skip data-dataset="@d.DatasetCode"
      data-original-mode="@d.Mode" data-history="@(historyless ? "none" : "established")" style="display:none">
     <div class="modal">
         <div class="modal-h">
             <div style="display:flex;flex-direction:column;gap:7px;min-width:0">
-                <p class="eyebrow">Edit feed · @exchangeCode</p>
+                <p class="eyebrow">Edit feed · @segmentCode</p>
                 <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
-                    <h2 style="font:var(--type-h3)">@d.CollectionName</h2>
+                    <h2 style="font:var(--type-h3)">@d.DatasetName</h2>
                     <span class="tag @ModeTagClass(d.Mode)" data-mode-tag>@ModeLabel(d.Mode)</span>
                     @if (d.Kind == "derived") { <span class="tag dashed">derived</span> }
                 </div>
-                <p style="margin:0;font:400 12px/1.55 var(--font-body);color:var(--text-muted);max-width:62ch;text-wrap:pretty">@d.CollectionDescription</p>
+                <p style="margin:0;font:400 12px/1.55 var(--font-body);color:var(--text-muted);max-width:62ch;text-wrap:pretty">@d.DatasetDescription</p>
             </div>
             <button class="linkbtn" type="button" data-dialog-close>Close</button>
         </div>
 
-        <form method="post" action="/Admin/Exchanges/Feed/@exchangeCode">
+        <form method="post" action="/Admin/Exchanges/Feed/@segmentCode">
             @Html.AntiForgeryToken()
-            <input type="hidden" name="collection" value="@d.CollectionCode">
+            <input type="hidden" name="dataset" value="@d.DatasetCode">
             <div class="modal-b">
                 <div>
                     <div class="panel-h" style="padding:0 0 10px;border:0">
@@ -96,13 +96,13 @@
                         <div class="err" style="margin:0 0 12px">
                             <b>Loss</b>
                             <div>
-                                <span class="t">@d.CollectionName history does not exist — history depth is @(history?.Value ?? "not established") (@(history?.Source ?? "no source"), @(history?.FilledBy ?? "—")). Whatever is not collected while this feed is off is gone forever: there is nowhere to backfill it from.</span>
+                                <span class="t">@d.DatasetName history does not exist — history depth is @(history?.Value ?? "not established") (@(history?.Source ?? "no source"), @(history?.FilledBy ?? "—")). Whatever is not collected while this feed is off is gone forever: there is nowhere to backfill it from.</span>
                                 <span class="m">The archive keeps what it already has; the gap starts at this click.</span>
                             </div>
                         </div>
                         <div class="field">
-                            <label for="guardCode-@d.CollectionCode">Type @d.CollectionCode to release the guard</label>
-                            <input id="guardCode-@d.CollectionCode" name="confirmCode" type="text" autocomplete="off" spellcheck="false" placeholder="@d.CollectionCode" data-guard-code>
+                            <label for="guardCode-@d.DatasetCode">Type @d.DatasetCode to release the guard</label>
+                            <input id="guardCode-@d.DatasetCode" name="confirmCode" type="text" autocomplete="off" spellcheck="false" placeholder="@d.DatasetCode" data-guard-code>
                         </div>
                     </div>
                     <div data-calm style="display:none;padding:10px 12px;border:1px solid var(--border-hairline);border-radius:var(--radius-sm);margin-bottom:14px">
@@ -141,30 +141,30 @@
 
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 16px">
                         <div class="field" style="margin-bottom:6px">
-                            <label for="intervalS-@d.CollectionCode">Interval (s)</label>
-                            <input id="intervalS-@d.CollectionCode" name="intervalS" type="text" value="@ownIntervalDisplay" placeholder="@intervalPlaceholder" data-interval>
+                            <label for="intervalS-@d.DatasetCode">Interval (s)</label>
+                            <input id="intervalS-@d.DatasetCode" name="intervalS" type="text" value="@ownIntervalDisplay" placeholder="@intervalPlaceholder" data-interval>
                         </div>
                         <div class="field" style="margin-bottom:6px">
-                            <label for="retentionDays-@d.CollectionCode">Retention (days)</label>
-                            <input id="retentionDays-@d.CollectionCode" name="retentionDays" type="text" value="@ownRetentionDisplay" placeholder="@retentionPlaceholder" data-retention>
+                            <label for="retentionDays-@d.DatasetCode">Retention (days)</label>
+                            <input id="retentionDays-@d.DatasetCode" name="retentionDays" type="text" value="@ownRetentionDisplay" placeholder="@retentionPlaceholder" data-retention>
                         </div>
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 16px;margin-bottom:14px">
                         <div class="cascade" data-interval-cascade>
                             <span class="@(d.OwnIntervalS is not null ? "is-eff is-own" : "")"><i>own</i><b>@(d.OwnIntervalS?.ToString() ?? "—")</b></span>
-                            <span class="@(d.OwnIntervalS is null ? "is-eff" : "")"><i>collection</i><b>@(d.CollectionDefaultIntervalS?.ToString() ?? "—")</b></span>
+                            <span class="@(d.OwnIntervalS is null ? "is-eff" : "")"><i>dataset</i><b>@(d.DatasetDefaultIntervalS?.ToString() ?? "—")</b></span>
                             <span><i>global</i><b>—</b></span>
                         </div>
                         <div class="cascade" data-retention-cascade>
                             <span class="@(d.OwnRetentionDays is not null ? "is-eff is-own" : "")"><i>own</i><b>@(d.OwnRetentionDays?.ToString() ?? "—")</b></span>
-                            <span class="@(d.OwnRetentionDays is null ? "is-eff" : "")"><i>collection</i><b>@(d.CollectionDefaultRetentionDays?.ToString() ?? "never")</b></span>
+                            <span class="@(d.OwnRetentionDays is null ? "is-eff" : "")"><i>dataset</i><b>@(d.DatasetDefaultRetentionDays?.ToString() ?? "never")</b></span>
                             <span><i>global</i><b>—</b></span>
                         </div>
                     </div>
 
                     <div class="field">
-                        <label for="note-@d.CollectionCode">Note</label>
-                        <input id="note-@d.CollectionCode" name="note" type="text" value="@d.Note" placeholder="why this venue departs from the default">
+                        <label for="note-@d.DatasetCode">Note</label>
+                        <input id="note-@d.DatasetCode" name="note" type="text" value="@d.Note" placeholder="why this venue departs from the default">
                     </div>
                 </div>
             </div>

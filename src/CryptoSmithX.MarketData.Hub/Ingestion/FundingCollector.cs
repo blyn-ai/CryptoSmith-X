@@ -21,7 +21,7 @@ public sealed class FundingCollector
                   from funding_rate_history f
                  where f.exchange_instrument_id = i.id) as latest
           from exchange_instrument i
-         where i.exchange_code = @code
+         where i.segment_code = @code
            and i.status <> 'delisted'
            and i.collect = true
         """;
@@ -43,13 +43,13 @@ public sealed class FundingCollector
     public async Task<int> RunAsync(CancellationToken ct)
     {
         var now = _clock.GetUtcNow();
-        var floor = now - TimeSpan.FromHours((await _settings.CurrentAsync(ct)).CollectionSettingInt("funding", "backfill_hours"));
+        var floor = now - TimeSpan.FromHours((await _settings.CurrentAsync(ct)).DatasetSettingInt("funding", "backfill_hours"));
 
         await using var conn = await _db.OpenAsync(ct);
 
         var targets = (await conn.QueryAsync<(int Id, string Symbol, DateTimeOffset? Latest)>(new CommandDefinition(
             TargetInstrumentsSql,
-            new { code = _adapter.ExchangeCode },
+            new { code = _adapter.SegmentCode },
             cancellationToken: ct))).ToList();
 
         var written = 0;

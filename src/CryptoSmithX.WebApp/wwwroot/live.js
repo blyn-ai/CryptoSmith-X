@@ -49,8 +49,8 @@
     connectLive(detailsMatch[1]);
   }
 
-  function connectLive(exchangeCode) {
-    const es = new EventSource('/Admin/Exchanges/Live/' + encodeURIComponent(exchangeCode));
+  function connectLive(segmentCode) {
+    const es = new EventSource('/Admin/Exchanges/Live/' + encodeURIComponent(segmentCode));
 
     es.addEventListener('open', () => { pushOpen = true; });
     // EventSource retries on its own with backoff; while it is down the 10 s poll above covers

@@ -33,12 +33,12 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
         _ws = ws;
     }
 
-    public string ExchangeCode => "kraken-futures";
+    public string SegmentCode => "kraken-futures";
 
     // Snapshot and depth are WS-first with a REST fallback whenever a feed is wired (see the ctor);
     // both transports are honest regardless of whether _ws happens to be null right now, since that
     // is a config fact (ws_url set or not), not a per-request coin flip.
-    public IReadOnlyList<CollectionCapability> Capabilities { get; } =
+    public IReadOnlyList<DatasetCapability> Capabilities { get; } =
     [
         new("discovery", "rest"),
         new("snapshot", "rest,ws"),

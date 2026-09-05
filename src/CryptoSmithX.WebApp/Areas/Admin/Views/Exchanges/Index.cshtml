@@ -12,7 +12,7 @@
 
 <div class="page-head">
     <div class="t"><p class="eyebrow">Admin · integrations</p><h1>Exchanges</h1></div>
-    <p class="page-note">Lifecycle is what a human decided. Health is observed on every render and never stored.</p>
+    <p class="page-note">A row is a segment — one venue's trading surface, with its own base URL, symbol space and adapter. Segments of the same venue share an account, keys and a per-IP request budget. Lifecycle is what a human decided. Health is observed on every render and never stored.</p>
 </div>
 
 <div class="section-h"><b>Collecting</b><i>@collecting.Count</i><hr></div>
@@ -26,8 +26,8 @@
     var h = Health(e);
     <a class="ex-card @(h == "failing" ? "is-fail" : "")" href="/Admin/Exchanges/Details/@e.Code">
         <span class="ex-main">
-            <span class="ex-title"><span class="dot @Dot(h) lg @(h == "ok" ? "fresh" : "")"></span><span class="n">@e.Name</span><span class="tag enabled">enabled</span><span class="sev @Dot(h)">@(h == "ok" ? "ok" : h)</span></span>
-            <span class="ex-meta">@e.Code@(string.IsNullOrEmpty(e.Description) ? "" : " · " + e.Description)</span>
+            <span class="ex-title"><span class="dot @Dot(h) lg @(h == "ok" ? "fresh" : "")"></span><span class="n">@e.Name</span><span class="tag">@e.Kind</span><span class="tag enabled">enabled</span><span class="sev @Dot(h)">@(h == "ok" ? "ok" : h)</span></span>
+            <span class="ex-meta">@e.ExchangeCode / @e.Code@(string.IsNullOrEmpty(e.Description) ? "" : " · " + e.Description)</span>
         </span>
         <span class="ex-stat"><i>Instruments</i><b>@e.TradingInstruments / @e.KnownInstruments</b></span>
         <span class="ex-stat"><i>Avg ms</i><b>@Format.Num(e.AvgDurationMs, 0)</b></span>
@@ -44,7 +44,7 @@
     {
         <a class="tr" href="/Admin/Exchanges/Details/@e.Code">
             <span class="tag @e.Status">@e.Status</span>
-            <span class="cell"><span class="n">@e.Name</span><span class="code">@e.Code@(string.IsNullOrEmpty(e.Description) ? "" : " · " + e.Description)</span></span>
+            <span class="cell"><span class="n">@e.Name</span><span class="code">@e.ExchangeCode / @e.Code@(string.IsNullOrEmpty(e.Description) ? "" : " · " + e.Description)</span></span>
         </a>
     }
     </div>

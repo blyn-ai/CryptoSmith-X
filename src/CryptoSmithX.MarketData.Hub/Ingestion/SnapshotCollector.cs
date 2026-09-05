@@ -16,7 +16,7 @@ public sealed class SnapshotCollector
     // collect off for. A ticker for a skipped symbol then finds no id below and is ignored.
     internal const string TargetInstrumentsSql =
         "select exchange_symbol, id from exchange_instrument "
-        + "where exchange_code = @code and collect = true";
+        + "where segment_code = @code and collect = true";
 
     private readonly IExchangeMarketData _adapter;
     private readonly Db _db;
@@ -47,7 +47,7 @@ public sealed class SnapshotCollector
 
         var ids = (await conn.QueryAsync<(string Symbol, int Id)>(new CommandDefinition(
                 TargetInstrumentsSql,
-                new { code = _adapter.ExchangeCode },
+                new { code = _adapter.SegmentCode },
                 cancellationToken: ct)))
             .ToDictionary(r => r.Symbol, r => r.Id, StringComparer.Ordinal);
 
@@ -58,7 +58,7 @@ public sealed class SnapshotCollector
         // any venue at any price, so those five sixths stopped existing anywhere. A site with disk
         // sets this to its poll interval and keeps everything it sees.
         var historyInterval = (await _settings.CurrentAsync(ct))
-            .CollectionSettingInt("snapshot", "history_interval_s");
+            .DatasetSettingInt("snapshot", "history_interval_s");
         var bucket = _clock.GetUtcNow().ToUnixTimeSeconds() / Math.Max(1, historyInterval);
         var writeHistory = bucket != _lastHistoryBucket;
         if (writeHistory)
@@ -205,7 +205,7 @@ public sealed class SnapshotCollector
             // market in the row count, and only this line says which it was.
             _logger.LogWarning(
                 "{Exchange}/snapshot skipped {Skipped} instruments whose ticker was missing a required field",
-                _adapter.ExchangeCode, skipped);
+                _adapter.SegmentCode, skipped);
         }
 
         return written;

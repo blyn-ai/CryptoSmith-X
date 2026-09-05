@@ -45,7 +45,7 @@
         @foreach (var l in Model.Listings)
         {
             <a class="tr" style="@Cols@(l.Collect ? "" : ";opacity:.55")" href="/Admin/Instruments/Details/@l.InstrumentId">
-                <span class="mono">@l.ExchangeCode</span>
+                <span class="mono">@l.SegmentCode</span>
                 <span class="cell"><span class="name mono">@l.Symbol</span></span>
                 <span><span class="tag @StatusTag(l.Status)">@l.Status</span></span>
                 <span><span class="@(l.Collect ? "sev ok" : "tag")">@(l.Collect ? "on" : "off")</span></span>
@@ -72,12 +72,12 @@
                 {
                     <div class="tr" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) 80px 60px">
                         <span class="mono">@al.Alias</span>
-                        <span class="code">@(al.ExchangeCode ?? "— global")</span>
+                        <span class="code">@(al.SegmentCode ?? "— global")</span>
                         <span class="num">@al.Multiplier.ToString(System.Globalization.CultureInfo.InvariantCulture)</span>
                         <form method="post" action="/Admin/Assets/DeleteAlias/@Model.Code" style="justify-self:end">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="alias" value="@al.Alias">
-                            <input type="hidden" name="exchangeCode" value="@al.ExchangeCode">
+                            <input type="hidden" name="segmentCode" value="@al.SegmentCode">
                             <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
                         </form>
                     </div>
@@ -88,7 +88,7 @@
             @Html.AntiForgeryToken()
             <div class="form-row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
                 <div class="field" style="flex:1;min-width:110px"><label for="alias">Alias</label><input id="alias" name="alias" type="text" placeholder="XBT" spellcheck="false"></div>
-                <div class="field" style="flex:1;min-width:130px"><label for="exchangeCode">Exchange</label><input id="exchangeCode" name="exchangeCode" type="text" placeholder="blank = global" spellcheck="false"></div>
+                <div class="field" style="flex:1;min-width:130px"><label for="segmentCode">Exchange</label><input id="segmentCode" name="segmentCode" type="text" placeholder="blank = global" spellcheck="false"></div>
                 <div class="field" style="width:90px"><label for="multiplier">Mult</label><input id="multiplier" name="multiplier" type="text" value="1"></div>
                 <button class="btn" type="submit">Add</button>
             </div>

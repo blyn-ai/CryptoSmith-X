@@ -150,24 +150,24 @@ public sealed class ExchangesController : Controller
         return false;
     }
     /// <summary>The policy save for one feed (Edit feed dialog). The loss guard — typing the
-    /// collection code to release a stop that would drop unrecoverable history — is enforced again
+    /// dataset code to release a stop that would drop unrecoverable history — is enforced again
     /// server-side in <see cref="FeedStore.SaveAsync"/>, the same way <see cref="Status"/> guards the
     /// exchange code.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Feed(
-        string id, string collection, string mode, string? intervalS, string? retentionDays,
+        string id, string dataset, string mode, string? intervalS, string? retentionDays,
         string? transport, string? note, string? confirmCode, CancellationToken ct)
     {
         if (!TryInterval(intervalS, out var interval) || !TryInterval(retentionDays, out var retention))
         {
-            TempData["Error"] = $"{collection}: interval and retention must be a positive whole number, or empty to inherit.";
+            TempData["Error"] = $"{dataset}: interval and retention must be a positive whole number, or empty to inherit.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
         var input = new FeedSaveInput(
-            ExchangeCode: id,
-            CollectionCode: collection,
+            SegmentCode: id,
+            DatasetCode: dataset,
             Mode: mode,
             IntervalS: interval,
             RetentionDays: retention,
@@ -178,7 +178,7 @@ public sealed class ExchangesController : Controller
 
         await using var conn = await _db.OpenAsync(ct);
         var error = await FeedStore.SaveAsync(conn, input, ct);
-        TempData[error is null ? "Saved" : "Error"] = error ?? $"{collection}: saved.";
+        TempData[error is null ? "Saved" : "Error"] = error ?? $"{dataset}: saved.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -217,9 +217,9 @@ public sealed class ExchangesController : Controller
         HttpContext.Features.Get<IHttpResponseBodyFeature>()?.DisableBuffering();
 
         var pending = new SemaphoreSlim(0, int.MaxValue);
-        void OnNotified(string exchangeCode, string? collector)
+        void OnNotified(string segmentCode, string? collector)
         {
-            if (string.Equals(exchangeCode, id, StringComparison.Ordinal))
+            if (string.Equals(segmentCode, id, StringComparison.Ordinal))
             {
                 // A bounded release: a burst of five collectors finishing within the same second must
                 // not queue five renders — one pending signal is all the debounce loop below needs.
@@ -277,10 +277,10 @@ public sealed class ExchangesController : Controller
         }
     }
 
-    private async Task PushPanelsAsync(string exchangeCode, CancellationToken ct)
+    private async Task PushPanelsAsync(string segmentCode, CancellationToken ct)
     {
         await using var conn = await _db.OpenAsync(ct);
-        var details = await ExchangeStore.GetAsync(conn, exchangeCode, ct);
+        var details = await ExchangeStore.GetAsync(conn, segmentCode, ct);
         if (details is null)
         {
             return; // the exchange was removed from under an open tab — nothing to render

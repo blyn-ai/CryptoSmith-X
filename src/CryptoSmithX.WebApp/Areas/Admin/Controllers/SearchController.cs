@@ -34,7 +34,7 @@ public sealed class SearchController : Controller
         var hits = (await conn.QueryAsync<SearchHit>(new CommandDefinition(
             """
             select 'instrument' as "Kind", i.exchange_symbol as "Title",
-                   i.exchange_code || ' · ' || i.base_asset || '/' || i.quote_asset as "Note",
+                   i.segment_code || ' · ' || i.base_asset || '/' || i.quote_asset as "Note",
                    '/Admin/Instruments/Details/' || i.id as "Url"
               from exchange_instrument i
              where i.exchange_symbol ilike @like or i.base_asset ilike @like or i.base_asset_raw ilike @like
@@ -44,7 +44,7 @@ public sealed class SearchController : Controller
              where a.code ilike @like or a.name ilike @like
             union all
             select 'exchange', e.name, e.code || ' · ' || e.status, '/Admin/Exchanges/Details/' || e.code
-              from exchange e
+              from segment e
              where e.code ilike @like or e.name ilike @like
             union all
             select 'bot', b.bot_instance_id, b.tenant_code, '/Admin/Bots/Details/' || b.id

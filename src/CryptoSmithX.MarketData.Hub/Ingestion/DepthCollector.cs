@@ -25,7 +25,7 @@ public sealed class DepthCollector
         """
         select id, exchange_symbol
           from exchange_instrument
-         where exchange_code = @code and collect = true and status = 'trading'
+         where segment_code = @code and collect = true and status = 'trading'
          order by exchange_symbol
         """;
 
@@ -47,7 +47,7 @@ public sealed class DepthCollector
 
         var targets = (await conn.QueryAsync<(int Id, string Symbol)>(new CommandDefinition(
             TargetInstrumentsSql,
-            new { code = _adapter.ExchangeCode },
+            new { code = _adapter.SegmentCode },
             cancellationToken: ct))).ToList();
 
         var written = 0;

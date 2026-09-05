@@ -42,12 +42,12 @@ public sealed class HyperliquidMarketData : IExchangeMarketData
         _wsFeed = wsFeed;
     }
 
-    public string ExchangeCode => "hyperliquid";
+    public string SegmentCode => "hyperliquid";
 
     // Snapshot needs the live feed for bid/ask/size (metaAndAssetCtxs carries no book at all), and
     // depth is served off the same feed — both honestly "rest,ws" once a ws_url is configured, since
     // the REST book cycler always runs as the baseline (see HyperliquidBookFeed).
-    public IReadOnlyList<CollectionCapability> Capabilities { get; } =
+    public IReadOnlyList<DatasetCapability> Capabilities { get; } =
     [
         new("discovery", "rest"),
         new("snapshot", "rest,ws"),

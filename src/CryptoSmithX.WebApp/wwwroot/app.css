@@ -437,7 +437,7 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 .lat-grid .cell .h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
 
 /* The guarded Lifecycle panel wears a gold border — it is the one control that
-   stops collection. */
+   stops dataset. */
 .panel.guard{border-color:var(--border-gold)}
 
 /* The single deliberate looping animation: the health dot pulses because "is this
@@ -456,7 +456,7 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 [data-status-chips] .chip.is-on:has(input[value="maintenance"]){background:#8A6320}
 [data-status-chips] .chip.is-on:has(input[value="abandoned"]){background:#A33C46}
 
-/* Data feeds (0014 phase 2): one row per collection × exchange, the three axes side by
+/* Data feeds (0014 phase 2): one row per dataset × exchange, the three axes side by
    side — capability (fact), policy (decided), health (observed). See
    plans/design/data-feeds/HANDOFF.md. */
 .r-feed{grid-template-columns:164px 184px 188px minmax(190px,1fr) 92px;min-width:900px}
@@ -488,7 +488,7 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
   text-transform:uppercase;color:var(--eyebrow)}
 .cap-row .p{display:flex;align-items:center;gap:8px}
 
-/* cascade strip: own → collection → global, effective step highlighted */
+/* cascade strip: own → dataset → global, effective step highlighted */
 .cascade{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;
   background:var(--border-hairline);border:1px solid var(--border-hairline);
   border-radius:var(--radius-xs);overflow:hidden}
@@ -499,6 +499,6 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 .cascade .is-eff b{color:var(--text-data)}
 .cascade .is-own b{color:var(--csx-gold-ink)}
 
-/* Collections catalogue (screen 3) */
+/* Datasets catalogue (screen 3) */
 .coll-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:14px}
 .r-coll-venue{grid-template-columns:132px 92px minmax(0,1fr)}

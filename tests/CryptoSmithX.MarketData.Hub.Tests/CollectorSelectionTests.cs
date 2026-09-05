@@ -17,11 +17,11 @@ public sealed class CollectorSelectionTests
         var snapshot = Snapshot(mode: "collect");
         var desired = ExchangeWorker.DesiredCollectors(snapshot, "kraken-futures", AllImplemented);
 
-        Assert.Equal(ExchangeWorker.KnownCollectorCollections.OrderBy(c => c), desired.OrderBy(c => c));
+        Assert.Equal(ExchangeWorker.KnownCollectorDatasets.OrderBy(c => c), desired.OrderBy(c => c));
     }
 
     [Fact]
-    public void A_collection_turned_off_by_policy_is_dropped_even_if_the_adapter_implements_it()
+    public void A_dataset_turned_off_by_policy_is_dropped_even_if_the_adapter_implements_it()
     {
         var snapshot = Snapshot(overrides: new() { [("kraken-futures", "funding")] = "disabled" });
         var desired = ExchangeWorker.DesiredCollectors(snapshot, "kraken-futures", AllImplemented);
@@ -32,7 +32,7 @@ public sealed class CollectorSelectionTests
     }
 
     [Fact]
-    public void A_collection_the_adapter_never_declared_is_never_started_even_if_policy_says_collect()
+    public void A_dataset_the_adapter_never_declared_is_never_started_even_if_policy_says_collect()
     {
         // The fake's own real gap: GetOrderBookAsync always returns null, so it declares no depth
         // capability at all — mirrors IExchangeMarketData.Capabilities on FakeExchangeMarketData.
@@ -55,7 +55,7 @@ public sealed class CollectorSelectionTests
     }
 
     [Fact]
-    public void Rollup_and_unimplemented_collections_are_never_offered_even_when_policy_collects_them()
+    public void Rollup_and_unimplemented_datasets_are_never_offered_even_when_policy_collects_them()
     {
         // 'rollup' has no Collector class (it is the service-wide loop under ServiceExchange), and
         // trades/open_interest/liquidations have no implementation anywhere yet.
@@ -69,24 +69,24 @@ public sealed class CollectorSelectionTests
     }
 
     private static SettingsSnapshot Snapshot(
-        string mode = "collect", Dictionary<(string Exchange, string Collection), string>? overrides = null)
+        string mode = "collect", Dictionary<(string Exchange, string Dataset), string>? overrides = null)
     {
-        var collections = new[] { "discovery", "snapshot", "depth", "candles", "funding", "rollup", "trades", "open_interest", "liquidations" }
+        var datasets = new[] { "discovery", "snapshot", "depth", "candles", "funding", "rollup", "trades", "open_interest", "liquidations" }
             .ToDictionary(
                 c => c,
-                c => new CollectionDefaults { Code = c, Kind = "feed", DefaultMode = mode, DefaultIntervalS = 60, DefaultRetentionDays = null },
+                c => new DatasetDefaults { Code = c, Kind = "feed", DefaultMode = mode, DefaultIntervalS = 60, DefaultRetentionDays = null },
                 StringComparer.Ordinal);
 
-        var matrix = new Dictionary<(string, string), ExchangeCollectionRow>();
-        foreach (var exchangeCode in new[] { "kraken-futures", "fake" })
+        var matrix = new Dictionary<(string, string), SegmentDatasetRow>();
+        foreach (var segmentCode in new[] { "kraken-futures", "fake" })
         {
-            foreach (var collectionCode in collections.Keys)
+            foreach (var datasetCode in datasets.Keys)
             {
-                var cellMode = overrides?.GetValueOrDefault((exchangeCode, collectionCode)) ?? mode;
-                matrix[(exchangeCode, collectionCode)] = new ExchangeCollectionRow
+                var cellMode = overrides?.GetValueOrDefault((segmentCode, datasetCode)) ?? mode;
+                matrix[(segmentCode, datasetCode)] = new SegmentDatasetRow
                 {
-                    ExchangeCode = exchangeCode,
-                    CollectionCode = collectionCode,
+                    SegmentCode = segmentCode,
+                    DatasetCode = datasetCode,
                     Mode = cellMode,
                     IntervalS = null,
                     RetentionDays = null,
@@ -98,7 +98,7 @@ public sealed class CollectorSelectionTests
         return new SettingsSnapshot(
             new Dictionary<string, string>(StringComparer.Ordinal),
             [],
-            collections,
+            datasets,
             new Dictionary<(string, string), string>(),
             matrix);
     }

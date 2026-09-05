@@ -36,11 +36,20 @@ public sealed record BotDetails(
 /// <summary>The one-time token banner shown right after a bot is created or its token regenerated.</summary>
 public sealed record NewTokenNotice(string BotInstanceId, string Token);
 
+/// <summary>
+/// One trading surface — a segment, not a company. <paramref name="Code"/> is the segment code
+/// (<c>kraken-futures</c>); <paramref name="ExchangeCode"/> is the venue it belongs to
+/// (<c>kraken</c>). Two segments of one venue share an account, keys and a per-IP request budget,
+/// which is the whole reason the levels are separate rows.
+/// </summary>
 public sealed record ExchangeListItem(
     string Code,
     string Name,
     string Status,
     string? Description,
+    string ExchangeCode,
+    string ExchangeName,
+    string Kind,
     int TradingInstruments,
     int KnownInstruments,
     int? MaxFailures,
@@ -110,14 +119,14 @@ public sealed record ExchangeDetails(
     IReadOnlyList<LatencySeries> Latency,
     IReadOnlyList<FeedRow> Feeds,
     IReadOnlyList<FeedDetails> FeedDialogs,
-    IReadOnlyList<CollectionGapRow> Gaps);
+    IReadOnlyList<CollectorGapRow> Gaps);
 
 /// <summary>
 /// An interval this venue was not observed for. The point of showing these is that a hole in the
 /// data and a quiet market look identical on every chart in this console; only this row says which
 /// one it was.
 /// </summary>
-public sealed record CollectionGapRow(
+public sealed record CollectorGapRow(
     string Collector,
     DateTime GapStart,
     DateTime? GapEnd,
@@ -125,14 +134,14 @@ public sealed record CollectionGapRow(
     string? Detail,
     double? SecondsLong);
 
-// ── Data feeds (collections, 0014 phase 2) ──────────────────────────────────
+// ── Data feeds (datasets, 0014 phase 2) ──────────────────────────────────
 
-/// <summary>One row of the "Data feeds" panel: one collection for one exchange, all three axes —
+/// <summary>One row of the "Data feeds" panel: one dataset for one segment, all three axes —
 /// capability (fact), policy (decided) and health (observed) — kept visually and structurally
 /// separate, per plans/design/data-feeds/HANDOFF.md.</summary>
 public sealed record FeedRow(
-    string CollectionCode,
-    string CollectionName,
+    string DatasetCode,
+    string DatasetName,
     string Kind,
     short SortOrder,
     bool? VenueSupports,
@@ -156,21 +165,21 @@ public sealed record FeedCapabilityRow(
     string Key, string Label, string Kind, bool LossRelevant,
     string? Value, string? Source, string? FilledBy, DateTime? FilledAt);
 
-/// <summary>Everything the Edit feed dialog needs for one collection: the read-only capability
-/// column and the editable policy column, including the own/collection/global cascade for interval
+/// <summary>Everything the Edit feed dialog needs for one dataset: the read-only capability
+/// column and the editable policy column, including the own/dataset/global cascade for interval
 /// and retention.</summary>
 public sealed record FeedDetails(
-    string CollectionCode,
-    string CollectionName,
-    string CollectionDescription,
+    string DatasetCode,
+    string DatasetName,
+    string DatasetDescription,
     string Kind,
     IReadOnlyList<FeedCapabilityRow> Capabilities,
     string Mode,
     bool WeImplement,
     int? OwnIntervalS,
-    int? CollectionDefaultIntervalS,
+    int? DatasetDefaultIntervalS,
     int? OwnRetentionDays,
-    int? CollectionDefaultRetentionDays,
+    int? DatasetDefaultRetentionDays,
     string? Transport,
     IReadOnlyList<string> TransportOptions,
     string? Note,
@@ -178,10 +187,10 @@ public sealed record FeedDetails(
     DateTime? UpdatedAt,
     string? LatestCapabilityLogLine);
 
-/// <summary>The editable policy of one exchange×collection cell.</summary>
+/// <summary>The editable policy of one segment×dataset cell.</summary>
 public sealed record FeedSaveInput(
-    string ExchangeCode,
-    string CollectionCode,
+    string SegmentCode,
+    string DatasetCode,
     string Mode,
     int? IntervalS,
     int? RetentionDays,
@@ -190,14 +199,14 @@ public sealed record FeedSaveInput(
     string? ConfirmCode,
     string? UpdatedBy);
 
-// ── Collections catalogue (screen 3) ────────────────────────────────────────
+// ── Datasets catalogue (screen 3) ────────────────────────────────────────
 
-public sealed record CollectionCard(
+public sealed record DatasetCard(
     string Code, string Name, string Description, string Kind, short SortOrder,
     string DefaultMode, int? DefaultIntervalS, int? DefaultRetentionDays,
-    IReadOnlyList<CollectionVenueRow> Venues);
+    IReadOnlyList<DatasetVenueRow> Venues);
 
-public sealed record CollectionVenueRow(string CollectionCode, string ExchangeCode, string ExchangeName, string Mode, string? Note);
+public sealed record DatasetVenueRow(string DatasetCode, string SegmentCode, string ExchangeName, string Mode, string? Note);
 
 // ── Assets ────────────────────────────────────────────────────────────────
 public sealed record AssetListItem(
@@ -211,7 +220,7 @@ public sealed record AssetListItem(
 /// <summary>One listing of an asset on one exchange — the row that makes the Asset page a comparison.</summary>
 public sealed record AssetListing(
     int InstrumentId,
-    string ExchangeCode,
+    string SegmentCode,
     string Symbol,
     string Status,
     bool Collect,
@@ -222,7 +231,7 @@ public sealed record AssetListing(
     double? Depth25Notional,          // bid + ask within 25 bps
     double? SnapshotAgeSeconds);
 
-public sealed record AssetAliasRow(string? ExchangeCode, string Alias, string AssetCode, decimal Multiplier, string? Note);
+public sealed record AssetAliasRow(string? SegmentCode, string Alias, string AssetCode, decimal Multiplier, string? Note);
 
 public sealed record AssetDetails(
     string Code,
@@ -237,7 +246,7 @@ public sealed record AssetDetails(
 // ── Instruments ───────────────────────────────────────────────────────────
 public sealed record InstrumentListItem(
     int Id,
-    string ExchangeCode,
+    string SegmentCode,
     string Symbol,
     string BaseAsset,
     string QuoteAsset,
@@ -254,8 +263,8 @@ public sealed record InstrumentPage(
     int Total,
     int Page,
     int PageSize,
-    IReadOnlyList<string> Exchanges,
-    string? Exchange,
+    IReadOnlyList<string> Segments,
+    string? Segment,
     string? Status,
     bool OnlyTrading,
     string? Search,
@@ -312,7 +321,7 @@ public sealed record CoverageView(
 
 public sealed record InstrumentDetails(
     int Id,
-    string ExchangeCode,
+    string SegmentCode,
     string Symbol,
     string BaseAsset,
     string QuoteAsset,
@@ -336,7 +345,7 @@ public sealed record InstrumentDetails(
     IReadOnlyList<SiblingListing> Siblings);
 
 /// <summary>Another venue's listing of the same canonical asset — the hop between exchanges.</summary>
-public sealed record SiblingListing(int Id, string ExchangeCode, string Symbol);
+public sealed record SiblingListing(int Id, string SegmentCode, string Symbol);
 
 // ── Admin dashboard ───────────────────────────────────────────────────────
 public sealed record DashExchange(
@@ -345,7 +354,7 @@ public sealed record DashExchange(
     IReadOnlyList<double> Spark);
 
 public sealed record DashCollector(
-    string ExchangeCode, string Collector, double? LastSuccessAgeSeconds,
+    string SegmentCode, string Collector, double? LastSuccessAgeSeconds,
     int ConsecutiveFailures, int? AvgDurationMs, string? LastError, string Health);
 
 public sealed record DashBot(
@@ -396,7 +405,7 @@ public sealed record RunDataRow(string Symbol, string What, DateTime When);
 
 /// <summary>A run plus the data whose timestamps fall inside its window (time-based, not run-id based).</summary>
 public sealed record RunDetails(
-    string ExchangeCode, CollectorRunRow Run,
+    string SegmentCode, CollectorRunRow Run,
     string Caption, int Total, IReadOnlyList<RunDataRow> Rows, string EmptyNote);
 
 // ── Market state at a moment ────────────────────────────────────────────────
@@ -408,7 +417,7 @@ public sealed record RunDetails(
 /// </summary>
 public sealed record MarketStateRow(
     int InstrumentId,
-    string ExchangeCode,
+    string SegmentCode,
     string Symbol,
     string? BaseAsset,
     string? QuoteAsset,
@@ -445,9 +454,9 @@ public sealed record MarketStateRow(
 
 public sealed record MarketStateSlice(
     DateTime At,
-    string? Exchange,
+    string? Segment,
     IReadOnlyList<MarketStateRow> Rows,
-    IReadOnlyList<CollectionGapRow> GapsCoveringT,
+    IReadOnlyList<CollectorGapRow> GapsCoveringT,
     DateTime? EarliestStored,
     int? HistoryIntervalSeconds,
-    IReadOnlyList<string> Exchanges);
+    IReadOnlyList<string> Segments);

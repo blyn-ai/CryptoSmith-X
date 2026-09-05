@@ -24,7 +24,7 @@ public sealed class MarketStateController : Controller
     public MarketStateController(Db db) => _db = db;
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? at, string? exchange, CancellationToken ct)
+    public async Task<IActionResult> Index(string? at, string? segment, CancellationToken ct)
     {
         // No moment given means the most recent one. Parsed as UTC explicitly: a page whose whole
         // point is which instant you are looking at must not quietly reinterpret it in the server's
@@ -37,7 +37,7 @@ public sealed class MarketStateController : Controller
             : DateTime.UtcNow;
 
         await using var conn = await _db.OpenAsync(ct);
-        var slice = await MarketStateStore.AtAsync(conn, moment, string.IsNullOrWhiteSpace(exchange) ? null : exchange, ct);
+        var slice = await MarketStateStore.AtAsync(conn, moment, string.IsNullOrWhiteSpace(segment) ? null : segment, ct);
         return View(slice);
     }
 }

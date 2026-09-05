@@ -37,11 +37,11 @@ public sealed class FakeExchangeMarketData : IExchangeMarketData
         _clock = clock ?? TimeProvider.System;
     }
 
-    public string ExchangeCode => "fake";
+    public string SegmentCode => "fake";
 
     // Everything except depth: GetOrderBookAsync always returns null (the book is inline in the
     // ticker), so depth has no honest entry here — the standing example the 0014 migration cites.
-    public IReadOnlyList<CollectionCapability> Capabilities { get; } =
+    public IReadOnlyList<DatasetCapability> Capabilities { get; } =
     [
         new("discovery", "rest"),
         new("snapshot", "rest"),

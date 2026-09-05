@@ -2,7 +2,7 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 
 /// <summary>What one iteration of a collector produced, as written to <c>collector_status</c>.</summary>
 public sealed record CollectorAttempt(
-    string ExchangeCode,
+    string SegmentCode,
     string Collector,
     DateTimeOffset AttemptAt,
     bool Success,
@@ -35,7 +35,7 @@ public sealed class CollectorLoop
     /// </summary>
     public const int FailuresBeforeAlert = 3;
 
-    private readonly string _exchangeCode;
+    private readonly string _segmentCode;
     private readonly string _collector;
     private readonly Func<TimeSpan> _interval;
     private readonly Func<CancellationToken, Task<int>> _body;
@@ -48,7 +48,7 @@ public sealed class CollectorLoop
     /// on the next cycle without a restart.
     /// </param>
     public CollectorLoop(
-        string exchangeCode,
+        string segmentCode,
         string collector,
         Func<TimeSpan> interval,
         Func<CancellationToken, Task<int>> body,
@@ -56,7 +56,7 @@ public sealed class CollectorLoop
         ILogger logger,
         TimeProvider clock)
     {
-        _exchangeCode = exchangeCode;
+        _segmentCode = segmentCode;
         _collector = collector;
         _interval = interval;
         _body = body;
@@ -95,10 +95,10 @@ public sealed class CollectorLoop
                 var count = await _body(ct).ConfigureAwait(false);
                 ConsecutiveFailures = 0;
                 attempt = new CollectorAttempt(
-                    _exchangeCode, _collector, attemptAt, true, null, 0, count >= 0 ? count : null,
+                    _segmentCode, _collector, attemptAt, true, null, 0, count >= 0 ? count : null,
                     ElapsedMs(startedTicks));
                 _logger.LogDebug(
-                    "{Exchange}/{Collector} ok, {Count} rows", _exchangeCode, _collector, count);
+                    "{Exchange}/{Collector} ok, {Count} rows", _segmentCode, _collector, count);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -109,7 +109,7 @@ public sealed class CollectorLoop
                 // One venue failing must never stop another, so nothing escapes this loop.
                 ConsecutiveFailures++;
                 attempt = new CollectorAttempt(
-                    _exchangeCode, _collector, attemptAt, false, Describe(ex), ConsecutiveFailures, null,
+                    _segmentCode, _collector, attemptAt, false, Describe(ex), ConsecutiveFailures, null,
                     ElapsedMs(startedTicks));
                 // Level by persistence, not by the exception. A venue rate-limiting one pass is
                 // noise — Hyperliquid alone produced 68 of these in six hours and none of them
@@ -121,13 +121,13 @@ public sealed class CollectorLoop
                 {
                     _logger.LogError(
                         ex, "{Exchange}/{Collector} failed ({Failures} in a row)",
-                        _exchangeCode, _collector, ConsecutiveFailures);
+                        _segmentCode, _collector, ConsecutiveFailures);
                 }
                 else
                 {
                     _logger.LogWarning(
                         ex, "{Exchange}/{Collector} failed ({Failures} in a row)",
-                        _exchangeCode, _collector, ConsecutiveFailures);
+                        _segmentCode, _collector, ConsecutiveFailures);
                 }
             }
 
@@ -137,7 +137,7 @@ public sealed class CollectorLoop
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning(ex, "{Exchange}/{Collector} status write failed", _exchangeCode, _collector);
+                _logger.LogWarning(ex, "{Exchange}/{Collector} status write failed", _segmentCode, _collector);
             }
 
             var delay = Jitter(DelayFor(_interval(), ConsecutiveFailures));

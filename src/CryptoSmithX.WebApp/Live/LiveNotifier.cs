@@ -3,13 +3,13 @@ using Npgsql;
 
 namespace CryptoSmithX.WebApp.Live;
 
-public delegate void LiveNotifyHandler(string exchangeCode, string? collector);
+public delegate void LiveNotifyHandler(string segmentCode, string? collector);
 
 /// <summary>
 /// Owns the one <c>LISTEN csx_live</c> connection for the whole process — not the pool <see cref="Db"/>
 /// hands out, which cannot stay parked on a notification wait, so this opens its own dedicated,
 /// unpooled connection. Every open SSE tab subscribes to <see cref="Notified"/> and filters for the
-/// exchange it cares about; there is no per-tab database connection and no broker — "two users" does
+/// segment it cares about; there is no per-tab database connection and no broker — "two users" does
 /// not need one. A dropped connection (DB restart, network blip) reconnects with backoff; the SSE
 /// side degrades to the 10 s poll on its own timeout, so a gap here is never silently invisible.
 /// </summary>
@@ -34,7 +34,7 @@ public sealed class LiveNotifier : BackgroundService
 
     /// <summary>Fires on the worker's own thread for every notification once the payload parses
     /// cleanly. Exchange code and, for a per-collector event, the collector name; null collector means
-    /// the exchange row or its whole policy matrix changed. Subscribers must not throw — an exception
+    /// the segment row or its whole policy matrix changed. Subscribers must not throw — an exception
     /// here would otherwise take the notifier's read loop down with it.</summary>
     public event LiveNotifyHandler? Notified;
 
@@ -90,13 +90,13 @@ public sealed class LiveNotifier : BackgroundService
         try
         {
             using var doc = JsonDocument.Parse(args.Payload);
-            var exchange = doc.RootElement.GetProperty("exchange").GetString();
+            var segment = doc.RootElement.GetProperty("segment").GetString();
             var collector = doc.RootElement.TryGetProperty("collector", out var c) && c.ValueKind != JsonValueKind.Null
                 ? c.GetString()
                 : null;
-            if (exchange is not null)
+            if (segment is not null)
             {
-                Notified?.Invoke(exchange, collector);
+                Notified?.Invoke(segment, collector);
             }
         }
         catch (Exception ex)

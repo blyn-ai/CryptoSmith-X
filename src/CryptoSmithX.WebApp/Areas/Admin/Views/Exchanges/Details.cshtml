@@ -4,7 +4,7 @@
     var e = Model.Exchange;
     var cfg = Model.Config;
     ViewData["Title"] = e.Name;
-    ViewData["ExchangeCode"] = e.Code;
+    ViewData["SegmentCode"] = e.Code;
     var tab = ViewData["Tab"] as string ?? "overview";
 
     string CollHealth(ExchangeCollectorRow c) => c.ConsecutiveFailures >= 3 ? "fail" : c.ConsecutiveFailures >= 1 ? "warn" : "ok";
@@ -24,14 +24,14 @@
 
 <div class="page-head" style="margin-bottom:12px;align-items:center">
     <div class="t" style="gap:6px">
-        <p class="eyebrow">Admin · <a href="/Admin/Exchanges">exchanges</a> · @e.Code</p>
+        <p class="eyebrow">Admin · <a href="/Admin/Exchanges">exchanges</a> · @e.ExchangeName · @e.Code · @e.Kind</p>
         <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
             <h1>@e.Name</h1>
             @await Html.PartialAsync("_ExchangeHeadBadge", Model)
         </div>
     </div>
     <div style="display:flex;gap:14px;align-items:center">
-        <a class="linkbtn" href="/Admin/Instruments?exchange=@e.Code">Instruments →</a>
+        <a class="linkbtn" href="/Admin/Instruments?segment=@e.Code">Instruments →</a>
         <a class="linkbtn" href="/Admin/Exchanges">← Exchanges</a>
     </div>
 </div>
@@ -255,7 +255,7 @@ else
 </script>
 
 @* Edit feed dialog: mode/transport chips, the loss guard vs. the calm counter-case, and the
-   own/collection cascade highlight. Delegated on document, same reason as above. *@
+   own/dataset cascade highlight. Delegated on document, same reason as above. *@
 <script>
 (function () {
     if (window.__csxFeedWired) { return; }
@@ -296,7 +296,7 @@ else
 
     function recompute(dlg) {
         if (!dlg) { return; }
-        var original = dlg.dataset.originalMode, historyless = dlg.dataset.history === 'none', code = dlg.dataset.collection;
+        var original = dlg.dataset.originalMode, historyless = dlg.dataset.history === 'none', code = dlg.dataset.dataset;
 
         dlg.querySelectorAll('[data-mode-chips] .chip, [data-transport-chips] .chip').forEach(function (l) {
             var r = l.querySelector('input');

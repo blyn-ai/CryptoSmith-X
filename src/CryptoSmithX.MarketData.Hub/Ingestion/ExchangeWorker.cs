@@ -15,8 +15,8 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 /// The supervisor. Rollup and retention run once for the whole service; the per-exchange collectors
 /// are started and stopped to match each exchange's <c>status</c> in the database, reconciled every
 /// ~30 s — and, since 0014, so is the SET of collector loops within an already-running exchange: which
-/// ones run is data (<c>exchange_collection.mode='collect'</c> AND the adapter's declared capability),
-/// not a fixed array. Toggling one collection off cancels only that loop; the others are undisturbed.
+/// ones run is data (<c>segment_dataset.mode='collect'</c> AND the adapter's declared capability),
+/// not a fixed array. Toggling one dataset off cancels only that loop; the others are undisturbed.
 /// Configuration comes from <see cref="DbSettings"/>, read live, so the process holds no static
 /// options at all.
 /// </summary>
@@ -28,10 +28,10 @@ public sealed class ExchangeWorker : BackgroundService
     // exchange, which is always present (seeded in 0002), so the collector_status FK holds.
     private const string ServiceExchange = "fake";
 
-    /// <summary>The only collections that have a real <c>Collector</c> class today. 'rollup' is the
+    /// <summary>The only datasets that have a real <c>Collector</c> class today. 'rollup' is the
     /// service-wide loop below, not a per-exchange one; trades/open_interest/liquidations have no
     /// implementation yet regardless of what policy says.</summary>
-    internal static readonly string[] KnownCollectorCollections = ["discovery", "snapshot", "depth", "candles", "funding"];
+    internal static readonly string[] KnownCollectorDatasets = ["discovery", "snapshot", "depth", "candles", "funding"];
 
     private readonly DbSettings _settings;
     private readonly Db _db;
@@ -199,13 +199,13 @@ public sealed class ExchangeWorker : BackgroundService
         }
     }
 
-    /// <summary>Which collections a running exchange's loops should cover right now: policy says
+    /// <summary>Which datasets a running exchange's loops should cover right now: policy says
     /// 'collect' AND the adapter actually implements it. Stops loops no longer wanted; starts loops
     /// newly wanted. Loops that stay wanted are left alone — their own interval keeps applying live,
     /// CollectorLoop already reads it fresh every iteration.</summary>
     private void ReconcileCollectors(ExchangeRunner runner, SettingsSnapshot snapshot, string code, CancellationToken parentCt)
     {
-        var implemented = runner.Adapter.Capabilities.Select(c => c.CollectionCode);
+        var implemented = runner.Adapter.Capabilities.Select(c => c.DatasetCode);
         var desired = DesiredCollectors(snapshot, code, implemented).ToHashSet(StringComparer.Ordinal);
 
         foreach (var stale in runner.Collectors.Keys.Where(c => !desired.Contains(c)).ToList())
@@ -228,26 +228,26 @@ public sealed class ExchangeWorker : BackgroundService
         foreach (var wanted in desired.Where(c => !runner.Collectors.ContainsKey(c)))
         {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(runner.Cts.Token);
-            var collectionCode = wanted;
-            var task = Loop(code, collectionCode, () => IntervalFor(code, collectionCode), runner.Bodies[wanted], cts.Token);
+            var datasetCode = wanted;
+            var task = Loop(code, datasetCode, () => IntervalFor(code, datasetCode), runner.Bodies[wanted], cts.Token);
             runner.Collectors[wanted] = new CollectorHandle(cts, task);
             _logger.LogInformation("{Exchange}/{Collector} now collected; loop started", code, wanted);
         }
     }
 
-    /// <summary>Desired loop set for one exchange: known-implementable collections whose effective
+    /// <summary>Desired loop set for one exchange: known-implementable datasets whose effective
     /// mode is 'collect' and whose adapter actually declares it. Pure, so the selection logic is
     /// testable without a supervisor or a database.</summary>
     internal static IReadOnlyList<string> DesiredCollectors(
-        SettingsSnapshot snapshot, string exchangeCode, IEnumerable<string> implementedCollections)
+        SettingsSnapshot snapshot, string segmentCode, IEnumerable<string> implementedDatasets)
     {
-        var implemented = implementedCollections.ToHashSet(StringComparer.Ordinal);
-        return KnownCollectorCollections
-            .Where(c => implemented.Contains(c) && snapshot.Mode(exchangeCode, c) == "collect")
+        var implemented = implementedDatasets.ToHashSet(StringComparer.Ordinal);
+        return KnownCollectorDatasets
+            .Where(c => implemented.Contains(c) && snapshot.Mode(segmentCode, c) == "collect")
             .ToList();
     }
 
-    /// <summary>One collector instance per known collection, wired to this adapter — built once per
+    /// <summary>One collector instance per known dataset, wired to this adapter — built once per
     /// exchange start so <see cref="ReconcileCollectors"/> only ever starts/stops the loops around
     /// them, never rebuilds them.</summary>
     private Dictionary<string, Func<CancellationToken, Task<int>>> BuildBodies(IExchangeMarketData adapter)
@@ -269,16 +269,16 @@ public sealed class ExchangeWorker : BackgroundService
     }
 
     /// <summary>The effective interval for a collector, read live from the cached settings.</summary>
-    private TimeSpan IntervalFor(string code, string collectionCode) =>
-        _settings.Latest.CollectionInterval(code, collectionCode);
+    private TimeSpan IntervalFor(string code, string datasetCode) =>
+        _settings.Latest.DatasetInterval(code, datasetCode);
 
     private Task Loop(
-        string exchangeCode, string collector, Func<TimeSpan> interval,
+        string segmentCode, string collector, Func<TimeSpan> interval,
         Func<CancellationToken, Task<int>> body, CancellationToken ct)
     {
         var loop = new CollectorLoop(
-            exchangeCode, collector, interval, body, WriteStatusAsync,
-            _loggers.CreateLogger($"Collector.{exchangeCode}.{collector}"), _clock);
+            segmentCode, collector, interval, body, WriteStatusAsync,
+            _loggers.CreateLogger($"Collector.{segmentCode}.{collector}"), _clock);
         return loop.RunAsync(ct);
     }
 
@@ -320,16 +320,16 @@ public sealed class ExchangeWorker : BackgroundService
         await conn.ExecuteAsync(new CommandDefinition(
             """
             insert into collector_status (
-                exchange_code, collector, last_attempt_at, last_success_at, last_error_at,
+                segment_code, collector, last_attempt_at, last_success_at, last_error_at,
                 last_error, consecutive_failures, instruments_expected,
                 last_duration_ms, avg_duration_ms)
             values (
-                @ExchangeCode, @Collector, @AttemptAt,
+                @SegmentCode, @Collector, @AttemptAt,
                 case when @Success then @AttemptAt end,
                 case when @Success then null else @AttemptAt end,
                 @Error, @ConsecutiveFailures, @InstrumentsExpected,
                 @DurationMs, @DurationMs)
-            on conflict (exchange_code, collector) do update set
+            on conflict (segment_code, collector) do update set
                 last_attempt_at      = excluded.last_attempt_at,
                 last_success_at      = coalesce(excluded.last_success_at, collector_status.last_success_at),
                 last_error_at        = coalesce(excluded.last_error_at,  collector_status.last_error_at),
@@ -343,7 +343,7 @@ public sealed class ExchangeWorker : BackgroundService
             """,
             new
             {
-                a.ExchangeCode,
+                a.SegmentCode,
                 a.Collector,
                 a.AttemptAt,
                 a.Success,
@@ -359,13 +359,13 @@ public sealed class ExchangeWorker : BackgroundService
         await conn.ExecuteAsync(new CommandDefinition(
             """
             insert into collector_run (
-                exchange_code, collector, started_at, duration_ms, ok, error, items, transport)
-            values (@ExchangeCode, @Collector, @AttemptAt, @DurationMs, @Success, @Error,
+                segment_code, collector, started_at, duration_ms, ok, error, items, transport)
+            values (@SegmentCode, @Collector, @AttemptAt, @DurationMs, @Success, @Error,
                     @InstrumentsExpected, @Transport)
             """,
             new
             {
-                a.ExchangeCode, a.Collector, a.AttemptAt, a.DurationMs, a.Success, a.Error,
+                a.SegmentCode, a.Collector, a.AttemptAt, a.DurationMs, a.Success, a.Error,
                 a.InstrumentsExpected, a.Transport,
             },
             cancellationToken: ct));
@@ -391,10 +391,10 @@ public sealed class ExchangeWorker : BackgroundService
         {
             await conn.ExecuteAsync(new CommandDefinition(
                 """
-                update collection_gap set gap_end = @AttemptAt
-                 where exchange_code = @ExchangeCode and collector = @Collector and gap_end is null
+                update collector_gap set gap_end = @AttemptAt
+                 where segment_code = @SegmentCode and collector = @Collector and gap_end is null
                 """,
-                new { a.ExchangeCode, a.Collector, a.AttemptAt },
+                new { a.SegmentCode, a.Collector, a.AttemptAt },
                 cancellationToken: ct));
             return;
         }
@@ -407,13 +407,13 @@ public sealed class ExchangeWorker : BackgroundService
 
         await conn.ExecuteAsync(new CommandDefinition(
             """
-            insert into collection_gap (exchange_code, collector, gap_start, cause, detail)
-            select @ExchangeCode, @Collector, @AttemptAt, @Cause, @Detail
+            insert into collector_gap (segment_code, collector, gap_start, cause, detail)
+            select @SegmentCode, @Collector, @AttemptAt, @Cause, @Detail
              where not exists (
-                 select 1 from collection_gap
-                  where exchange_code = @ExchangeCode and collector = @Collector and gap_end is null)
+                 select 1 from collector_gap
+                  where segment_code = @SegmentCode and collector = @Collector and gap_end is null)
             """,
-            new { a.ExchangeCode, a.Collector, a.AttemptAt, Cause = CauseOf(a.Error), Detail = a.Error },
+            new { a.SegmentCode, a.Collector, a.AttemptAt, Cause = CauseOf(a.Error), Detail = a.Error },
             cancellationToken: ct));
     }
 
@@ -434,28 +434,28 @@ public sealed class ExchangeWorker : BackgroundService
     };
 
     /// <summary>Declares this adapter's capability into the matrix — 'we_implement' and
-    /// 'transports_us' for every collection, true/set where <see cref="IExchangeMarketData.Capabilities"/>
+    /// 'transports_us' for every dataset, true/set where <see cref="IExchangeMarketData.Capabilities"/>
     /// lists it and false/empty otherwise. Runs once per exchange start (capability is a fixed fact
     /// about the adapter instance, not something that changes tick to tick). Never touches policy
-    /// columns — only exchange_collection_capability.</summary>
+    /// columns — only segment_dataset_capability.</summary>
     private async Task WriteDeclaredCapabilityAsync(IExchangeMarketData adapter, CancellationToken ct)
     {
-        var implemented = adapter.Capabilities.ToDictionary(c => c.CollectionCode, StringComparer.Ordinal);
+        var implemented = adapter.Capabilities.ToDictionary(c => c.DatasetCode, StringComparer.Ordinal);
 
         await using var conn = await _db.OpenAsync(ct);
         // 'rollup' is excluded: it is hub-declared once by the 0014 migration seed, the same fact
         // for every exchange regardless of adapter (rollup has no real per-exchange axis — see the
         // migration header) — an adapter never mentions it in its own Capabilities, and this must
         // not read that silence as "we_implement=false" and clobber the seeded true.
-        var collections = await conn.QueryAsync<string>(new CommandDefinition(
-            "select code from collection where code <> 'rollup'", cancellationToken: ct));
+        var datasets = await conn.QueryAsync<string>(new CommandDefinition(
+            "select code from dataset where code <> 'rollup'", cancellationToken: ct));
 
-        foreach (var collectionCode in collections)
+        foreach (var datasetCode in datasets)
         {
-            var weImplement = implemented.ContainsKey(collectionCode);
-            var transportsUs = implemented.TryGetValue(collectionCode, out var cap) ? cap.TransportsUs : "";
-            await DeclareAsync(conn, adapter.ExchangeCode, collectionCode, "we_implement", weImplement ? "true" : "false", ct);
-            await DeclareAsync(conn, adapter.ExchangeCode, collectionCode, "transports_us", transportsUs, ct);
+            var weImplement = implemented.ContainsKey(datasetCode);
+            var transportsUs = implemented.TryGetValue(datasetCode, out var cap) ? cap.TransportsUs : "";
+            await DeclareAsync(conn, adapter.SegmentCode, datasetCode, "we_implement", weImplement ? "true" : "false", ct);
+            await DeclareAsync(conn, adapter.SegmentCode, datasetCode, "transports_us", transportsUs, ct);
         }
     }
 
@@ -463,11 +463,11 @@ public sealed class ExchangeWorker : BackgroundService
     /// changed from what was stored — so a routine restart, which declares the same facts again,
     /// leaves no noise.</summary>
     private static async Task DeclareAsync(
-        System.Data.Common.DbConnection conn, string exchangeCode, string collectionCode, string key, string newValue, CancellationToken ct)
+        System.Data.Common.DbConnection conn, string segmentCode, string datasetCode, string key, string newValue, CancellationToken ct)
     {
         var old = await conn.ExecuteScalarAsync<string?>(new CommandDefinition(
-            "select value from exchange_collection_capability where exchange_code = @exchangeCode and collection_code = @collectionCode and capability_key = @key",
-            new { exchangeCode, collectionCode, key }, cancellationToken: ct));
+            "select value from segment_dataset_capability where segment_code = @segmentCode and dataset_code = @datasetCode and capability_key = @key",
+            new { segmentCode, datasetCode, key }, cancellationToken: ct));
 
         if (old == newValue)
         {
@@ -476,18 +476,18 @@ public sealed class ExchangeWorker : BackgroundService
 
         await conn.ExecuteAsync(new CommandDefinition(
             """
-            update exchange_collection_capability
+            update segment_dataset_capability
                set value = @newValue, source = 'declared', valid_since = now(), filled_at = now(), filled_by = 'reconcile'
-             where exchange_code = @exchangeCode and collection_code = @collectionCode and capability_key = @key
+             where segment_code = @segmentCode and dataset_code = @datasetCode and capability_key = @key
             """,
-            new { exchangeCode, collectionCode, key, newValue }, cancellationToken: ct));
+            new { segmentCode, datasetCode, key, newValue }, cancellationToken: ct));
 
         await conn.ExecuteAsync(new CommandDefinition(
             """
-            insert into capability_log (exchange_code, collection_code, capability_key, old_value, new_value, source, changed_by)
-            values (@exchangeCode, @collectionCode, @key, @old, @newValue, 'declared', 'reconcile')
+            insert into capability_log (segment_code, dataset_code, capability_key, old_value, new_value, source, changed_by)
+            values (@segmentCode, @datasetCode, @key, @old, @newValue, 'declared', 'reconcile')
             """,
-            new { exchangeCode, collectionCode, key, old, newValue }, cancellationToken: ct));
+            new { segmentCode, datasetCode, key, old, newValue }, cancellationToken: ct));
     }
 
     private IExchangeMarketData Build(ExchangeConfig config, CancellationToken ct) => config.Adapter switch

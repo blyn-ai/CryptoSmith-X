@@ -19,7 +19,7 @@ public sealed class CandleCollector
                   from market_candle c
                  where c.exchange_instrument_id = i.id and c.timeframe = 1) as latest
           from exchange_instrument i
-         where i.exchange_code = @code
+         where i.segment_code = @code
            -- Halted as well as delisted. A halted contract has no trades to return, and WEEX's
            -- dead tail 400s on /candles rather than answering empty; they used to be kept out by
            -- being dropped from discovery entirely, which cost us the lifecycle fact. Now the fact
@@ -44,14 +44,14 @@ public sealed class CandleCollector
     public async Task<int> RunAsync(CancellationToken ct)
     {
         var now = _clock.GetUtcNow();
-        var floor = now - TimeSpan.FromHours((await _settings.CurrentAsync(ct)).CollectionSettingInt("candles", "backfill_hours"));
+        var floor = now - TimeSpan.FromHours((await _settings.CurrentAsync(ct)).DatasetSettingInt("candles", "backfill_hours"));
 
         await using var conn = await _db.OpenAsync(ct);
         await Partitions.EnsureAsync(conn, now, ct);
 
         var targets = (await conn.QueryAsync<(int Id, string Symbol, DateTimeOffset? Latest)>(new CommandDefinition(
             TargetInstrumentsSql,
-            new { code = _adapter.ExchangeCode },
+            new { code = _adapter.SegmentCode },
             cancellationToken: ct))).ToList();
 
         var written = 0;

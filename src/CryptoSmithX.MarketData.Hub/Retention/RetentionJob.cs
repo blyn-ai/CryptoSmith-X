@@ -37,12 +37,12 @@ public sealed class RetentionJob
         await Partitions.EnsureAsync(conn, now, ct);
         await Partitions.EnsureAsync(conn, now.AddMonths(1), ct);
 
-        // Retention for 'snapshot' is collection-level only, never per-exchange: market_snapshot
+        // Retention for 'snapshot' is dataset-level only, never per-segment: market_snapshot
         // partitions hold every exchange's rows for a month at once, so dropping one cannot spare a
-        // single exchange even if its exchange_collection.retention_days says otherwise (see the
-        // 0014 migration header). A collection whose retention is null never rotates — 'snapshot'
+        // single exchange even if its segment_dataset.retention_days says otherwise (see the
+        // 0014 migration header). A dataset whose retention is null never rotates — 'snapshot'
         // always has one, but the null-guard keeps this job honest if that default is ever cleared.
-        var retentionDays = (await _settings.CurrentAsync(ct)).CollectionRetentionDays("snapshot");
+        var retentionDays = (await _settings.CurrentAsync(ct)).DatasetRetentionDays("snapshot");
         if (retentionDays is null)
         {
             return 0;

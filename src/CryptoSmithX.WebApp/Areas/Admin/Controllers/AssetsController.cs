@@ -53,10 +53,10 @@ public sealed class AssetsController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddAlias(
-        string id, string? exchangeCode, string alias, string multiplier, string? note, CancellationToken ct)
+        string id, string? segmentCode, string alias, string multiplier, string? note, CancellationToken ct)
     {
         await using var conn = await _db.OpenAsync(ct);
-        var error = await AssetStore.AddAliasAsync(conn, id, exchangeCode, alias, multiplier, note, ct);
+        var error = await AssetStore.AddAliasAsync(conn, id, segmentCode, alias, multiplier, note, ct);
         if (error is null)
         {
             TempData["Saved"] = "Alias saved. Discovery re-binds instruments on its next pass.";
@@ -71,10 +71,10 @@ public sealed class AssetsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteAlias(string id, string? exchangeCode, string alias, CancellationToken ct)
+    public async Task<IActionResult> DeleteAlias(string id, string? segmentCode, string alias, CancellationToken ct)
     {
         await using var conn = await _db.OpenAsync(ct);
-        await AssetStore.DeleteAliasAsync(conn, exchangeCode, alias, ct);
+        await AssetStore.DeleteAliasAsync(conn, segmentCode, alias, ct);
         TempData["Saved"] = "Alias removed.";
         return RedirectToAction(nameof(Details), new { id });
     }

@@ -36,10 +36,10 @@ public sealed class SideNavViewComponent : ViewComponent
             // A problem exchange: enabled, and some collector is failing or its snapshot is stale.
             problems = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
                 """
-                select count(*) from exchange e
+                select count(*) from segment e
                  where e.status = 'enabled'
                    and exists (select 1 from collector_status s
-                                where s.exchange_code = e.code
+                                where s.segment_code = e.code
                                   and (s.consecutive_failures > 0
                                        or s.last_success_at < now() - interval '3 minutes'))
                 """,
@@ -59,7 +59,7 @@ public sealed class SideNavViewComponent : ViewComponent
             new NavGroup("Operations", [
                 new NavItem("Dashboard", "/Admin", p),
                 new NavItem("Exchanges", "/Admin/Exchanges", p),
-                new NavItem("Collections", "/Admin/Collections"),
+                new NavItem("Datasets", "/Admin/Datasets"),
                 new NavItem("Assets", "/Admin/Assets"),
                 new NavItem("Instruments", "/Admin/Instruments"),
             ]),

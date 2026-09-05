@@ -30,7 +30,7 @@ public static class Endpoints
 
         var collectors = (await conn.QueryAsync<CollectorRow>(new CommandDefinition(
             """
-            select s.exchange_code                                       as "ExchangeCode",
+            select s.segment_code                                       as "SegmentCode",
                    s.collector                                           as "Collector",
                    s.last_attempt_at                                     as "LastAttemptAt",
                    s.last_success_at                                     as "LastSuccessAt",
@@ -42,7 +42,7 @@ public static class Endpoints
                    s.last_duration_ms                                    as "LastDurationMs",
                    s.avg_duration_ms                                     as "AvgDurationMs"
               from collector_status s
-             order by s.exchange_code, s.collector
+             order by s.segment_code, s.collector
             """, cancellationToken: ct))).ToList();
 
         // A trading instrument whose latest snapshot is older than three intervals is not being
@@ -50,7 +50,7 @@ public static class Endpoints
         var staleSeconds = snapshotIntervalSeconds * 3.0;
         var stale = (await conn.QueryAsync<StaleRow>(new CommandDefinition(
             """
-            select i.exchange_code                                    as "ExchangeCode",
+            select i.segment_code                                    as "SegmentCode",
                    i.exchange_symbol                                  as "Symbol",
                    l.received_at                                      as "ReceivedAt",
                    extract(epoch from now() - l.received_at)::double precision as "AgeSeconds"
@@ -84,21 +84,25 @@ public static class Endpoints
             """
             select e.code, e.name, e.status, e.description,
                    (select count(*) from exchange_instrument i
-                     where i.exchange_code = e.code and i.status = 'trading') as "tradingInstruments",
+                     where i.segment_code = e.code and i.status = 'trading') as "tradingInstruments",
                    (select count(*) from exchange_instrument i
-                     where i.exchange_code = e.code) as "knownInstruments"
-              from exchange e
+                     where i.segment_code = e.code) as "knownInstruments"
+              from segment e
              order by e.code
             """, cancellationToken: ct));
         return Results.Ok(rows);
     }
 
+    // The public query parameter stays `exchange` even though 0019 renamed the column to
+    // `segment_code` and its value is a segment code (`kraken-futures`, not `kraken`). Renaming a
+    // published /v1 parameter breaks every caller; that belongs in a version bump, not in a
+    // schema migration. Same reason the parameter keeps its name in the three reads below.
     private static async Task<IResult> Instruments(Db db, string? exchange, CancellationToken ct)
     {
         await using var conn = await db.OpenAsync(ct);
         var rows = await conn.QueryAsync(new CommandDefinition(
             """
-            select exchange_code          as "exchangeCode",
+            select segment_code          as "segmentCode",
                    exchange_symbol        as symbol,
                    base_asset             as "baseAsset",
                    quote_asset            as "quoteAsset",
@@ -113,8 +117,8 @@ public static class Endpoints
                    first_seen_at          as "firstSeenAt",
                    last_seen_at           as "lastSeenAt"
               from exchange_instrument
-             where (@exchange is null or exchange_code = @exchange)
-             order by exchange_code, exchange_symbol
+             where (@exchange is null or segment_code = @exchange)
+             order by segment_code, exchange_symbol
             """,
             new { exchange },
             cancellationToken: ct));
@@ -126,7 +130,7 @@ public static class Endpoints
         await using var conn = await db.OpenAsync(ct);
         var rows = (await conn.QueryAsync(new CommandDefinition(
             """
-            select i.exchange_code   as "exchangeCode",
+            select i.segment_code   as "segmentCode",
                    i.exchange_symbol as symbol,
                    i.base_asset      as "baseAsset",
                    i.quote_asset     as "quoteAsset",
@@ -157,7 +161,7 @@ public static class Endpoints
                    l.depth_at        as "depthAt"
               from market_snapshot_latest l
               join exchange_instrument i on i.id = l.exchange_instrument_id
-             where (@exchange is null or i.exchange_code = @exchange)
+             where (@exchange is null or i.segment_code = @exchange)
              order by i.exchange_symbol
             """,
             new { exchange },
@@ -168,7 +172,7 @@ public static class Endpoints
             select max(l.received_at)
               from market_snapshot_latest l
               join exchange_instrument i on i.id = l.exchange_instrument_id
-             where (@exchange is null or i.exchange_code = @exchange)
+             where (@exchange is null or i.segment_code = @exchange)
             """,
             new { exchange },
             cancellationToken: ct));
@@ -196,7 +200,7 @@ public static class Endpoints
                    c.updated_at  as "updatedAt"
               from market_candle c
               join exchange_instrument i on i.id = c.exchange_instrument_id
-             where i.exchange_code = @exchange
+             where i.segment_code = @exchange
                and i.exchange_symbol = @symbol
                and c.timeframe = @tf
              order by c.open_time desc
@@ -210,7 +214,7 @@ public static class Endpoints
 
     // timestamptz comes back from Npgsql as DateTime with Kind=Utc, so that is what these say.
     private sealed record CollectorRow(
-        string ExchangeCode,
+        string SegmentCode,
         string Collector,
         DateTime LastAttemptAt,
         DateTime? LastSuccessAt,
@@ -223,7 +227,7 @@ public static class Endpoints
         double? AvgDurationMs);
 
     private sealed record StaleRow(
-        string ExchangeCode,
+        string SegmentCode,
         string Symbol,
         DateTime? ReceivedAt,
         double? AgeSeconds);

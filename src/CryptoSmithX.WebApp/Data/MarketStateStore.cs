@@ -30,7 +30,7 @@ public static class MarketStateStore
     private const string Sql =
         """
         select i.id                                                   as "InstrumentId",
-               i.exchange_code                                        as "ExchangeCode",
+               i.segment_code                                        as "SegmentCode",
                i.exchange_symbol                                      as "Symbol",
                i.base_asset                                           as "BaseAsset",
                i.quote_asset                                          as "QuoteAsset",
@@ -74,47 +74,47 @@ public static class MarketStateStore
                limit 1
           ) s on true
          where i.collect
-           and (@exchange is null or i.exchange_code = @exchange)
-         order by i.exchange_code, i.exchange_symbol
+           and (@segment is null or i.segment_code = @segment)
+         order by i.segment_code, i.exchange_symbol
         """;
 
     public static async Task<MarketStateSlice> AtAsync(
-        DbConnection conn, DateTime at, string? exchange, CancellationToken ct)
+        DbConnection conn, DateTime at, string? segment, CancellationToken ct)
     {
         var rows = (await conn.QueryAsync<MarketStateRow>(new CommandDefinition(
-            Sql, new { at, exchange }, cancellationToken: ct))).ToList();
+            Sql, new { at, segment }, cancellationToken: ct))).ToList();
 
         // Gaps covering T are the difference between "the venue was quiet" and "we were not looking",
         // and without them an absent row is unreadable. The standing limit is stated on the page
-        // rather than hidden: gaps are recorded per exchange and per collector only, and only when a
+        // rather than hidden: gaps are recorded per segment and per collector only, and only when a
         // whole pass failed, so an absence with no gap is a cause we do not know — not a quiet market.
-        var gaps = (await conn.QueryAsync<CollectionGapRow>(new CommandDefinition(
+        var gaps = (await conn.QueryAsync<CollectorGapRow>(new CommandDefinition(
             """
             select g.collector                                            as "Collector",
                    g.gap_start                                            as "GapStart",
                    g.gap_end                                              as "GapEnd",
                    g.cause                                                as "Cause",
-                   g.exchange_code                                        as "Detail",
+                   g.segment_code                                        as "Detail",
                    extract(epoch from coalesce(g.gap_end, now()) - g.gap_start)::double precision
                                                                           as "SecondsLong"
-              from collection_gap g
-             where (@exchange is null or g.exchange_code = @exchange)
+              from collector_gap g
+             where (@segment is null or g.segment_code = @segment)
                and g.gap_start <= @at
                and coalesce(g.gap_end, now()) >= @at
              order by g.gap_start
             """,
-            new { at, exchange }, cancellationToken: ct))).ToList();
+            new { at, segment }, cancellationToken: ct))).ToList();
 
         var earliest = await conn.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
             "select min(received_at) from market_snapshot", cancellationToken: ct));
 
         var historyIntervalSeconds = await conn.ExecuteScalarAsync<int?>(new CommandDefinition(
-            "select value::int from collection_setting where collection_code = 'snapshot' and key = 'history_interval_s'",
+            "select value::int from dataset_setting where dataset_code = 'snapshot' and key = 'history_interval_s'",
             cancellationToken: ct));
 
-        var exchanges = (await conn.QueryAsync<string>(new CommandDefinition(
-            "select code from exchange where status = 'enabled' order by code", cancellationToken: ct))).ToList();
+        var segments = (await conn.QueryAsync<string>(new CommandDefinition(
+            "select code from segment where status = 'enabled' order by code", cancellationToken: ct))).ToList();
 
-        return new MarketStateSlice(at, exchange, rows, gaps, earliest, historyIntervalSeconds, exchanges);
+        return new MarketStateSlice(at, segment, rows, gaps, earliest, historyIntervalSeconds, segments);
     }
 }

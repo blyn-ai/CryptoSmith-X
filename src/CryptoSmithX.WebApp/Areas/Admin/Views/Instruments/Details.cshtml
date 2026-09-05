@@ -23,7 +23,7 @@
 
 <div class="page-head">
     <div class="t">
-        <p class="eyebrow">Admin · <a href="/Admin/Instruments">instruments</a> · <a href="/Admin/Exchanges/Details/@Model.ExchangeCode">@Model.ExchangeCode</a></p>
+        <p class="eyebrow">Admin · <a href="/Admin/Instruments">instruments</a> · <a href="/Admin/Exchanges/Details/@Model.SegmentCode">@Model.SegmentCode</a></p>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <h1 class="mono">@Model.Symbol</h1>
             <span class="tag @StatusTag(Model.Status)">@Model.Status</span>
@@ -33,7 +33,7 @@
             }
         </div>
         <p class="page-note" style="margin-top:6px">
-            <a href="/Admin/Exchanges/Details/@Model.ExchangeCode">@Model.ExchangeCode</a> ·
+            <a href="/Admin/Exchanges/Details/@Model.SegmentCode">@Model.SegmentCode</a> ·
             <a href="/Admin/Assets/Details/@Model.BaseAsset">@Model.BaseAsset</a>/@Model.QuoteAsset ·
             listed @Format.Utc(Model.ListedAt) · first seen @Format.Utc(Model.FirstSeenAt) · last seen @Format.Utc(Model.LastSeenAt)
         </p>
@@ -46,7 +46,7 @@
                 <span class="code" style="align-self:center">@Model.BaseAsset also on</span>
                 @foreach (var sib in Model.Siblings)
                 {
-                    <a class="tag" href="/Admin/Instruments/Details/@sib.Id" title="@sib.Symbol">@sib.ExchangeCode</a>
+                    <a class="tag" href="/Admin/Instruments/Details/@sib.Id" title="@sib.Symbol">@sib.SegmentCode</a>
                 }
             </div>
         }
@@ -159,15 +159,15 @@
             }
             else
             {
-                <div class="empty"><h3>No hourly slices yet</h3><p>The first hourly rows appear after an hour of collection.</p></div>
+                <div class="empty"><h3>No hourly slices yet</h3><p>The first hourly rows appear after an hour of dataset.</p></div>
             }
         </div>
     </div>
 
     <div class="stack">
-        @* ── Collection control ───────────────────────────────── *@
+        @* ── Dataset control ───────────────────────────────── *@
         <div class="panel" style="padding:18px">
-            <h2 style="margin-bottom:5px">Collection</h2>
+            <h2 style="margin-bottom:5px">Dataset</h2>
             <p style="margin:0 0 14px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">Our decision — whether the Hub gathers snapshots, candles, depth and funding for this listing. Discovery keeps watching it either way. Not the same as the exchange's observed status (<span class="tag @StatusTag(Model.Status)" style="font-size:8.5px">@Model.Status</span>).</p>
             <form method="post" action="/Admin/Instruments/SaveCollect/@Model.Id">
                 @Html.AntiForgeryToken()

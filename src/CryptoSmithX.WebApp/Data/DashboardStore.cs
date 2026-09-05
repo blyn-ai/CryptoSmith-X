@@ -27,9 +27,9 @@ public static class DashboardStore
         var sparkByExchange = new Dictionary<string, List<double>>(StringComparer.Ordinal);
         foreach (var row in await conn.QueryAsync<SparkRow>(new CommandDefinition(SparkSql, cancellationToken: ct)))
         {
-            if (!sparkByExchange.TryGetValue(row.ExchangeCode, out var list))
+            if (!sparkByExchange.TryGetValue(row.SegmentCode, out var list))
             {
-                sparkByExchange[row.ExchangeCode] = list = [];
+                sparkByExchange[row.SegmentCode] = list = [];
             }
 
             list.Add(row.Rows);
@@ -45,7 +45,7 @@ public static class DashboardStore
         }).ToList();
 
         var collectorVms = collectors.Select(c => new DashCollector(
-            c.ExchangeCode, c.Collector, c.LastSuccessAgeSeconds, c.ConsecutiveFailures,
+            c.SegmentCode, c.Collector, c.LastSuccessAgeSeconds, c.ConsecutiveFailures,
             c.AvgDurationMs, c.LastError, CollectorHealth(c))).ToList();
 
         var botVms = bots.Select(b => new DashBot(
@@ -101,7 +101,7 @@ public static class DashboardStore
         // knows each collector's cadence. Absolute last-success age is not comparable across a
         // 10 s snapshot and a 60 min discovery, so it is not used for severity. Staleness is judged
         // from the actual snapshot age instead.
-        var mine = collectors.Where(c => c.ExchangeCode == e.Code).ToList();
+        var mine = collectors.Where(c => c.SegmentCode == e.Code).ToList();
         if (mine.Any(c => c.ConsecutiveFailures >= 3))
         {
             return "failing";
@@ -155,23 +155,23 @@ public static class DashboardStore
     private const string ExSql =
         """
         select e.code as "Code", e.name as "Name", e.status as "Status",
-               (select count(*)::int from exchange_instrument i where i.exchange_code = e.code and i.status = 'trading') as "TradingInstruments",
-               (select count(*)::int from exchange_instrument i where i.exchange_code = e.code) as "KnownInstruments",
+               (select count(*)::int from exchange_instrument i where i.segment_code = e.code and i.status = 'trading') as "TradingInstruments",
+               (select count(*)::int from exchange_instrument i where i.segment_code = e.code) as "KnownInstruments",
                (select extract(epoch from now() - min(l.received_at))::double precision
                   from market_snapshot_latest l join exchange_instrument i on i.id = l.exchange_instrument_id
-                 where i.exchange_code = e.code and i.status = 'trading') as "WorstAgeSeconds"
-          from exchange e
+                 where i.segment_code = e.code and i.status = 'trading') as "WorstAgeSeconds"
+          from segment e
          order by case e.status when 'enabled' then 0 when 'maintenance' then 1 when 'disabled' then 2 when 'planned' then 3 else 4 end, e.code
         """;
 
     private const string ColSql =
         """
-        select s.exchange_code as "ExchangeCode", s.collector as "Collector",
+        select s.segment_code as "SegmentCode", s.collector as "Collector",
                extract(epoch from now() - s.last_success_at)::double precision as "LastSuccessAgeSeconds",
                s.consecutive_failures as "ConsecutiveFailures",
                s.avg_duration_ms::int as "AvgDurationMs", s.last_error as "LastError"
           from collector_status s
-         order by s.exchange_code, s.collector
+         order by s.segment_code, s.collector
         """;
 
     private const string BotSql =
@@ -223,9 +223,9 @@ public static class DashboardStore
         with buckets as (
             select generate_series(date_trunc('hour', now()) - interval '2 hours', now(), interval '5 minutes') as b
         ),
-        ex as (select code from exchange where status = 'enabled'),
+        ex as (select code from segment where status = 'enabled'),
         agg as (
-            select r.exchange_code as code,
+            select r.segment_code as code,
                    to_timestamp(floor(extract(epoch from r.started_at) / 300) * 300) as b,
                    sum(r.items)::double precision as rows
               from collector_run r
@@ -233,16 +233,16 @@ public static class DashboardStore
                and r.started_at >= date_trunc('hour', now()) - interval '2 hours'
              group by 1, 2
         )
-        select ex.code as "ExchangeCode", coalesce(agg.rows, 0) as "Rows"
+        select ex.code as "SegmentCode", coalesce(agg.rows, 0) as "Rows"
           from ex cross join buckets
           left join agg on agg.code = ex.code and agg.b = buckets.b
          order by ex.code, buckets.b
         """;
 
     private sealed record ExRow(string Code, string Name, string Status, int TradingInstruments, int KnownInstruments, double? WorstAgeSeconds);
-    private sealed record ColRow(string ExchangeCode, string Collector, double? LastSuccessAgeSeconds, int ConsecutiveFailures, int? AvgDurationMs, string? LastError);
+    private sealed record ColRow(string SegmentCode, string Collector, double? LastSuccessAgeSeconds, int ConsecutiveFailures, int? AvgDurationMs, string? LastError);
     private sealed record BotRow(int Id, string TenantCode, string BotInstanceId, double? LastHeartbeatAgeSeconds);
     private sealed record EvRow(DateTime Utc, string Type, string TenantCode, int BotId, string BotInstanceId);
     private sealed record TenRow(string Code, int BotCount, DateTime CreatedAt);
-    private sealed record SparkRow(string ExchangeCode, double Rows);
+    private sealed record SparkRow(string SegmentCode, double Rows);
 }

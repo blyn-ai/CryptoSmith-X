@@ -104,7 +104,7 @@ public sealed class RollupJob
     {
         var startedAt = _clock.GetUtcNow();
         var configured = (await _settings.CurrentAsync(ct))
-            .CollectionSettingIntList("rollup", "derived_timeframes")
+            .DatasetSettingIntList("rollup", "derived_timeframes")
             .Where(t => t > 1).Distinct().OrderBy(t => t).ToList();
 
         await using var conn = await _db.OpenAsync(ct);
@@ -123,9 +123,9 @@ public sealed class RollupJob
                 """
                 select coalesce(watermark_at, last_success_at) as Watermark, now() as DbNow
                   from collector_status
-                 where exchange_code = @exchange and collector = @collector
+                 where segment_code = @segment and collector = @collector
                 """,
-                new { exchange = _serviceExchange, collector = _collector },
+                new { segment = _serviceExchange, collector = _collector },
                 cancellationToken: ct));
 
         var (since, until) = Window(mark?.Watermark is { } w ? Utc(w) : null, startedAt);
@@ -258,7 +258,7 @@ public sealed class RollupJob
                 -- expected_count and gap_seconds are what make snapshot_count readable. Thirty
                 -- observations in an hour is either a market that went quiet or an hour we did
                 -- not watch, and those two demand opposite conclusions. expected_count comes from
-                -- the configured cadence; gap_seconds from how much of the hour collection_gap
+                -- the configured cadence; gap_seconds from how much of the hour collector_gap
                 -- says we were blind for. An hour with gap_seconds = 0 and a low count is the
                 -- venue's silence and is data; an hour with gap_seconds > 0 is our absence and
                 -- is not.
@@ -279,16 +279,16 @@ public sealed class RollupJob
                        coalesce(gap.seconds, 0),
                        now()
                   from exchange_instrument ei
-                  left join exchange_collection ec
-                         on ec.exchange_code = ei.exchange_code and ec.collection_code = 'snapshot'
-                  left join collection c on c.code = 'snapshot'
+                  left join segment_dataset ec
+                         on ec.segment_code = ei.segment_code and ec.dataset_code = 'snapshot'
+                  left join dataset c on c.code = 'snapshot'
                   left join lateral (
                       select sum(extract(epoch from
                                  least(coalesce(g.gap_end, @HourTime + interval '1 hour'),
                                        @HourTime + interval '1 hour')
                                - greatest(g.gap_start, @HourTime)))::int as seconds
-                        from collection_gap g
-                       where g.exchange_code = ei.exchange_code
+                        from collector_gap g
+                       where g.segment_code = ei.segment_code
                          -- Every collector that feeds this row, not just snapshot. depth and funding
                          -- land in the same hourly record, so an hour blind to depth was being
                          -- reported as fully observed. An instrument-scoped gap counts only for that
@@ -329,8 +329,8 @@ public sealed class RollupJob
         // anywhere above never reaches this line, which is what makes a failure retry the same
         // slice instead of skipping it.
         await conn.ExecuteAsync(new CommandDefinition(
-            "update collector_status set watermark_at = @until where exchange_code = @exchange and collector = @collector",
-            new { until, exchange = _serviceExchange, collector = _collector },
+            "update collector_status set watermark_at = @until where segment_code = @segment and collector = @collector",
+            new { until, segment = _serviceExchange, collector = _collector },
             cancellationToken: ct));
 
         if (written > 0 || metrics > 0)

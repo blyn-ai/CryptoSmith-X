@@ -21,11 +21,11 @@ public static class AssetStore
             select a.code as "Code",
                    a.name as "Name",
                    (select count(*)::int from exchange_instrument i where i.base_asset = a.code) as "ListingCount",
-                   (select string_agg(x.exchange_code || ' ' || x.n, ' · ' order by x.exchange_code)
-                      from (select i.exchange_code, count(*)::int as n
+                   (select string_agg(x.segment_code || ' ' || x.n, ' · ' order by x.segment_code)
+                      from (select i.segment_code, count(*)::int as n
                               from exchange_instrument i
                              where i.base_asset = a.code
-                             group by i.exchange_code) x) as "ListingsSummary",
+                             group by i.segment_code) x) as "ListingsSummary",
                    (select sum(l.open_interest * l.mark_price)
                       from exchange_instrument i
                       join market_snapshot_latest l on l.exchange_instrument_id = i.id
@@ -57,7 +57,7 @@ public static class AssetStore
         var listings = (await conn.QueryAsync<AssetListing>(new CommandDefinition(
             """
             select i.id              as "InstrumentId",
-                   i.exchange_code   as "ExchangeCode",
+                   i.segment_code   as "SegmentCode",
                    i.exchange_symbol as "Symbol",
                    i.status          as "Status",
                    i.collect         as "Collect",
@@ -72,21 +72,21 @@ public static class AssetStore
               from exchange_instrument i
               left join market_snapshot_latest l on l.exchange_instrument_id = i.id
              where i.base_asset = @code
-             order by i.exchange_code, i.exchange_symbol
+             order by i.segment_code, i.exchange_symbol
             """,
             new { code },
             cancellationToken: ct))).ToList();
 
         var aliases = (await conn.QueryAsync<AssetAliasRow>(new CommandDefinition(
             """
-            select exchange_code as "ExchangeCode",
+            select segment_code as "SegmentCode",
                    alias         as "Alias",
                    asset_code    as "AssetCode",
                    multiplier    as "Multiplier",
                    note          as "Note"
               from asset_alias
              where asset_code = @code
-             order by exchange_code nulls first, alias
+             order by segment_code nulls first, alias
             """,
             new { code },
             cancellationToken: ct))).ToList();
@@ -112,7 +112,7 @@ public static class AssetStore
 
     /// <summary>Adds or updates one alias. Returns an error message, or null on success.</summary>
     public static async Task<string?> AddAliasAsync(
-        DbConnection conn, string assetCode, string? exchangeCode, string alias, string multiplier, string? note, CancellationToken ct)
+        DbConnection conn, string assetCode, string? segmentCode, string alias, string multiplier, string? note, CancellationToken ct)
     {
         alias = (alias ?? "").Trim();
         if (alias.Length == 0)
@@ -125,39 +125,39 @@ public static class AssetStore
             return "Multiplier must be a positive number.";
         }
 
-        exchangeCode = string.IsNullOrWhiteSpace(exchangeCode) ? null : exchangeCode.Trim();
-        if (exchangeCode is not null)
+        segmentCode = string.IsNullOrWhiteSpace(segmentCode) ? null : segmentCode.Trim();
+        if (segmentCode is not null)
         {
             var known = await conn.ExecuteScalarAsync<bool>(new CommandDefinition(
-                "select exists (select 1 from exchange where code = @exchangeCode)",
-                new { exchangeCode }, cancellationToken: ct));
+                "select exists (select 1 from segment where code = @segmentCode)",
+                new { segmentCode }, cancellationToken: ct));
             if (!known)
             {
-                return $"Unknown exchange '{exchangeCode}'. Leave blank for a global alias.";
+                return $"Unknown exchange '{segmentCode}'. Leave blank for a global alias.";
             }
         }
 
         await conn.ExecuteAsync(new CommandDefinition(
             """
-            insert into asset_alias (exchange_code, alias, asset_code, multiplier, note)
-            values (@exchangeCode, @alias, @assetCode, @mult, nullif(@note, ''))
-            on conflict (exchange_code, alias) do update set
+            insert into asset_alias (segment_code, alias, asset_code, multiplier, note)
+            values (@segmentCode, @alias, @assetCode, @mult, nullif(@note, ''))
+            on conflict (segment_code, alias) do update set
                 asset_code = excluded.asset_code,
                 multiplier = excluded.multiplier,
                 note       = excluded.note
             """,
-            new { exchangeCode, alias, assetCode, mult, note },
+            new { segmentCode, alias, assetCode, mult, note },
             cancellationToken: ct));
         return null;
     }
 
     public static async Task DeleteAliasAsync(
-        DbConnection conn, string? exchangeCode, string alias, CancellationToken ct)
+        DbConnection conn, string? segmentCode, string alias, CancellationToken ct)
     {
-        exchangeCode = string.IsNullOrWhiteSpace(exchangeCode) ? null : exchangeCode.Trim();
+        segmentCode = string.IsNullOrWhiteSpace(segmentCode) ? null : segmentCode.Trim();
         await conn.ExecuteAsync(new CommandDefinition(
-            "delete from asset_alias where alias = @alias and exchange_code is not distinct from @exchangeCode",
-            new { exchangeCode, alias },
+            "delete from asset_alias where alias = @alias and segment_code is not distinct from @segmentCode",
+            new { segmentCode, alias },
             cancellationToken: ct));
     }
 

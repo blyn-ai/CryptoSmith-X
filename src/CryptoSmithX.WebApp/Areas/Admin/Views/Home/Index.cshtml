@@ -90,8 +90,8 @@
                 }
                 @foreach (var c in Model.Collectors)
                 {
-                    <a class="tr r-col @(c.Health == "fail" ? "is-fail" : "")" href="/Admin/Exchanges/Details/@c.ExchangeCode">
-                        <span class="cell"><span class="dot @c.Health @(c.Health == "ok" ? "fresh" : "")"></span><span class="name">@c.ExchangeCode</span></span>
+                    <a class="tr r-col @(c.Health == "fail" ? "is-fail" : "")" href="/Admin/Exchanges/Details/@c.SegmentCode">
+                        <span class="cell"><span class="dot @c.Health @(c.Health == "ok" ? "fresh" : "")"></span><span class="name">@c.SegmentCode</span></span>
                         <span class="mono muted">@c.Collector</span>
                         <span class="num @ColNum(c.Health)">@Format.Age(c.LastSuccessAgeSeconds)</span>
                         <span class="num @(c.ConsecutiveFailures > 0 ? c.Health : "muted")">@c.ConsecutiveFailures</span>
@@ -149,7 +149,7 @@
 
         <div class="notwired">
             <div class="hd"><span class="tag gold">Not wired</span><h3>Collector latency history</h3></div>
-            <p>collector_status holds current state only — avg_duration_ms has no history, so a latency trend cannot be drawn. Migration request: collector_status_history (exchange_code text, collector text, sampled_at timestamptz, duration_ms int, ok boolean), one row per loop, retained 7 days. Until it exists this panel shows nothing rather than a shape.</p>
+            <p>collector_status holds current state only — avg_duration_ms has no history, so a latency trend cannot be drawn. Migration request: collector_status_history (segment_code text, collector text, sampled_at timestamptz, duration_ms int, ok boolean), one row per loop, retained 7 days. Until it exists this panel shows nothing rather than a shape.</p>
         </div>
     </div>
 </div>

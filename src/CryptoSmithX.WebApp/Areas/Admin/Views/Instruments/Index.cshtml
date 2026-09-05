@@ -9,7 +9,7 @@
     string Link(string? sort = null, int? page = null)
     {
         var parts = new List<string>();
-        if (!string.IsNullOrEmpty(Model.Exchange)) { parts.Add("exchange=" + Uri.EscapeDataString(Model.Exchange)); }
+        if (!string.IsNullOrEmpty(Model.Segment)) { parts.Add("segment=" + Uri.EscapeDataString(Model.Segment)); }
         if (!string.IsNullOrEmpty(Model.Status)) { parts.Add("status=" + Uri.EscapeDataString(Model.Status)); }
         if (Model.OnlyTrading) { parts.Add("onlyTrading=true"); }
         if (!string.IsNullOrEmpty(Model.Search)) { parts.Add("q=" + Uri.EscapeDataString(Model.Search)); }
@@ -31,12 +31,12 @@
 
 <form method="get" action="/Admin/Instruments" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
     <div class="field" style="width:170px">
-        <label for="exchange">Exchange</label>
-        <select id="exchange" name="exchange">
+        <label for="segment">Segment</label>
+        <select id="segment" name="segment">
             <option value="">all</option>
-            @foreach (var ex in Model.Exchanges)
+            @foreach (var ex in Model.Segments)
             {
-                <option value="@ex" selected="@(ex == Model.Exchange)">@ex</option>
+                <option value="@ex" selected="@(ex == Model.Segment)">@ex</option>
             }
         </select>
     </div>
@@ -70,7 +70,7 @@
     {
         <div class="tr has-stretch" style="@Cols@(i.Collect ? "" : ";opacity:.55")">
             <span class="cell"><a class="name mono stretch" href="/Admin/Instruments/Details/@i.Id">@i.Symbol</a></span>
-            <span class="mono muted">@i.ExchangeCode</span>
+            <span class="mono muted">@i.SegmentCode</span>
             <a class="code lift" href="/Admin/Assets/Details/@i.BaseAsset" title="@i.BaseAsset across all exchanges">@i.BaseAsset/@i.QuoteAsset</a>
             <span><span class="tag @StatusTag(i.Status)">@i.Status</span></span>
             <span><span class="@(i.Collect ? "sev ok" : "tag")">@(i.Collect ? "on" : "off")</span></span>

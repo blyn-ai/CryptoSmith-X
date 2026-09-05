@@ -2,7 +2,7 @@
 @{
     var e = Model.Exchange;
 
-    // Grouped by what is PRODUCED, not by which loop ran. The old panel listed nine collections as
+    // Grouped by what is PRODUCED, not by which loop ran. The old panel listed nine datasets as
     // peers, which said that depth is a feed of its own — and it is not: DepthCollector UPDATEs six
     // depth columns and depth_at on the very row SnapshotCollector writes, and the history insert
     // reads them back out of the latest cache. Two loops, one artifact. Listing them apart is why
@@ -27,16 +27,16 @@
             "The registry every other output joins to, and what decides their target sets."),
     };
     var grouped = outputs
-        .Select(o => (o.Name, o.Table, o.Fact, Feeds: Model.Feeds.Where(f => o.Codes.Contains(f.CollectionCode)).ToList()))
+        .Select(o => (o.Name, o.Table, o.Fact, Feeds: Model.Feeds.Where(f => o.Codes.Contains(f.DatasetCode)).ToList()))
         .Where(g => g.Feeds.Count > 0)
         .ToList();
-    var placed = grouped.SelectMany(g => g.Feeds.Select(f => f.CollectionCode)).ToHashSet(StringComparer.Ordinal);
-    var unproduced = Model.Feeds.Where(f => !placed.Contains(f.CollectionCode)).ToList();
+    var placed = grouped.SelectMany(g => g.Feeds.Select(f => f.DatasetCode)).ToHashSet(StringComparer.Ordinal);
+    var unproduced = Model.Feeds.Where(f => !placed.Contains(f.DatasetCode)).ToList();
 }
 <div class="panel scroll" data-live-region="feeds-panel" style="margin-bottom:14px">
     <div class="panel-h">
         <h2>What we produce</h2>
-        <span class="meta">@grouped.Count outputs · @Model.Feeds.Count(f => f.WeImplement == true) loops · @Model.Feeds.Count collections</span>
+        <span class="meta">@grouped.Count outputs · @Model.Feeds.Count(f => f.WeImplement == true) loops · @Model.Feeds.Count datasets</span>
     </div>
     <div class="th r-feed">
         <span>Feed</span><span>Capability · fact</span><span>Policy · decided</span><span>Health · observed</span><span></span>
@@ -61,7 +61,7 @@
         // feed off would misleadingly read as "not established" again. mode='collect' blocked
         // by capability is a different situation (backlog / not established), not "off by hand".
         var isCollecting = f.Mode == "collect" && f.WeImplement == true;
-        // No collector class exists for this collection, whatever the policy says: the hub filters
+        // No collector class exists for this dataset, whatever the policy says: the hub filters
         // the desired set against a hard-coded list of the five it can actually run. That fact
         // outranks "an operator switched it off", because switching it back on would do nothing —
         // and a console that answers a click with silence is worse than one that says no.
@@ -77,8 +77,8 @@
             <div style="display:flex;gap:9px">
                 <span class="dot @rowDot @(isCollecting && feedCh == "ok" ? "fresh" : "")" style="margin-top:3px"></span>
                 <div style="display:flex;flex-direction:column;gap:4px">
-                    <span class="mono" style="line-height:1.2">@f.CollectionName</span>
-                    <span class="code">@f.CollectionCode@(f.Kind == "derived" ? " · derived" : "")</span>
+                    <span class="mono" style="line-height:1.2">@f.DatasetName</span>
+                    <span class="code">@f.DatasetCode@(f.Kind == "derived" ? " · derived" : "")</span>
                 </div>
             </div>
             <div class="feed-cell">
@@ -126,9 +126,9 @@
             <div style="display:flex;gap:12px;justify-content:flex-end">
                 @if (isCollecting)
                 {
-                    <a class="linkbtn" style="font-size:10px" href="/Admin/Exchanges/Runs/@e.Code?collector=@f.CollectionCode">runs →</a>
+                    <a class="linkbtn" style="font-size:10px" href="/Admin/Exchanges/Runs/@e.Code?collector=@f.DatasetCode">runs →</a>
                 }
-                <button class="linkbtn" style="font-size:10px" type="button" data-feed-edit="@f.CollectionCode">edit</button>
+                <button class="linkbtn" style="font-size:10px" type="button" data-feed-edit="@f.DatasetCode">edit</button>
             </div>
         </div>
         }
@@ -150,8 +150,8 @@
                 <div style="display:flex;gap:9px">
                     <span class="dot none" style="margin-top:3px"></span>
                     <div style="display:flex;flex-direction:column;gap:4px">
-                        <span class="mono" style="line-height:1.2">@f.CollectionName</span>
-                        <span class="code">@f.CollectionCode</span>
+                        <span class="mono" style="line-height:1.2">@f.DatasetName</span>
+                        <span class="code">@f.DatasetCode</span>
                     </div>
                 </div>
                 <div class="feed-cell">
@@ -171,5 +171,5 @@
         <dt>policy</dt><dd>what a human decided: mode, interval, retention, preferred transport</dd>
         <dt>health</dt><dd>what we observe right now; never stored on the row</dd>
     </dl>
-    <p class="panel-note" style="padding:0 18px 14px;max-width:78ch">Every collection has a row, always — an empty panel used to mean three different things at once: the venue cannot, we have not written it, or a human switched it off. Those are now three different rows.</p>
+    <p class="panel-note" style="padding:0 18px 14px;max-width:78ch">Every dataset has a row, always — an empty panel used to mean three different things at once: the venue cannot, we have not written it, or a human switched it off. Those are now three different rows.</p>
 </div>

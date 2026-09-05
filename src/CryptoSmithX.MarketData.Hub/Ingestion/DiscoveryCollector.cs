@@ -29,7 +29,7 @@ public sealed class DiscoveryCollector
     public async Task<int> RunAsync(CancellationToken ct)
     {
         var snapshot = await _settings.CurrentAsync(ct);
-        var config = snapshot.Exchange(_adapter.ExchangeCode);
+        var config = snapshot.Exchange(_adapter.SegmentCode);
         if (config is null)
         {
             // The exchange was removed or disabled out from under us; do nothing this pass.
@@ -51,19 +51,19 @@ public sealed class DiscoveryCollector
 
         // One batch read of every alias that could apply to this exchange (its own + globals),
         // not a query per instrument. Case-insensitive on the raw, the way venues vary casing.
-        var aliasRows = await conn.QueryAsync<(string? ExchangeCode, string Alias, string AssetCode, decimal Multiplier)>(
+        var aliasRows = await conn.QueryAsync<(string? SegmentCode, string Alias, string AssetCode, decimal Multiplier)>(
             new CommandDefinition(
-                "select exchange_code, alias, asset_code, multiplier from asset_alias "
-                + "where exchange_code = @code or exchange_code is null",
-                new { code = _adapter.ExchangeCode },
+                "select segment_code, alias, asset_code, multiplier from asset_alias "
+                + "where segment_code = @code or segment_code is null",
+                new { code = _adapter.SegmentCode },
                 tx,
                 cancellationToken: ct));
 
         var exchangeAliases = new Dictionary<string, AliasHit>(StringComparer.OrdinalIgnoreCase);
         var globalAliases = new Dictionary<string, AliasHit>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (exchangeCode, alias, assetCode, multiplier) in aliasRows)
+        foreach (var (segmentCode, alias, assetCode, multiplier) in aliasRows)
         {
-            var target = exchangeCode is null ? globalAliases : exchangeAliases;
+            var target = segmentCode is null ? globalAliases : exchangeAliases;
             target[alias] = new AliasHit(assetCode, multiplier);
         }
 
@@ -91,16 +91,16 @@ public sealed class DiscoveryCollector
             await conn.ExecuteAsync(new CommandDefinition(
                 """
                 insert into exchange_instrument (
-                    exchange_code, exchange_symbol, base_asset, base_asset_raw,
+                    segment_code, exchange_symbol, base_asset, base_asset_raw,
                     quote_asset, quote_asset_raw, contract_multiplier,
                     price_step, qty_step, min_qty, min_notional, funding_interval_hours,
                     listed_at, status, status_changed_at, first_seen_at, last_seen_at, raw_json, updated_at)
                 values (
-                    @ExchangeCode, @ExchangeSymbol, @BaseAsset, @BaseAssetRaw,
+                    @SegmentCode, @ExchangeSymbol, @BaseAsset, @BaseAssetRaw,
                     @QuoteAsset, @QuoteAssetRaw, @ContractMultiplier,
                     @PriceStep, @QtyStep, @MinQty, @MinNotional, @FundingIntervalHours,
                     @ListedAt, @Status, @Now, @Now, @Now, @RawJson::jsonb, @Now)
-                on conflict (exchange_code, exchange_symbol) do update set
+                on conflict (segment_code, exchange_symbol) do update set
                     -- canon and multiplier are re-applied so a discovery pass repairs them after an
                     -- admin edits an alias; base_asset_raw is what the venue actually sent.
                     base_asset             = excluded.base_asset,
@@ -125,7 +125,7 @@ public sealed class DiscoveryCollector
                 """,
                 new
                 {
-                    ExchangeCode = _adapter.ExchangeCode,
+                    SegmentCode = _adapter.SegmentCode,
                     i.ExchangeSymbol,
                     BaseAsset = canon,
                     i.BaseAssetRaw,
@@ -149,19 +149,19 @@ public sealed class DiscoveryCollector
 
         // Gone for several rounds in a row is a delisting. Age of last_seen_at is used rather than
         // an in-memory miss counter so a restart does not forget what it had seen.
-        var missedFor = snapshot.CollectionInterval(_adapter.ExchangeCode, "discovery")
-            * snapshot.CollectionSettingInt("discovery", "delist_after_missed_discoveries");
+        var missedFor = snapshot.DatasetInterval(_adapter.SegmentCode, "discovery")
+            * snapshot.DatasetSettingInt("discovery", "delist_after_missed_discoveries");
         await conn.ExecuteAsync(new CommandDefinition(
             """
             update exchange_instrument
                set status            = 'delisted',
                    status_changed_at = @Now,
                    updated_at        = @Now
-             where exchange_code = @ExchangeCode
+             where segment_code = @SegmentCode
                and status <> 'delisted'
                and last_seen_at < @Cutoff
             """,
-            new { ExchangeCode = _adapter.ExchangeCode, Now = now, Cutoff = now - missedFor },
+            new { SegmentCode = _adapter.SegmentCode, Now = now, Cutoff = now - missedFor },
             tx,
             cancellationToken: ct));
 

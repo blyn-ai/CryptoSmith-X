@@ -137,7 +137,7 @@ Cheap-and-lossless first. WP1, WP2 and WP8 cost zero exchange budget and can shi
 
 ### WP4 — Book over WS, full shape retained
 - Per instrument: WS snapshot + deltas with sequence validation; local book maintained in
-  memory; on any gap → record `collection_gap`, resync (REST or resubscribe), and never
+  memory; on any gap → record `collector_gap`, resync (REST or resubscribe), and never
   fabricate the interval in between.
 - Persist three things:
   1. raw deltas → archive (WP2);
@@ -180,9 +180,9 @@ Cheap-and-lossless first. WP1, WP2 and WP8 cost zero exchange budget and can shi
   delisted, re-listed). Never overwrite the current row. Native id + `first_seen` is the key.
 
 ### WP8 — Collection health, first-class
-- `collection_run`: feed, exchange, instrument (nullable for bulk), started/finished,
+- `collector_run`: feed, exchange, instrument (nullable for bulk), started/finished,
   transport (rest/ws), status, HTTP status, latency, request weight used, clock offset.
-- `collection_gap`: instrument, feed, `gap_start`, `gap_end`, cause (429, timeout, WS
+- `collector_gap`: instrument, feed, `gap_start`, `gap_end`, cause (429, timeout, WS
   gap, resync, exchange maintenance, collector down).
 - Every rollup bucket carries `expected_count`, `actual_count`, `gap_count`,
   `max_gap_seconds`. "Market was dead" and "we were blind" must be separable in SQL.
@@ -231,7 +231,7 @@ Cheap-and-lossless first. WP1, WP2 and WP8 cost zero exchange budget and can shi
 `exchange`, `instrument_id`, `event_time`, `exchange_ts` (nullable), `received_at`,
 `persisted_at`, `known_from` (= `received_at` unless backfilled), `source`
 (`rest` | `ws` | `backfill` | `archive_rebuild`), `source_seq` (nullable),
-`collection_run_id`.
+`collector_run_id`.
 
 ### 4.2 Tables (new or changed)
 - `market_snapshot_10s` — full ticker state per observation (WP1, WP6).
@@ -243,7 +243,7 @@ Cheap-and-lossless first. WP1, WP2 and WP8 cost zero exchange budget and can shi
 - `market_candle` — add `close_time`, `is_final`, `source`, `known_from`; add `price_type`
   (`trade` | `mark`).
 - `instrument_spec_version`, `instrument_status_event`, `funding_schedule` (WP6, WP7).
-- `collection_run`, `collection_gap` (WP8).
+- `collector_run`, `collector_gap` (WP8).
 - `feature_definition` (`id`, `name`, `version`, description/formula reference) referenced
   by every `derived_version`.
 - `promotion_event` — only if coverage is ever tiered (invariant 9).
@@ -284,7 +284,7 @@ integers over `numeric` for hot columns; keep exact strings in the archive.
   `known_from >= b`.
 - **T4 Universe as-of**: instrument listed at L and delisted at D appears only for
   `L <= t < D` by knowledge time.
-- **T5 Gap semantics**: an injected outage yields no rows and a `collection_gap`; no zeros.
+- **T5 Gap semantics**: an injected outage yields no rows and a `collector_gap`; no zeros.
 - **T6 No LOCF**: an OI observation 2 h old is returned with `age = 2h`; the freshness
   helper rejects it at a 30 s threshold.
 - **T7 Book resync**: injected sequence gap → gap recorded, resync, no fabricated levels.

@@ -37,12 +37,12 @@
         <input id="at" name="at" type="text" value="@at.ToString("yyyy-MM-dd HH:mm:ss")" spellcheck="false">
     </div>
     <div class="field" style="width:180px">
-        <label for="exchange">Exchange</label>
-        <select id="exchange" name="exchange">
+        <label for="segment">Segment</label>
+        <select id="segment" name="segment">
             <option value="">all</option>
-            @foreach (var x in Model.Exchanges)
+            @foreach (var x in Model.Segments)
             {
-                <option value="@x" selected="@(x == Model.Exchange)">@x</option>
+                <option value="@x" selected="@(x == Model.Segment)">@x</option>
             }
         </select>
     </div>
@@ -74,7 +74,7 @@
                 <span class="num fail">@g.Cause.Replace('_', ' ')</span>
             </div>
         }
-        <p class="panel-note">A collector covering this instant was not answering, so absences below have a known cause. Gaps are recorded per exchange and per collector only, and only when a whole pass failed — an absence with no gap here is a cause we do not know, not a quiet market.</p>
+        <p class="panel-note">A collector covering this instant was not answering, so absences below have a known cause. Gaps are recorded per segment and per collector only, and only when a whole pass failed — an absence with no gap here is a cause we do not know, not a quiet market.</p>
     </div>
 }
 
@@ -96,7 +96,7 @@
         <div class="tr has-stretch r-state" style="@(state == "observed" ? "" : "opacity:.6")">
             <span class="cell">
                 <a class="name mono stretch" href="/Admin/Instruments/Details/@r.InstrumentId">@r.Symbol</a>
-                <span class="code">@r.ExchangeCode@(r.BaseAsset is null ? "" : " · " + r.BaseAsset)</span>
+                <span class="code">@r.SegmentCode@(r.BaseAsset is null ? "" : " · " + r.BaseAsset)</span>
             </span>
             <span><span class="tag @(state == "observed" ? "enabled" : "")">@state</span></span>
             <span class="num @(stale ? "fail" : "muted")" style="justify-self:end" title="@Format.Utc(r.ReceivedAt)">@Lag(r.PriceLagSeconds)</span>
