@@ -277,6 +277,8 @@ public sealed record AssetVenueMeasurement(
 public sealed record AssetVenueBar(
     string SegmentCode,
     string Symbol,
+    string QuoteAsset,
+    decimal ContractMultiplier,
     DateTime OpenTime,
     short Timeframe,
     double Open,
@@ -287,7 +289,20 @@ public sealed record AssetVenueBar(
     int? TradeCount,
     short BarCount)
 {
+    /// <summary>Every minute the window claims to cover is present. Always true at 1m, where
+    /// bar_count is 1 by definition — the check only carries information from 5m up.</summary>
     public bool Complete => BarCount >= Timeframe;
+
+    /// <summary>Something actually traded. A zero-volume bar's close is a carried price, not a
+    /// print: 13% of one venue's 1m bars on the dev database are zero-volume. Comparing a carried
+    /// price against a real one and calling the difference a divergence is the same class of lie as
+    /// comparing two prices measured a minute apart.</summary>
+    public bool Traded => Volume > 0;
+
+    /// <summary>The contract terms a comparison has to match on. Two venues quoting the same asset
+    /// against different quote currencies, or in contracts of different size, are not quoting the
+    /// same number — and this system refuses rather than guessing a conversion it was never told.</summary>
+    public (string Quote, decimal Multiplier) Terms => (QuoteAsset, ContractMultiplier);
 }
 
 /// <summary>Closes for the bars leading up to the instant, one series per venue, for the sparkline.</summary>
@@ -303,19 +318,63 @@ public sealed record AssetAtInstant(
     string? Name,
     DateTime At,
     short Timeframe,
+    DateTime AnchorOpen,
     IReadOnlyList<AssetVenueMeasurement> Venues,
     IReadOnlyList<AssetVenueBar> Bars,
     IReadOnlyList<AssetVenueSeries> Series,
     DateTime? EarliestStored)
 {
-    /// <summary>
-    /// Closes of the complete bars for this instant's window. Incomplete bars are excluded rather
-    /// than quietly included: they cover less of the minute than the others and would widen the
-    /// spread with a number that is about coverage, not about price.
-    /// </summary>
-    public IReadOnlyList<AssetVenueBar> Comparable => Bars.Where(b => b.Complete).ToList();
+    /// <summary>When the compared window ended. It is at or before the requested instant, never
+    /// after: a bar that is still open contains trades that had not happened yet at T.</summary>
+    public DateTime AnchorClose => AnchorOpen.AddMinutes(Timeframe);
 
-    public double? SpreadBps
+    /// <summary>
+    /// The bars a claim may be built on: complete, actually traded, and on matching contract terms
+    /// with at least one other venue. Everything else stays on the page — it is data — but is not
+    /// allowed into the verdict.
+    /// </summary>
+    /// Eligibility, not sufficiency: a lone eligible bar belongs here so the page can say "only one
+    /// venue could be compared" rather than listing it as held out for a reason that is not true of
+    /// it. Whether a CLAIM can be made is a separate question, and needs two.
+    public IReadOnlyList<AssetVenueBar> Comparable =>
+        Bars.Where(b => b.Complete && b.Traded)
+            .GroupBy(b => b.Terms)
+            .OrderByDescending(g => g.Count())
+            .ThenBy(g => g.Key.Quote, StringComparer.Ordinal)
+            .FirstOrDefault()?.ToList()
+        ?? [];
+
+    /// <summary>Bars held out of the verdict, and why — stated rather than silently dropped.</summary>
+    public IReadOnlyList<(AssetVenueBar Bar, string Reason)> Excluded =>
+        Bars.Where(b => !Comparable.Contains(b))
+            .Select(b => (b, !b.Complete ? $"covers {b.BarCount} of {b.Timeframe} minutes"
+                           : !b.Traded ? "no volume — the close is a carried price"
+                           : $"quoted in {b.QuoteAsset}"
+                             + (b.ContractMultiplier == 1 ? "" : $" × {b.ContractMultiplier}")))
+            .ToList();
+
+    /// <summary>
+    /// The one cross-venue claim this data supports without a timing assumption. Both venues'
+    /// [low, high] cover the SAME closed wall-clock window, so if those ranges do not intersect
+    /// there was no price at which both traded during it — and no polling difference, keep-interval
+    /// difference or sweep width can manufacture that. Null when the ranges overlap, which is the
+    /// ordinary case and means no divergence can be asserted at all.
+    /// </summary>
+    public double? DisjointGap
+    {
+        get
+        {
+            var c = Comparable;
+            if (c.Count < 2) { return null; }
+            double maxLow = c.Max(b => b.Low), minHigh = c.Min(b => b.High);
+            return maxLow > minHigh ? maxLow - minHigh : null;
+        }
+    }
+
+    /// <summary>Close-to-close difference across the comparable bars. An illustration, not a claim:
+    /// two venues can close a minute apart on the last trade of that minute and still have traded at
+    /// the same prices throughout it, which is what <see cref="DisjointGap"/> tests properly.</summary>
+    public double? CloseSpreadBps
     {
         get
         {
@@ -325,6 +384,15 @@ public sealed record AssetAtInstant(
             var mid = (lo + hi) / 2;
             return mid > 0 ? (hi - lo) / mid * 10000 : null;
         }
+    }
+
+    /// <summary>Windows are epoch-aligned, so the last one CLOSED at or before an instant is the
+    /// floor of that instant minus one window. At 19:15:30 with 1m that is 19:14:00–19:15:00; at
+    /// exactly 19:15:00 it is the same window, which closed precisely then.</summary>
+    public static DateTime Anchor(DateTime at, short timeframe)
+    {
+        var window = TimeSpan.FromMinutes(timeframe).Ticks;
+        return new DateTime(at.Ticks / window * window, DateTimeKind.Utc).AddMinutes(-timeframe);
     }
 }
 

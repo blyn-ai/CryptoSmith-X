@@ -104,34 +104,37 @@ public static class AssetStore
             """,
             new { code, at }, cancellationToken: ct))).ToList();
 
-        // The bar covering the instant, one per venue. open_time is the bar's start, so the bar that
-        // contains T is the newest one that started at or before T within one timeframe of it.
+        // The last window that CLOSED at or before the instant — never the window containing it.
+        // The containing bar runs past T: asking for 18:02:30 and rendering the 18:02:00 bar shows
+        // trades from 18:02:30 to 18:03:00, which had not happened yet. On a page whose sibling is
+        // meticulous about never showing an observation after T, that is the same look-ahead the
+        // rework brief names as a replay trap. Anchoring by equality also guarantees every venue is
+        // read over the identical wall-clock window, which is the entire basis for comparing them.
+        var anchor = AssetAtInstant.Anchor(at, timeframe);
         var bars = (await conn.QueryAsync<AssetVenueBar>(new CommandDefinition(
             """
-            select i.segment_code    as "SegmentCode",
-                   i.exchange_symbol as "Symbol",
-                   c.open_time       as "OpenTime",
-                   c.timeframe       as "Timeframe",
-                   c.open            as "Open",
-                   c.high            as "High",
-                   c.low             as "Low",
-                   c.close           as "Close",
-                   c.volume          as "Volume",
-                   c.trade_count     as "TradeCount",
-                   c.bar_count       as "BarCount"
+            select i.segment_code       as "SegmentCode",
+                   i.exchange_symbol    as "Symbol",
+                   i.quote_asset        as "QuoteAsset",
+                   i.contract_multiplier as "ContractMultiplier",
+                   c.open_time          as "OpenTime",
+                   c.timeframe          as "Timeframe",
+                   c.open               as "Open",
+                   c.high               as "High",
+                   c.low                as "Low",
+                   c.close              as "Close",
+                   c.volume             as "Volume",
+                   c.trade_count        as "TradeCount",
+                   c.bar_count          as "BarCount"
               from exchange_instrument i
-              join lateral (
-                  select c.* from market_candle c
-                   where c.exchange_instrument_id = i.id
-                     and c.timeframe = @timeframe
-                     and c.open_time <= @at
-                     and c.open_time > @at - (@timeframe || ' minutes')::interval
-                   order by c.open_time desc limit 1
-              ) c on true
+              join market_candle c
+                on c.exchange_instrument_id = i.id
+               and c.timeframe = @timeframe
+               and c.open_time = @anchor
              where i.base_asset = @code
              order by i.segment_code
             """,
-            new { code, at, timeframe = (int)timeframe }, cancellationToken: ct))).ToList();
+            new { code, anchor, timeframe = (int)timeframe }, cancellationToken: ct))).ToList();
 
         // A short run-up per venue, so divergence over time is visible rather than inferred from one
         // instant. Ordered oldest-first for drawing.
@@ -145,7 +148,7 @@ public static class AssetStore
                  where i.base_asset = @code and c.timeframe = @timeframe and c.open_time <= @at
             ) x where rn <= 60 order by segment_code, open_time
             """,
-            new { code, at, timeframe = (int)timeframe }, cancellationToken: ct))).ToList();
+            new { code, at = anchor, timeframe = (int)timeframe }, cancellationToken: ct))).ToList();
 
         var series = seriesRows
             .GroupBy(r => r.SegmentCode, StringComparer.Ordinal)
@@ -161,7 +164,7 @@ public static class AssetStore
             new { code }, cancellationToken: ct));
 
         return new AssetAtInstant(
-            head.Value.Code, head.Value.Name, at, timeframe, venues, bars, series, earliest);
+            head.Value.Code, head.Value.Name, at, timeframe, anchor, venues, bars, series, earliest);
     }
 
     public static async Task<AssetDetails?> GetAsync(DbConnection conn, string code, CancellationToken ct)
