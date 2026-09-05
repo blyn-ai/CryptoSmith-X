@@ -27,6 +27,22 @@
     var ownRetentionDisplay = d.OwnRetentionDays?.ToString() ?? "";
     var intervalPlaceholder = d.DatasetDefaultIntervalS is { } di ? $"dataset {di}" : "dataset —";
     var retentionPlaceholder = d.DatasetDefaultRetentionDays is { } dr ? $"dataset {dr}" : "dataset: never rotate";
+
+    // How often it is KEPT, offered only when the dataset declares it distinguishes asking from
+    // keeping (0020). Where no default exists, every pass is written whole and there is nothing to
+    // set — a field here would let an operator record a number the collector does not obey, which
+    // is exactly the trap 0014 fell into with per-segment retention.
+    var keepsSubset = d.DatasetDefaultHistoryIntervalS is not null;
+    var ownHistoryDisplay = d.OwnHistoryIntervalS?.ToString() ?? "";
+    var historyPlaceholder = d.DatasetDefaultHistoryIntervalS is { } dh ? $"dataset {dh}" : "dataset —";
+    var pollEffective = d.OwnIntervalS ?? d.DatasetDefaultIntervalS;
+    var keepConfigured = d.OwnHistoryIntervalS ?? d.DatasetDefaultHistoryIntervalS;
+    var keepEffective = keepConfigured is null
+        ? pollEffective
+        : (pollEffective is null ? keepConfigured : Math.Max(keepConfigured.Value, pollEffective.Value));
+    var dropsPerKept = pollEffective is > 0 && keepEffective is > 0 && keepEffective > pollEffective
+        ? keepEffective.Value / pollEffective.Value
+        : 1;
 }
 @* data-live-skip: a tick never rewrites an open dialog — the values on screen are the ones being edited. *@
 <div class="modal-scrim" id="feed-dialog-@d.DatasetCode" data-feed-dialog data-live-skip data-dataset="@d.DatasetCode"
@@ -144,6 +160,13 @@
                             <label for="intervalS-@d.DatasetCode">Interval (s)</label>
                             <input id="intervalS-@d.DatasetCode" name="intervalS" type="text" value="@ownIntervalDisplay" placeholder="@intervalPlaceholder" data-interval>
                         </div>
+                        @if (keepsSubset)
+                        {
+                            <div class="field" style="margin-bottom:6px">
+                                <label for="historyIntervalS-@d.DatasetCode">Keep every (s)</label>
+                                <input id="historyIntervalS-@d.DatasetCode" name="historyIntervalS" type="text" value="@ownHistoryDisplay" placeholder="@historyPlaceholder" data-history-interval>
+                            </div>
+                        }
                         <div class="field" style="margin-bottom:6px">
                             <label for="retentionDays-@d.DatasetCode">Retention (days)</label>
                             <input id="retentionDays-@d.DatasetCode" name="retentionDays" type="text" value="@ownRetentionDisplay" placeholder="@retentionPlaceholder" data-retention>
@@ -155,12 +178,29 @@
                             <span class="@(d.OwnIntervalS is null ? "is-eff" : "")"><i>dataset</i><b>@(d.DatasetDefaultIntervalS?.ToString() ?? "—")</b></span>
                             <span><i>global</i><b>—</b></span>
                         </div>
+                        @if (keepsSubset)
+                        {
+                            @* Third slot is the poll interval, not "global": keeping cannot outrun asking,
+                               so the poll rate is the real floor of this cascade rather than an empty level. *@
+                            <div class="cascade" data-history-cascade>
+                                <span class="@(d.OwnHistoryIntervalS is not null ? "is-eff is-own" : "")"><i>own</i><b>@(d.OwnHistoryIntervalS?.ToString() ?? "—")</b></span>
+                                <span class="@(d.OwnHistoryIntervalS is null && d.DatasetDefaultHistoryIntervalS is not null ? "is-eff" : "")"><i>dataset</i><b>@(d.DatasetDefaultHistoryIntervalS?.ToString() ?? "—")</b></span>
+                                <span class="@(keepConfigured is null ? "is-eff" : "")"><i>poll</i><b>@(pollEffective?.ToString() ?? "—")</b></span>
+                            </div>
+                        }
                         <div class="cascade" data-retention-cascade>
                             <span class="@(d.OwnRetentionDays is not null ? "is-eff is-own" : "")"><i>own</i><b>@(d.OwnRetentionDays?.ToString() ?? "—")</b></span>
                             <span class="@(d.OwnRetentionDays is null ? "is-eff" : "")"><i>dataset</i><b>@(d.DatasetDefaultRetentionDays?.ToString() ?? "never")</b></span>
                             <span><i>global</i><b>—</b></span>
                         </div>
                     </div>
+
+                    @if (keepsSubset && dropsPerKept > 1)
+                    {
+                        <p style="margin:-4px 0 14px;font:400 11.5px/1.5 var(--font-body);color:var(--csx-gold-ink)">
+                            Polled every @pollEffective s, kept every @keepEffective s — @(dropsPerKept - 1) of every @dropsPerKept observations are never stored. Spread, top-of-book size, open interest and depth at those instants cannot be re-fetched from this venue at any price.
+                        </p>
+                    }
 
                     <div class="field">
                         <label for="note-@d.DatasetCode">Note</label>

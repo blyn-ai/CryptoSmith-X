@@ -156,12 +156,14 @@ public sealed class ExchangesController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Feed(
-        string id, string dataset, string mode, string? intervalS, string? retentionDays,
-        string? transport, string? note, string? confirmCode, CancellationToken ct)
+        string id, string dataset, string mode, string? intervalS, string? historyIntervalS,
+        string? retentionDays, string? transport, string? note, string? confirmCode, CancellationToken ct)
     {
-        if (!TryInterval(intervalS, out var interval) || !TryInterval(retentionDays, out var retention))
+        if (!TryInterval(intervalS, out var interval)
+            || !TryInterval(historyIntervalS, out var historyInterval)
+            || !TryInterval(retentionDays, out var retention))
         {
-            TempData["Error"] = $"{dataset}: interval and retention must be a positive whole number, or empty to inherit.";
+            TempData["Error"] = $"{dataset}: interval, keep interval and retention must be a positive whole number, or empty to inherit.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
@@ -170,6 +172,7 @@ public sealed class ExchangesController : Controller
             DatasetCode: dataset,
             Mode: mode,
             IntervalS: interval,
+            HistoryIntervalS: historyInterval,
             RetentionDays: retention,
             Transport: string.IsNullOrWhiteSpace(transport) ? null : transport,
             Note: note?.Trim(),

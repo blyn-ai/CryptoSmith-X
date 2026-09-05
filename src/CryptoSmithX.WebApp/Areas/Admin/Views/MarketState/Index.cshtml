@@ -17,10 +17,19 @@
     var notListed = Model.Rows.Count(r => r.ReceivedAt is null && r.FirstSeenAt > at);
     var noObservation = Model.Rows.Count - observed - notListed;
 
-    // One poll interval of tolerance. Beyond it the row is not "the market at T", it is the last
-    // thing we happened to see, and the difference matters most exactly when a venue is struggling.
-    var pollTolerance = (Model.HistoryIntervalSeconds ?? 60) * 2;
+    // Two keep intervals of tolerance, taken from the row's OWN segment. Beyond it the row is not
+    // "the market at T", it is the last thing we happened to see, and the difference matters most
+    // exactly when a venue is struggling. Since 0020 the rate is per segment, so one page-wide
+    // number would flag half the table wrongly the moment two venues differ.
+    int Tolerance(string segmentCode) => Model.KeptEverySeconds.TryGetValue(segmentCode, out var s) ? s * 2 : 120;
 
+    var keptRates = Model.KeptEverySeconds.Values.Distinct().Order().ToList();
+    var keptLabel = keptRates.Count switch
+    {
+        0 => "—",
+        1 => $"{keptRates[0]} s",
+        _ => $"{keptRates[0]}–{keptRates[^1]} s",
+    };
 }
 
 <div class="page-head">
@@ -54,10 +63,10 @@
 <div class="panel" style="padding:14px 18px;margin-bottom:var(--gap-card)">
     <div style="display:flex;gap:26px;flex-wrap:wrap;font:400 12px/1.6 var(--font-body);color:var(--text-muted)">
         <span><b class="mono" style="color:var(--text-data)">@observed</b> observed · <b class="mono" style="color:var(--text-data)">@noObservation</b> no observation · <b class="mono" style="color:var(--text-data)">@notListed</b> not listed yet</span>
-        <span>kept every <b class="mono" style="color:var(--text-data)">@(Model.HistoryIntervalSeconds?.ToString() ?? "—") s</b></span>
+        <span>kept every <b class="mono" style="color:var(--text-data)">@keptLabel</b>@(keptRates.Count > 1 ? " · varies by segment" : "")</span>
         <span>stored from <b class="mono" style="color:var(--text-data)">@Format.Utc(Model.EarliestStored)</b></span>
     </div>
-    @if (Model.HistoryIntervalSeconds > 10)
+    @if (keptRates.Count > 0 && keptRates[^1] > 10)
     {
         <p class="panel-note" style="margin-top:10px">Observations are polled more often than they are kept, so most of what was seen between these rows was never stored. Spread, top-of-book size, open interest and book depth at a moment cannot be re-fetched from any venue — what is missing here is missing everywhere.</p>
     }
@@ -91,8 +100,9 @@
     @foreach (var r in Model.Rows)
     {
         var state = r.StateAt(at);
-        var stale = r.PriceLagSeconds > pollTolerance;
-        var depthStale = r.DepthLagSeconds > pollTolerance;
+        var tolerance = Tolerance(r.SegmentCode);
+        var stale = r.PriceLagSeconds > tolerance;
+        var depthStale = r.DepthLagSeconds > tolerance;
         <div class="tr has-stretch r-state" style="@(state == "observed" ? "" : "opacity:.6")">
             <span class="cell">
                 <a class="name mono stretch" href="/Admin/Instruments/Details/@r.InstrumentId">@r.Symbol</a>

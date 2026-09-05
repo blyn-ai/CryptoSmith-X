@@ -93,7 +93,9 @@
                 }
                 else
                 {
-                    <span class="code">@(f.Kind == "derived" ? "internal" : f.Transport ?? "—") · @(f.EffectiveIntervalS is { } iv ? $"{iv} s" : "—") · @(f.EffectiveRetentionDays is { } rd ? $"{rd} d" : "never")</span>
+                    @* The keep rate appears only when it is slower than the poll rate — that is exactly when
+                       observations are being dropped, and it is the one number on this line that costs data. *@
+                    <span class="code">@(f.Kind == "derived" ? "internal" : f.Transport ?? "—") · @(f.EffectiveIntervalS is { } iv ? $"{iv} s" : "—")@(f.EffectiveHistoryIntervalS is { } hv && f.EffectiveIntervalS is { } pv && hv > pv ? $" · kept {hv} s" : "") · @(f.EffectiveRetentionDays is { } rd ? $"{rd} d" : "never")</span>
                 }
             </div>
             <div class="feed-cell">

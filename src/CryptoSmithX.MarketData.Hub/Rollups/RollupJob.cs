@@ -271,10 +271,20 @@ public sealed class RollupJob
                        -- Expected HISTORY rows, which is not the same as expected passes and was
                        -- the first version's mistake: snapshot_count counts rows in
                        -- market_snapshot, and SnapshotCollector writes one per instrument per
-                       -- minute however often it polls. Against 3600/interval an healthy hour
-                       -- read as 58 of 360. The floor of 60 s is that flush; a poll slower than a
-                       -- minute becomes the binding constraint instead, hence the greatest().
-                       least(3600 / greatest(coalesce(ec.interval_s, c.default_interval_s, 10), 60),
+                       -- KEEP interval however often it polls. Against 3600/poll a healthy hour
+                       -- read as 58 of 360.
+                       --
+                       -- Until 0020 the keep interval was a hardcoded 60 here, which was only ever
+                       -- right because the global setting happened to be 60 too. Setting it to 10 —
+                       -- the plan for a host with disk — would have left this saying 60 against 360
+                       -- real rows, a 6x lie in the one number that separates "we did not watch this
+                       -- hour" from "the market was quiet". It now reads the same cascade the
+                       -- collector obeys, floored at the poll interval because nothing can be kept
+                       -- more often than it is asked for.
+                       least(3600 / greatest(
+                                 coalesce(ec.history_interval_s, c.default_history_interval_s,
+                                          ec.interval_s, c.default_interval_s, 10),
+                                 coalesce(ec.interval_s, c.default_interval_s, 10)),
                              32767)::smallint,
                        coalesce(gap.seconds, 0),
                        now()

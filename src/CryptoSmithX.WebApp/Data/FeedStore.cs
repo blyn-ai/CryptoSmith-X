@@ -39,6 +39,12 @@ public static class FeedStore
                    ec.mode                                                         as "Mode",
                    ec.transport                                                    as "Transport",
                    coalesce(ec.interval_s, c.default_interval_s)                   as "EffectiveIntervalS",
+                   -- Same cascade the collector obeys (0020), floored at the poll interval: an
+                   -- observation cannot be kept more often than it is asked for, so the panel must
+                   -- never show a keep rate faster than the poll rate.
+                   greatest(coalesce(ec.history_interval_s, c.default_history_interval_s,
+                                     ec.interval_s, c.default_interval_s),
+                            coalesce(ec.interval_s, c.default_interval_s))          as "EffectiveHistoryIntervalS",
                    coalesce(ec.retention_days, c.default_retention_days)           as "EffectiveRetentionDays",
                    ec.note                                                         as "Note",
                    extract(epoch from now() - s.last_success_at)::double precision as "LastSuccessAgeSeconds",
@@ -70,10 +76,11 @@ public static class FeedStore
                 "select code as \"Code\", name as \"Name\", description as \"Description\", kind as \"Kind\" from dataset order by sort_order",
                 cancellationToken: ct))).ToList();
 
-        var policies = (await conn.QueryAsync<(string Dataset, string Mode, int? IntervalS, int? RetentionDays, string? Transport, string? Note, string? UpdatedBy, DateTime? UpdatedAt)>(
+        var policies = (await conn.QueryAsync<(string Dataset, string Mode, int? IntervalS, int? HistoryIntervalS, int? RetentionDays, string? Transport, string? Note, string? UpdatedBy, DateTime? UpdatedAt)>(
             new CommandDefinition(
                 """
                 select dataset_code as "Dataset", mode as "Mode", interval_s as "IntervalS",
+                       history_interval_s as "HistoryIntervalS",
                        retention_days as "RetentionDays", transport as "Transport", note as "Note",
                        updated_by as "UpdatedBy", updated_at as "UpdatedAt"
                   from segment_dataset where segment_code = @segmentCode
@@ -81,9 +88,11 @@ public static class FeedStore
                 new { segmentCode }, cancellationToken: ct)))
             .ToDictionary(r => r.Dataset, StringComparer.Ordinal);
 
-        var defaults = (await conn.QueryAsync<(string Code, int? DefaultIntervalS, int? DefaultRetentionDays)>(
+        var defaults = (await conn.QueryAsync<(string Code, int? DefaultIntervalS, int? DefaultHistoryIntervalS, int? DefaultRetentionDays)>(
             new CommandDefinition(
-                "select code as \"Code\", default_interval_s as \"DefaultIntervalS\", default_retention_days as \"DefaultRetentionDays\" from dataset",
+                "select code as \"Code\", default_interval_s as \"DefaultIntervalS\", "
+                + "default_history_interval_s as \"DefaultHistoryIntervalS\", "
+                + "default_retention_days as \"DefaultRetentionDays\" from dataset",
                 cancellationToken: ct)))
             .ToDictionary(r => r.Code, StringComparer.Ordinal);
 
@@ -139,6 +148,8 @@ public static class FeedStore
                 WeImplement: weImplement,
                 OwnIntervalS: p.IntervalS,
                 DatasetDefaultIntervalS: d.DefaultIntervalS,
+                OwnHistoryIntervalS: p.HistoryIntervalS,
+                DatasetDefaultHistoryIntervalS: d.DefaultHistoryIntervalS,
                 OwnRetentionDays: p.RetentionDays,
                 DatasetDefaultRetentionDays: d.DefaultRetentionDays,
                 Transport: p.Transport,
@@ -184,7 +195,8 @@ public static class FeedStore
         await conn.ExecuteAsync(new CommandDefinition(
             """
             update segment_dataset
-               set mode = @Mode, interval_s = @IntervalS, retention_days = @RetentionDays,
+               set mode = @Mode, interval_s = @IntervalS, history_interval_s = @HistoryIntervalS,
+                   retention_days = @RetentionDays,
                    transport = @Transport, note = nullif(@Note, ''), updated_by = @UpdatedBy, updated_at = now()
              where segment_code = @SegmentCode and dataset_code = @DatasetCode
             """,
@@ -210,6 +222,7 @@ public static class FeedStore
         public string Mode { get; init; } = "";
         public string? Transport { get; init; }
         public int? EffectiveIntervalS { get; init; }
+        public int? EffectiveHistoryIntervalS { get; init; }
         public int? EffectiveRetentionDays { get; init; }
         public string? Note { get; init; }
         public double? LastSuccessAgeSeconds { get; init; }
@@ -221,7 +234,7 @@ public static class FeedStore
             r.DatasetCode, r.DatasetName, r.Kind, r.SortOrder,
             ParseBool(r.VenueSupportsRaw), ParseBool(r.WeImplementRaw),
             r.HistoryDepth, r.HistorySource,
-            r.Mode, r.Transport, r.EffectiveIntervalS, r.EffectiveRetentionDays, r.Note,
+            r.Mode, r.Transport, r.EffectiveIntervalS, r.EffectiveHistoryIntervalS, r.EffectiveRetentionDays, r.Note,
             r.LastSuccessAgeSeconds, r.ConsecutiveFailures, r.LastDurationMs, r.AvgDurationMs);
 
         private static bool? ParseBool(string? raw) => raw switch { "true" => true, "false" => false, _ => null };

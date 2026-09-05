@@ -108,13 +108,28 @@ public static class MarketStateStore
         var earliest = await conn.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
             "select min(received_at) from market_snapshot", cancellationToken: ct));
 
-        var historyIntervalSeconds = await conn.ExecuteScalarAsync<int?>(new CommandDefinition(
-            "select value::int from dataset_setting where dataset_code = 'snapshot' and key = 'history_interval_s'",
-            cancellationToken: ct));
+        // How often an observation is KEPT, per segment. It was one number for the whole page until
+        // 0020 made it a per-cell cascade; a single figure would now be a plain lie the moment two
+        // venues differ, and this page exists to say what is true about a moment. Floored at the
+        // poll interval, exactly as SettingsSnapshot.HistoryInterval does in the hub.
+        var keptEverySeconds = (await conn.QueryAsync<(string Segment, int Seconds)>(new CommandDefinition(
+            """
+            select sd.segment_code as "Segment",
+                   greatest(coalesce(sd.history_interval_s, d.default_history_interval_s,
+                                     sd.interval_s, d.default_interval_s),
+                            coalesce(sd.interval_s, d.default_interval_s))::int as "Seconds"
+              from segment_dataset sd
+              join dataset d on d.code = sd.dataset_code
+             where sd.dataset_code = 'snapshot'
+               and (@segment is null or sd.segment_code = @segment)
+               and coalesce(sd.interval_s, d.default_interval_s) is not null
+            """,
+            new { segment }, cancellationToken: ct)))
+            .ToDictionary(r => r.Segment, r => r.Seconds, StringComparer.Ordinal);
 
         var segments = (await conn.QueryAsync<string>(new CommandDefinition(
             "select code from segment where status = 'enabled' order by code", cancellationToken: ct))).ToList();
 
-        return new MarketStateSlice(at, segment, rows, gaps, earliest, historyIntervalSeconds, segments);
+        return new MarketStateSlice(at, segment, rows, gaps, earliest, keptEverySeconds, segments);
     }
 }

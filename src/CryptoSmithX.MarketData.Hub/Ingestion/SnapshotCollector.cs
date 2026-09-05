@@ -6,7 +6,8 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 
 /// <summary>
 /// Writes the current state of every instrument. <c>market_snapshot_latest</c> is upserted on every
-/// pass; the same rows are appended to the history every <c>snapshot/history_interval_s</c> seconds.
+/// pass; the same rows are appended to the history every <c>history_interval_s</c> seconds, which
+/// resolves per segment×dataset cell (0020).
 /// A row goes in whole or not at all — a half-written row would hide staleness behind a fresh
 /// received_at, and an observation missing a field is skipped rather than completed with a zero.
 /// </summary>
@@ -24,6 +25,7 @@ public sealed class SnapshotCollector
     private readonly TimeProvider _clock;
     private readonly ILogger _logger;
     private long _lastHistoryBucket = -1;
+    private long _lastHistoryIntervalS = -1;
 
     public SnapshotCollector(
         IExchangeMarketData adapter, Db db, DbSettings settings, TimeProvider clock, ILogger logger)
@@ -56,11 +58,17 @@ public sealed class SnapshotCollector
         // existed only in the mutable latest cache and were overwritten by the next pass — and
         // spread, top-of-book sizes, open interest and depth at a moment cannot be re-fetched from
         // any venue at any price, so those five sixths stopped existing anywhere. A site with disk
-        // sets this to its poll interval and keeps everything it sees.
-        var historyInterval = (await _settings.CurrentAsync(ct))
-            .DatasetSettingInt("snapshot", "history_interval_s");
+        // sets this to its poll interval and keeps everything it sees. Since 0020 it resolves per
+        // cell, so a venue with 14 500 spot instruments can keep less often than one with 1 500
+        // perps without either decision being made for the other.
+        var historyInterval = (long)(await _settings.CurrentAsync(ct))
+            .HistoryInterval(_adapter.SegmentCode, "snapshot").TotalSeconds;
+
+        // Buckets are wall-clock aligned so restarts do not shift the phase. Changing the interval
+        // rescales the bucket number, and two different intervals can land on the same number — so
+        // a changed interval always writes, rather than silently skipping one keep at the boundary.
         var bucket = _clock.GetUtcNow().ToUnixTimeSeconds() / Math.Max(1, historyInterval);
-        var writeHistory = bucket != _lastHistoryBucket;
+        var writeHistory = bucket != _lastHistoryBucket || historyInterval != _lastHistoryIntervalS;
         if (writeHistory)
         {
             await Partitions.EnsureAsync(conn, _clock.GetUtcNow(), ct);
@@ -197,6 +205,7 @@ public sealed class SnapshotCollector
         if (writeHistory)
         {
             _lastHistoryBucket = bucket;
+            _lastHistoryIntervalS = historyInterval;
         }
 
         if (skipped > 0)

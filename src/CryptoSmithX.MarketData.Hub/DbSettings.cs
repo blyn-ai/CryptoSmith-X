@@ -85,11 +85,12 @@ public sealed class DbSettings
 
         var datasets = (await conn.QueryAsync<DatasetDefaults>(new CommandDefinition(
             """
-            select code                   as "Code",
-                   kind                   as "Kind",
-                   default_mode           as "DefaultMode",
-                   default_interval_s     as "DefaultIntervalS",
-                   default_retention_days as "DefaultRetentionDays"
+            select code                       as "Code",
+                   kind                       as "Kind",
+                   default_mode               as "DefaultMode",
+                   default_interval_s         as "DefaultIntervalS",
+                   default_history_interval_s as "DefaultHistoryIntervalS",
+                   default_retention_days     as "DefaultRetentionDays"
               from dataset
             """, cancellationToken: ct)))
             .ToDictionary(c => c.Code, StringComparer.Ordinal);
@@ -101,12 +102,13 @@ public sealed class DbSettings
 
         var matrix = (await conn.QueryAsync<SegmentDatasetRow>(new CommandDefinition(
             """
-            select segment_code   as "SegmentCode",
-                   dataset_code as "DatasetCode",
-                   mode            as "Mode",
-                   interval_s      as "IntervalS",
-                   retention_days  as "RetentionDays",
-                   transport       as "Transport"
+            select segment_code       as "SegmentCode",
+                   dataset_code       as "DatasetCode",
+                   mode               as "Mode",
+                   interval_s         as "IntervalS",
+                   history_interval_s as "HistoryIntervalS",
+                   retention_days     as "RetentionDays",
+                   transport          as "Transport"
               from segment_dataset
             """, cancellationToken: ct)))
             .ToDictionary(r => (r.SegmentCode, r.DatasetCode));
@@ -140,6 +142,12 @@ public sealed record DatasetDefaults
     public string Kind { get; init; } = "";
     public string DefaultMode { get; init; } = "";
     public int? DefaultIntervalS { get; init; }
+
+    /// <summary>How often an observation is KEPT, when that differs from how often it is asked for.
+    /// null means the dataset does not make that distinction — every pass is written whole — and is
+    /// also what tells the console not to offer the field for this dataset (0020).</summary>
+    public int? DefaultHistoryIntervalS { get; init; }
+
     public int? DefaultRetentionDays { get; init; }
 }
 
@@ -150,6 +158,7 @@ public sealed record SegmentDatasetRow
     public string DatasetCode { get; init; } = "";
     public string Mode { get; init; } = "";
     public int? IntervalS { get; init; }
+    public int? HistoryIntervalS { get; init; }
     public int? RetentionDays { get; init; }
     public string? Transport { get; init; }
 }
@@ -220,6 +229,27 @@ public sealed class SettingsSnapshot
     }
 
     /// <summary>
+    /// Cascade: segment_dataset.history_interval_s -> dataset.default_history_interval_s -> the
+    /// poll interval, and never below the poll interval — an observation cannot be kept more often
+    /// than it is asked for, so 5 s of keeping against a 10 s poll is 10 s and must be reported as
+    /// 10. A dataset with no default does not distinguish asking from keeping: every pass is
+    /// written whole, so its history interval simply IS its poll interval (0020).
+    /// </summary>
+    public TimeSpan HistoryInterval(string segmentCode, string datasetCode)
+    {
+        var poll = DatasetInterval(segmentCode, datasetCode);
+        var configured = Cell(segmentCode, datasetCode)?.HistoryIntervalS
+            ?? _datasets.GetValueOrDefault(datasetCode)?.DefaultHistoryIntervalS;
+        if (configured is not { } seconds)
+        {
+            return poll;
+        }
+
+        var kept = TimeSpan.FromSeconds(seconds);
+        return kept > poll ? kept : poll;
+    }
+
+    /// <summary>
     /// Retention for a dataset, dataset-level only — deliberately NOT overridable per segment.
     /// <c>market_snapshot</c> partitions are shared by every exchange; dropping a partition cannot
     /// spare one segment's rows, so a per-segment <c>segment_dataset.retention_days</c> value
@@ -229,8 +259,9 @@ public sealed class SettingsSnapshot
     public int? DatasetRetentionDays(string datasetCode) =>
         _datasets.GetValueOrDefault(datasetCode)?.DefaultRetentionDays;
 
-    /// <summary>A <c>dataset_setting</c> int value — the four knobs that are neither an interval
-    /// nor a retention (backfill windows, the delist counter).</summary>
+    /// <summary>A <c>dataset_setting</c> int value — the knobs that are neither an interval nor a
+    /// retention (backfill windows, the delist counter). history_interval_s used to live here and
+    /// moved to the cell cascade in 0020; see <see cref="HistoryInterval"/>.</summary>
     public int DatasetSettingInt(string datasetCode, string key) =>
         int.Parse(RequireDatasetSetting(datasetCode, key), NumberStyles.Integer, CultureInfo.InvariantCulture);
 

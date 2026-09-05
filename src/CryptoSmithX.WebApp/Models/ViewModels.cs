@@ -151,6 +151,7 @@ public sealed record FeedRow(
     string Mode,
     string? Transport,
     int? EffectiveIntervalS,
+    int? EffectiveHistoryIntervalS,
     int? EffectiveRetentionDays,
     string? Note,
     double? LastSuccessAgeSeconds,
@@ -178,6 +179,8 @@ public sealed record FeedDetails(
     bool WeImplement,
     int? OwnIntervalS,
     int? DatasetDefaultIntervalS,
+    int? OwnHistoryIntervalS,
+    int? DatasetDefaultHistoryIntervalS,
     int? OwnRetentionDays,
     int? DatasetDefaultRetentionDays,
     string? Transport,
@@ -193,6 +196,7 @@ public sealed record FeedSaveInput(
     string DatasetCode,
     string Mode,
     int? IntervalS,
+    int? HistoryIntervalS,
     int? RetentionDays,
     string? Transport,
     string? Note,
@@ -458,5 +462,7 @@ public sealed record MarketStateSlice(
     IReadOnlyList<MarketStateRow> Rows,
     IReadOnlyList<CollectorGapRow> GapsCoveringT,
     DateTime? EarliestStored,
-    int? HistoryIntervalSeconds,
+    /// <summary>Effective keep interval per segment code (0020) — never one number for the page,
+    /// because two venues in scope can legitimately keep history at different rates.</summary>
+    IReadOnlyDictionary<string, int> KeptEverySeconds,
     IReadOnlyList<string> Segments);
