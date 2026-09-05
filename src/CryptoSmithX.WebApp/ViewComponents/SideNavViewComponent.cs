@@ -62,6 +62,10 @@ public sealed class SideNavViewComponent : ViewComponent
                 new NavItem("Datasets", "/Admin/Datasets"),
                 new NavItem("Assets", "/Admin/Assets"),
                 new NavItem("Instruments", "/Admin/Instruments"),
+                // Built in the same pass as the feeds regrouping and then left unreachable: no nav
+                // entry, and nothing else links to it either. A page that answers "what did the
+                // market look like at 12:04:31" is worthless if you have to know its URL.
+                new NavItem("Market state", "/Admin/MarketState"),
             ]),
             new NavGroup("Fleet", [
                 new NavItem("Bots", "/Admin/Bots", b),
