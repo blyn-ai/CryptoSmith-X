@@ -4,6 +4,7 @@
 # именно было набрано. Это те же команды, только в гите и перезапускаемые.
 #
 #   ./provision-host.sh docker      Docker Engine + compose plugin
+#   ./provision-host.sh runner      self-hosted GitHub Actions runner
 #
 # Каждый шаг идемпотентен: повторный запуск ничего не ломает и не дублирует.
 set -euo pipefail
@@ -69,7 +70,62 @@ JSON
     echo -n "data-root: "; docker info --format '{{.DockerRootDir}}'
 }
 
+step_runner() {
+    require_root
+    : "${RUNNER_TOKEN:?нужен RUNNER_TOKEN — короткоживущий токен регистрации}"
+
+    local url=${RUNNER_URL:-https://github.com/blyn-ai/CryptoSmith-X}
+    local version=${RUNNER_VERSION:-2.337.0}
+    local labels=${RUNNER_LABELS:-csx-prod}
+    local user=gh-runner
+    local home="${DATA_ROOT}/gh-runner"
+
+    # ВАЖНО, ПРО БЕЗОПАСНОСТЬ. Репозиторий публичный, а раннер стоит внутри чужой
+    # сети и держит доступ к docker-сокету, то есть фактически права root.
+    # На нём обязан исполняться ТОЛЬКО deploy.yml с триггером `push: [main]`:
+    # запушить в main может лишь тот, у кого есть права записи. У ci.yml триггер
+    # pull_request, и он должен остаться на ubuntu-latest — иначе любой желающий
+    # откроет форк-PR и выполнит свой код на этой машине.
+    #
+    # Пользователь отдельный, не root. Он в группе docker, что на этой машине
+    # равносильно root, — но пусть эта цена будет названа явно, а не размазана
+    # по общей root-сессии.
+    if ! id -u "$user" >/dev/null 2>&1; then
+        log "Создаю пользователя $user"
+        useradd --system --create-home --home-dir "$home" --shell /usr/sbin/nologin "$user"
+    fi
+    usermod -aG docker "$user"
+    mkdir -p "$home"
+    chown "$user:$user" "$home"
+
+    if [ ! -f "$home/config.sh" ]; then
+        log "Скачиваю runner $version"
+        # Каталог раннера на диске данных: мусор сборок в _work весит гигабайты,
+        # а корень тут 29 ГБ.
+        curl -fsSL -o /tmp/runner.tar.gz \
+            "https://github.com/actions/runner/releases/download/v${version}/actions-runner-linux-x64-${version}.tar.gz"
+        tar xzf /tmp/runner.tar.gz -C "$home"
+        rm -f /tmp/runner.tar.gz
+        chown -R "$user:$user" "$home"
+    fi
+
+    if [ -f "$home/.runner" ]; then
+        log "Раннер уже зарегистрирован, пропускаю регистрацию"
+    else
+        log "Регистрирую раннер"
+        sudo -u "$user" "$home/config.sh" --unattended --replace \
+            --url "$url" --token "$RUNNER_TOKEN" \
+            --name "$(hostname)" --labels "$labels" --work _work
+    fi
+
+    log "Ставлю как службу"
+    ( cd "$home" && ./svc.sh install "$user" >/dev/null 2>&1 || true; ./svc.sh start >/dev/null 2>&1 || true )
+    sleep 3
+    ( cd "$home" && ./svc.sh status 2>&1 | head -4 )
+}
+
 case "${1:-}" in
     docker) step_docker ;;
-    *) echo "использование: $0 docker" >&2; exit 2 ;;
+    runner) step_runner ;;
+    *) echo "использование: $0 docker|runner" >&2; exit 2 ;;
 esac
