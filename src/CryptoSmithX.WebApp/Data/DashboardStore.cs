@@ -11,8 +11,9 @@ namespace CryptoSmithX.WebApp.Data;
 /// </summary>
 public static class DashboardStore
 {
-    // A snapshot older than three intervals means the feed has stopped; three failures is failing.
-    private const int StaleSnapshotSeconds = 30;   // 3 × 10 s snapshot interval
+    // How many poll intervals of silence still count as alive. Three is the same tolerance the
+    // collector loop uses before it treats a pass as missed.
+    private const int StaleIntervals = 3;
 
     public static async Task<Dashboard> LoadAsync(DbConnection conn, CancellationToken ct)
     {
@@ -22,6 +23,16 @@ public static class DashboardStore
         var events = (await conn.QueryAsync<EvRow>(new CommandDefinition(EvSql, cancellationToken: ct))).ToList();
         var tenants = (await conn.QueryAsync<TenRow>(new CommandDefinition(TenSql, cancellationToken: ct))).ToList();
         var buckets = (await conn.QueryAsync<double>(new CommandDefinition(IngestSql, cancellationToken: ct))).ToList();
+
+        // The staleness threshold used to be the literal 30 s, written as "3 × 10 s snapshot
+        // interval" back when every venue was polled over REST. It is wrong for a streaming venue:
+        // TryGetFreshTickers serves a cached WS record unchanged for up to ws_stale_after_s, which
+        // is itself 30 s, so an instrument the venue has not re-published is ALLOWED to be that old
+        // at the moment it is written. Kraken sat at 39 s on production — its thinly traded forex
+        // perps simply do not print often — and the dashboard called the whole venue degraded for
+        // obeying a setting we gave it. Both halves of the threshold now come from configuration.
+        var wsStaleAfter = await conn.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "select value::int from setting where key = 'ws_stale_after_s'", cancellationToken: ct)) ?? 30;
 
         // Per-exchange sparkline: snapshot rows per 5 min for the last 2 h.
         var sparkByExchange = new Dictionary<string, List<double>>(StringComparer.Ordinal);
@@ -37,7 +48,7 @@ public static class DashboardStore
 
         var exchanges = exRows.Select(e =>
         {
-            var health = HealthOf(e, collectors);
+            var health = HealthOf(e, collectors, wsStaleAfter);
             sparkByExchange.TryGetValue(e.Code, out var sp);
             return new DashExchange(e.Code, e.Name, e.Status, health,
                 e.TradingInstruments, e.KnownInstruments, e.WorstAgeSeconds,
@@ -85,7 +96,7 @@ public static class DashboardStore
             AsOf: DateTime.UtcNow);
     }
 
-    private static string HealthOf(ExRow e, IReadOnlyList<ColRow> collectors)
+    private static string HealthOf(ExRow e, IReadOnlyList<ColRow> collectors, int wsStaleAfterSeconds)
     {
         if (e.Status == "maintenance")
         {
@@ -112,13 +123,28 @@ public static class DashboardStore
         // recovered on the very next pass. At one, the banner flipped to degraded every few
         // minutes and back — which teaches an operator to ignore the banner, the opposite of
         // what it is for. Two in a row means the recovery itself did not work.
-        if (mine.Any(c => c.ConsecutiveFailures >= 2) || e.WorstAgeSeconds > StaleSnapshotSeconds)
+        if (mine.Any(c => c.ConsecutiveFailures >= 2)
+            || e.WorstAgeSeconds > StaleThresholdSeconds(wsStaleAfterSeconds, e.PollSeconds))
         {
             return "degraded";
         }
 
         return "ok";
     }
+
+    /// <summary>
+    /// How old the oldest trading instrument's observation may be before the venue is degraded.
+    ///
+    /// Both halves come from configuration rather than from a guess about how venues behave. A
+    /// cached WebSocket record is served unchanged for up to <c>ws_stale_after_s</c>, so it is
+    /// permitted to be that old at the instant it is written; after that, three poll intervals is
+    /// the same tolerance the collector loop gives a missed pass. The literal 30 s this replaces
+    /// was written as "3 × 10 s snapshot interval" when every venue was polled over REST, and it
+    /// equalled ws_stale_after_s exactly — so a streaming venue could never satisfy it. Kraken sat
+    /// at 39 s on production and was called degraded for obeying a setting we gave it.
+    /// </summary>
+    public static double StaleThresholdSeconds(int wsStaleAfterSeconds, int? pollSeconds) =>
+        wsStaleAfterSeconds + (StaleIntervals * (pollSeconds ?? 10));
 
     private static string CollectorHealth(ColRow c) =>
         c.ConsecutiveFailures >= 3 ? "fail"
@@ -159,7 +185,10 @@ public static class DashboardStore
                (select count(*)::int from exchange_instrument i where i.segment_code = e.code) as "KnownInstruments",
                (select extract(epoch from now() - min(l.received_at))::double precision
                   from market_snapshot_latest l join exchange_instrument i on i.id = l.exchange_instrument_id
-                 where i.segment_code = e.code and i.status = 'trading') as "WorstAgeSeconds"
+                 where i.segment_code = e.code and i.status = 'trading') as "WorstAgeSeconds",
+               (select coalesce(sd.interval_s, d.default_interval_s)
+                  from segment_dataset sd join dataset d on d.code = sd.dataset_code
+                 where sd.segment_code = e.code and sd.dataset_code = 'snapshot') as "PollSeconds"
           from segment e
          order by case e.status when 'enabled' then 0 when 'maintenance' then 1 when 'disabled' then 2 when 'planned' then 3 else 4 end, e.code
         """;
@@ -239,7 +268,7 @@ public static class DashboardStore
          order by ex.code, buckets.b
         """;
 
-    private sealed record ExRow(string Code, string Name, string Status, int TradingInstruments, int KnownInstruments, double? WorstAgeSeconds);
+    private sealed record ExRow(string Code, string Name, string Status, int TradingInstruments, int KnownInstruments, double? WorstAgeSeconds, int? PollSeconds);
     private sealed record ColRow(string SegmentCode, string Collector, double? LastSuccessAgeSeconds, int ConsecutiveFailures, int? AvgDurationMs, string? LastError);
     private sealed record BotRow(int Id, string TenantCode, string BotInstanceId, double? LastHeartbeatAgeSeconds);
     private sealed record EvRow(DateTime Utc, string Type, string TenantCode, int BotId, string BotInstanceId);
