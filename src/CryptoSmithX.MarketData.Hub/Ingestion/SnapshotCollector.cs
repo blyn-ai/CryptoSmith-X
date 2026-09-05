@@ -131,6 +131,16 @@ public sealed class SnapshotCollector
 
             if (writeHistory)
             {
+                // Depth comes from the latest row, not from this ticker payload. On Kraken the
+                // ticker carries a book and the two are the same value; on Hyperliquid and WEEX it
+                // does not, and depth arrives only from DepthCollector — which writes the latest
+                // row and nothing else. Taking the parameters here wrote nulls for those venues, so
+                // their order-book depth was measured every minute and discarded every minute:
+                // 1,188 instruments, from the day each adapter went live, in the one category that
+                // cannot be re-fetched. The latest row is upserted immediately above in this same
+                // transaction and preserves depth when the ticker has none, so by this point it
+                // holds the freshest measurement whichever loop produced it. depth_at travels with
+                // it — the column exists precisely because depth runs on its own clock.
                 await conn.ExecuteAsync(new CommandDefinition(
                     """
                     insert into market_snapshot (
@@ -139,12 +149,14 @@ public sealed class SnapshotCollector
                         open_interest, open_interest_at,
                         depth_bid_10bps, depth_ask_10bps, depth_bid_25bps, depth_ask_25bps,
                         depth_bid_50bps, depth_ask_50bps, depth_at)
-                    values (
+                    select
                         @Id, @ReceivedAt, @LastPrice, @BidPrice, @AskPrice,
                         @BidSize, @AskSize, @MarkPrice, @IndexPrice, @FundingRate, @Turnover24h,
                         @OpenInterest, @OpenInterestAt,
-                        @DepthBid10, @DepthAsk10, @DepthBid25, @DepthAsk25,
-                        @DepthBid50, @DepthAsk50, @DepthAt)
+                        l.depth_bid_10bps, l.depth_ask_10bps, l.depth_bid_25bps, l.depth_ask_25bps,
+                        l.depth_bid_50bps, l.depth_ask_50bps, l.depth_at
+                      from market_snapshot_latest l
+                     where l.exchange_instrument_id = @Id
                     on conflict (exchange_instrument_id, received_at) do nothing
                     """,
                     row, tx, cancellationToken: ct));
