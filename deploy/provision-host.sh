@@ -5,6 +5,7 @@
 #
 #   ./provision-host.sh docker      Docker Engine + compose plugin
 #   ./provision-host.sh postgres    PostgreSQL 16 из PGDG, данные на диске данных
+#   ./provision-host.sh database    сеть докера, роль, база, пароль в .env
 #   ./provision-host.sh runner      self-hosted GitHub Actions runner
 #
 # Каждый шаг идемпотентен: повторный запуск ничего не ломает и не дублирует.
@@ -156,6 +157,75 @@ CONF
        order by name"
 }
 
+step_database() {
+    require_root
+
+    local pgver=16
+    local net=csx
+    local subnet=${CSX_SUBNET:-172.28.0.0/16}
+    local gateway=${CSX_GATEWAY:-172.28.0.1}
+    local envfile=/opt/cryptosmithx/.env
+
+    # Сеть докера создаём САМИ и с фиксированной подсетью. Иначе compose выберет
+    # адрес сам, и он поменяется при пересоздании — а Postgres должен слушать на
+    # конкретном адресе шлюза и пускать конкретную подсеть. Заодно это избавляет
+    # от listen_addresses='*': база не окажется видна в LAN клиента на
+    # 192.168.0.24:5432, и firewall для этого не нужен.
+    if ! docker network inspect "$net" >/dev/null 2>&1; then
+        log "Создаю сеть докера $net ($subnet)"
+        docker network create --subnet "$subnet" --gateway "$gateway" "$net" >/dev/null
+    fi
+
+    log "Открываю Postgres только для этой сети"
+    cat > "/etc/postgresql/${pgver}/main/conf.d/20-csx-net.conf" <<CONF
+# localhost — для psql на самой машине; шлюз докера — для контейнеров стека.
+# Ни одного адреса, видимого из LAN клиента, здесь нет намеренно.
+listen_addresses = 'localhost,${gateway}'
+CONF
+
+    local hba="/etc/postgresql/${pgver}/main/pg_hba.conf"
+    if ! grep -q "csx stack" "$hba"; then
+        printf '\n# csx stack: контейнеры из сети %s, только по паролю\nhost all all %s scram-sha-256\n' \
+            "$net" "$subnet" >> "$hba"
+    fi
+
+    systemctl restart "postgresql@${pgver}-main"
+    sleep 2
+
+    # Пароль генерируется здесь и попадает только в .env с правами 600.
+    # В историю оболочки, в аргументы команд и в вывод он не выходит.
+    if [ -f "$envfile" ] && grep -q '^POSTGRES_PASSWORD=' "$envfile"; then
+        log ".env уже есть, пароль не трогаю"
+    else
+        log "Генерирую пароль и создаю роль с базой"
+        mkdir -p /opt/cryptosmithx
+        local pw; pw=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
+        sudo -u postgres psql -qtAc \
+            "do \$\$ begin
+               if not exists (select 1 from pg_roles where rolname='marketdata') then
+                 create role marketdata login;
+               end if;
+             end \$\$;"
+        sudo -u postgres psql -qtAc "alter role marketdata password '${pw}'" >/dev/null
+        sudo -u postgres psql -qtAc "select 1 from pg_database where datname='marketdata'" | grep -q 1 \
+            || sudo -u postgres createdb -O marketdata marketdata
+        umask 077
+        cat > "$envfile" <<ENV
+# Секреты этой площадки. Только здесь, никогда в git.
+POSTGRES_PASSWORD=${pw}
+DATABASE_CONNECTION_STRING=Host=${gateway};Port=5432;Database=marketdata;Username=marketdata;Password=${pw}
+CSX_NETWORK=${net}
+ENV
+        chmod 600 "$envfile"
+    fi
+
+    log "Проверяю, что из контейнера видно"
+    docker run --rm --network "$net" -e PGPASSWORD="$(grep '^POSTGRES_PASSWORD=' "$envfile" | cut -d= -f2-)" \
+        postgres:16-alpine psql -h "$gateway" -U marketdata -d marketdata -tAc \
+        "select 'из контейнера: ' || current_user || '@' || current_database()"
+    echo -n "права на .env: "; stat -c %a "$envfile"
+}
+
 step_runner() {
     require_root
     : "${RUNNER_TOKEN:?нужен RUNNER_TOKEN — короткоживущий токен регистрации}"
@@ -213,6 +283,7 @@ step_runner() {
 case "${1:-}" in
     docker)   step_docker ;;
     postgres) step_postgres ;;
+    database) step_database ;;
     runner)   step_runner ;;
     *) echo "использование: $0 docker|postgres|runner" >&2; exit 2 ;;
 esac
