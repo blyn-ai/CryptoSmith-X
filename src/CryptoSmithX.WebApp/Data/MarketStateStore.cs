@@ -1,6 +1,7 @@
 using System.Data.Common;
 using CryptoSmithX.WebApp.Models;
 using Dapper;
+using Npgsql;
 
 namespace CryptoSmithX.WebApp.Data;
 
@@ -105,8 +106,44 @@ public static class MarketStateStore
             """,
             new { at, segment }, cancellationToken: ct))).ToList();
 
-        var earliest = await conn.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
-            "select min(received_at) from market_snapshot", cancellationToken: ct));
+        // "How far back does history go" used to be select min(received_at) from market_snapshot.
+        // That is a sequential scan of every partition of the largest table in the system: the only
+        // indexes are the primary key, whose leading column is exchange_instrument_id, and a BRIN on
+        // received_at, which cannot serve an ordered minimum. It cost nothing while this page was
+        // unreachable and nobody rendered it; the moment it went into the nav it scanned 26M rows on
+        // every load and the page stopped answering.
+        //
+        // The primary key does serve it, one instrument at a time: each subquery is an index-only
+        // descent per partition, and there are as many of them as there are rows on the page — the
+        // same order of work the page already does for the measurements themselves. Scoped to the
+        // instruments actually listed, which also makes the figure true of what is on screen rather
+        // than of instruments the operator cannot see.
+        DateTime? earliest;
+        try
+        {
+            earliest = await conn.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
+                """
+                select min(m) from (
+                    select (select min(s.received_at)
+                              from market_snapshot s
+                             where s.exchange_instrument_id = i.id) as m
+                      from exchange_instrument i
+                     where i.collect and (@segment is null or i.segment_code = @segment)
+                ) x
+                """,
+                new { segment },
+                // A page that says "not measured" for one figure it could not read is behaving
+                // correctly; one that hangs the whole request waiting for it is not. Ten seconds is
+                // far above the measured cost and far below what a human will sit through.
+                commandTimeout: 10,
+                cancellationToken: ct));
+        }
+        catch (Exception ex) when (ex is NpgsqlException or TimeoutException)
+        {
+            // One slow supporting figure must not cost the page its actual content. It renders as
+            // an em dash, which on this page already means "not measured" and is true here.
+            earliest = null;
+        }
 
         // How often an observation is KEPT, per segment. It was one number for the whole page until
         // 0020 made it a per-cell cascade; a single figure would now be a plain lie the moment two

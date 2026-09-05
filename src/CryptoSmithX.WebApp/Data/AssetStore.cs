@@ -155,13 +155,21 @@ public static class AssetStore
             .Select(g => new AssetVenueSeries(g.Key, g.Select(r => r.Close).ToList()))
             .ToList();
 
+        // Per instrument, not per row. Joined the obvious way this reads every snapshot row the
+        // asset has in order to take a minimum; asked one instrument at a time it is an ordered
+        // index-only descent that stops at the first row. The difference is invisible on a small
+        // database and is the whole page on a large one — see the same note in MarketStateStore.
         var earliest = await conn.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
             """
-            select min(s.received_at) from market_snapshot s
-              join exchange_instrument i on i.id = s.exchange_instrument_id
-             where i.base_asset = @code
+            select min(m) from (
+                select (select min(s.received_at)
+                          from market_snapshot s
+                         where s.exchange_instrument_id = i.id) as m
+                  from exchange_instrument i
+                 where i.base_asset = @code
+            ) x
             """,
-            new { code }, cancellationToken: ct));
+            new { code }, commandTimeout: 10, cancellationToken: ct));
 
         return new AssetAtInstant(
             head.Value.Code, head.Value.Name, at, timeframe, anchor, venues, bars, series, earliest);
