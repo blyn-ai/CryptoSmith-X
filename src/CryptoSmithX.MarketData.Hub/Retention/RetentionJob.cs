@@ -25,14 +25,12 @@ public sealed class RetentionJob
     /// <summary>Returns the number of partitions dropped.</summary>
     public async Task<int> RunAsync(CancellationToken ct)
     {
-        // Run history is small but unbounded; a week is plenty for the UI's list and trend.
-        await using (var runsConn = await _db.OpenAsync(ct))
-        {
-            await runsConn.ExecuteAsync(new CommandDefinition(
-                "delete from collector_run where started_at < now() - interval '7 days'",
-                cancellationToken: ct));
-        }
-
+        // collector_run used to be trimmed to a week, on the reasoning that the UI only needs
+        // a recent list. That reasoning was backwards: this is the layer that says whether an
+        // observation is missing because the market was quiet or because we were blind, and
+        // that question gets asked about last month, not about this hour. It is also cheap —
+        // tens of thousands of rows a day against millions of snapshots. Nothing deletes it
+        // now; the rework decides retention from measured volumes, and the default is keep.
         var now = _clock.GetUtcNow();
         await using var conn = await _db.OpenAsync(ct);
 

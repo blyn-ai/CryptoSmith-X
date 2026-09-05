@@ -7,6 +7,7 @@ using CryptoSmithX.MarketData.Hub.Retention;
 using CryptoSmithX.MarketData.Hub.Rollups;
 using CryptoSmithX.Database;
 using Dapper;
+using Npgsql;
 
 namespace CryptoSmithX.MarketData.Hub.Ingestion;
 
@@ -362,7 +363,69 @@ public sealed class ExchangeWorker : BackgroundService
             """,
             new { a.ExchangeCode, a.Collector, a.AttemptAt, a.DurationMs, a.Success, a.Error, a.InstrumentsExpected },
             cancellationToken: ct));
+
+        await RecordGapAsync(conn, a, ct);
     }
+
+    /// <summary>
+    /// Turns a run of failures into an explicit interval that was not observed.
+    ///
+    /// Absence is the default state of a database, which is exactly the problem: a row that is
+    /// missing because the venue went quiet and a row that is missing because we were blind look
+    /// identical, and a strategy trained on the second kind reads our outage as a market signal.
+    /// A gap row makes the second kind a recorded fact.
+    ///
+    /// The first failure opens an interval, further failures leave it alone, and the next success
+    /// closes it. Closing on success rather than on a timer is deliberate: only the collector
+    /// getting data back proves the venue is answering again.
+    /// </summary>
+    private static async Task RecordGapAsync(NpgsqlConnection conn, CollectorAttempt a, CancellationToken ct)
+    {
+        if (a.Success)
+        {
+            await conn.ExecuteAsync(new CommandDefinition(
+                """
+                update collection_gap set gap_end = @AttemptAt
+                 where exchange_code = @ExchangeCode and collector = @Collector and gap_end is null
+                """,
+                new { a.ExchangeCode, a.Collector, a.AttemptAt },
+                cancellationToken: ct));
+            return;
+        }
+
+        // Only the first failure of a run opens the interval; the rest are the same outage.
+        if (a.ConsecutiveFailures != 1)
+        {
+            return;
+        }
+
+        await conn.ExecuteAsync(new CommandDefinition(
+            """
+            insert into collection_gap (exchange_code, collector, gap_start, cause, detail)
+            select @ExchangeCode, @Collector, @AttemptAt, @Cause, @Detail
+             where not exists (
+                 select 1 from collection_gap
+                  where exchange_code = @ExchangeCode and collector = @Collector and gap_end is null)
+            """,
+            new { a.ExchangeCode, a.Collector, a.AttemptAt, Cause = CauseOf(a.Error), Detail = a.Error },
+            cancellationToken: ct));
+    }
+
+    /// <summary>
+    /// Classifies an outage from the error text the loop already captured. Coarse on purpose:
+    /// the useful distinction is "the venue pushed us away" against "we broke", and a taxonomy
+    /// finer than the evidence would invent precision that is not there.
+    /// </summary>
+    private static string CauseOf(string? error) => error switch
+    {
+        null => "error",
+        var e when e.Contains("429", StringComparison.Ordinal)
+                || e.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase) => "rate_limited",
+        var e when e.Contains("Timeout", StringComparison.OrdinalIgnoreCase)
+                || e.Contains("timed out", StringComparison.OrdinalIgnoreCase) => "timeout",
+        var e when e.Contains("maintenance", StringComparison.OrdinalIgnoreCase) => "exchange_maintenance",
+        _ => "error",
+    };
 
     /// <summary>Declares this adapter's capability into the matrix — 'we_implement' and
     /// 'transports_us' for every collection, true/set where <see cref="IExchangeMarketData.Capabilities"/>
