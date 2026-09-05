@@ -4,6 +4,7 @@
 # именно было набрано. Это те же команды, только в гите и перезапускаемые.
 #
 #   ./provision-host.sh docker      Docker Engine + compose plugin
+#   ./provision-host.sh postgres    PostgreSQL 16 из PGDG, данные на диске данных
 #   ./provision-host.sh runner      self-hosted GitHub Actions runner
 #
 # Каждый шаг идемпотентен: повторный запуск ничего не ломает и не дублирует.
@@ -70,6 +71,91 @@ JSON
     echo -n "data-root: "; docker info --format '{{.DockerRootDir}}'
 }
 
+step_postgres() {
+    require_root
+
+    local pgver=16
+    local datadir="${DATA_ROOT}/postgresql/${pgver}/main"
+
+    if ! command -v psql >/dev/null 2>&1; then
+        log "Ставлю PostgreSQL ${pgver} из PGDG"
+        # Из PGDG, а не из Ubuntu: в дистрибутиве версия старше, а схема
+        # рассчитана на 16.
+        apt-get install -y -qq ca-certificates curl gnupg
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | gpg --dearmor --yes -o /etc/apt/keyrings/pgdg.gpg
+        chmod a+r /etc/apt/keyrings/pgdg.gpg
+        echo "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt \
+$(. /etc/os-release && echo "$VERSION_CODENAME")-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+        apt-get update -qq
+        apt-get install -y -qq "postgresql-${pgver}"
+    else
+        log "PostgreSQL уже стоит: $(psql --version)"
+    fi
+
+    # Данные на отдельный диск: корень 29 ГБ, а свечи растут ~290 МБ в сутки и
+    # не ротируются никогда. И весь каталог данных на ОДНОМ диске — снапшот
+    # виртуалки атомарен только тогда; данные и WAL по разным томам снимались бы
+    # независимо, и восстановление превратилось бы в лотерею.
+    if [ ! -d "$datadir" ]; then
+        log "Переношу каталог данных на ${DATA_ROOT}"
+        systemctl stop "postgresql@${pgver}-main" 2>/dev/null || true
+        mkdir -p "${DATA_ROOT}/postgresql/${pgver}"
+        mv "/var/lib/postgresql/${pgver}/main" "${DATA_ROOT}/postgresql/${pgver}/main"
+        chown -R postgres:postgres "${DATA_ROOT}/postgresql"
+        chmod 700 "$datadir"
+    fi
+
+    log "Настраиваю под 26 ГБ и профиль записи"
+    # Профиль нагрузки: поток мелких апсертов круглые сутки, на текущем проде
+    # 175 ГБ записано против 25 ГБ прочитано. Дефолты рассчитаны на то, чтобы
+    # Postgres завёлся где угодно, включая ноутбук, и для такой записи они плохи.
+    #
+    # max_wal_size — главный. При 1 ГБ журнал упирается в потолок постоянно, и
+    # каждый раз запускается ПРИНУДИТЕЛЬНЫЙ чекпойнт. Сразу после чекпойнта
+    # первая запись в страницу пишет в журнал страницу целиком, а не изменение,
+    # поэтому частые чекпойнты сами себя разгоняют: больше журнала → чаще
+    # чекпойнт → ещё больше журнала. 12 ГБ переводит их на таймер.
+    #
+    # shared_buffers — свой кеш страниц, канон 25% памяти.
+    # work_mem — на одну сортировку; группировки роллапа при 4 МБ сбрасывались
+    # на диск. Значение умножается на число одновременных операций, отсюда
+    # умеренные 96 МБ, а не гигабайты.
+    # random_page_cost — дефолтная 4 означает «диск шпиндельный, индексы дорогие»;
+    # под SSD планировщик должен охотнее их брать. Гость видит диск как
+    # rotational, но за ним SSD.
+    # wal_compression — сжимает те самые полностраничные записи.
+    cat > "/etc/postgresql/${pgver}/main/conf.d/10-csx.conf" <<CONF
+data_directory = '${datadir}'
+
+shared_buffers = 6GB
+effective_cache_size = 18GB
+work_mem = 96MB
+maintenance_work_mem = 1GB
+
+max_wal_size = 12GB
+min_wal_size = 2GB
+wal_compression = on
+checkpoint_completion_target = 0.9
+
+random_page_cost = 1.1
+effective_io_concurrency = 200
+
+max_connections = 100
+CONF
+
+    systemctl enable --now "postgresql@${pgver}-main" >/dev/null
+    sleep 2
+    log "Готово"
+    sudo -u postgres psql -tAc "select version()" | head -1
+    sudo -u postgres psql -tAc \
+      "select name || ' = ' || setting || ' ' || coalesce(unit,'') from pg_settings
+       where name in ('data_directory','shared_buffers','max_wal_size','work_mem',
+                      'effective_cache_size','random_page_cost','wal_compression')
+       order by name"
+}
+
 step_runner() {
     require_root
     : "${RUNNER_TOKEN:?нужен RUNNER_TOKEN — короткоживущий токен регистрации}"
@@ -125,7 +211,8 @@ step_runner() {
 }
 
 case "${1:-}" in
-    docker) step_docker ;;
-    runner) step_runner ;;
-    *) echo "использование: $0 docker|runner" >&2; exit 2 ;;
+    docker)   step_docker ;;
+    postgres) step_postgres ;;
+    runner)   step_runner ;;
+    *) echo "использование: $0 docker|postgres|runner" >&2; exit 2 ;;
 esac
