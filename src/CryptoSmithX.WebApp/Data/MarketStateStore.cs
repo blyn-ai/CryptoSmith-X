@@ -112,24 +112,39 @@ public static class MarketStateStore
         // 0020 made it a per-cell cascade; a single figure would now be a plain lie the moment two
         // venues differ, and this page exists to say what is true about a moment. Floored at the
         // poll interval, exactly as SettingsSnapshot.HistoryInterval does in the hub.
-        var keptEverySeconds = (await conn.QueryAsync<(string Segment, int Seconds)>(new CommandDefinition(
+        // Poll rate, keep rate and the depth cadence, per segment. All three are needed and none can
+        // stand for another: the keep rate decides whether a price row is stale, the poll rate decides
+        // whether anything is being dropped at all, and depth has its own much slower clock — a sweep
+        // across a large venue is minutes wide, so judging depth by the snapshot keep rate turns the
+        // whole column gold the moment a segment starts keeping every 10 s, which is precisely the
+        // configuration this feature exists to make possible.
+        var cadence = (await conn.QueryAsync<SegmentCadence>(new CommandDefinition(
             """
-            select sd.segment_code as "Segment",
-                   greatest(coalesce(sd.history_interval_s, d.default_history_interval_s,
-                                     sd.interval_s, d.default_interval_s),
-                            coalesce(sd.interval_s, d.default_interval_s))::int as "Seconds"
+            select sd.segment_code                                        as "SegmentCode",
+                   coalesce(sd.interval_s, d.default_interval_s)           as "PollSeconds",
+                   keep_interval_s(sd.segment_code, 'snapshot')            as "KeepSeconds",
+                   dp.interval_s                                          as "DepthPollSeconds",
+                   ds.avg_duration_ms / 1000.0                            as "DepthSweepSeconds"
               from segment_dataset sd
               join dataset d on d.code = sd.dataset_code
+              left join lateral (
+                  select coalesce(x.interval_s, xd.default_interval_s) as interval_s
+                    from segment_dataset x
+                    join dataset xd on xd.code = x.dataset_code
+                   where x.segment_code = sd.segment_code and x.dataset_code = 'depth'
+              ) dp on true
+              left join collector_status ds
+                on ds.segment_code = sd.segment_code and ds.collector = 'depth'
              where sd.dataset_code = 'snapshot'
                and (@segment is null or sd.segment_code = @segment)
                and coalesce(sd.interval_s, d.default_interval_s) is not null
             """,
             new { segment }, cancellationToken: ct)))
-            .ToDictionary(r => r.Segment, r => r.Seconds, StringComparer.Ordinal);
+            .ToDictionary(r => r.SegmentCode, StringComparer.Ordinal);
 
         var segments = (await conn.QueryAsync<string>(new CommandDefinition(
             "select code from segment where status = 'enabled' order by code", cancellationToken: ct))).ToList();
 
-        return new MarketStateSlice(at, segment, rows, gaps, earliest, keptEverySeconds, segments);
+        return new MarketStateSlice(at, segment, rows, gaps, earliest, cadence, segments);
     }
 }

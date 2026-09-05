@@ -289,7 +289,7 @@ else
         }
     });
     document.addEventListener('input', function (ev) {
-        if (ev.target.matches('[data-guard-code], [data-interval], [data-retention]')) {
+        if (ev.target.matches('[data-guard-code], [data-interval], [data-keep], [data-retention]')) {
             recompute(ev.target.closest('[data-feed-dialog]'));
         }
     });
@@ -335,6 +335,47 @@ else
             cells[hasOwn ? 0 : 1].classList.add('is-eff');
             if (hasOwn) { cells[0].classList.add('is-own'); }
         });
+
+        // The keep strip cannot use the loop above: its third step is the poll rate rather than an
+        // empty "global", and it has a floor — a keep rate below the poll rate is not the effective
+        // rate, because nothing can be stored more often than it is fetched. It also carries the one
+        // sentence in this console that quantifies irreplaceable loss, and that sentence has to
+        // follow the field while the operator is still deciding, not after they have saved.
+        var keepInput = dlg.querySelector('[data-keep]');
+        var keepStrip = dlg.querySelector('[data-keep-cascade]');
+        if (keepInput && keepStrip) {
+            var num = function (el) {
+                var v = parseInt((el && (el.value !== undefined ? el.value : el.textContent) || '').trim(), 10);
+                return isFinite(v) && v > 0 ? v : null;
+            };
+            var keepCells = keepStrip.querySelectorAll('span');
+            var pollInput = dlg.querySelector('[data-interval]');
+            var poll = num(pollInput) || num(keepCells[2].querySelector('b'));
+            var own = num(keepInput);
+            var configured = own || num(keepCells[1].querySelector('b'));
+            var effective = configured === null ? poll
+                : (poll === null ? configured : Math.max(configured, poll));
+
+            var step = configured === null || effective !== configured ? 2 : (own ? 0 : 1);
+            keepCells.forEach(function (c) { c.classList.remove('is-eff', 'is-own'); });
+            keepCells[step].classList.add('is-eff');
+            if (own) { keepCells[0].classList.add('is-own'); }
+            // The "own" cell is server-rendered from the saved value, so without this a strip
+            // highlighting "own" would sit beside a field showing something else and read as a
+            // contradiction rather than an unsaved edit.
+            keepCells[0].querySelector('b').textContent = own ? String(own) : '—';
+
+            var loss = dlg.querySelector('[data-keep-loss]');
+            if (loss) {
+                var ratio = poll && effective && effective > poll ? Math.floor(effective / poll) : 1;
+                loss.style.display = ratio > 1 ? '' : 'none';
+                if (ratio > 1) {
+                    loss.querySelector('[data-keep-loss-text]').textContent =
+                        'Polled every ' + poll + ' s, kept every ' + effective + ' s — ' +
+                        (ratio - 1) + ' of every ' + ratio + ' observations are never stored.';
+                }
+            }
+        }
     }
 
     document.querySelectorAll('[data-feed-dialog]').forEach(recompute);

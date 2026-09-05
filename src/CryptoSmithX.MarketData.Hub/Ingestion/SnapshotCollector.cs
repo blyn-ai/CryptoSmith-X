@@ -76,6 +76,7 @@ public sealed class SnapshotCollector
 
         var written = 0;
         var skipped = 0;
+        var unchanged = 0;
         await using var tx = await conn.BeginTransactionAsync(ct);
 
         foreach (var t in tickers)
@@ -177,7 +178,7 @@ public sealed class SnapshotCollector
                 // transaction and preserves depth when the ticker has none, so by this point it
                 // holds the freshest measurement whichever loop produced it. depth_at travels with
                 // it — the column exists precisely because depth runs on its own clock.
-                await conn.ExecuteAsync(new CommandDefinition(
+                if (await conn.ExecuteAsync(new CommandDefinition(
                     """
                     insert into market_snapshot (
                         exchange_instrument_id, received_at, last_price, bid_price, ask_price,
@@ -195,7 +196,20 @@ public sealed class SnapshotCollector
                      where l.exchange_instrument_id = @Id
                     on conflict (exchange_instrument_id, received_at) do nothing
                     """,
-                    row, tx, cancellationToken: ct));
+                    row, tx, cancellationToken: ct)) == 0)
+                {
+                    // The insert is keyed on (instrument, received_at), and received_at is the
+                    // VENUE's clock on Kraken (both the WS feed and the REST server_time), not
+                    // ours. A cached WS record is served unchanged for up to ws_stale_after_s, so
+                    // an instrument the venue has not re-published can present the same instant to
+                    // two keep passes and the second one no-ops. That used to be impossible by
+                    // accident — 60 s of keeping against 30 s of staleness — and stopped being
+                    // impossible the moment keeping became a per-cell number that an operator can
+                    // set to 10. Counted rather than discarded: the only other trace it leaves is
+                    // snapshot_count below expected_count with no gap, which the reader is told to
+                    // interpret as a quiet market.
+                    unchanged++;
+                }
             }
 
             written++;
@@ -206,6 +220,15 @@ public sealed class SnapshotCollector
         {
             _lastHistoryBucket = bucket;
             _lastHistoryIntervalS = historyInterval;
+        }
+
+        if (unchanged > 0)
+        {
+            _logger.LogWarning(
+                "{Exchange}/snapshot kept nothing for {Unchanged} instruments — the venue re-served an "
+                + "observation this instrument already has at that instant, so the keep interval of "
+                + "{HistoryInterval}s is finer than this venue's own clock resolution",
+                _adapter.SegmentCode, unchanged, historyInterval);
         }
 
         if (skipped > 0)

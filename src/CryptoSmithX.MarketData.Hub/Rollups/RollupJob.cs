@@ -281,17 +281,11 @@ public sealed class RollupJob
                        -- hour" from "the market was quiet". It now reads the same cascade the
                        -- collector obeys, floored at the poll interval because nothing can be kept
                        -- more often than it is asked for.
-                       least(3600 / greatest(
-                                 coalesce(ec.history_interval_s, c.default_history_interval_s,
-                                          ec.interval_s, c.default_interval_s, 10),
-                                 coalesce(ec.interval_s, c.default_interval_s, 10)),
+                       least(3600 / greatest(coalesce(keep_interval_s(ei.segment_code, 'snapshot'), 60), 1),
                              32767)::smallint,
                        coalesce(gap.seconds, 0),
                        now()
                   from exchange_instrument ei
-                  left join segment_dataset ec
-                         on ec.segment_code = ei.segment_code and ec.dataset_code = 'snapshot'
-                  left join dataset c on c.code = 'snapshot'
                   left join lateral (
                       select sum(extract(epoch from
                                  least(coalesce(g.gap_end, @HourTime + interval '1 hour'),
@@ -316,7 +310,22 @@ public sealed class RollupJob
                     depth_bid_25bps_avg = excluded.depth_bid_25bps_avg,
                     depth_ask_25bps_avg = excluded.depth_ask_25bps_avg,
                     snapshot_count      = excluded.snapshot_count,
-                    expected_count      = excluded.expected_count,
+                    -- A closed hour keeps the expected_count it was first written with. The value
+                    -- is derived from configuration that can change, and this table is never
+                    -- rotated (0006), so re-deriving it turns a record of a past hour into a
+                    -- statement about today's settings. Concretely: the window here reaches back
+                    -- into the previous hour for the first ten minutes of every hour, so raising a
+                    -- segment's keep rate from 60 to 10 at 14:05 would rewrite the completed 13:00
+                    -- hour as 60 of 360 — permanently indistinguishable from "we were blind for
+                    -- fifty minutes", which is the single distinction this column exists to make.
+                    -- The open hour still tracks the live cascade, because it is still being
+                    -- collected under it.
+                    expected_count      = case
+                        when market_metric_hour.hour_time < date_trunc('hour', now())
+                             and market_metric_hour.expected_count is not null
+                        then market_metric_hour.expected_count
+                        else excluded.expected_count
+                    end,
                     gap_seconds         = excluded.gap_seconds,
                     updated_at          = excluded.updated_at
                 """,

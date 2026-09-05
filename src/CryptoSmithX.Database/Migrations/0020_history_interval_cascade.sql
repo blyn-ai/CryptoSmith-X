@@ -41,6 +41,19 @@
 -- Значения не меняются: default_history_interval_s принимает ровно то, что
 -- сейчас лежит в dataset_setting, поэтому на любой площадке миграция сама по
 -- себе ничего не переключает.
+--
+-- Старая строка в dataset_setting НЕ удаляется, хотя новый код её больше не
+-- читает. Compose поднимает мигратор с condition: service_completed_successfully,
+-- то есть схема меняется, пока прежний контейнер хаба ещё работает, а кэш
+-- настроек живёт 30 секунд. Прежний SnapshotCollector читает этот ключ через
+-- RequireDatasetSetting, который на отсутствующем ключе бросает исключение — и
+-- бросает ДО апсерта market_snapshot_latest, то есть встал бы не только сбор
+-- истории, а весь снапшот-фид, на минуты, с записью в collector_gap и Sentry.
+-- То же самое, но навсегда, при откате образа на предыдущий тег.
+--
+-- Поэтому расширяемся здесь, а сжимаемся отдельной миграцией, когда новый
+-- бинарь будет везде. Строка остаётся как страховка отката и помечена в своём
+-- же описании, чтобы её не приняли за действующую настройку.
 -- ============================================================================
 
 alter table dataset add column default_history_interval_s int;
@@ -52,14 +65,26 @@ alter table segment_dataset add constraint segment_dataset_history_interval_s_ch
     check (history_interval_s > 0);
 
 -- Берём действующее значение, а не константу: на тесте и проде оно могло быть
--- уже поправлено руками, и миграция не должна это молча откатить.
+-- уже поправлено руками, и миграция не должна это молча откатить. Значение —
+-- свободный текст (0014 проверяет kind, но не value), а мигратор поднимается с
+-- service_completed_successfully: незаполненный или испорченный руками value
+-- уронил бы транзакцию и вместе с ней webapp и api, а не только хаб. Поэтому
+-- разбор защищён регуляркой, а не голым приведением типа.
 update dataset
    set default_history_interval_s = coalesce(
        (select value::int from dataset_setting
-         where dataset_code = 'snapshot' and key = 'history_interval_s'), 60)
+         where dataset_code = 'snapshot' and key = 'history_interval_s'
+           and value ~ '^[0-9]{1,6}$' and value::int > 0), 60)
  where code = 'snapshot';
 
-delete from dataset_setting where dataset_code = 'snapshot' and key = 'history_interval_s';
+-- Не delete: см. заголовок. Строка живёт до миграции сжатия, но перестаёт
+-- выглядеть действующей настройкой для того, кто откроет таблицу.
+update dataset_setting
+   set description = 'ЗАМЕНЕНО миграцией 0020: такт хранения переехал в каскад клетки '
+                     '(segment_dataset.history_interval_s → dataset.default_history_interval_s). '
+                     'Эта строка больше не читается и оставлена только чтобы предыдущая версия '
+                     'хаба пережила окно деплоя и возможный откат. Удаляется отдельной миграцией.'
+ where dataset_code = 'snapshot' and key = 'history_interval_s';
 
 comment on column dataset.default_history_interval_s is
     'Такт записи в историю по умолчанию, в секундах. NULL означает, что датасет не различает опрос '
@@ -69,3 +94,43 @@ comment on column dataset.default_history_interval_s is
 comment on column segment_dataset.history_interval_s is
     'Такт записи в историю для этой клетки, в секундах; NULL — взять умолчание датасета. '
     'Действующее значение никогда не меньше интервала опроса: чаще, чем спрашиваешь, не оставишь.';
+
+-- ---------------------------------------------------------------------------
+-- Одно определение правила на весь SQL. Каскад считают панель фидов, страница
+-- состояния рынка и расчёт expected_count в роллапе; тремя копиями greatest()
+-- они рано или поздно разошлись бы, а расходиться им нельзя — это ровно те три
+-- места, которые отвечают на вопрос «сколько на самом деле сохранено».
+-- ---------------------------------------------------------------------------
+create function keep_interval_s(p_segment text, p_dataset text) returns int
+language sql stable as $$
+    select greatest(coalesce(sd.history_interval_s, d.default_history_interval_s,
+                             sd.interval_s, d.default_interval_s),
+                    coalesce(sd.interval_s, d.default_interval_s))
+      from segment_dataset sd
+      join dataset d on d.code = sd.dataset_code
+     where sd.segment_code = p_segment and sd.dataset_code = p_dataset
+$$;
+
+-- Как часто измерения этого датасета вообще доходят до постоянного хранения.
+-- Для большинства это его собственный такт. Для depth — нет: DepthCollector
+-- пишет только market_snapshot_latest, а в market_snapshot стакан попадает
+-- лишь тем, что SnapshotCollector копирует его из latest в свой проход
+-- хранения. То есть у сегмента с тактом хранения 300 с из пяти сборов стакана
+-- в архив попадает один, сколько бы раз в минуту ни бегал depth-цикл.
+create function archive_interval_s(p_segment text, p_dataset text) returns int
+language sql stable as $$
+    select case when p_dataset in ('snapshot', 'depth')
+                then keep_interval_s(p_segment, 'snapshot')
+                else keep_interval_s(p_segment, p_dataset) end
+$$;
+
+comment on function keep_interval_s(text, text) is
+    'Действующий такт хранения клетки: segment_dataset.history_interval_s → dataset.'
+    'default_history_interval_s → такт опроса, и никогда не быстрее такта опроса. '
+    'Зеркало SettingsSnapshot.HistoryInterval в хабе — расхождение между ними означает, что '
+    'консоль и коллектор говорят разное о том, что сохранено.';
+
+comment on function archive_interval_s(text, text) is
+    'Как часто измерения датасета доходят до market_snapshot. Совпадает с тактом опроса для всех, '
+    'кроме depth: стакан архивируется только проходом хранения снапшота, поэтому его такт задаётся '
+    'клеткой snapshot, а не собственной.';

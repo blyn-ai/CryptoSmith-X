@@ -43,6 +43,17 @@
     var dropsPerKept = pollEffective is > 0 && keepEffective is > 0 && keepEffective > pollEffective
         ? keepEffective.Value / pollEffective.Value
         : 1;
+
+    // A feed can be archived more slowly than it is polled without owning the knob that decides it.
+    // depth is the case that exists: DepthCollector writes only market_snapshot_latest, and the book
+    // reaches market_snapshot solely by the snapshot collector copying that row on its keep pass. So
+    // depth's archive rate is the snapshot cell's, and nothing in depth's own policy hints at it.
+    // Which step of the keep cascade actually wins, floor included. A configured 5 against a 10 s
+    // poll is not 5, so lighting "own" there would state a rate the collector never uses.
+    var keepStep = keepConfigured is null || keepEffective != keepConfigured ? 2
+        : d.OwnHistoryIntervalS is not null ? 0 : 1;
+
+    var archivedElsewhere = !keepsSubset && d.ArchiveIntervalS is { } ai && pollEffective is { } pe && ai > pe;
 }
 @* data-live-skip: a tick never rewrites an open dialog — the values on screen are the ones being edited. *@
 <div class="modal-scrim" id="feed-dialog-@d.DatasetCode" data-feed-dialog data-live-skip data-dataset="@d.DatasetCode"
@@ -155,7 +166,7 @@
                         <p class="code" style="white-space:normal;margin:0 0 14px">No transport both sides have.</p>
                     }
 
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 16px">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:0 16px">
                         <div class="field" style="margin-bottom:6px">
                             <label for="intervalS-@d.DatasetCode">Interval (s)</label>
                             <input id="intervalS-@d.DatasetCode" name="intervalS" type="text" value="@ownIntervalDisplay" placeholder="@intervalPlaceholder" data-interval>
@@ -164,7 +175,7 @@
                         {
                             <div class="field" style="margin-bottom:6px">
                                 <label for="historyIntervalS-@d.DatasetCode">Keep every (s)</label>
-                                <input id="historyIntervalS-@d.DatasetCode" name="historyIntervalS" type="text" value="@ownHistoryDisplay" placeholder="@historyPlaceholder" data-history-interval>
+                                <input id="historyIntervalS-@d.DatasetCode" name="historyIntervalS" type="text" value="@ownHistoryDisplay" placeholder="@historyPlaceholder" data-keep>
                             </div>
                         }
                         <div class="field" style="margin-bottom:6px">
@@ -172,7 +183,7 @@
                             <input id="retentionDays-@d.DatasetCode" name="retentionDays" type="text" value="@ownRetentionDisplay" placeholder="@retentionPlaceholder" data-retention>
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 16px;margin-bottom:14px">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:0 16px;margin-bottom:14px">
                         <div class="cascade" data-interval-cascade>
                             <span class="@(d.OwnIntervalS is not null ? "is-eff is-own" : "")"><i>own</i><b>@(d.OwnIntervalS?.ToString() ?? "—")</b></span>
                             <span class="@(d.OwnIntervalS is null ? "is-eff" : "")"><i>dataset</i><b>@(d.DatasetDefaultIntervalS?.ToString() ?? "—")</b></span>
@@ -182,10 +193,10 @@
                         {
                             @* Third slot is the poll interval, not "global": keeping cannot outrun asking,
                                so the poll rate is the real floor of this cascade rather than an empty level. *@
-                            <div class="cascade" data-history-cascade>
-                                <span class="@(d.OwnHistoryIntervalS is not null ? "is-eff is-own" : "")"><i>own</i><b>@(d.OwnHistoryIntervalS?.ToString() ?? "—")</b></span>
-                                <span class="@(d.OwnHistoryIntervalS is null && d.DatasetDefaultHistoryIntervalS is not null ? "is-eff" : "")"><i>dataset</i><b>@(d.DatasetDefaultHistoryIntervalS?.ToString() ?? "—")</b></span>
-                                <span class="@(keepConfigured is null ? "is-eff" : "")"><i>poll</i><b>@(pollEffective?.ToString() ?? "—")</b></span>
+                            <div class="cascade" data-keep-cascade>
+                                <span class="@(keepStep == 0 ? "is-eff is-own" : "")"><i>own</i><b>@(d.OwnHistoryIntervalS?.ToString() ?? "—")</b></span>
+                                <span class="@(keepStep == 1 ? "is-eff" : "")"><i>dataset</i><b>@(d.DatasetDefaultHistoryIntervalS?.ToString() ?? "—")</b></span>
+                                <span class="@(keepStep == 2 ? "is-eff" : "")"><i>poll</i><b>@(pollEffective?.ToString() ?? "—")</b></span>
                             </div>
                         }
                         <div class="cascade" data-retention-cascade>
@@ -195,10 +206,20 @@
                         </div>
                     </div>
 
-                    @if (keepsSubset && dropsPerKept > 1)
+                    @* Always rendered when the field is offered, hidden by JS when nothing is dropped,
+                       so typing a new keep rate can update it without the server. It is the only
+                       sentence in the console that quantifies irreplaceable loss, and it is read at
+                       exactly the moment the operator decides how much of it to accept. *@
+                    @if (keepsSubset)
+                    {
+                        <p data-keep-loss style="margin:-4px 0 14px;font:400 11.5px/1.5 var(--font-body);color:var(--csx-gold-ink);@(dropsPerKept > 1 ? "" : "display:none")">
+                            <span data-keep-loss-text>Polled every @pollEffective s, kept every @keepEffective s — @(dropsPerKept - 1) of every @dropsPerKept observations are never stored.</span> Spread, top-of-book size, open interest and depth at those instants cannot be re-fetched from this venue at any price.
+                        </p>
+                    }
+                    @if (archivedElsewhere)
                     {
                         <p style="margin:-4px 0 14px;font:400 11.5px/1.5 var(--font-body);color:var(--csx-gold-ink)">
-                            Polled every @pollEffective s, kept every @keepEffective s — @(dropsPerKept - 1) of every @dropsPerKept observations are never stored. Spread, top-of-book size, open interest and depth at those instants cannot be re-fetched from this venue at any price.
+                            Polled every @pollEffective s, archived every @d.ArchiveIntervalS s — @(d.ArchiveIntervalS!.Value / pollEffective!.Value - 1) of every @(d.ArchiveIntervalS!.Value / pollEffective!.Value) sweeps are overwritten before they are stored. This feed writes only the live row; it reaches history when the <b>snapshot</b> feed keeps, so its archive rate is set there, not here.
                         </p>
                     }
 

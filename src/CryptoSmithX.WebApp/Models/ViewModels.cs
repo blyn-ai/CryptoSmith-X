@@ -151,7 +151,11 @@ public sealed record FeedRow(
     string Mode,
     string? Transport,
     int? EffectiveIntervalS,
-    int? EffectiveHistoryIntervalS,
+    /// <summary>How often this feed's measurements reach permanent storage. Equals the poll rate for
+    /// most feeds, but snapshot and depth share one keep pass — depth writes only the latest row and
+    /// is archived by the snapshot collector copying it — so both carry the segment's snapshot keep
+    /// rate here (0020).</summary>
+    int? ArchiveIntervalS,
     int? EffectiveRetentionDays,
     string? Note,
     double? LastSuccessAgeSeconds,
@@ -181,6 +185,7 @@ public sealed record FeedDetails(
     int? DatasetDefaultIntervalS,
     int? OwnHistoryIntervalS,
     int? DatasetDefaultHistoryIntervalS,
+    int? ArchiveIntervalS,
     int? OwnRetentionDays,
     int? DatasetDefaultRetentionDays,
     string? Transport,
@@ -462,7 +467,39 @@ public sealed record MarketStateSlice(
     IReadOnlyList<MarketStateRow> Rows,
     IReadOnlyList<CollectorGapRow> GapsCoveringT,
     DateTime? EarliestStored,
-    /// <summary>Effective keep interval per segment code (0020) — never one number for the page,
-    /// because two venues in scope can legitimately keep history at different rates.</summary>
-    IReadOnlyDictionary<string, int> KeptEverySeconds,
+    /// <summary>Cadence per segment code (0020) — never one number for the page, because two venues
+    /// in scope can legitimately poll and keep at different rates.</summary>
+    IReadOnlyDictionary<string, SegmentCadence> Cadence,
     IReadOnlyList<string> Segments);
+
+/// <summary>
+/// What one segment's clocks actually are. Three separate numbers on purpose: a price row is stale
+/// against the keep rate, "are we dropping anything" is keep against poll, and depth is neither —
+/// its sweep across a large venue is minutes wide, so it is judged against its own interval plus the
+/// sweep duration we have actually measured.
+/// </summary>
+public sealed record SegmentCadence(
+    string SegmentCode,
+    int? PollSeconds,
+    int? KeepSeconds,
+    int? DepthPollSeconds,
+    double? DepthSweepSeconds)
+{
+    /// <summary>Two keep intervals: beyond that the row is the last thing seen, not the market at T.</summary>
+    public double PriceTolerance => (KeepSeconds ?? 60) * 2.0;
+
+    /// <summary>
+    /// Depth is legitimately much older than the price beside it: the loop runs on its own interval
+    /// and one pass takes as long as it takes to walk every instrument on the venue. Both are
+    /// counted, and the measured sweep is used rather than assumed — an unmeasured venue falls back
+    /// to the interval alone rather than to the snapshot clock, which is not depth's clock at all.
+    /// </summary>
+    public double DepthTolerance => ((DepthPollSeconds ?? KeepSeconds ?? 60) * 2.0) + (DepthSweepSeconds ?? 0);
+
+    /// <summary>True when this segment stores less than it observes — the only condition under which
+    /// the loss warning is honest. The old gate compared the keep rate against a literal 10, which
+    /// was the snapshot poll default when it was written: it fired on a segment polling and keeping
+    /// at 60 (nothing dropped) and stayed silent on one polling at 1 and keeping at 10 (nine in ten
+    /// discarded).</summary>
+    public bool Drops => KeepSeconds is { } k && PollSeconds is { } p && k > p;
+}

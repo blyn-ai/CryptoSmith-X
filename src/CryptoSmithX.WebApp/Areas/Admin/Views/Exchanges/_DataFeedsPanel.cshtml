@@ -93,9 +93,11 @@
                 }
                 else
                 {
-                    @* The keep rate appears only when it is slower than the poll rate — that is exactly when
-                       observations are being dropped, and it is the one number on this line that costs data. *@
-                    <span class="code">@(f.Kind == "derived" ? "internal" : f.Transport ?? "—") · @(f.EffectiveIntervalS is { } iv ? $"{iv} s" : "—")@(f.EffectiveHistoryIntervalS is { } hv && f.EffectiveIntervalS is { } pv && hv > pv ? $" · kept {hv} s" : "") · @(f.EffectiveRetentionDays is { } rd ? $"{rd} d" : "never")</span>
+                    @* "kept N s" appears only when this feed reaches storage more slowly than it is polled — that
+                       is exactly when measurements are being discarded, and it is the one number on this line
+                       that costs data. For depth it is the snapshot cell's keep rate, because depth is archived
+                       by the snapshot pass copying the latest row and by nothing else. *@
+                    <span class="code">@(f.Kind == "derived" ? "internal" : f.Transport ?? "—") · @(f.EffectiveIntervalS is { } iv ? $"{iv} s" : "—")@(f.ArchiveIntervalS is { } av && f.EffectiveIntervalS is { } pv && av > pv ? $" · kept {av} s" : "") · @(f.EffectiveRetentionDays is { } rd ? $"{rd} d" : "never")</span>
                 }
             </div>
             <div class="feed-cell">

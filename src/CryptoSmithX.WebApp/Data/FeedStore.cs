@@ -39,12 +39,14 @@ public static class FeedStore
                    ec.mode                                                         as "Mode",
                    ec.transport                                                    as "Transport",
                    coalesce(ec.interval_s, c.default_interval_s)                   as "EffectiveIntervalS",
-                   -- Same cascade the collector obeys (0020), floored at the poll interval: an
-                   -- observation cannot be kept more often than it is asked for, so the panel must
-                   -- never show a keep rate faster than the poll rate.
-                   greatest(coalesce(ec.history_interval_s, c.default_history_interval_s,
-                                     ec.interval_s, c.default_interval_s),
-                            coalesce(ec.interval_s, c.default_interval_s))          as "EffectiveHistoryIntervalS",
+                   -- How often THIS feed's measurements actually reach permanent storage, which is
+                   -- not always its own poll rate. snapshot and depth share one keep pass: depth
+                   -- only ever updates market_snapshot_latest, and reaches market_snapshot by being
+                   -- copied out of that row when the snapshot collector keeps. So a segment whose
+                   -- snapshot keep rate is 300 s archives one depth sweep in five however often the
+                   -- depth loop runs — and before this column said so, no surface in the console
+                   -- did. Floored at the poll interval, exactly as the hub floors it (0020).
+                   archive_interval_s(@segmentCode, c.code)                       as "ArchiveIntervalS",
                    coalesce(ec.retention_days, c.default_retention_days)           as "EffectiveRetentionDays",
                    ec.note                                                         as "Note",
                    extract(epoch from now() - s.last_success_at)::double precision as "LastSuccessAgeSeconds",
@@ -95,6 +97,17 @@ public static class FeedStore
                 + "default_retention_days as \"DefaultRetentionDays\" from dataset",
                 cancellationToken: ct)))
             .ToDictionary(r => r.Code, StringComparer.Ordinal);
+
+        // How often each feed's data actually reaches market_snapshot. For depth this is NOT its own
+        // poll rate — see archive_interval_s (0020) — and the dialog has to say so, because depth's
+        // own policy contains no hint that the snapshot cell governs its archive.
+        var archive = (await conn.QueryAsync<(string Dataset, int? Seconds)>(new CommandDefinition(
+            """
+            select c.code as "Dataset", archive_interval_s(@segmentCode, c.code) as "Seconds"
+              from dataset c
+            """,
+            new { segmentCode }, cancellationToken: ct)))
+            .ToDictionary(r => r.Dataset, r => r.Seconds, StringComparer.Ordinal);
 
         var capRows = (await conn.QueryAsync<(string Dataset, string Key, string KeyKind, bool LossRelevant, string? Value, string? Source, string? FilledBy, DateTime? FilledAt, short KeySort)>(
             new CommandDefinition(
@@ -150,6 +163,7 @@ public static class FeedStore
                 DatasetDefaultIntervalS: d.DefaultIntervalS,
                 OwnHistoryIntervalS: p.HistoryIntervalS,
                 DatasetDefaultHistoryIntervalS: d.DefaultHistoryIntervalS,
+                ArchiveIntervalS: archive.GetValueOrDefault(c.Code),
                 OwnRetentionDays: p.RetentionDays,
                 DatasetDefaultRetentionDays: d.DefaultRetentionDays,
                 Transport: p.Transport,
@@ -222,7 +236,7 @@ public static class FeedStore
         public string Mode { get; init; } = "";
         public string? Transport { get; init; }
         public int? EffectiveIntervalS { get; init; }
-        public int? EffectiveHistoryIntervalS { get; init; }
+        public int? ArchiveIntervalS { get; init; }
         public int? EffectiveRetentionDays { get; init; }
         public string? Note { get; init; }
         public double? LastSuccessAgeSeconds { get; init; }
@@ -234,7 +248,7 @@ public static class FeedStore
             r.DatasetCode, r.DatasetName, r.Kind, r.SortOrder,
             ParseBool(r.VenueSupportsRaw), ParseBool(r.WeImplementRaw),
             r.HistoryDepth, r.HistorySource,
-            r.Mode, r.Transport, r.EffectiveIntervalS, r.EffectiveHistoryIntervalS, r.EffectiveRetentionDays, r.Note,
+            r.Mode, r.Transport, r.EffectiveIntervalS, r.ArchiveIntervalS, r.EffectiveRetentionDays, r.Note,
             r.LastSuccessAgeSeconds, r.ConsecutiveFailures, r.LastDurationMs, r.AvgDurationMs);
 
         private static bool? ParseBool(string? raw) => raw switch { "true" => true, "false" => false, _ => null };
