@@ -144,7 +144,7 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
    clocks — price, open interest and depth — and collapsing those into one age is the lie the
    page exists to prevent. min-width so the container scrolls rather than squeezing the numbers
    into each other. */
-.r-state{grid-template-columns:minmax(190px,1.3fr) 72px 96px 84px minmax(90px,0.8fr) 84px 78px 78px minmax(110px,1fr) 80px minmax(170px,1.2fr) 80px;min-width:1390px}
+.r-state{grid-template-columns:minmax(190px,1.3fr) 104px 96px 84px minmax(90px,0.8fr) 84px 78px 78px minmax(110px,1fr) 80px minmax(170px,1.2fr) 80px;min-width:1420px}
 .r-cli{grid-template-columns:minmax(190px,1fr) 90px 96px 104px 128px 96px;min-width:790px;gap:14px}
 .r-trade{grid-template-columns:96px 74px minmax(90px,1fr) 96px 96px;min-width:500px;gap:14px}
 .cell{display:flex;align-items:center;gap:9px;min-width:0}
@@ -502,3 +502,18 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 /* Datasets catalogue (screen 3) */
 .coll-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:14px}
 .r-coll-venue{grid-template-columns:132px 92px minmax(0,1fr)}
+
+/* Pair across platforms (rows are platforms, columns are the top of book) */
+.r-pair{grid-template-columns:120px minmax(150px,1fr) 92px 84px 96px 96px 78px 88px 88px 96px 96px 96px 84px 110px 110px 84px 116px 116px 116px 84px;min-width:2180px}
+/* Candles. Green and red appear here and only here: this console reserves them for market
+   direction, and gold owns every operational meaning. Nothing is stroked — a stroke inside a
+   viewBox drawn with preserveAspectRatio="none" is stretched with the box. */
+.cndl{display:block;width:100%}
+.cndl rect{shape-rendering:crispEdges}
+.cndl .up{fill:var(--up-300)}
+.cndl .down{fill:var(--down-300)}
+.cndl .faded{opacity:.4}
+.cndl-wrap{border:1px solid var(--border-hairline);border-radius:var(--radius-sm);padding:8px 10px 6px;background:var(--surface-card)}
+.cndl-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.cndl-head .n{font:500 12.5px/1 var(--font-mono);color:var(--text-data)}
+.cndl-head .m{font:400 10.5px/1.4 var(--font-mono);color:var(--text-faint)}

@@ -1,0 +1,50 @@
+@model IReadOnlyList<(string Base, string Quote, int Venues)>
+@{
+    ViewData["Title"] = "Pairs";
+    var search = ViewData["Search"] as string;
+    var many = Model.Where(p => p.Venues > 1).ToList();
+    var single = Model.Where(p => p.Venues == 1).ToList();
+}
+
+<div class="page-head">
+    <div class="t"><p class="eyebrow">Admin · market</p><h1>Pairs</h1></div>
+    <p class="page-note">A pair is base and quote together, because the quote currency is part of what is compared: BTC/USD and BTC/USDT are two different prices. Only a pair listed on more than one platform can be compared at all.</p>
+</div>
+
+<form method="get" action="/Admin/Pairs" style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px">
+    <div class="field" style="width:260px">
+        <label for="q">Search</label>
+        <input id="q" name="q" type="text" value="@search" placeholder="BTC, USDT…" spellcheck="false">
+    </div>
+    <button class="btn" type="submit">Search</button>
+</form>
+
+<div class="section-h"><b>On more than one platform</b><i>@many.Count</i><hr></div>
+<div class="panel">
+    @if (many.Count == 0)
+    {
+        <div class="empty"><h3>Nothing to compare</h3><p>No pair is currently collected on two platforms.</p></div>
+    }
+    @foreach (var p in many)
+    {
+        <a class="tr" style="grid-template-columns:minmax(0,1fr) 120px" href="/Admin/Pairs/At/@p.Base?quote=@p.Quote">
+            <span class="cell"><span class="name mono">@p.Base/@p.Quote</span></span>
+            <span class="num muted" style="justify-self:end">@p.Venues platforms</span>
+        </a>
+    }
+</div>
+
+@if (single.Count > 0)
+{
+    <div class="section-h" style="margin-top:var(--gap-card)"><b style="color:var(--text-muted)">On one platform</b><i>@single.Count</i><hr></div>
+    <div class="panel">
+        @foreach (var p in single)
+        {
+            <a class="tr" style="grid-template-columns:minmax(0,1fr) 120px" href="/Admin/Pairs/At/@p.Base?quote=@p.Quote">
+                <span class="cell"><span class="name mono">@p.Base/@p.Quote</span></span>
+                <span class="num faint" style="justify-self:end">1 platform</span>
+            </a>
+        }
+    </div>
+    <p class="panel-note" style="padding:11px 0 0;max-width:70ch">These open too — the table and the candles are still worth reading for one platform. There is simply nothing to compare them against.</p>
+}

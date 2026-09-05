@@ -124,7 +124,9 @@
                 }
                 else
                 {
-                    <a class="name mono" href="/Admin/Assets/At/@r.BaseAsset?at=@Uri.EscapeDataString(at.ToString("yyyy-MM-dd HH:mm:ss"))">@r.BaseAsset</a>
+                    @* Base and quote both, because the row knows both and the comparison is per
+                       pair: BTC/USD and BTC/USDT are two different prices. *@
+                    <a class="name mono" href="/Admin/Pairs/At/@r.BaseAsset?quote=@r.QuoteAsset&amp;at=@Uri.EscapeDataString(at.ToString("yyyy-MM-dd HH:mm:ss"))">@r.BaseAsset@(r.QuoteAsset is null ? "" : "/" + r.QuoteAsset)</a>
                 }
             </span>
             <span><span class="tag @(state == "observed" ? "enabled" : "")">@state</span></span>
