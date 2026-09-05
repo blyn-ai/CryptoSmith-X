@@ -182,9 +182,29 @@ public static class ExchangeStore
             ["depth_interval_s"] = defaults.Single(r => r.Code == "depth").DefaultIntervalS,
         };
 
+        // Intervals this venue was not observed for. Open ones first: a hole that has not closed
+        // is still happening, and it is the only thing on this page that is about right now.
+        var gaps = (await conn.QueryAsync<CollectionGapRow>(new CommandDefinition(
+            """
+            select g.collector                                            as "Collector",
+                   g.gap_start                                            as "GapStart",
+                   g.gap_end                                              as "GapEnd",
+                   g.cause                                                as "Cause",
+                   g.detail                                               as "Detail",
+                   extract(epoch from coalesce(g.gap_end, now()) - g.gap_start)::double precision
+                                                                          as "SecondsLong"
+              from collection_gap g
+             where g.exchange_code = @code
+               and (g.gap_end is null or g.gap_start > now() - interval '48 hours')
+             order by (g.gap_end is null) desc, g.gap_start desc
+             limit 20
+            """,
+            new { code },
+            cancellationToken: ct))).ToList();
+
         return new ExchangeDetails(
             exchange, config, globals, collectors, stalest, throughput, await RunStore.LatencyAsync(conn, code, ct),
-            await FeedStore.ListAsync(conn, code, ct), await FeedStore.DialogsAsync(conn, code, ct));
+            await FeedStore.ListAsync(conn, code, ct), await FeedStore.DialogsAsync(conn, code, ct), gaps);
     }
 
     private static readonly string[] AllowedStatuses =

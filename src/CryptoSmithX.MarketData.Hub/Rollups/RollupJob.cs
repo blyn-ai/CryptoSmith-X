@@ -255,11 +255,41 @@ public sealed class RollupJob
 
             await conn.ExecuteAsync(new CommandDefinition(
                 """
+                -- expected_count and gap_seconds are what make snapshot_count readable. Thirty
+                -- observations in an hour is either a market that went quiet or an hour we did
+                -- not watch, and those two demand opposite conclusions. expected_count comes from
+                -- the configured cadence; gap_seconds from how much of the hour collection_gap
+                -- says we were blind for. An hour with gap_seconds = 0 and a low count is the
+                -- venue's silence and is data; an hour with gap_seconds > 0 is our absence and
+                -- is not.
                 insert into market_metric_hour (
                     exchange_instrument_id, hour_time, open_interest_last, funding_rate_last,
-                    spread_bps_avg, depth_bid_25bps_avg, depth_ask_25bps_avg, snapshot_count, updated_at)
-                values (@InstrumentId, @HourTime, @OpenInterestLast, @FundingRateLast,
-                        @SpreadBpsAvg, @DepthBid25BpsAvg, @DepthAsk25BpsAvg, @SnapshotCount, now())
+                    spread_bps_avg, depth_bid_25bps_avg, depth_ask_25bps_avg, snapshot_count,
+                    expected_count, gap_seconds, updated_at)
+                select @InstrumentId, @HourTime, @OpenInterestLast, @FundingRateLast,
+                       @SpreadBpsAvg, @DepthBid25BpsAvg, @DepthAsk25BpsAvg, @SnapshotCount,
+                       -- The cadence comes from the same cascade the collector obeys —
+                       -- exchange_collection.interval_s over collection.default_interval_s — so the
+                       -- expectation can never disagree with what was actually asked of the venue.
+                       least(3600 / greatest(coalesce(ec.interval_s, c.default_interval_s, 10), 1),
+                             32767)::smallint,
+                       coalesce(gap.seconds, 0),
+                       now()
+                  from exchange_instrument ei
+                  left join exchange_collection ec
+                         on ec.exchange_code = ei.exchange_code and ec.collection_code = 'snapshot'
+                  left join collection c on c.code = 'snapshot'
+                  left join lateral (
+                      select sum(extract(epoch from
+                                 least(coalesce(g.gap_end, @HourTime + interval '1 hour'),
+                                       @HourTime + interval '1 hour')
+                               - greatest(g.gap_start, @HourTime)))::int as seconds
+                        from collection_gap g
+                       where g.exchange_code = ei.exchange_code
+                         and g.collector = 'snapshot'
+                         and g.gap_start < @HourTime + interval '1 hour'
+                         and coalesce(g.gap_end, now()) > @HourTime) gap on true
+                 where ei.id = @InstrumentId
                 on conflict (exchange_instrument_id, hour_time) do update set
                     open_interest_last  = excluded.open_interest_last,
                     funding_rate_last   = excluded.funding_rate_last,
@@ -267,6 +297,8 @@ public sealed class RollupJob
                     depth_bid_25bps_avg = excluded.depth_bid_25bps_avg,
                     depth_ask_25bps_avg = excluded.depth_ask_25bps_avg,
                     snapshot_count      = excluded.snapshot_count,
+                    expected_count      = excluded.expected_count,
+                    gap_seconds         = excluded.gap_seconds,
                     updated_at          = excluded.updated_at
                 """,
                 new

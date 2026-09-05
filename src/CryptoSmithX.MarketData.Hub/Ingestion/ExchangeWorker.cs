@@ -358,10 +358,16 @@ public sealed class ExchangeWorker : BackgroundService
         // separate statement — a failed insert here must not lose the status upsert above.
         await conn.ExecuteAsync(new CommandDefinition(
             """
-            insert into collector_run (exchange_code, collector, started_at, duration_ms, ok, error, items)
-            values (@ExchangeCode, @Collector, @AttemptAt, @DurationMs, @Success, @Error, @InstrumentsExpected)
+            insert into collector_run (
+                exchange_code, collector, started_at, duration_ms, ok, error, items, transport)
+            values (@ExchangeCode, @Collector, @AttemptAt, @DurationMs, @Success, @Error,
+                    @InstrumentsExpected, @Transport)
             """,
-            new { a.ExchangeCode, a.Collector, a.AttemptAt, a.DurationMs, a.Success, a.Error, a.InstrumentsExpected },
+            new
+            {
+                a.ExchangeCode, a.Collector, a.AttemptAt, a.DurationMs, a.Success, a.Error,
+                a.InstrumentsExpected, a.Transport,
+            },
             cancellationToken: ct));
 
         await RecordGapAsync(conn, a, ct);

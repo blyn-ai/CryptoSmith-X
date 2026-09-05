@@ -123,6 +123,32 @@ else
         </div>
 
         <div class="stack">
+            @* A hole in the data and a quiet market look identical on every other panel here.
+               This is the only one that says which it was, so it sits above the rest. *@
+            <div class="panel">
+                <div class="panel-h"><h2>Not observed</h2><span class="meta">COLLECTION_GAP · 48 H</span></div>
+                @if (Model.Gaps.Count == 0)
+                {
+                    <div class="empty"><h3>No gaps</h3><p>Every collector on this venue has been answering for the last two days.</p></div>
+                }
+                else
+                {
+                    @* Two lines per row, not four columns: this panel lives in the narrow rail and a
+                       table here collides with itself. Collector and duration read across the top,
+                       cause and start time underneath. *@
+                    @foreach (var g in Model.Gaps)
+                    {
+                        var open = g.GapEnd is null;
+                        <div class="tr" style="grid-template-columns:1fr auto;row-gap:3px;padding:9px 16px" title="@g.Detail">
+                            <span class="mono">@g.Collector</span>
+                            <span class="num @(open ? "fail" : "muted")">@(open ? "open" : Format.Age(g.SecondsLong))</span>
+                            <span class="code" style="grid-column:1/-1;color:var(--text-faint)">@g.Cause.Replace('_', ' ') · @Format.Utc(g.GapStart)</span>
+                        </div>
+                    }
+                    <p class="panel-note">An open gap is still happening. These intervals were not observed at all — they are not zeros, and nothing in the charts above should be read across them.</p>
+                }
+            </div>
+
             @await Html.PartialAsync("_StalestPanel", Model)
 
             @* data-live-skip: the edit/locked toggle is client state; a tick must not reset it. *@

@@ -9,7 +9,12 @@ public sealed record CollectorAttempt(
     string? Error,
     int ConsecutiveFailures,
     int? InstrumentsExpected,
-    long DurationMs);
+    long DurationMs,
+    // How the data came in. REST and WS have different costs, different limits and different
+    // failure modes, and until now they looked identical in the console. Every loop that writes
+    // a run is REST today; the WS feeds do not report runs at all yet, which is itself something
+    // the health page should eventually say out loud.
+    string Transport = "rest");
 
 /// <summary>
 /// The only loop runner in the service. Every collector is this class with a different body, so

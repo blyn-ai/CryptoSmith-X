@@ -109,7 +109,21 @@ public sealed record ExchangeDetails(
     IReadOnlyList<double> Throughput,
     IReadOnlyList<LatencySeries> Latency,
     IReadOnlyList<FeedRow> Feeds,
-    IReadOnlyList<FeedDetails> FeedDialogs);
+    IReadOnlyList<FeedDetails> FeedDialogs,
+    IReadOnlyList<CollectionGapRow> Gaps);
+
+/// <summary>
+/// An interval this venue was not observed for. The point of showing these is that a hole in the
+/// data and a quiet market look identical on every chart in this console; only this row says which
+/// one it was.
+/// </summary>
+public sealed record CollectionGapRow(
+    string Collector,
+    DateTime GapStart,
+    DateTime? GapEnd,
+    string Cause,
+    string? Detail,
+    double? SecondsLong);
 
 // ── Data feeds (collections, 0014 phase 2) ──────────────────────────────────
 
