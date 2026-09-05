@@ -1,7 +1,14 @@
 name: deploy
+# Push to main goes to the test site (Contabo) by itself. Production — the VM inside
+# the client's network — moves only when someone presses Run workflow, so what ships
+# there is always something a person has already looked at running on test.
+#
+# That is also why main is not branch-protected: main is no longer the thing that
+# reaches production, so guarding it would buy ceremony and nothing else.
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 # One deploy at a time; a newer push supersedes a queued older one.
 concurrency:
@@ -40,8 +47,9 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.target }}
           cache-to: type=gha,scope=${{ matrix.target }},mode=max
 
-  deploy:
+  test:
     needs: images
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: converge the stack on the VPS
@@ -55,3 +63,32 @@ jobs:
           # ephemeral GITHUB_TOKEN goes over stdin so the VPS can pull private GHCR
           # packages without any long-lived credential stored on the server.
           printf '%s\n' "$GHCR_TOKEN" | ssh -i key -o StrictHostKeyChecking=accept-new "root@$HOST" deploy
+
+  # Production runs ON the target: the VM has no public address and sits behind the
+  # client's NAT, so nothing on the internet can reach in. The runner dials out
+  # instead, which is why there is no ssh step here — it is already on the machine.
+  #
+  # SECURITY: this job, and only this job, may use the self-hosted runner. The
+  # repository is public and the runner holds the docker socket, so a workflow that
+  # a stranger can trigger would execute their code as root inside the client's
+  # network. push-to-main and workflow_dispatch both require write access; ci.yml
+  # carries a pull_request trigger and must stay on ubuntu-latest forever.
+  prod:
+    needs: images
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, csx-prod]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: converge the stack
+        run: |
+          install -d -m 755 /opt/cryptosmithx/webapp-keys
+          cp deploy/docker-compose.vm.yml /opt/cryptosmithx/docker-compose.yml
+          cd /opt/cryptosmithx
+          docker compose pull --quiet
+          docker compose up -d --remove-orphans
+          docker compose ps

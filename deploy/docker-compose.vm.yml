@@ -1,0 +1,71 @@
+# Compose for the VM inside the client's network (b-csx-datahub) — the machine that
+# is becoming production. Lives at /opt/cryptosmithx/docker-compose.yml; the prod job
+# in .github/workflows/deploy.yml refreshes it from this file on every deploy.
+#
+# The one structural difference from docker-compose.prod.yml: PostgreSQL is NOT a
+# container here. It runs on the host, installed by deploy/provision-host.sh, so its
+# lifecycle is independent of deploys and `docker compose down` cannot reach it.
+# Containers talk to it over the `csx` bridge, whose subnet is fixed precisely so
+# Postgres can listen on that one gateway address and nothing else.
+#
+# Secrets live ONLY in /opt/cryptosmithx/.env (chmod 600), never in git.
+name: cryptosmithx
+
+x-db: &db
+  ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:?есть в /opt/cryptosmithx/.env}
+
+networks:
+  default:
+    name: ${CSX_NETWORK:-csx}
+    external: true
+
+services:
+  database-migrator:
+    container_name: cryptosmithx-db-migrator
+    image: ghcr.io/blyn-ai/cryptosmithx-migrator:latest
+    environment: *db
+    restart: "no"
+
+  hub:
+    container_name: cryptosmithx-marketdata-hub
+    image: ghcr.io/blyn-ai/cryptosmithx-hub:latest
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      <<: *db
+      Sentry__Dsn: ${SENTRY_DSN:-}
+    restart: unless-stopped
+
+  api:
+    container_name: cryptosmithx-marketdata-api
+    image: ghcr.io/blyn-ai/cryptosmithx-api:latest
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      <<: *db
+      Sentry__Dsn: ${SENTRY_DSN:-}
+    ports:
+      # Only on the WireGuard address. Binding 0.0.0.0 would publish it to the
+      # client's LAN, and docker's published ports bypass the host firewall.
+      - "10.11.12.28:8080:8080"
+    restart: unless-stopped
+
+  webapp:
+    container_name: cryptosmithx-webapp
+    image: ghcr.io/blyn-ai/cryptosmithx-webapp:latest
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      <<: *db
+      ASPNETCORE_ENVIRONMENT: Production
+      Sentry__Dsn: ${SENTRY_DSN:-}
+      DataProtection__KeysDirectory: /keys
+    volumes:
+      - /opt/cryptosmithx/webapp-keys:/keys
+    ports:
+      # Same rule as the api: the tunnel address, never the LAN.
+      - "10.11.12.28:7777:8080"
+    restart: unless-stopped
