@@ -398,3 +398,56 @@ public sealed record RunDataRow(string Symbol, string What, DateTime When);
 public sealed record RunDetails(
     string ExchangeCode, CollectorRunRow Run,
     string Caption, int Total, IReadOnlyList<RunDataRow> Rows, string EmptyNote);
+
+// ── Market state at a moment ────────────────────────────────────────────────
+
+/// <summary>
+/// One instrument as it was at the requested instant. Three measurement times, not one: price, open
+/// interest and depth each arrive on their own clock, and collapsing them into a single "age" is the
+/// lie this page exists to prevent.
+/// </summary>
+public sealed record MarketStateRow(
+    int InstrumentId,
+    string ExchangeCode,
+    string Symbol,
+    string? BaseAsset,
+    string? QuoteAsset,
+    string Status,
+    DateTime FirstSeenAt,
+    DateTime? ReceivedAt,
+    double? PriceLagSeconds,
+    double? LastPrice,
+    double? BidPrice,
+    double? AskPrice,
+    double? SpreadBps,
+    double? BidSize,
+    double? AskSize,
+    double? MarkPrice,
+    double? FundingRate,
+    double? Turnover24h,
+    double? OpenInterest,
+    double? OpenInterestLagSeconds,
+    DateTime? DepthAt,
+    double? DepthLagSeconds,
+    double? DepthBid25,
+    double? DepthAsk25)
+{
+    /// <summary>
+    /// Why a row has no numbers, from a closed vocabulary. "Absent" must never read as "zero", and
+    /// "we were not looking" must never read as "the market was quiet" — so the reason is a column,
+    /// not an inference the reader is left to make from a blank cell.
+    /// </summary>
+    public string StateAt(DateTime at) =>
+        ReceivedAt is not null ? "observed"
+        : FirstSeenAt > at ? "not listed yet"
+        : "no observation";
+}
+
+public sealed record MarketStateSlice(
+    DateTime At,
+    string? Exchange,
+    IReadOnlyList<MarketStateRow> Rows,
+    IReadOnlyList<CollectionGapRow> GapsCoveringT,
+    DateTime? EarliestStored,
+    int? HistoryIntervalSeconds,
+    IReadOnlyList<string> Exchanges);

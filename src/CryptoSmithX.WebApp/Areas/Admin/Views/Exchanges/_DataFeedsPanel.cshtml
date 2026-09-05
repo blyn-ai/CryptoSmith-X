@@ -1,17 +1,60 @@
 @model ExchangeDetails
 @{
     var e = Model.Exchange;
+
+    // Grouped by what is PRODUCED, not by which loop ran. The old panel listed nine collections as
+    // peers, which said that depth is a feed of its own — and it is not: DepthCollector UPDATEs six
+    // depth columns and depth_at on the very row SnapshotCollector writes, and the history insert
+    // reads them back out of the latest cache. Two loops, one artifact. Listing them apart is why
+    // depth's run pages could never show anything: we were splitting in the console something the
+    // data does not split.
+    //
+    // Loops stay separate INSIDE a group, because there the distinction is real — depth and snapshot
+    // fail differently, carry separate rate limits and have their own latency.
+    var outputs = new (string Name, string Table, string[] Codes, string Fact)[]
+    {
+        ("Market state", "market_snapshot · market_snapshot_latest",
+            new[] { "snapshot", "depth", "open_interest" },
+            "Spread, top-of-book size, open interest and book depth at a moment. No venue serves these back in time."),
+        ("Bars", "market_candle",
+            new[] { "candles", "rollup" },
+            "One table, two production stages: the venue's 1m bars, and the derived timeframes computed from them."),
+        ("Funding history", "funding_rate_history",
+            new[] { "funding" },
+            "The only output whose loss repairs itself — the venue serves the series back in time."),
+        ("Instruments", "exchange_instrument",
+            new[] { "discovery" },
+            "The registry every other output joins to, and what decides their target sets."),
+    };
+    var grouped = outputs
+        .Select(o => (o.Name, o.Table, o.Fact, Feeds: Model.Feeds.Where(f => o.Codes.Contains(f.CollectionCode)).ToList()))
+        .Where(g => g.Feeds.Count > 0)
+        .ToList();
+    var placed = grouped.SelectMany(g => g.Feeds.Select(f => f.CollectionCode)).ToHashSet(StringComparer.Ordinal);
+    var unproduced = Model.Feeds.Where(f => !placed.Contains(f.CollectionCode)).ToList();
 }
 <div class="panel scroll" data-live-region="feeds-panel" style="margin-bottom:14px">
     <div class="panel-h">
-        <h2>Data feeds</h2>
-        <span class="meta">exchange_collection · @Model.Feeds.Count of @Model.Feeds.Count collections</span>
+        <h2>What we produce</h2>
+        <span class="meta">@grouped.Count outputs · @Model.Feeds.Count(f => f.WeImplement == true) loops · @Model.Feeds.Count collections</span>
     </div>
     <div class="th r-feed">
         <span>Feed</span><span>Capability · fact</span><span>Policy · decided</span><span>Health · observed</span><span></span>
     </div>
-    @foreach (var f in Model.Feeds)
+    @foreach (var g in grouped)
     {
+        var worst = g.Feeds.Count == 0 ? 0 : g.Feeds.Max(x => x.ConsecutiveFailures);
+        <div class="coll @(worst >= 3 ? "is-fail" : "")">
+            <div class="coll-h">
+                <span class="dot @(worst >= 3 ? "fail" : worst >= 1 ? "warn" : "ok") lg"></span>
+                <span class="n">@g.Name</span>
+                <span class="tag dashed">@g.Feeds.Count @(g.Feeds.Count == 1 ? "loop" : "loops")</span>
+                <span class="iv">@g.Table</span>
+            </div>
+            <span class="code" style="color:var(--text-faint)">@g.Fact</span>
+        </div>
+        @foreach (var f in g.Feeds)
+        {
         var feedCh = f.ConsecutiveFailures >= 3 ? "fail" : f.ConsecutiveFailures >= 1 ? "warn" : "ok";
         // Priority matters: a human's explicit "off" (mode='disabled') is the most relevant
         // fact once it exists, ahead of "we never probed the venue" — otherwise turning a
@@ -22,7 +65,10 @@
         // the desired set against a hard-coded list of the five it can actually run. That fact
         // outranks "an operator switched it off", because switching it back on would do nothing —
         // and a console that answers a click with silence is worse than one that says no.
-        var notImplemented = !isCollecting && f.Kind != "derived" && f.WeImplement != true;
+        // Explicitly false, not merely unknown. A null capability means the adapter has never run
+        // here — "not established", which is a different answer and already has its own branch.
+        // Reading null as "no collector" would report a gap on a venue nobody has switched on yet.
+        var notImplemented = !isCollecting && f.Kind != "derived" && f.WeImplement == false;
         var isOffByHand = !isCollecting && !notImplemented && f.Mode == "disabled";
         var isBacklog = !isCollecting && !isOffByHand && f.VenueSupports == true && f.WeImplement == false;
         var isNotEstablished = !isCollecting && !isOffByHand && !isBacklog && f.VenueSupports is null;
@@ -85,6 +131,40 @@
                 <button class="linkbtn" style="font-size:10px" type="button" data-feed-edit="@f.CollectionCode">edit</button>
             </div>
         </div>
+        }
+    }
+    @if (unproduced.Count > 0)
+    {
+        <div class="coll">
+            <div class="coll-h">
+                <span class="dot none lg"></span>
+                <span class="n">Nothing produced</span>
+                <span class="tag dashed">no collector</span>
+                <span class="iv">no table</span>
+            </div>
+            <span class="code" style="color:var(--text-faint)">Named absences, not outputs. The hub can only run the collectors it has classes for, so the policy control on these rows changes nothing.</span>
+        </div>
+        @foreach (var f in unproduced)
+        {
+            <div class="tr r-feed">
+                <div style="display:flex;gap:9px">
+                    <span class="dot none" style="margin-top:3px"></span>
+                    <div style="display:flex;flex-direction:column;gap:4px">
+                        <span class="mono" style="line-height:1.2">@f.CollectionName</span>
+                        <span class="code">@f.CollectionCode</span>
+                    </div>
+                </div>
+                <div class="feed-cell">
+                    <span class="code">venue @(f.VenueSupports == true ? "yes" : f.VenueSupports == false ? "no" : "—") · us no</span>
+                </div>
+                <div class="feed-cell"><span class="tag disabled">inert</span></div>
+                <div class="feed-cell">
+                    <span class="sev none">no collector</span>
+                    <span class="code why">Nothing runs, whatever the policy says. @(f.VenueSupports == true ? "The venue does serve it, so this is work we have not done." : "Whether the venue serves it has not been established.")</span>
+                </div>
+                <div></div>
+            </div>
+        }
     }
     <dl class="legend" style="margin:0;padding:13px 18px">
         <dt>capability</dt><dd>what the venue offers and what we implement — a fact, with its source</dd>

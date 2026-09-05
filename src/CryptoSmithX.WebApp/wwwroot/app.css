@@ -140,6 +140,11 @@ h2{margin:0;font:var(--type-card-title);color:var(--text-heading)}
 .r-ex{grid-template-columns:122px minmax(210px,1fr) 96px 78px 84px 62px;min-width:788px}
 .r-col{grid-template-columns:130px 84px 80px 66px 70px minmax(150px,1fr);min-width:660px;gap:12px}
 .r-bot{grid-template-columns:96px minmax(230px,1fr) 108px 96px 104px 76px;min-width:810px;gap:14px}
+/* Market state at a moment. Eleven columns because three of them are separate measurement
+   clocks — price, open interest and depth — and collapsing those into one age is the lie the
+   page exists to prevent. min-width so the container scrolls rather than squeezing the numbers
+   into each other. */
+.r-state{grid-template-columns:minmax(200px,1.4fr) 96px 84px minmax(90px,0.8fr) 84px 78px 78px minmax(110px,1fr) 80px minmax(170px,1.2fr) 80px;min-width:1300px}
 .r-cli{grid-template-columns:minmax(190px,1fr) 90px 96px 104px 128px 96px;min-width:790px;gap:14px}
 .r-trade{grid-template-columns:96px 74px minmax(90px,1fr) 96px 96px;min-width:500px;gap:14px}
 .cell{display:flex;align-items:center;gap:9px;min-width:0}

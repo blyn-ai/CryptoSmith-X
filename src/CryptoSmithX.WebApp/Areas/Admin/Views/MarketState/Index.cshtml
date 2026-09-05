@@ -1,0 +1,120 @@
+@model MarketStateSlice
+@{
+    ViewData["Title"] = "Market state";
+    var at = Model.At;
+
+    // Lag rendered signed and to the second, never as a soft "age": the point of this page is that
+    // the numbers in one row were measured at three different times, and a rounded age hides it.
+    string Lag(double? seconds) => seconds is null
+        ? "—"
+        : (seconds < 0 ? "+" : "−") + Format.Age(Math.Abs(seconds.Value));
+
+    // A cell with no measurement is a dash, never a blank and never a zero. Blank reads as "nothing
+    // here"; zero reads as "we measured nothing there". Only one of those is true.
+    string N(double? v, int d = 2) => v is null ? "—" : Format.Num(v, d);
+
+    var observed = Model.Rows.Count(r => r.ReceivedAt is not null);
+    var notListed = Model.Rows.Count(r => r.ReceivedAt is null && r.FirstSeenAt > at);
+    var noObservation = Model.Rows.Count - observed - notListed;
+
+    // One poll interval of tolerance. Beyond it the row is not "the market at T", it is the last
+    // thing we happened to see, and the difference matters most exactly when a venue is struggling.
+    var pollTolerance = (Model.HistoryIntervalSeconds ?? 60) * 2;
+
+}
+
+<div class="page-head">
+    <div class="t">
+        <p class="eyebrow">Admin · market state</p>
+        <h1>As of @Format.Utc(at)</h1>
+    </div>
+    <p class="page-note">The newest observation at or before this instant — never the next one. Every row carries its own measurement times.</p>
+</div>
+
+<form method="get" action="/Admin/MarketState" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+    <div class="field" style="width:230px">
+        <label for="at">Moment (UTC)</label>
+        <input id="at" name="at" type="text" value="@at.ToString("yyyy-MM-dd HH:mm:ss")" spellcheck="false">
+    </div>
+    <div class="field" style="width:180px">
+        <label for="exchange">Exchange</label>
+        <select id="exchange" name="exchange">
+            <option value="">all</option>
+            @foreach (var x in Model.Exchanges)
+            {
+                <option value="@x" selected="@(x == Model.Exchange)">@x</option>
+            }
+        </select>
+    </div>
+    <button class="btn" type="submit">Show</button>
+</form>
+
+@* The three facts that decide how much of this table can be trusted, stated before the numbers
+   rather than in a footnote nobody reaches. *@
+<div class="panel" style="padding:14px 18px;margin-bottom:var(--gap-card)">
+    <div style="display:flex;gap:26px;flex-wrap:wrap;font:400 12px/1.6 var(--font-body);color:var(--text-muted)">
+        <span><b class="mono" style="color:var(--text-data)">@observed</b> observed · <b class="mono" style="color:var(--text-data)">@noObservation</b> no observation · <b class="mono" style="color:var(--text-data)">@notListed</b> not listed yet</span>
+        <span>kept every <b class="mono" style="color:var(--text-data)">@(Model.HistoryIntervalSeconds?.ToString() ?? "—") s</b></span>
+        <span>stored from <b class="mono" style="color:var(--text-data)">@Format.Utc(Model.EarliestStored)</b></span>
+    </div>
+    @if (Model.HistoryIntervalSeconds > 10)
+    {
+        <p class="panel-note" style="margin-top:10px">Observations are polled more often than they are kept, so most of what was seen between these rows was never stored. Spread, top-of-book size, open interest and book depth at a moment cannot be re-fetched from any venue — what is missing here is missing everywhere.</p>
+    }
+</div>
+
+@if (Model.GapsCoveringT.Count > 0)
+{
+    <div class="panel" style="margin-bottom:var(--gap-card)">
+        <div class="panel-h"><h2>Not observed at this moment</h2><span class="meta">COLLECTION_GAP</span></div>
+        @foreach (var g in Model.GapsCoveringT)
+        {
+            <div class="tr" style="grid-template-columns:1fr auto;padding:9px 16px">
+                <span class="mono">@g.Detail · @g.Collector</span>
+                <span class="num fail">@g.Cause.Replace('_', ' ')</span>
+            </div>
+        }
+        <p class="panel-note">A collector covering this instant was not answering, so absences below have a known cause. Gaps are recorded per exchange and per collector only, and only when a whole pass failed — an absence with no gap here is a cause we do not know, not a quiet market.</p>
+    </div>
+}
+
+<div class="section-h"><b>Instruments</b><i>@Model.Rows.Count in scope</i><hr></div>
+
+<div class="panel scroll">
+    <div class="th r-state">
+        <span>Instrument</span><span>State</span><span style="justify-self:end">Price at</span>
+        <span style="justify-self:end">Last</span><span style="justify-self:end">Spread bps</span>
+        <span style="justify-self:end">Bid sz</span><span style="justify-self:end">Ask sz</span>
+        <span style="justify-self:end">Open interest</span><span style="justify-self:end">OI at</span>
+        <span style="justify-self:end">Depth 25bps</span><span style="justify-self:end">Depth at</span>
+    </div>
+    @foreach (var r in Model.Rows)
+    {
+        var state = r.StateAt(at);
+        var stale = r.PriceLagSeconds > pollTolerance;
+        var depthStale = r.DepthLagSeconds > pollTolerance;
+        <div class="tr has-stretch r-state" style="@(state == "observed" ? "" : "opacity:.6")">
+            <span class="cell">
+                <a class="name mono stretch" href="/Admin/Instruments/Details/@r.InstrumentId">@r.Symbol</a>
+                <span class="code">@r.ExchangeCode@(r.BaseAsset is null ? "" : " · " + r.BaseAsset)</span>
+            </span>
+            <span><span class="tag @(state == "observed" ? "enabled" : "")">@state</span></span>
+            <span class="num @(stale ? "fail" : "muted")" style="justify-self:end" title="@Format.Utc(r.ReceivedAt)">@Lag(r.PriceLagSeconds)</span>
+            <span class="num" style="justify-self:end">@N(r.LastPrice, 4)</span>
+            <span class="num" style="justify-self:end">@N(r.SpreadBps, 3)</span>
+            <span class="num" style="justify-self:end">@N(r.BidSize, 0)</span>
+            <span class="num" style="justify-self:end">@N(r.AskSize, 0)</span>
+            <span class="num" style="justify-self:end">@N(r.OpenInterest, 0)</span>
+            <span class="num muted" style="justify-self:end">@Lag(r.OpenInterestLagSeconds)</span>
+            <span class="num" style="justify-self:end">@N(r.DepthBid25, 0) / @N(r.DepthAsk25, 0)</span>
+            <span class="num @(depthStale ? "fail" : "muted")" style="justify-self:end" title="@Format.Utc(r.DepthAt)">@Lag(r.DepthLagSeconds)</span>
+        </div>
+    }
+</div>
+
+<p class="panel-note" style="margin-top:12px">
+    <b>—</b> means not measured: no observation, no book served, or the book did not reach that band. It never means zero.
+    <b>Price at</b>, <b>OI at</b> and <b>Depth at</b> are three separate clocks, shown separately because they are: a depth sweep across a large venue takes minutes, so the last instrument's book is measured long after the first's, and one column of them would say otherwise.
+    A lag in gold is older than two keep-intervals — the row is the last thing seen, not the market at this instant.
+    A positive lag means the measurement is newer than the moment asked for, which happens when a slower sweep lands after it.
+</p>
