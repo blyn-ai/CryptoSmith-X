@@ -10,7 +10,13 @@
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>@r.Collector</h1><span class="sev @(r.Ok ? "ok" : "fail")">@(r.Ok ? "ok" : "failed")</span></div>
         <span class="code">@r.StartedAt.ToString("yyyy-MM-dd HH:mm:ss")Z · @r.DurationMs ms · items @(r.Items?.ToString() ?? "—")</span>
     </div>
-    <a class="linkbtn" href="/Admin/Exchanges/Runs/@Model.SegmentCode">← Runs</a>
+    @* The question an operator opens a run to ask is "what did the market look like then", and this
+       page can only answer "what did this pass write". Market state answers the other one from data
+       that needs no provenance, so it is offered here rather than left to be discovered. *@
+    <div style="display:flex;gap:14px;align-items:center">
+        <a class="linkbtn" href="/Admin/MarketState?at=@Uri.EscapeDataString(r.StartedAt.ToString("yyyy-MM-dd HH:mm:ss"))&amp;segment=@Uri.EscapeDataString(Model.SegmentCode)">Market at this instant →</a>
+        <a class="linkbtn" href="/Admin/Exchanges/Runs/@Model.SegmentCode">← Runs</a>
+    </div>
 </div>
 
 @if (!r.Ok && r.Error is not null)
@@ -20,10 +26,16 @@
 
 <div class="panel">
     <div class="panel-h"><h2>What arrived</h2><span class="meta">@Model.Total rows in the window</span></div>
-    <p class="panel-note" style="padding:10px 16px 0">@Model.Caption. The rows are matched by timestamp — data is upserted with no run id, so the window [start, start + duration + 2 s] is the honest join.</p>
+    <p class="panel-note" style="padding:10px 16px 0">@Model.Caption. The rows are matched by timestamp — data is upserted with no run id, so the window to the next run of the same collector is the honest join.</p>
     @if (Model.Rows.Count == 0)
     {
-        <div class="empty"><h3>Nothing matched the window</h3><p>@Model.EmptyNote</p></div>
+        @* Not "nothing matched": a pass that falls between keeps stores nothing by design, and that
+           is the usual reason this panel is empty. Calling it a miss would report a working system
+           as a broken one. *@
+        <div class="empty">
+            <h3>@(Model.Run.Collector is "snapshot" or "depth" && Model.KeepSeconds > Model.PollSeconds ? "Observed, not stored" : "Nothing matched the window")</h3>
+            <p>@Model.EmptyNote</p>
+        </div>
     }
     @foreach (var row in Model.Rows)
     {

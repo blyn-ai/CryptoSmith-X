@@ -453,11 +453,38 @@ public static class RunStore
             sql + " limit 40",
             new { code = r.SegmentCode, winStart, winEnd }, cancellationToken: ct))).ToList();
 
+        // The rates this segment actually runs at. An empty snapshot or depth run is almost never a
+        // fault, and saying so vaguely ("nothing matched the window") reads as one — the arithmetic
+        // is what makes it legible.
+        var cadence = await conn.QuerySingleOrDefaultAsync<(int? Poll, int? Keep)?>(new CommandDefinition(
+            """
+            select coalesce(sd.interval_s, d.default_interval_s) as "Poll",
+                   keep_interval_s(sd.segment_code, 'snapshot')    as "Keep"
+              from segment_dataset sd
+              join dataset d on d.code = sd.dataset_code
+             where sd.segment_code = @code and sd.dataset_code = 'snapshot'
+            """,
+            new { code = r.SegmentCode }, cancellationToken: ct));
+        var poll = cadence?.Poll;
+        var keep = cadence?.Keep;
+        var passesPerKeep = poll is > 0 && keep is > 0 && keep > poll ? keep.Value / poll.Value : 1;
+
         // Each collector explains its own empty page instead of one generic wall of maybes.
         var emptyNote = r.Collector switch
         {
-            "snapshot" => $"This run refreshed the live snapshot for its {r.Items?.ToString() ?? "—"} instruments; that state has since been overwritten by newer runs. Minute-history rows are flushed once a minute, and none fell to this run — open a run that crossed a minute boundary to see them.",
-            "depth" => "Depth stamps live on the latest-state rows and are overwritten by newer sweeps — only the most recent run still shows its measurements.",
+            // This is the common case and it is not a failure: the pass ran, saw everything, and
+            // stored none of it because it fell between keeps. Naming the ratio is the difference
+            // between "the console is broken" and "this is what your keep interval costs".
+            "snapshot" when passesPerKeep > 1 =>
+                $"Nothing is missing here. This pass observed its {r.Items?.ToString() ?? "—"} instruments and stored none of them: "
+                + $"{r.SegmentCode} polls every {poll} s and keeps every {keep} s, so {passesPerKeep - 1} passes in {passesPerKeep} write no history at all. "
+                + "What this one saw lived in the live row until the next pass overwrote it, and cannot be re-fetched from the venue. "
+                + "Open a run that landed on a keep boundary to see stored rows — or set this cell's keep interval to its poll interval to store every pass.",
+            "snapshot" =>
+                $"This pass stored nothing even though {r.SegmentCode} keeps every pass. That is unusual: either the venue re-served "
+                + "observations this instrument already had at the same instant, or the pass wrote to the live row only.",
+            "depth" => "Depth stamps live on the latest-state row and are overwritten by the next sweep, so only the newest run still shows its measurements. "
+                + $"Depth reaches permanent storage only when the snapshot collector keeps — every {keep?.ToString() ?? "—"} s on this segment — not when the sweep itself finishes.",
             "funding" => "funding_rate_history has no insert stamp (funding_time is the payment time), so rows cannot be matched to a run. The items counter above is the source of truth.",
             "discovery" => "No instrument re-confirmations landed inside this run's window.",
             _ => "No bars were written or repaired inside this run's window.",
@@ -466,6 +493,6 @@ public static class RunStore
         return new RunDetails(
             r.SegmentCode,
             new CollectorRunRow(r.Id, r.Collector, r.StartedAt, r.DurationMs, r.Ok, r.Error, r.Items),
-            caption, total, rows, emptyNote);
+            caption, total, rows, emptyNote, poll, keep);
     }
 }

@@ -415,7 +415,8 @@ public sealed record RunDataRow(string Symbol, string What, DateTime When);
 /// <summary>A run plus the data whose timestamps fall inside its window (time-based, not run-id based).</summary>
 public sealed record RunDetails(
     string SegmentCode, CollectorRunRow Run,
-    string Caption, int Total, IReadOnlyList<RunDataRow> Rows, string EmptyNote);
+    string Caption, int Total, IReadOnlyList<RunDataRow> Rows, string EmptyNote,
+    int? PollSeconds, int? KeepSeconds);
 
 // ── Market state at a moment ────────────────────────────────────────────────
 
