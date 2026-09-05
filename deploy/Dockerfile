@@ -45,5 +45,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS webapp
 WORKDIR /app
 COPY --from=build /app/webapp ./
 ENV ASPNETCORE_HTTP_PORTS=8080
+# The commit is baked into the image, not passed by the host: the version is a
+# property of what was built, and a host-side variable would drift from it the
+# first time someone edited compose without redeploying.
+ARG SOURCE_COMMIT=""
+ENV CSX_COMMIT=$SOURCE_COMMIT
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "CryptoSmithX.WebApp.dll"]

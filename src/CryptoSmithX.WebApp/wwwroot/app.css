@@ -62,7 +62,20 @@ a:hover{color:var(--link-hover)}
 .col{display:flex;flex-direction:column;min-height:100vh;min-width:0}
 .head{display:flex;align-items:center;gap:22px;flex-wrap:nowrap;overflow:hidden;padding:0 var(--pad-header-x);height:52px;border-bottom:1px solid var(--border-hairline);background:var(--surface-page);position:sticky;top:0;z-index:5}
 .head .live,.head .who,.head a,.head button{white-space:nowrap}
+/* Which site you are on. Both hosts run ASPNETCORE_ENVIRONMENT=Production, so this
+   badge used to read PRODUCTION in both places and told you nothing.
+   Gold for production: in this console gold already means operational weight, so it
+   says "the live system" in the vocabulary the pages already speak. Grey for test:
+   nothing you do here matters, and it should look like it. Red is not available —
+   red means "price down" on every other row of these pages, and a red chrome element
+   beside red PnL figures reads as market data. Violet is not available either: it is
+   the colour of the whole admin chrome, which is exactly why the old badge was
+   invisible. */
 .env{font:var(--fw-semibold) 9px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--violet-200);border:1px solid var(--border-strong);background:var(--tint-violet);padding:5px 8px;border-radius:var(--radius-xs)}
+.env--production{color:var(--gold-300);border-color:var(--border-gold);background:var(--tint-gold)}
+.env--test{color:var(--text-muted);border-color:var(--border-hairline);background:var(--tint-neutral)}
+.ver{font:400 10px/1 var(--font-mono);letter-spacing:.08em;color:var(--text-faint);text-decoration:none;border-bottom:1px solid transparent;transition:var(--transition-color)}
+.ver:hover{color:var(--text-data);border-bottom-color:var(--border-hairline)}
 .live{display:flex;align-items:center;gap:8px;font:400 11px/1 var(--font-mono);letter-spacing:.06em;color:var(--text-muted)}
 .live b{color:var(--text-data);font-weight:400}
 .head .who{margin-left:auto;font:var(--type-nav);letter-spacing:var(--track-nav);text-transform:uppercase;color:var(--text-faint)}

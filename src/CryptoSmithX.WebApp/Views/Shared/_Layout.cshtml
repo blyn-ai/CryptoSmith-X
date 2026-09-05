@@ -1,9 +1,20 @@
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnv
+@inject IConfiguration Config
 @{
     var isAuth = User.Identity?.IsAuthenticated == true;
     var isAdmin = User.IsInRole("admin");
     var name = User.Identity?.Name;
-    var env = HostEnv.IsDevelopment() ? "Local" : HostEnv.EnvironmentName;
+
+    // Which SITE this is, not which ASP.NET environment. Both deployments run as
+    // ASPNETCORE_ENVIRONMENT=Production — that switch controls framework behaviour and
+    // must stay Production on the test site too, or the test stops resembling the thing
+    // it is testing. So the badge reads its own key, and the two hosts set it apart.
+    var site = Config["Csx:Site"] ?? (HostEnv.IsDevelopment() ? "local" : "unset");
+
+    // Short commit, baked into the image at build time. Links to the exact source, so
+    // "what is actually running here" is one click rather than a guess.
+    var commit = Config["CSX_COMMIT"];
+    var shortCommit = string.IsNullOrWhiteSpace(commit) ? null : commit[..Math.Min(7, commit.Length)];
     // Theme is read on the SERVER so the first paint is already correct — a
     // client-side patch would strobe on every one of the 10 s refreshes.
     var theme = Context.Request.Cookies["csx_theme"] == "light" ? "light" : "dark";
@@ -46,7 +57,12 @@
             </aside>
             <div class="col">
                 <header class="head">
-                    <span class="env">@env</span>
+                    <span class="env env--@site">@site</span>
+                    @if (shortCommit is not null)
+                    {
+                        <a class="ver" href="https://github.com/blyn-ai/CryptoSmith-X/commit/@commit"
+                           target="_blank" rel="noopener" title="Что здесь запущено">@shortCommit</a>
+                    }
                     @await RenderSectionAsync("live", required: false)
                     @if (isAdmin)
                     {
@@ -65,7 +81,7 @@
                     @RenderBody()
                 </main>
                 <footer class="foot">
-                    <span>CryptoSmith X · @env</span>
+                    <span>CryptoSmith X · @site@(shortCommit is null ? "" : " · " + shortCommit)</span>
                     <span class="sp"></span>
                     <a href="https://blynai.eu">blynai.eu</a>
                 </footer>

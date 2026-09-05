@@ -39,6 +39,8 @@ jobs:
           file: deploy/Dockerfile
           target: ${{ matrix.target }}
           push: true
+          build-args: |
+            SOURCE_COMMIT=${{ github.sha }}
           tags: |
             ghcr.io/blyn-ai/cryptosmithx-${{ matrix.target }}:latest
             ghcr.io/blyn-ai/cryptosmithx-${{ matrix.target }}:${{ github.sha }}

@@ -58,6 +58,9 @@ services:
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
       ASPNETCORE_ENVIRONMENT: Production
+      # Какая это ПЛОЩАДКА, а не какое окружение ASP.NET. Второе остаётся Production
+      # и здесь: тест, работающий в другом режиме фреймворка, тестирует не то.
+      Csx__Site: test
       # Sentry errors (component=webapp).
       Sentry__Dsn: ${SENTRY_DSN:-}
       DataProtection__KeysDirectory: /keys
