@@ -38,7 +38,7 @@ public static class PairStore
 
     public static async Task<PairAtInstant?> AtAsync(
         DbConnection conn, string baseAsset, string quote, DateTime at, short timeframe,
-        int windows, bool sharedScale, CancellationToken ct)
+        int windows, CancellationToken ct)
     {
         var venues = (await conn.QueryAsync<PairVenueRow>(new CommandDefinition(
             """
@@ -139,6 +139,6 @@ public static class PairStore
             })
             .ToList();
 
-        return new PairAtInstant(baseAsset, quote, at, timeframe, windowList, venues, series, sharedScale);
+        return new PairAtInstant(baseAsset, quote, at, timeframe, windowList, venues, series);
     }
 }

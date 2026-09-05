@@ -564,7 +564,17 @@ public sealed record CollectorRunRow(
     long Id, string Collector, DateTime StartedAt, int DurationMs, bool Ok, string? Error, int? Items);
 
 /// <summary>One latency series per collector for the exchange page trend.</summary>
-public sealed record LatencySeries(string Collector, IReadOnlyList<double> AvgMs);
+/// <summary>
+/// One collector's average duration per 15-minute bucket over 12 hours, oldest first, always 48
+/// entries so every collector shares one x axis. A null is a bucket with no completed run — before
+/// the collector's first one, or while it was down. It used to be filled with 0.0, which drew a flat
+/// line along the bottom of the chart and read as instant responses rather than as no measurement.
+/// </summary>
+public sealed record LatencySeries(string Collector, IReadOnlyList<double?> AvgMs)
+{
+    public double? Latest => AvgMs.LastOrDefault(v => v is not null);
+    public double? Max => AvgMs.OfType<double>().DefaultIfEmpty().Max() is var m && m > 0 ? m : null;
+}
 
 public sealed record RunDataRow(string Symbol, string What, DateTime When);
 

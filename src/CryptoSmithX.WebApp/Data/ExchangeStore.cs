@@ -349,10 +349,13 @@ public static class RunStore
         return rows.GroupBy(r => r.Collector).OrderBy(g => g.Key).Select(g =>
         {
             var byBucket = g.ToDictionary(r => r.Bucket, r => r.AvgMs);
-            // bucket 47 = oldest, 0 = now; absent bucket repeats the last known value so the
-            // line stays continuous without inventing a zero.
-            var series = new List<double>(48);
-            var last = 0.0;
+            // bucket 47 = oldest, 0 = now. A bucket after the collector's first run repeats the
+            // last known value so the line stays continuous; a bucket BEFORE it stays null. It used
+            // to seed that carry with 0.0, so a collector that started two hours ago drew a flat
+            // line along the floor for the preceding ten — which reads as instant responses, the
+            // exact opposite of no measurement.
+            var series = new List<double?>(48);
+            double? last = null;
             for (var b = 47; b >= 0; b--)
             {
                 if (byBucket.TryGetValue(b, out var v)) { last = v; }

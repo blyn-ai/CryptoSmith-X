@@ -33,7 +33,7 @@ public sealed class PairsController : Controller
 
     [HttpGet]
     public async Task<IActionResult> At(
-        string id, string? quote, string? at, short? tf, int? n, string? scale, CancellationToken ct)
+        string id, string? quote, string? at, short? tf, int? n, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(quote))
         {
@@ -53,11 +53,7 @@ public sealed class PairsController : Controller
         var windows = Math.Clamp(n ?? 90, 20, 240);
 
         await using var conn = await _db.OpenAsync(ct);
-        // Shared by default: the page exists to compare platforms, and one axis is what makes a
-        // candle drawn higher mean a higher price. Per-platform is there for reading one venue's
-        // shape when the levels are far apart enough to flatten it.
-        var shared = !string.Equals(scale, "own", StringComparison.OrdinalIgnoreCase);
-        var slice = await PairStore.AtAsync(conn, id, quote, moment, timeframe, windows, shared, ct);
+        var slice = await PairStore.AtAsync(conn, id, quote, moment, timeframe, windows, ct);
         return slice is null ? NotFound() : View(slice);
     }
 }

@@ -8,14 +8,20 @@
     }
     else
     {
+        @* One domain across every collector, so a line higher on screen is a slower collector. Scaled
+           per series these charts all filled their box and drew the same picture whether the
+           collector averaged 12 ms or 900 — which is worse than no chart, because it invites the
+           comparison and then answers it wrongly. *@
+        var ceiling = Model.Latency.Select(l => l.Max).OfType<double>().DefaultIfEmpty(1).Max();
         <div class="lat-grid">
             @foreach (var serie in Model.Latency)
             {
                 <div class="cell">
-                    <div class="h"><span class="eyebrow">@serie.Collector</span><span class="code">@(serie.AvgMs.Count > 0 ? Format.Num(serie.AvgMs[^1], 0) + " ms now" : "—")</span></div>
-                    <svg class="chart" height="30" viewBox="0 0 600 30" preserveAspectRatio="none"><polyline points="@Spark.Points(serie.AvgMs, 600, 30)" stroke="var(--violet-400)" stroke-width="1.5"></polyline></svg>
+                    <div class="h"><span class="eyebrow">@serie.Collector</span><span class="code">@(serie.Latest is { } ms ? Format.Num(ms, 0) + " ms now" : "—")</span></div>
+                    <svg class="chart" height="30" viewBox="0 0 600 30" preserveAspectRatio="none"><polyline points="@Spark.Points(serie.AvgMs, 600, 30, 0, ceiling)" stroke="var(--violet-400)" stroke-width="1.5"></polyline></svg>
                 </div>
             }
         </div>
+        <p class="panel-note">All collectors share one scale, 0 to <b class="mono">@Format.Num(ceiling, 0) ms</b>, so these can be read against each other. A line that starts partway across is a collector with no completed run before that point — not a fast one.</p>
     }
 </div>

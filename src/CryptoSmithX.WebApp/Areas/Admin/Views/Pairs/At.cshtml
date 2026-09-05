@@ -14,8 +14,6 @@
         { (1, "1m"), (5, "5m"), (15, "15m"), (60, "1h"), (240, "4h"), (720, "12h"), (1440, "1d") };
     var tfLabel = tfs.First(t => t.Tf == Model.Timeframe).Label;
 
-    var shared = Model.SharedDomain;
-    const double W = 1000, H = 150, VH = 26;
 }
 
 <div class="page-head">
@@ -44,13 +42,6 @@
     <div class="field" style="width:110px">
         <label for="n">Windows</label>
         <input id="n" name="n" type="text" value="@Model.Windows.Count" spellcheck="false">
-    </div>
-    <div class="field" style="width:130px">
-        <label for="scale">Price scale</label>
-        <select id="scale" name="scale">
-            <option value="shared" selected="@Model.SharedScale">shared</option>
-            <option value="own" selected="@(!Model.SharedScale)">per platform</option>
-        </select>
     </div>
     <button class="btn" type="submit">Show</button>
 </form>
@@ -105,59 +96,55 @@
     Rows are <b>not</b> differenced against each other and this page states no cross-platform spread from them: poll passes are unsynchronised, a depth sweep across a large venue takes minutes, and the keep interval is set per segment, so one platform's newest observation before this instant can be seconds old while another's is minutes. The lags say which. Depth columns are bid / ask at that band. Sizes are shown in base units; hover for the venue's own contract figure. <b>—</b> means not measured and never zero — a size of zero is written as 0, because nothing resting at the touch is an observation.
 </p>
 
-@* ── Candles, one chart per platform, on one x axis ───────────────────────────────────────────── *@
-<div class="section-h"><b>Candles</b><i>@tfLabel · @Model.Windows.Count windows to @Model.Windows[^1].ToString("HH:mm")Z</i><hr></div>
+@* ── Candles, one chart per platform, tied to one time scale ────────────────────────────────── *@
+@* A genuinely financial chart, so it gets the real library rather than server SVG — the split
+   recorded in plans/notes-charts-and-tradingview.md. Lightweight Charts is already self-hosted in
+   wwwroot/vendor/ and already drives the instrument page; this is the same tool, one instance per
+   platform, with the time scales tied so panning one pans all. data-live-skip because a tick's
+   morph must never recurse into a canvas chart's subtree. *@
+<div class="section-h"><b>Candles</b><i>@tfLabel · @Model.Windows.Count windows to @Model.Windows[^1].ToString("HH:mm")Z · zoom or pan any chart and the rest follow</i><hr></div>
 
-@* Only when the CONTRACTS differ. Choosing per-platform scales is the operator's decision and
-   says nothing about contract terms — firing this banner for it would assert a difference that does
-   not exist, which is the one thing this console must never do. *@
-@if (!Model.ComparableTerms && Model.Series.Count > 1)
-{
-    <div class="err" style="margin-bottom:12px">
-        <b>Scale</b>
-        <div>
-            <span class="t">These platforms quote this pair in contracts of different size, so their prices are not on one scale. Each chart below is drawn against its own range and the ranges are stated — reading them as one axis would show a difference in contract terms as a difference in price.</span>
-            <span class="m">exchange_instrument.contract_multiplier differs across the listings</span>
-        </div>
-    </div>
-}
-
-<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;flex-direction:column;gap:12px" data-live-skip>
 @foreach (var s in Model.Series)
 {
-    var lo = shared?.Low ?? s.Low;
-    var hi = shared?.High ?? s.High;
-    var maxVol = s.MaxVolume ?? 0;
-    <div class="cndl-wrap">
-        <div class="cndl-head">
-            <span class="n">@s.SegmentCode <span class="m">@s.Symbol</span></span>
-            <span class="m">@(lo is null ? "no bars in this window" : $"{Format.Num(lo, 4)} – {Format.Num(hi, 4)}")@(s.Missing > 0 ? $" · {s.Missing} of {Model.Windows.Count} windows have no bar" : "") · @(shared is null ? "own scale" : "shared scale")</span>
+    var json = System.Text.Json.JsonSerializer.Serialize(
+        s.Candles.Select((c, i) => new
+        {
+            time = new DateTimeOffset(Model.Windows[i], TimeSpan.Zero).ToUnixTimeSeconds(),
+            o = c is null ? (double?)null : c.Open,
+            h = c is null ? (double?)null : c.High,
+            l = c is null ? (double?)null : c.Low,
+            c = c is null ? (double?)null : c.Close,
+            v = c?.Volume ?? 0,
+        }));
+    <div class="panel">
+        <div class="panel-h">
+            <h2 style="font:var(--type-h3)">@s.SegmentCode <span class="code">@s.Symbol</span></h2>
+            <span class="meta">@(s.Low is null ? "no bars in this window" : $"{Format.Num(s.Low, 4)} – {Format.Num(s.High, 4)}")@(s.Missing > 0 ? $" · {s.Missing} of {Model.Windows.Count} windows have no bar" : "")@(s.Incomplete > 0 ? $" · {s.Incomplete} partly covered" : "")@(s.NoVolume > 0 ? $" · {s.NoVolume} with no volume" : "")</span>
         </div>
-        @if (lo is { } low && hi is { } high)
-        {
-            <svg class="cndl" height="@H" viewBox="0 0 @W @H" preserveAspectRatio="none" role="img" aria-label="@s.SegmentCode candles">
-                @foreach (var r in Candles.Rects(s.Candles, low, high, W, H))
-                {
-                    <rect x="@r.Xs" y="@r.Ys" width="@r.Ws" height="@r.Hs" class="@r.Kind @(r.Faded ? "faded" : "")"></rect>
-                }
-            </svg>
-            <svg class="cndl" height="@VH" viewBox="0 0 @W @VH" preserveAspectRatio="none" role="img" aria-label="@s.SegmentCode volume">
-                @foreach (var r in Candles.Volume(s.Candles, maxVol, W, VH))
-                {
-                    <rect x="@r.Xs" y="@r.Ys" width="@r.Ws" height="@r.Hs" class="@r.Kind @(r.Faded ? "faded" : "")"></rect>
-                }
-            </svg>
-        }
-        else
-        {
-            <div class="empty" style="padding:18px 0"><h3>No bars</h3><p>This platform has no @tfLabel bar in the window shown.</p></div>
-        }
+        <div class="panel-b" style="padding:0">
+            @if (s.Present.Count() >= 2)
+            {
+                <div class="chart-lwc" style="height:240px" data-candles="@json"></div>
+            }
+            else
+            {
+                <div class="empty"><h3>No candles</h3><p>This platform has fewer than two @tfLabel bars in the window shown.</p></div>
+            }
+        </div>
     </div>
 }
 </div>
 
-<div class="chart-x" style="margin-top:6px"><span>@Model.Windows[0].ToString("dd.MM HH:mm")Z</span><span class="mid">@tfLabel windows, oldest to newest</span><span>@Model.Windows[^1].ToString("dd.MM HH:mm")Z</span></div>
-
 <p class="panel-note" style="margin-top:12px">
-    Every chart is drawn against the same window list, so the same horizontal position is the same minute on every platform and they can be read down the page. A window a platform has no bar for is left <b>empty</b> rather than closed up: a venue that went dark would otherwise have its remaining candles slide together and look continuous. A dimmed candle either covers fewer minutes than the window claims or had no volume at all, in which case its close is a carried price rather than a print. Volume is scaled to each platform's own loudest window — volumes differ across venues by orders of magnitude, and one shared scale would flatten every smaller venue to nothing.
+    The charts share a time scale: zoom or pan any one of them and the others follow, so the same minute stays under the same place on every platform. A window a platform has no bar for is passed through as an empty slot rather than dropped — otherwise the surrounding candles slide together and a platform that went dark looks like it never stopped. Volume sits on its own scale per platform, because volumes differ across venues by orders of magnitude and one shared scale would flatten every smaller platform to nothing.
 </p>
+
+@* Inline, not a section: the layout renders only "head" and "live", and the instrument page
+   loads its chart the same way. Manual cache-bust rather than asp-append-version — the Script
+   TagHelper trips a Razor compiler bug on this SDK; bump v= on change. *@
+@if (Model.Series.Any(x => x.Present.Count() >= 2))
+{
+    <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
+    <script src="~/pair-charts.js?v=1"></script>
+}

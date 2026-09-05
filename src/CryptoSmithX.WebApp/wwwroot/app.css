@@ -505,15 +505,3 @@ textarea{width:100%;min-height:220px;padding:var(--pad-input);background:var(--s
 
 /* Pair across platforms (rows are platforms, columns are the top of book) */
 .r-pair{grid-template-columns:120px minmax(150px,1fr) 92px 84px 96px 96px 78px 88px 88px 96px 96px 96px 84px 110px 110px 84px 116px 116px 116px 84px;min-width:2180px}
-/* Candles. Green and red appear here and only here: this console reserves them for market
-   direction, and gold owns every operational meaning. Nothing is stroked — a stroke inside a
-   viewBox drawn with preserveAspectRatio="none" is stretched with the box. */
-.cndl{display:block;width:100%}
-.cndl rect{shape-rendering:crispEdges}
-.cndl .up{fill:var(--up-300)}
-.cndl .down{fill:var(--down-300)}
-.cndl .faded{opacity:.4}
-.cndl-wrap{border:1px solid var(--border-hairline);border-radius:var(--radius-sm);padding:8px 10px 6px;background:var(--surface-card)}
-.cndl-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
-.cndl-head .n{font:500 12.5px/1 var(--font-mono);color:var(--text-data)}
-.cndl-head .m{font:400 10.5px/1.4 var(--font-mono);color:var(--text-faint)}

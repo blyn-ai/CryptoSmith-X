@@ -82,7 +82,11 @@ public sealed record PairVenueSeries(
     public int Missing => Candles.Count(c => c is null);
     public double? Low => Present.Any() ? Present.Min(c => c.Low) : null;
     public double? High => Present.Any() ? Present.Max(c => c.High) : null;
-    public double? MaxVolume => Present.Any() ? Present.Max(c => c.Volume) : null;
+    /// <summary>Bars whose close is not a print: the window is only partly covered, or nothing
+    /// traded in it. Counted rather than drawn differently — the chart library draws every bar the
+    /// same, so the only honest place left to say it is next to the chart.</summary>
+    public int Incomplete => Present.Count(c => !c.Complete);
+    public int NoVolume => Present.Count(c => !c.Traded);
 }
 
 /// <summary>
@@ -96,8 +100,7 @@ public sealed record PairAtInstant(
     short Timeframe,
     IReadOnlyList<DateTime> Windows,
     IReadOnlyList<PairVenueRow> Venues,
-    IReadOnlyList<PairVenueSeries> Series,
-    bool SharedScale)
+    IReadOnlyList<PairVenueSeries> Series)
 {
     public string Pair => $"{Base}/{Quote}";
 
@@ -109,28 +112,4 @@ public sealed record PairAtInstant(
         return new DateTime(at.Ticks / window * window, DateTimeKind.Utc).AddMinutes(-timeframe);
     }
 
-    /// <summary>
-    /// Platforms whose contracts are the same size. Only these may share one price axis: a chart
-    /// that puts a 1× and a 100× contract on one scale is drawing a difference in contract terms and
-    /// calling it a difference in price.
-    /// </summary>
-    public bool ComparableTerms => Series.Count < 2
-        || Series.Select(s => s.ContractMultiplier).Distinct().Count() == 1;
-
-    /// <summary>The price axis shared by every chart when terms allow it, so a candle drawn higher
-    /// on screen is a higher price — the whole point of stacking them.</summary>
-    public (double Low, double High)? SharedDomain
-    {
-        get
-        {
-            // Asked for per-platform scales, or the contracts are not the same size — in which case
-            // one axis would be drawing a difference in contract terms as a difference in price.
-            if (!SharedScale || !ComparableTerms) { return null; }
-            var lows = Series.Select(s => s.Low).OfType<double>().ToList();
-            var highs = Series.Select(s => s.High).OfType<double>().ToList();
-            if (lows.Count == 0 || highs.Count == 0) { return null; }
-            double lo = lows.Min(), hi = highs.Max();
-            return hi > lo ? (lo, hi) : (lo - 1, hi + 1);
-        }
-    }
 }
