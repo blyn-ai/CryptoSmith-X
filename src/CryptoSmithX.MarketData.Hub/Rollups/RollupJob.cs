@@ -268,10 +268,13 @@ public sealed class RollupJob
                     expected_count, gap_seconds, updated_at)
                 select @InstrumentId, @HourTime, @OpenInterestLast, @FundingRateLast,
                        @SpreadBpsAvg, @DepthBid25BpsAvg, @DepthAsk25BpsAvg, @SnapshotCount,
-                       -- The cadence comes from the same cascade the collector obeys —
-                       -- exchange_collection.interval_s over collection.default_interval_s — so the
-                       -- expectation can never disagree with what was actually asked of the venue.
-                       least(3600 / greatest(coalesce(ec.interval_s, c.default_interval_s, 10), 1),
+                       -- Expected HISTORY rows, which is not the same as expected passes and was
+                       -- the first version's mistake: snapshot_count counts rows in
+                       -- market_snapshot, and SnapshotCollector writes one per instrument per
+                       -- minute however often it polls. Against 3600/interval an healthy hour
+                       -- read as 58 of 360. The floor of 60 s is that flush; a poll slower than a
+                       -- minute becomes the binding constraint instead, hence the greatest().
+                       least(3600 / greatest(coalesce(ec.interval_s, c.default_interval_s, 10), 60),
                              32767)::smallint,
                        coalesce(gap.seconds, 0),
                        now()
