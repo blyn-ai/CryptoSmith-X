@@ -114,7 +114,7 @@ services:
       # studio_reader, not marketdata: a public surface must not hold a credential that can write.
       # The role, the grants and the argument are migration 0025; the local default password
       # matches the one that migration sets when it creates the role.
-      ConnectionStrings__Database: ${STUDIO_DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=studio_reader;Password=studio_reader;Maximum Pool Size=20}
+      ConnectionStrings__Database: ${STUDIO_DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=studio_reader;Password=arena_reader;Maximum Pool Size=20}
       # Sentry errors (component=studio). Empty locally → SDK stays disabled.
       Sentry__Dsn: ${SENTRY_DSN:-}
       ASPNETCORE_ENVIRONMENT: ${STUDIO_ENVIRONMENT:-Development}

@@ -82,6 +82,11 @@ services:
       database-migrator:
         condition: service_completed_successfully
     environment:
+      # Пароль намеренно НЕ переименован вместе с ролью: 0025 задал роли значение
+      # `arena_reader`, а `alter role ... rename to` в 0027 пароля не трогает — права
+      # привязаны к OID, пароль к нему же. Строка, отправляющая `studio_reader`, не
+      # подошла бы ни к одной существующей базе. Значение всё равно подлежит ротации на
+      # каждом хосте: оно лежит в публичном репозитории.
       # studio_reader, not marketdata: a public surface must not hold a credential that is
       # allowed to insert. The role, its grants and the argument for both are migration 0025.
       #
@@ -91,7 +96,7 @@ services:
       # default is deliberate all the same — this host redeploys automatically on every push
       # to main (vps-deploy.sh), and a required variable would take the whole stack down,
       # webapp-admin included, on the first such deploy after this file lands.
-      ConnectionStrings__Database: ${STUDIO_DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=studio_reader;Password=studio_reader;Maximum Pool Size=20}
+      ConnectionStrings__Database: ${STUDIO_DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=studio_reader;Password=arena_reader;Maximum Pool Size=20}
       ASPNETCORE_ENVIRONMENT: Production
       # Sentry errors (component=studio).
       Sentry__Dsn: ${SENTRY_DSN:-}
