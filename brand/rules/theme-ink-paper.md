@@ -6,7 +6,7 @@
 
 # Light theme ("Paper") — implementation brief for Claude Code
 
-Repo: `blyn-ai/CryptoSmith-X` · branch `main` · path `src/CryptoSmithX.WebApp`
+Repo: `blyn-ai/CryptoSmith-X` · branch `main` · path `src/CryptoSmithX.WebApp.Admin`
 Reference mockup: `Admin Shell.dc.html` in the design project (toggle it with the ribbon's **Theme: Ink / Paper**).
 
 Goal: one user-flippable theme, persisted, applied to **every** page (shell pages and the sign-in page), with **no flash** of the wrong theme on load or on the 10 s refresh.

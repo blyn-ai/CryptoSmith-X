@@ -2,7 +2,7 @@
 
 Three rules that were decided while building the admin console and are easy to
 break by accident. The short form lives as a comment at the top of
-`src/CryptoSmithX.WebApp/wwwroot/app.css`; this is the reasoning behind it.
+`src/CryptoSmithX.WebApp.Admin/wwwroot/app.css`; this is the reasoning behind it.
 
 ## 1. Gold owns operational severity. Green and red are market-only.
 

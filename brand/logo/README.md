@@ -69,7 +69,7 @@ Redraw the mark, re-space the descriptor, stack the mark above the text, recolou
   round, which reads as a token rather than an app; this is the square equivalent.
   The mark geometry is copied from `cryptosmith-mark.svg`, never redrawn.
 - **`make-favicons.py`** — regenerates `favicon.ico` (16/32/48) for both the site and
-  the WebApp, plus `apple-touch-icon.png`, from the geometry above. Run it after any
+  the WebApp.Admin, plus `apple-touch-icon.png`, from the geometry above. Run it after any
   change to the icon:
 
   ```bash

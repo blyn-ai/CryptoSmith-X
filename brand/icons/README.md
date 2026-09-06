@@ -40,7 +40,7 @@ icon needs the same argument made again, in the open, and a note added here.
 ## Known duplication
 
 These are the masters. The app **inlines** the same paths in
-`src/CryptoSmithX.WebApp/Views/Shared/_ThemeToggle.cshtml`, because an
+`src/CryptoSmithX.WebApp.Admin/Views/Shared/_ThemeToggle.cshtml`, because an
 `<img src>` would break `currentColor` and a CSS `mask` would cost two requests
 to save one copy-paste.
 
