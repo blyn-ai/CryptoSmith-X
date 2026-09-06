@@ -1,0 +1,10 @@
+# WEEX contract V3 public WS - the unsubscribe form.
+# '>' is client to server, '<' is server to client. Exact frame text.
+
+> {"method":"SUBSCRIBE","params":["btcusdt@depth"],"id":1}
+2026-09-06T11:06:15.278667Z < {"result":true,"id":1}
+# 22 frames arrived in the 10 s after subscribing
+
+> {"method":"UNSUBSCRIBE","params":["btcusdt@depth"],"id":1002}
+2026-09-06T11:06:25.292864Z < {"result":true,"id":1002}
+# 1 frames arrived in the 10 s after the unsubscribe ack (the ack itself is counted; the depth stream stops)

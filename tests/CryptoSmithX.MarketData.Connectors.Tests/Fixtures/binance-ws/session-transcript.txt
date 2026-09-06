@@ -1,0 +1,20 @@
+SUBSCRIBE btcusdt@depth@100ms -> {"result":null,"id":1}
+buffered 60 frames before the REST snapshot
+REST /depth?symbol=BTCUSDT&limit=1000 -> lastUpdateId=11488689156874 bids=1000 asks=1000
+captured 144 depthUpdate frames, u range 11488688708550..11488689730625
+first frame with u >= lastUpdateId is index 64 of 144
+wrote depth-deltas.jsonl with 60 frames (indices 56..115); 8 of them predate the snapshot
+pu-chain violations across the captured run: 0
+bookTicker frame: {"stream":"btcusdt@bookTicker","data":{"e":"bookTicker","u":11488690331777,"s":"BTCUSDT","ps":"BTCUSDT","b":"79878.30","B":"12.494","a":"79878.40","A":"4.980","T":1788696037158,"E":1788696037158,"st":1}}
+
+--- routing: the handshake never tells you the stream is on the wrong path ---
+public/stream + btcusdt@depth@100ms  (correct): handshake to wss://fstream.binance.com/public/stream SUCCEEDED (HTTP 101) after 1.16s
+public/stream + btcusdt@depth@100ms  (correct): subscribed btcusdt@depth@100ms; acks=['{"result":null,"id":99}']; data frames in 8s = 76
+public/stream + !markPrice@arr@1s    (MISROUTED): handshake to wss://fstream.binance.com/public/stream SUCCEEDED (HTTP 101) after 1.09s
+public/stream + !markPrice@arr@1s    (MISROUTED): subscribed !markPrice@arr@1s; acks=['{"result":null,"id":99}']; data frames in 12s = 0
+market/stream + btcusdt@depth@100ms  (MISROUTED): handshake to wss://fstream.binance.com/market/stream SUCCEEDED (HTTP 101) after 1.16s
+market/stream + btcusdt@depth@100ms  (MISROUTED): subscribed btcusdt@depth@100ms; acks=['{"result":null,"id":99}']; data frames in 12s = 0
+market/stream + !markPrice@arr@1s    (correct): handshake to wss://fstream.binance.com/market/stream SUCCEEDED (HTTP 101) after 1.21s
+market/stream + !markPrice@arr@1s    (correct): subscribed !markPrice@arr@1s; acks=['{"result":null,"id":99}']; data frames in 8s = 16
+
+summary: correct paths delivered 76 and 16 frames; misrouted paths delivered 0 and 0.

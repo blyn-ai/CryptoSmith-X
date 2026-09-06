@@ -1,4 +1,5 @@
 using CryptoSmithX.MarketData.Connectors;
+using CryptoSmithX.MarketData.Connectors.Binance;
 using CryptoSmithX.MarketData.Connectors.Fake;
 using CryptoSmithX.MarketData.Connectors.Hyperliquid;
 using CryptoSmithX.MarketData.Connectors.Kraken;
@@ -533,6 +534,7 @@ public sealed class ExchangeWorker : BackgroundService
         "kraken-futures" => BuildKraken(config, ct),
         "weex-futures" => BuildWeex(config, gate, ct),
         "hyperliquid" => BuildHyperliquid(config, gate, ct),
+        "binance-usdm" => BuildBinance(config, gate, ct),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
@@ -560,9 +562,14 @@ public sealed class ExchangeWorker : BackgroundService
         return new KrakenFuturesMarketData(client, ws);
     }
 
-    // WEEX is REST-only for now (see the commit that added this adapter for why WS was deferred).
-    // Open interest has no batched endpoint on WEEX, so a background cycle keeps a fresh-enough
-    // sample per symbol; it starts here and dies with this exchange's token, same as Kraken's WS feed.
+    // WEEX runs two background feeds, and they answer different problems. Open interest has no
+    // batched endpoint in either API generation, so a REST cycle keeps a fresh-enough sample per
+    // symbol. The order book has no batched endpoint either, and unlike open interest it cannot be
+    // re-fetched after the fact — so when segment.ws_url is set the live book comes over WebSocket
+    // (WEEX contract V3, protocol captured in Fixtures/weex-ws), which the adapter prefers whenever
+    // it is healthy. Without a ws_url the adapter is pure REST, exactly as before. Both feeds start
+    // here and die with this exchange's token, same as Kraken's. WS honesty knobs are read live from
+    // settings at build time.
     private IExchangeMarketData BuildWeex(ExchangeConfig config, VenueGate gate, CancellationToken ct)
     {
         var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
@@ -571,7 +578,17 @@ public sealed class ExchangeWorker : BackgroundService
         var openInterest = new WeexOpenInterestFeed(client, gate, _loggers, _clock);
         openInterest.Start(ct);
 
-        return new WeexFuturesMarketData(client, openInterest);
+        WeexWsFeed? ws = null;
+        if (!string.IsNullOrWhiteSpace(config.WsUrl))
+        {
+            var settings = _settings.Latest;
+            ws = new WeexWsFeed(
+                config.WsUrl, client, gate, _loggers, _clock,
+                settings.WsStaleAfter, settings.WsCrosscheckInterval, settings.WsCrosscheckDriftBps);
+            ws.Start(ct);
+        }
+
+        return new WeexFuturesMarketData(client, openInterest, ws);
     }
 
     // Hyperliquid always runs the REST book cycler (bid/ask/size and depth have no batched form on
@@ -596,6 +613,41 @@ public sealed class ExchangeWorker : BackgroundService
         }
 
         return new HyperliquidMarketData(client, restFeed, ws);
+    }
+
+    // Binance USDⓈ-M always runs the background open-interest cycle: openInterest takes a mandatory
+    // symbol (HTTP 400 without one, verified live) and no other public endpoint carries the number,
+    // so it is the one dataset here that cannot be batched at any price. Everything else in the
+    // snapshot IS batched — the whole venue in three calls, 55 weight — so unlike WEEX and
+    // Hyperliquid this adapter needs no REST cycler for the ticker itself.
+    //
+    // The order book is the one that needs the socket, and for a reason none of the other venues
+    // had: the REST book is not slow here, it is EMPTY. Binance returns a window of levels, and at a
+    // 0.10 tick the 100 levels the budget affords span 1.4 bps of BTCUSDT, so every band comes back
+    // null. The maintained book keeps every level the venue publishes. When segment.ws_url is set
+    // the feed starts here and dies with this exchange's token, exactly like Kraken's and WEEX's;
+    // without one the adapter is pure REST. WS honesty knobs are read live from settings at build
+    // time.
+    private IExchangeMarketData BuildBinance(ExchangeConfig config, VenueGate gate, CancellationToken ct)
+    {
+        var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
+        var client = new BinanceUsdmClient(baseUrl);
+
+        var openInterest = new BinanceOpenInterestFeed(client, gate, _loggers, _clock);
+        openInterest.Start(ct);
+
+        BinanceWsFeed? ws = null;
+        if (!string.IsNullOrWhiteSpace(config.WsUrl))
+        {
+            var settings = _settings.Latest;
+            ws = new BinanceWsFeed(
+                config.WsUrl, client, gate, _loggers, _clock,
+                settings.WsStaleAfter, settings.WsCrosscheckInterval, settings.WsCrosscheckDriftBps);
+            ws.Start(ct);
+        }
+
+        return new BinanceUsdmMarketData(
+            client, openInterest, ws, _clock, _loggers.CreateLogger("Binance.Usdm"));
     }
 
     /// <summary>Await tasks, swallowing the cancellation that a normal stop raises.</summary>

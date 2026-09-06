@@ -6,4 +6,13 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Binance wire contract is expressed in internal DTOs and one internal
+         JsonSerializerOptions, and that options object is load-bearing: Binance frames carry field
+         pairs whose names differ only in case (U/u, b/B), which case-insensitive binding cannot
+         resolve at all. The test that pins it has to bind the real types with the real options, so
+         the test assembly sees internals — the same seam the Hub already opens to its own tests. -->
+    <InternalsVisibleTo Include="CryptoSmithX.MarketData.Connectors.Tests" />
+  </ItemGroup>
 </Project>

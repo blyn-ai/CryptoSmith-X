@@ -17,5 +17,16 @@
     <None Include="Fixtures\kraken-ws\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\weex\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\hyperliquid\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\binance\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- binance-ws holds captured wire frames, not only .json: the depth diff run is line-delimited
+         (.jsonl) and the routing evidence is an annotated transcript (.txt). -->
+    <None Include="Fixtures\binance-ws\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\binance-ws\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\binance-ws\*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- weex-ws holds captured wire frames, not only .json: the delta run is line-delimited
+         (.jsonl) and the ping/unsubscribe/close captures are annotated transcripts (.txt). -->
+    <None Include="Fixtures\weex-ws\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\weex-ws\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\weex-ws\*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

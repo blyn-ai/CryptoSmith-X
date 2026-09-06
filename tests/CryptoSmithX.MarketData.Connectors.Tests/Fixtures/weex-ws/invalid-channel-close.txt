@@ -1,0 +1,17 @@
+# WEEX contract V3 public WS - what repeated rejected channels do to the socket.
+# One invalid subscribe is answered and survivable. Repeats are not.
+
+2026-09-06T11:06:38.410772Z > {"method":"SUBSCRIBE","params":["btcusdt@bogus_1"],"id":1}
+2026-09-06T11:06:38.672863Z < {"result":false,"id":1,"msg":"INVALID_ARGUMENT: invalid event : bogus_1"}
+2026-09-06T11:06:40.411612Z > {"method":"SUBSCRIBE","params":["btcusdt@bogus_2"],"id":2}
+2026-09-06T11:06:40.673596Z < {"result":false,"id":2,"msg":"INVALID_ARGUMENT: invalid event : bogus_2"}
+2026-09-06T11:06:42.413374Z > {"method":"SUBSCRIBE","params":["btcusdt@bogus_3"],"id":3}
+2026-09-06T11:06:42.703079Z < {"result":false,"id":3,"msg":"INVALID_ARGUMENT: invalid event : bogus_3"}
+2026-09-06T11:06:44.415123Z > {"method":"SUBSCRIBE","params":["btcusdt@bogus_4"],"id":4}
+2026-09-06T11:06:44.676932Z < {"result":false,"id":4,"msg":"INVALID_ARGUMENT: invalid event : bogus_4"}
+2026-09-06T11:06:46.416714Z > {"method":"SUBSCRIBE","params":["btcusdt@bogus_5"],"id":5}
+2026-09-06T11:06:46.677162Z < {"result":false,"id":5,"msg":"INVALID_ARGUMENT: invalid event : bogus_5"}
+2026-09-06T11:06:48.418381Z > {"method":"SUBSCRIBE","params":["btcusdt@bogus_6"],"id":6}
+2026-09-06T11:06:48.685105Z < {"result":false,"id":6,"msg":"INVALID_ARGUMENT: invalid event : bogus_6"}
+2026-09-06T11:06:48.945170Z << CONNECTION CLOSED BY SERVER: code=1007 reason='Unrecognized message sent multiple times'
+# server closed after 6 rejected subscribes on this connection

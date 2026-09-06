@@ -19,26 +19,38 @@ namespace CryptoSmithX.MarketData.Connectors.Weex;
 /// missing any of these — no market (price is 0), no book match, no funding match, no OI sample yet —
 /// is simply omitted from the ticker batch; its snapshot row goes stale honestly rather than being
 /// written with a fabricated value.
+///
+/// Depth is WS-first with a REST fallback whenever a feed is wired (<see cref="WeexWsFeed"/>); when
+/// the feed is unhealthy the adapter transparently falls back to the per-symbol REST book, so a
+/// dropped socket is a coarser cadence, not an outage. Everything else stays REST: WEEX's socket has
+/// no top-of-book channel at all and carries neither funding nor open interest, so a WS-fed snapshot
+/// would still be the same batched REST calls with an extra clock to reconcile — and the snapshot
+/// path was never the expensive one. The order book was: one call per symbol, 361 s per sweep.
 /// </summary>
 public sealed class WeexFuturesMarketData : IExchangeMarketData
 {
     private readonly WeexFuturesClient _client;
     private readonly IWeexOpenInterestFeed _openInterest;
+    private readonly IWeexLiveFeed? _ws;
 
-    public WeexFuturesMarketData(WeexFuturesClient client, IWeexOpenInterestFeed openInterest)
+    public WeexFuturesMarketData(WeexFuturesClient client, IWeexOpenInterestFeed openInterest, IWeexLiveFeed? ws = null)
     {
         _client = client;
         _openInterest = openInterest;
+        _ws = ws;
     }
 
     public string SegmentCode => "weex-futures";
 
-    // REST-only in V1 (see the commit that added this adapter for why WS was deferred).
+    // Depth is WS-first with a REST fallback whenever a feed is wired (see the ctor); it is honest to
+    // declare both regardless of whether _ws happens to be null right now, since that is a config
+    // fact (ws_url set or not), not a per-request coin flip. The other datasets say 'rest' because
+    // they are REST — the socket offers no channel that would serve them (see the class remarks).
     public IReadOnlyList<DatasetCapability> Capabilities { get; } =
     [
         new("discovery", "rest"),
         new("snapshot", "rest"),
-        new("depth", "rest"),
+        new("depth", "rest,ws"),
         new("candles", "rest"),
         new("funding", "rest"),
     ];
@@ -225,6 +237,13 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
 
     public async Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct)
     {
+        // WS first: depth off the live book. Falls through to REST when the feed is unhealthy or the
+        // book for this symbol is dirty, unseeded or thinner than the level we subscribed to.
+        if (_ws is not null && _ws.TryGetDepth(exchangeSymbol, out var live))
+        {
+            return live;
+        }
+
         var response = await _client.GetDepthAsync(exchangeSymbol, ct);
         // A symbol with no book (WEEX serves this as literal JSON nulls, not empty arrays) overrides
         // the record's [] default, so this still needs a null guard even with discovery already
@@ -234,14 +253,6 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
         // WEEX's depth response carries no server timestamp of its own, unlike Kraken's.
         return DepthMath.Compute(bids, asks, DateTimeOffset.UtcNow);
     }
-
-    /// <summary>'cmt_btcusdt' → 'BTCUSDT': the transform v3's Binance-format symbols use. Verified
-    /// against a live snapshot: 1011 of 1023 v2 symbols match a v3 book-ticker entry this way; the
-    /// rest are dead or exotic listings this adapter already treats as absent (see the recon note).</summary>
-    private static string ToV3Symbol(string v2Symbol) =>
-        v2Symbol.StartsWith("cmt_", StringComparison.Ordinal)
-            ? v2Symbol[4..].ToUpperInvariant()
-            : v2Symbol.ToUpperInvariant();
 
     /// <summary>tick_size / size_increment are DECIMAL PLACE COUNTS on WEEX, not raw step values —
     /// confirmed against live prices (BTC last=78235.5, tick_size=1; DOGE last=0.08284, tick_size=5).</summary>
@@ -256,9 +267,12 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
         return step;
     }
 
-    /// <summary>A contract with real trades — not just a non-zero reference price. Found live:
-    /// cmt_usdcusdt carries last=1.0006 with volume_24h=0, and its /candles call still 400s.</summary>
-    private static bool IsLive(WeexTicker t) => Parse(t.Last) > 0 && Parse(t.Volume24h) > 0;
+    // Both rules live on WeexMarkets now: the WS feed applies exactly the same "has a real market"
+    // test and the same v2→v3 spelling, and two copies of either would be two definitions of the
+    // same instrument.
+    private static string ToV3Symbol(string v2Symbol) => WeexMarkets.ToV3Symbol(v2Symbol);
+
+    private static bool IsLive(WeexTicker t) => WeexMarkets.IsLive(t);
 
     private static double Parse(string value) => double.Parse(value, CultureInfo.InvariantCulture);
 

@@ -1,0 +1,18 @@
+# WEEX contract V3 public WS - the ping/pong exchange, both directions.
+# Exact frame text; '>' is client to server, '<' is server to client.
+
+## 1. Application-level ping, client -> server.
+> {"method":"PING","id":7}
+< {"result":true,"id":7}
+
+## 2. RFC 6455 control ping (opcode 0x9), client -> server.
+## The server answers with a control pong (opcode 0xA) echoing the payload.
+2026-09-06T11:03:05.870772Z > PING 'cs-x' [text, 4 bytes]
+2026-09-06T11:03:06.133376Z < PONG 'cs-x' [text, 4 bytes]
+
+## 3. Application-level ping, server -> client. Unprompted, every 60 s.
+## No reply was sent to any of these and the server did not close the
+## connection over a 4-minute idle, so a reply is not required to stay up.
+2026-09-06T11:03:46.122496Z < {"event":"ping","time":"1788692610000"}
+2026-09-06T11:04:46.128033Z < {"event":"ping","time":"1788692670000"}
+2026-09-06T11:05:46.129196Z < {"event":"ping","time":"1788692730000"}

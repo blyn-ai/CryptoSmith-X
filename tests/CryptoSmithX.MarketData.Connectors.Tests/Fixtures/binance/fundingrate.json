@@ -1,0 +1,44 @@
+[
+ {
+  "symbol": "BTCUSDT",
+  "fundingTime": 1788537600009,
+  "fundingRate": "0.00004455",
+  "markPrice": "79385.72840330",
+  "rateType": "Regular"
+ },
+ {
+  "symbol": "BTCUSDT",
+  "fundingTime": 1788566400000,
+  "fundingRate": "0.00001014",
+  "markPrice": "79616.14968116",
+  "rateType": "Regular"
+ },
+ {
+  "symbol": "BTCUSDT",
+  "fundingTime": 1788595200000,
+  "fundingRate": "-0.00000150",
+  "markPrice": "79673.05430435",
+  "rateType": "Regular"
+ },
+ {
+  "symbol": "BTCUSDT",
+  "fundingTime": 1788624000001,
+  "fundingRate": "0.00001923",
+  "markPrice": "79762.59457971",
+  "rateType": "Regular"
+ },
+ {
+  "symbol": "BTCUSDT",
+  "fundingTime": 1788652800000,
+  "fundingRate": "0.00003589",
+  "markPrice": "79797.70000000",
+  "rateType": "Regular"
+ },
+ {
+  "symbol": "BTCUSDT",
+  "fundingTime": 1788681600000,
+  "fundingRate": "0.00002295",
+  "markPrice": "79772.53402174",
+  "rateType": "Regular"
+ }
+]
