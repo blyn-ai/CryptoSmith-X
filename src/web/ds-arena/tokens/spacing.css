@@ -17,6 +17,18 @@
 
 /* ── the cell's own furniture ── */
 --slot-mark:12px; /* @kind spacing */
+
+/* ── the identity slot: where a venue's or an asset's own mark sits, beside the name that
+      is always there. Square, reserved whether or not a mark exists, and only two sizes.
+      16px is both floor and ceiling in a table row: measured across the 93 one-ink files,
+      16px is the median size at which a mark's median stroke is still one device pixel,
+      and the vendored artwork carries its own padding (median ink fill .75), so a 16px
+      slot draws ~12px of ink — the figure size, a pixel under the 13px name's line box.
+      28px is the page-header size, where one mark stands alone. Nothing between, nothing
+      below: under 16px the monogram takes the slot instead. ── */
+--slot-ident:16px; /* @kind spacing */
+--slot-ident-page:28px; /* @kind spacing */
+--gap-ident:6px; /* @kind spacing */
 --spark-w:60px; /* @kind spacing */--spark-h:11px; /* @kind spacing */
 --bar-w:60px; /* @kind spacing */--bar-h:3px; /* @kind spacing */
 --mirror-w:88px; /* @kind spacing */--mirror-h:4px; /* @kind spacing */

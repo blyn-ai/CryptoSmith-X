@@ -1,0 +1,3522 @@
+{
+ "$comment": [
+  "Provenance for every vendored mark. One record per file: where it came from, when, on",
+  "what terms, and exactly what we changed. A vendored third-party asset with no provenance",
+  "is a liability; this file is the answer to 'where did this come from' a year from now.",
+  "Regenerate the index with tools/index.py after adding or removing a file."
+ ],
+ "generated": "2026-09-06",
+ "totalFiles": 191,
+ "totalBytes": 284370,
+ "sources": [
+  {
+   "id": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "repository": "https://github.com/0xa3k5/web3icons",
+   "commit": "64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "commitDate": "2026-08-18T13:58:23Z",
+   "retrieved": "2026-09-06",
+   "paths": [
+    "raw-svgs/tokens/{branded,mono}/<TICKER>.svg",
+    "raw-svgs/exchanges/{branded,mono}/<venue>.svg"
+   ],
+   "licence": "MIT",
+   "licenceFile": "licenses/web3icons-LICENCE-MIT.txt",
+   "licenceVerified": "byte-identical to LICENCE at the pinned commit, checked 2026-09-06",
+   "licenceQuote": "Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies.",
+   "grants": "use, modification and redistribution of the DRAWINGS, commercial use included",
+   "doesNotGrant": "trademark rights. MIT is a copyright licence; it cannot license someone else's mark. See trademarkPosition below."
+  },
+  {
+   "id": "hyperliquid-brand-kit-2026-09-06",
+   "page": "https://hyperliquid.gitbook.io/hyperliquid-docs/brand-kit",
+   "file": "Hyperliquid SVG format.zip",
+   "retrieved": "2026-09-06",
+   "licence": "none stated",
+   "licenceQuote": null,
+   "permissionEvidence": "The brand-kit page is a bare list of six downloadable zips with a 'Last updated' stamp and no terms, no permission sentence and no restriction. Self-service publication of a brand kit is an invitation to use the marks; it is not a written licence, and nobody at Hyperliquid has said yes to us in particular.",
+   "why": "Preferred over the third-party redraw because it is the venue's own file — and because web3icons has no hyperliquid mark at all at the pinned commit, despite listing one in its metadata."
+  }
+ ],
+ "trademarkPosition": {
+  "$comment": [
+   "Said plainly rather than buried. Every mark in here is a registered or common-law",
+   "trademark of the venue or project it names. Neither MIT nor a public brand kit",
+   "transfers any right in the mark itself. What we are doing is naming the venue whose",
+   "data we are quoting, next to that venue's data, with no suggestion of endorsement or",
+   "partnership — which is the ordinary and narrow use a mark exists to permit.",
+   "Two venues publish terms that point the other way and are recorded per file:",
+   "Kraken's Global Terms s.16 and Binance's newsroom, both of which route logo requests",
+   "to a human at press@/pr@. We have not asked. That is a decision for the owner of this",
+   "repository, not for the build.",
+   "The design is deliberately built so that decision costs one file: delete the SVG, run",
+   "tools/index.py, and that venue degrades to the typographic fallback with no code change",
+   "anywhere. Nothing renders a broken image and nothing substitutes another venue's mark."
+  ]
+ },
+ "conventions": {
+  "path": "marks/<kind>/<variant>/<key>.svg",
+  "kind": [
+   "venue",
+   "asset"
+  ],
+  "variant": {
+   "branded": "the mark as published, in its own colours. Deliver with <img src>.",
+   "mono": "one ink: every fill is currentColor. Deliver with CSS mask-image + background:currentColor, or inline. NEVER with <img src> — an <img> resolves currentColor to black and the mark disappears on the night theme."
+  },
+  "key": "the code, verbatim, with no transformation. venue = exchange.code (lowercase: kraken, binance, weex, hyperliquid). asset = the canonical asset.code (uppercase: BTC, HYPE, 1000-prefixed venue spellings resolve through asset_alias first). There is no mapping table between a code and a filename because there is no mapping: the filename IS the code.",
+  "viewBox": "0 0 24 24 for everything out of web3icons, 0 0 200 200 for the two Hyperliquid files. Both square; scale to the slot, never set width/height in the file.",
+  "ids": "namespaced csx-<kind>-<key>- so two marks inlined into one document cannot collide."
+ },
+ "notVendored": [
+  {
+   "kind": "venue",
+   "key": "weex",
+   "status": "falls back",
+   "source": "https://www.weex.com/Media-kit — logo at https://www.weex.com/pages_static/_next/static/media/logoweex_black.2l70g8adovcuy.svg",
+   "why": "The only official file is a 134x28 lockup: a glyph at x 0-50 plus the WEEX wordmark at x 54-134. The wordmark half duplicates the platform name that is already in the cell, and the whole lockup is 4.8:1 where the slot is square. Cutting the glyph out of the lockup would work visually, and it is a modification of a mark whose actual rules sit unread in a Google Drive folder linked from that page. Not vendored on a guess.",
+   "toUnblock": "open the WEEX brand guide in the Drive folder linked from Media-kit and check whether the glyph may be used alone."
+  },
+  {
+   "kind": "venue",
+   "key": "deribit",
+   "status": "falls back",
+   "why": "No press or brand page found, and the site now titles itself 'Deribit by Coinbase' — its brand policy is probably Coinbase's now. Not in web3icons either."
+  },
+  {
+   "kind": "venue",
+   "key": "mexc",
+   "status": "falls back",
+   "source": "https://www.mexc.com/support/article/mexc-logo-refresh-441993220417064960",
+   "why": "MEXC's article promises 'a complete logo asset pack' and links no file: four variants are shown as page images with no download. Friendliest permission sentence of the eleven venues and no asset behind it. Not in web3icons either."
+  },
+  {
+   "kind": "venue",
+   "key": "fake",
+   "status": "falls back, permanently",
+   "why": "The in-process test venue from migration 0002. Giving it a mark would be inventing an institution. It must always render the fallback."
+  },
+  {
+   "kind": "asset",
+   "key": "APE",
+   "variant": "branded",
+   "status": "dropped after download",
+   "why": "web3icons ships APE branded as a 3,040,663-byte traced path inside a 24x24 viewBox — 50x the next largest file in the set and larger than every other mark here put together. A trace at that size is a bitmap wearing an SVG hat. The mono variant (3,932 bytes as vendored) is a real drawing and is kept, so APE still has a mark."
+  },
+  {
+   "kind": "asset",
+   "keys": [
+    "CRV",
+    "PEOPLE",
+    "PEPE",
+    "POPCAT",
+    "SHIB",
+    "YGG"
+   ],
+   "variant": "mono",
+   "status": "branded only",
+   "why": "web3icons has no mono variant for these six. A mono variant could be faked by flattening the branded file to one ink, but a mark whose counter-shapes are white goes solid black and stops being the mark. In mono delivery these six fall back."
+  }
+ ],
+ "knownConflictsWithTheDesignSystem": [
+  "ds-arena readme.md, Iconography: 'No icons.' A venue's or an asset's own mark is identity, not decoration - it answers the same question the platform column already answers in 13px type, only faster. This is an exception being taken, stated out loud, and written up as item 5 of src/web/ds-arena/RULE-CHANGES.md. It licenses identity marks in the two identity columns and nothing else: no icon font, no icon set, no emoji, and no decorative glyph anywhere on the surface.",
+  "ds-arena readme.md, rule 4 and rule 6: colour means WHICH CALL wrote a figure, across five hues, and it is deliberately rare. Brand marks are full colour by nature. Measured: 25 of the 98 branded files are under 1.6:1 against one of the two card grounds, so on the evidence the colour route also does not work - #FFF3DE eats Hyperliquid's mint and OKX's black vanishes on #17130D. The mono set spends no colour at all and is legible on both themes, which is why it is the recommended default. Phase three settles it.",
+  "ds-arena readme.md, rule 10: 'nothing glows.' One vendored file (asset/mono/APE.svg) carries a Figma drop-shadow filter. Left in rather than silently altered; flagged in its record."
+ ],
+ "files": [
+  {
+   "file": "asset/branded/AAVE.svg",
+   "key": "AAVE",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/AAVE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 488,
+   "sha256": "83d0913e622048c2b12fb97870736e6648539d719890276ea693f56f26463c5a",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#9391f7"
+   ]
+  },
+  {
+   "file": "asset/branded/ADA.svg",
+   "key": "ADA",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/ADA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 3237,
+   "sha256": "ad9c21605a9f25697430d7b36c7ec1530696924fa9e6d1cdf4c57d48e7faca1e",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#246dd3"
+   ]
+  },
+  {
+   "file": "asset/branded/ALGO.svg",
+   "key": "ALGO",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/ALGO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 233,
+   "sha256": "809c728bc1a3bb992fdbd2d028e28ac5b235002daf8911f83bf2ce501612b28a",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fff"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/APEX.svg",
+   "key": "APEX",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/APEX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1257,
+   "sha256": "44ac2eebd2672ae5b1d4c8a4144a0f4982d79a012fad0bfb94478303589ef6a9",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fed702"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/APT.svg",
+   "key": "APT",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/APT.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 882,
+   "sha256": "4657f9e409c8eaa97fc4003749732543a890ad3c2090981b2b856e913a3ee8b4",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#c65cff",
+    "#ba6bff",
+    "#9991ff",
+    "#6cf",
+    "#42f0db",
+    "#3fc"
+   ]
+  },
+  {
+   "file": "asset/branded/AR.svg",
+   "key": "AR",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/AR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 906,
+   "sha256": "7e066c3014876ee6931dbb9ff3ad93ccf0f15453e802f143e7ba6b238e46adf0",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#222326"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the night card #17130D — unreadable on the night theme"
+   ]
+  },
+  {
+   "file": "asset/branded/ARB.svg",
+   "key": "ARB",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/ARB.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1984,
+   "sha256": "5038c7d1ab375858e981a3b352223cf3fb48f6ba61f90529ef16d946555b2e02",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fff"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/ATOM.svg",
+   "key": "ATOM",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/ATOM.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 3643,
+   "sha256": "db90e6dcf07ceed70c2debdf4f67fb6d5e9007210916f0b150427b229db43850",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#2c3154",
+    "#a3a9d0",
+    "#f0f3fa"
+   ]
+  },
+  {
+   "file": "asset/branded/AVAX.svg",
+   "key": "AVAX",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/AVAX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 762,
+   "sha256": "12616a1fd522b1c61442c6625ddee25f6708844647bfb319e9c12e5c53612082",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#e84142"
+   ]
+  },
+  {
+   "file": "asset/branded/AXS.svg",
+   "key": "AXS",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/AXS.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1830,
+   "sha256": "c3d01015307fa3d684df877a03fc517bafa6d2dd88f2013e8b43fb031e66dc23",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#00d2f7",
+    "#004cdc",
+    "#8476f4",
+    "#0083ec",
+    "#8763ef"
+   ]
+  },
+  {
+   "file": "asset/branded/BCH.svg",
+   "key": "BCH",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/BCH.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 784,
+   "sha256": "bb3ba3e703404fdcedf7e1be3d338fb598902f9718fae6915b8c1e2c0615d622",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#58be92"
+   ]
+  },
+  {
+   "file": "asset/branded/BLUR.svg",
+   "key": "BLUR",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/BLUR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 703,
+   "sha256": "113ee70a81f46144ee7028271d905145f05ae43558803e6473c3f1a9bc211dc3",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fd6e26"
+   ]
+  },
+  {
+   "file": "asset/branded/BNB.svg",
+   "key": "BNB",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/BNB.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 691,
+   "sha256": "303ce98e2fdd9782fe07306a3c97a3697d399cd3ca5e08dff9cd9535fb1ef658",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#f0b90b"
+   ]
+  },
+  {
+   "file": "asset/branded/BSV.svg",
+   "key": "BSV",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/BSV.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 489,
+   "sha256": "70b74713f314d39a7bc349ea7898e5ff3a5f99e9460d969c2d7fce4475c767e0",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#eab300"
+   ]
+  },
+  {
+   "file": "asset/branded/BTC.svg",
+   "key": "BTC",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/BTC.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 759,
+   "sha256": "846728c424b8fab875180719533ff0a1a6257e8d078c11877e4db7dafbdddb8d",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#f7931a"
+   ]
+  },
+  {
+   "file": "asset/branded/CAKE.svg",
+   "key": "CAKE",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/CAKE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1554,
+   "sha256": "6533cee2710f29907ba20defe31d54cd074ba8dbc0cf6e2ac4e10bb694c494aa",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fbd984",
+    "#ca7d45",
+    "#522d0b"
+   ]
+  },
+  {
+   "file": "asset/branded/CELO.svg",
+   "key": "CELO",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/CELO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 161,
+   "sha256": "032dcb1e72481fb23240ba414d481f5fa6cbc6b78aab0e3bf41c5a1258eb8428",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fcfe52"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/CFX.svg",
+   "key": "CFX",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/CFX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 502,
+   "sha256": "2110b1e950622f26e57c899a86224909093e86b6f781646b38859d78d8c3b352",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#13c77f",
+    "#295db2"
+   ]
+  },
+  {
+   "file": "asset/branded/COMP.svg",
+   "key": "COMP",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/COMP.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 661,
+   "sha256": "8f274352c88cdbea1bf1fa254d03ffd69c83990e686c0ad2ffca57fe26f17188",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#00d395"
+   ]
+  },
+  {
+   "file": "asset/branded/CRV.svg",
+   "key": "CRV",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/CRV.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 7511,
+   "sha256": "9b617735401078be3eb957dc1be6d1e74558c3579d91e6b33ca0d6bc0ca665fb",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#f4ba0c",
+    "#ff7301",
+    "#ffdd01",
+    "#ff8101",
+    "#ffe601",
+    "#ff9100",
+    "#d4ff23",
+    "#87ff70",
+    "#1cffdb",
+    "#00beff",
+    "#ff4e00",
+    "#ff7300",
+    "#fa0f00",
+    "#ff6e01",
+    "#a80000",
+    "#fa0f01",
+    "#ffe600",
+    "#7aff7d",
+    "#00dcfe",
+    "#f1fc06",
+    "#ffc100",
+    "#ffd701",
+    "#ffa300",
+    "#deff19",
+    "#a4ff53",
+    "#36ffc1",
+    "#00a0ff",
+    "#0064ff",
+    "#ff8a01",
+    "#ffdb00",
+    "#dffd18",
+    "#fdad12",
+    "#14f3e6",
+    "#0040ff",
+    "#09d3f3",
+    "#0001fc",
+    "#00d8ff",
+    "#ff4e01",
+    "#f4bb0c"
+   ]
+  },
+  {
+   "file": "asset/branded/DASH.svg",
+   "key": "DASH",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/DASH.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 732,
+   "sha256": "3316a585f95257dfebfcb297739d79e8961547a4b5f13ca66a70f65bfb381958",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#008de4"
+   ]
+  },
+  {
+   "file": "asset/branded/DOGE.svg",
+   "key": "DOGE",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/DOGE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 25527,
+   "sha256": "2a3aa37c96e21c6bdc2c4043481fe2858f7851c33527ac9ad35c182ac3c279ba",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#e1b051",
+    "#b87c29",
+    "#c89539",
+    "#85511c",
+    "#0b0802",
+    "#efe2ad",
+    "#fcf9f5",
+    "#faf2cd",
+    "#5b4f40",
+    "#e0c06e",
+    "#968c78",
+    "#e7cf90",
+    "#fff"
+   ]
+  },
+  {
+   "file": "asset/branded/DOT.svg",
+   "key": "DOT",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/DOT.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 877,
+   "sha256": "b191d4ca7549e3560d4408c9ce1b1f92ce2ae2357eefe64bf21c08ec711d6f9b",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#e6007a"
+   ]
+  },
+  {
+   "file": "asset/branded/DYDX.svg",
+   "key": "DYDX",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/DYDX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 749,
+   "sha256": "c1a9b5489d4e6fd330ef1dabc5efb197f819ca14379c07faf32622f9407d07fd",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fff",
+    "#6966ff"
+   ]
+  },
+  {
+   "file": "asset/branded/ENS.svg",
+   "key": "ENS",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/ENS.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 866,
+   "sha256": "841d53b81aa8d8e1d0767e36cf719f56270a6f45db1591272fa21552579abacc",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#7c97fa",
+    "#53b1ef"
+   ]
+  },
+  {
+   "file": "asset/branded/ETC.svg",
+   "key": "ETC",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/ETC.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 253,
+   "sha256": "37fc9d834ebffa04862c6e29a350a6948d1739517bb4de88799e30e5edf30f86",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#01c853"
+   ]
+  },
+  {
+   "file": "asset/branded/ETH.svg",
+   "key": "ETH",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/ETH.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 798,
+   "sha256": "9faf86048276d66b5f833efbcb6b8a8b5a6fa4cc86e9ad2207a160ceda6b8047",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#8ffcf3",
+    "#cabcf8",
+    "#cba7f5",
+    "#74a0f3",
+    "#202699"
+   ]
+  },
+  {
+   "file": "asset/branded/FET.svg",
+   "key": "FET",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/FET.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 727,
+   "sha256": "854f65e70b6f417a388417ba227a571908effd36872bd8e413cfefdc3a353902",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#1a1e21",
+    "#06060a"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the night card #17130D — unreadable on the night theme"
+   ]
+  },
+  {
+   "file": "asset/branded/FIL.svg",
+   "key": "FIL",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/FIL.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 882,
+   "sha256": "b1847a34691c334c0d6e5b34e8be0c9dd072ed11bd670126b90304ca6e4da11b",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#0090ff"
+   ]
+  },
+  {
+   "file": "asset/branded/FOGO.svg",
+   "key": "FOGO",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/FOGO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 365,
+   "sha256": "0dd3a240a4a684e0bc321c98cdf8f788466f6e9d5faa835df90d2afabd414a7c",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#ff3d00",
+    "#fff"
+   ]
+  },
+  {
+   "file": "asset/branded/GALA.svg",
+   "key": "GALA",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/GALA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 414,
+   "sha256": "af2d3d84b3a10a1c696a81cbca47d6ec51819efd5d505934a02779e1a6c70678",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#000"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the night card #17130D — unreadable on the night theme"
+   ]
+  },
+  {
+   "file": "asset/branded/GAS.svg",
+   "key": "GAS",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/GAS.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 455,
+   "sha256": "20d8d8b92f239a18987593c4bb9bb50a7f40859f87bcfdeff7910c4a89c4edc5",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#beea2e",
+    "#52ba00"
+   ]
+  },
+  {
+   "file": "asset/branded/GMX.svg",
+   "key": "GMX",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/GMX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 423,
+   "sha256": "89dfddb12795ceee224b0837f67e5a77d9ab5fec5fd02219d70f4eea9ecbd05d",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#03d1cf",
+    "#4e09f8"
+   ]
+  },
+  {
+   "file": "asset/branded/GRAM.svg",
+   "key": "GRAM",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/GRAM.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1050,
+   "sha256": "c347d562bbe2d3b0ff60ee8761208984fa6f5d5621631fdf7107e7aa6c7a40f6",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#30a1f5"
+   ]
+  },
+  {
+   "file": "asset/branded/HBAR.svg",
+   "key": "HBAR",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/HBAR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 205,
+   "sha256": "9a57c265eed62530a0bd65fab1d522f753264a17d3097d2d36772fd3b8541d0c",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fff"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/HYPE.svg",
+   "key": "HYPE",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "hyperliquid.gitbook.io/hyperliquid-docs/brand-kit @ 2026-09-06 (Hyperliquid SVG format.zip)",
+   "sourceFile": "SVG/Hyperliquid_Blob_Green.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 414,
+   "sha256": "b8c062d1193f28fd4e62044fd5dcd57bf52f2442db5b6746933eec434483ed8e",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)",
+    "placed at the HYPE asset key as well as the hyperliquid venue key: HYPE is Hyperliquid's own token and the blob is the mark it ships for both"
+   ],
+   "inks": [
+    "#97fce4"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/ICP.svg",
+   "key": "ICP",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/ICP.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1569,
+   "sha256": "49953ab6f0e82de88a74b4ec55585a1cffcc1b95f79b1839696587b8c3ff84b9",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#46abe3",
+    "#f2a528",
+    "#ef5e12",
+    "#5f2685",
+    "#da1980"
+   ]
+  },
+  {
+   "file": "asset/branded/IMX.svg",
+   "key": "IMX",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/IMX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1984,
+   "sha256": "f9c1824aa66ccda4e08d375af378a6620eb2a715151755ddc341d25595b91882",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#000"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the night card #17130D — unreadable on the night theme"
+   ]
+  },
+  {
+   "file": "asset/branded/INJ.svg",
+   "key": "INJ",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/INJ.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1470,
+   "sha256": "f25019168e657be40d51ea5c648cb69b33fad6a1dfd5b777536561def4b7316f",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#0082fa",
+    "#00f2fe"
+   ]
+  },
+  {
+   "file": "asset/branded/IOTA.svg",
+   "key": "IOTA",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/IOTA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 8629,
+   "sha256": "d90abe4c10f34dfe9d7335529a2dec4df0756417e2936b950e9ebd522868d44c",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#000"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the night card #17130D — unreadable on the night theme"
+   ]
+  },
+  {
+   "file": "asset/branded/JUP.svg",
+   "key": "JUP",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/JUP.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 2829,
+   "sha256": "5c896d07de1d24b75f96e1b88b51fb2eb26d62a4d70f42921fc39185802ccb80",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#c7f284",
+    "#00bef0"
+   ]
+  },
+  {
+   "file": "asset/branded/KAS.svg",
+   "key": "KAS",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/KAS.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 755,
+   "sha256": "ba5405d61f41de36fa2a79ead64e2aad5e0e344c06f7db7aebc062c4b7943e57",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#71c9bb"
+   ]
+  },
+  {
+   "file": "asset/branded/LAYER.svg",
+   "key": "LAYER",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/LAYER.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 212,
+   "sha256": "eca91770c6ee6cb67f673bb4296b5e003117f9778a5340990a8efd349e655049",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fff",
+    "#ff47a2"
+   ]
+  },
+  {
+   "file": "asset/branded/LDO.svg",
+   "key": "LDO",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/LDO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1276,
+   "sha256": "505521156e7d1cb4cf144c9728f63e82b248ce28f88be4bf232f0f2f8a5ef131",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#498be9",
+    "#56f2ff",
+    "#4a8cea",
+    "#5abef4",
+    "#fb8174",
+    "#568fdd",
+    "#ffe235",
+    "#5dcba2"
+   ]
+  },
+  {
+   "file": "asset/branded/LINK.svg",
+   "key": "LINK",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/LINK.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 229,
+   "sha256": "c62f794c2747886fe3c673fc8c7ec48cec06b9695c4008a32b94b74dbf58cb5a",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#2e61de"
+   ]
+  },
+  {
+   "file": "asset/branded/LIT.svg",
+   "key": "LIT",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/LIT.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1965,
+   "sha256": "16bff9525cffd425fa2d8b651ac32a9d59b05a4328789b0fc91ea57d514172b7",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#00c967",
+    "#15e882",
+    "#16ea84",
+    "#00c969",
+    "#09f183",
+    "#1bc775",
+    "#0dd976",
+    "#1bd27f",
+    "#2fe18b"
+   ]
+  },
+  {
+   "file": "asset/branded/LTC.svg",
+   "key": "LTC",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/LTC.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 239,
+   "sha256": "195acb9d4aa0a5f47cfc99fa25537d573eeec0e06c92c6382a0672f8efb3dbc7",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#345d9d"
+   ]
+  },
+  {
+   "file": "asset/branded/LUNC.svg",
+   "key": "LUNC",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/LUNC.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 563,
+   "sha256": "987e421682072849405d38683577c1710f918c4690e1d242515f37c4da484073",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#ee7730",
+    "#f9d85e"
+   ]
+  },
+  {
+   "file": "asset/branded/MEME.svg",
+   "key": "MEME",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/MEME.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 7064,
+   "sha256": "9249efa4270f752cdf7171c1d8c0d2bca796ae674e59d1733636ed2cdbbe655d",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#451834",
+    "#a1472a",
+    "#ffe84f",
+    "#e39400"
+   ]
+  },
+  {
+   "file": "asset/branded/MET.svg",
+   "key": "MET",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/MET.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 558,
+   "sha256": "fc5c94703d83a54e0c7911c9b50377522e3999867bb1b0220d2e0db19007d01f",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#7e61f8"
+   ]
+  },
+  {
+   "file": "asset/branded/MINA.svg",
+   "key": "MINA",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/MINA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1698,
+   "sha256": "d6febd63f8377bbe213b1a9911ec845ef2defea6c889f55aded048d01700b5dd",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#c2e0f4",
+    "#e37b44",
+    "#ce5937",
+    "#8e7df2"
+   ]
+  },
+  {
+   "file": "asset/branded/MNT.svg",
+   "key": "MNT",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/MNT.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 2086,
+   "sha256": "d75aca8d57fe34819396e161814d2b6d3854d54b907def9d1f9dcbbd57925ae6",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fff"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/MOVE.svg",
+   "key": "MOVE",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/MOVE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 206,
+   "sha256": "10a3e4d88a4f91a73d10d8366e6a46bbafe07356baeebf1787f999c4932b25df",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#6fe9b1"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/NEAR.svg",
+   "key": "NEAR",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/NEAR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 534,
+   "sha256": "7b4742887e4604093d826676bb8eaa038c8215a5e4c67f54c25d694cbab678d6",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#00ec97"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/NEO.svg",
+   "key": "NEO",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/NEO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 238,
+   "sha256": "e8edf3e36259d48aa90369e8218ae517b4405965326dc86979377ffd6c9e140b",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#00e599",
+    "#00af92"
+   ]
+  },
+  {
+   "file": "asset/wordmark/OP.branded.svg",
+   "key": "OP",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/OP.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 943,
+   "sha256": "38873e3d86f64ac69cee3289f13c88d60d93cf60b929809747f98c03943a333d",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fe0420"
+   ],
+   "indexed": false,
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+  },
+  {
+   "file": "asset/branded/ORDI.svg",
+   "key": "ORDI",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/ORDI.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 455,
+   "sha256": "a028da4550dd2e824f50ca5a736beda655de959d0be45cab13449f9755b9e4cf",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fefefe"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/PAXG.svg",
+   "key": "PAXG",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/PAXG.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1515,
+   "sha256": "729bb3bb53067ceabc71c1cc9f22248273e8221f8f3fd396e49eb771b0d2c07c",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#efe812",
+    "#eee809",
+    "#dec21c",
+    "#e5cb22",
+    "#cca727"
+   ]
+  },
+  {
+   "file": "asset/branded/PENDLE.svg",
+   "key": "PENDLE",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/PENDLE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 320,
+   "sha256": "f283ff245d22181fd729e1fa6a11d3d58721c5b8a3843e57346b955f293b7418",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fff",
+    "#152e51"
+   ]
+  },
+  {
+   "file": "asset/branded/PEOPLE.svg",
+   "key": "PEOPLE",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/PEOPLE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 10525,
+   "sha256": "37fa201247f1d36483543d7d37f7441d3f368155efc452186b15946ea0266f20",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#ddc6b8",
+    "#503b20",
+    "#fff7d6",
+    "#1b1306",
+    "#dde18c",
+    "#eee7cb",
+    "#dab98c",
+    "#d89c78",
+    "#bc855c",
+    "#572f23",
+    "#e6d399",
+    "#eae9cd",
+    "#361822",
+    "#9a634e",
+    "#ccb98e",
+    "#a2776e",
+    "#390800",
+    "#cfbb96",
+    "#401d07",
+    "#d8c19e",
+    "#ddb963",
+    "#301617",
+    "#e7d0b1",
+    "#3b2323",
+    "#71524d",
+    "#ac8f71",
+    "#301900",
+    "#4a1f0f",
+    "#ead697",
+    "#59301e",
+    "#d09f52",
+    "#2c1608",
+    "#1c0d0a",
+    "#1b1107",
+    "#39201b",
+    "#141416",
+    "#bc8f65",
+    "#1b0000",
+    "#100000",
+    "#d6bd9e",
+    "#4f2d11",
+    "#b38971",
+    "#240c00",
+    "#e4dab6",
+    "#5d3e2c",
+    "#e8d394",
+    "#e4e1b3",
+    "#e2d07a",
+    "#b69961",
+    "#90703f",
+    "#cfb885",
+    "#95713a",
+    "#e0d792",
+    "#dbc07d",
+    "#664f41",
+    "#745a37",
+    "#948149",
+    "#12140d",
+    "#4a3d25",
+    "#846e40",
+    "#23150a",
+    "#241500",
+    "#2f2218"
+   ]
+  },
+  {
+   "file": "asset/branded/PEPE.svg",
+   "key": "PEPE",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/PEPE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 10978,
+   "sha256": "8083172da78d12f945b019f0121e23911052e665f9b3a67a33c90604fffffa51",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fff",
+    "#4f9843",
+    "#206814",
+    "#000"
+   ]
+  },
+  {
+   "file": "asset/branded/POL.svg",
+   "key": "POL",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/POL.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1116,
+   "sha256": "d333a7e6be84a2405ccd8b24ba7ea8b762662b85eeaed513783a6a3a0380cc63",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#8f34c2",
+    "#7442db"
+   ]
+  },
+  {
+   "file": "asset/branded/POLYX.svg",
+   "key": "POLYX",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/POLYX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 872,
+   "sha256": "0de91340f67051b3019c4880137d31e5c9b2c9c46e49a24443b03093081c2430",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#ff2e72",
+    "#4a125e",
+    "#631661"
+   ]
+  },
+  {
+   "file": "asset/branded/POPCAT.svg",
+   "key": "POPCAT",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/POPCAT.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 22964,
+   "sha256": "dec9b166f67b0a3c28fb4895599aadbd15536328f741bd66be903ebdfbe034ed",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#ae918b",
+    "#42281f",
+    "#826158",
+    "#774c46",
+    "#e6d1cc",
+    "#c98c89",
+    "#bc7573",
+    "#683b36",
+    "#fff5f6",
+    "#010101",
+    "#250e08",
+    "#3c1a18",
+    "#cbb2ad",
+    "#4e1e1e",
+    "#7e4140"
+   ]
+  },
+  {
+   "file": "asset/branded/PYTH.svg",
+   "key": "PYTH",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/PYTH.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 468,
+   "sha256": "e99e69a8f5fcb33e31c0a58b5a4928fb47d6eb6f9afd8a3786462277c9441144",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#110f24"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the night card #17130D — unreadable on the night theme"
+   ]
+  },
+  {
+   "file": "asset/branded/RSR.svg",
+   "key": "RSR",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/RSR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1328,
+   "sha256": "b3c564ba85cec8036ea36a37427b241d442186597c6b683809d6feec72968db7",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fff"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/RUNE.svg",
+   "key": "RUNE",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/RUNE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 387,
+   "sha256": "e1955c062a3a22ee9cbcd4437c627bcea42c777cdbf3c5bbc8d3399e7f1fd9ea",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#3f9",
+    "#0cf"
+   ]
+  },
+  {
+   "file": "asset/branded/SAND.svg",
+   "key": "SAND",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/SAND.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 272,
+   "sha256": "2eb448ea415950b04c9046e21bca641ddd4d061088c123b732da7b1692801073",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#00aeef"
+   ]
+  },
+  {
+   "file": "asset/branded/SEI.svg",
+   "key": "SEI",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/SEI.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 2021,
+   "sha256": "1952595e06be6509beecc753f5867ce311535795519e5ac36a3a47f73f526181",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#90305c",
+    "#df3c41"
+   ]
+  },
+  {
+   "file": "asset/branded/SHIB.svg",
+   "key": "SHIB",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/SHIB.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 3331,
+   "sha256": "ce0f740c8600cdad3ce44bfe2d7af132f49f553762fcb3b24b1954509984edab",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#eb9a2e",
+    "#e58014",
+    "#fefff7",
+    "#eaeae8",
+    "#000001",
+    "#000"
+   ]
+  },
+  {
+   "file": "asset/branded/SNX.svg",
+   "key": "SNX",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/SNX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 828,
+   "sha256": "90676a2b7d01b0894ee1f45b5c3984e1d4dc59f06abe18194cbb35fd1e3fd895",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#1b1230"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the night card #17130D — unreadable on the night theme"
+   ]
+  },
+  {
+   "file": "asset/branded/SOL.svg",
+   "key": "SOL",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/SOL.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1195,
+   "sha256": "7a24e3409b78791d86c762ffb8ba6cbc5b2775cf4b65a9bd7db9f4a2fc2463ca",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#599db0",
+    "#47f8c3",
+    "#c44fe2",
+    "#73b0d0",
+    "#778cbf",
+    "#5dcdc9"
+   ]
+  },
+  {
+   "file": "asset/branded/SOPH.svg",
+   "key": "SOPH",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/SOPH.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 2494,
+   "sha256": "97ee4b9c2034555755925caec8cd0ffb6c2529928ed3716b7fb88f21acaf6088",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#14171a"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the night card #17130D — unreadable on the night theme"
+   ]
+  },
+  {
+   "file": "asset/branded/SPX.svg",
+   "key": "SPX",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/SPX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1239,
+   "sha256": "a7fbcf94dcff2993e059bbbf88676d20fed0dabc175b93b8d5cc9b72b7a7d11d",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fd00ff",
+    "#0bf2fe",
+    "#0bf1ff",
+    "#f903ff"
+   ]
+  },
+  {
+   "file": "asset/branded/STRK.svg",
+   "key": "STRK",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/STRK.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 151,
+   "sha256": "b096c2d4ae01a2ca806be5d867cde3219dd5921068c6a8c45984c2e433783c07",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#277fe3"
+   ]
+  },
+  {
+   "file": "asset/branded/STX.svg",
+   "key": "STX",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/STX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 524,
+   "sha256": "24fc7d87e876cbb287bd4ca62e2d76b375dc037b97a1b750d85682c4788b7237",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#7023eb"
+   ]
+  },
+  {
+   "file": "asset/branded/SUI.svg",
+   "key": "SUI",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/SUI.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 758,
+   "sha256": "f5ef59f88d37220069365158bbf179e6f63e96fd111628b1437581c0766b5ad6",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#4ba2ff"
+   ]
+  },
+  {
+   "file": "asset/branded/SUSHI.svg",
+   "key": "SUSHI",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/SUSHI.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 3505,
+   "sha256": "fd5c929c323ed2cc297f1f73a92189bb1f1b99601072e60dd54b33cb9f1cabc6",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#0e0f23",
+    "#fff",
+    "#27b0e6",
+    "#c26bb3",
+    "#fa52a0"
+   ]
+  },
+  {
+   "file": "asset/branded/TAO.svg",
+   "key": "TAO",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/TAO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 6903,
+   "sha256": "1287d42b472bd035f85983ff6264463a279f3a99a29ded2aa5f2447b063adc84",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#ea302a",
+    "#da181f",
+    "#c5151b",
+    "#af0f14",
+    "#f9b198",
+    "#ee1c25",
+    "#ee2729",
+    "#f1373a",
+    "#ec5f33"
+   ]
+  },
+  {
+   "file": "asset/branded/TIA.svg",
+   "key": "TIA",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/TIA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 3432,
+   "sha256": "d853e527776f9df472ac9657bb85f2895692e840a6e16f23c2c90d24f2b70fc3",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#7a2bf9"
+   ]
+  },
+  {
+   "file": "asset/branded/TRB.svg",
+   "key": "TRB",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/TRB.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 255,
+   "sha256": "59843b906c8530874b7a8280cbf4827cf9795599a5ad1478ee0300065a50cc7d",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#20fe9c"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/TRX.svg",
+   "key": "TRX",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/TRX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 457,
+   "sha256": "6de1010075dccd48626fb7d87df6080c9a0f31bc25700ab465b0959d328caa55",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#c4342b"
+   ]
+  },
+  {
+   "file": "asset/wordmark/UMA.branded.svg",
+   "key": "UMA",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/UMA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1272,
+   "sha256": "386b322e3f0ccdc1710c964dc6e802b58f97b08cfe19f0c75383e14e4f5f7db4",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#ff4a4a"
+   ],
+   "indexed": false,
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+  },
+  {
+   "file": "asset/branded/UNI.svg",
+   "key": "UNI",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/UNI.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 4888,
+   "sha256": "e36a628a55052f6d8dcbdff92ea93ae3aeefebe4cb168372ccc4cf3b743a6e5e",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#ff0a6f"
+   ]
+  },
+  {
+   "file": "asset/branded/XLM.svg",
+   "key": "XLM",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/XLM.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 710,
+   "sha256": "68460e4cccb29b8fb2356ec2f67e407e1c4383051b52f47f1ee56bc0b8ddc4f5",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#000"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the night card #17130D — unreadable on the night theme"
+   ]
+  },
+  {
+   "file": "asset/branded/XMR.svg",
+   "key": "XMR",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/XMR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 343,
+   "sha256": "7b1615061cf4818bfa6e8d8a76b99054fe60a3249a312ba0cd1fe184906da842",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#f60"
+   ]
+  },
+  {
+   "file": "asset/branded/XRP.svg",
+   "key": "XRP",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/XRP.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 393,
+   "sha256": "dff9f9aed80a71f5ced2d3e63a036e865cbf058b172c158a38ee23de9b19f230",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fff"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "asset/branded/YGG.svg",
+   "key": "YGG",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/YGG.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 2468,
+   "sha256": "0cb1340c40c4a6d2d08e6d7661cfe9ff248fa7734500b7980e131ec5c0cb4104",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#9de6e0",
+    "#012274",
+    "#0035b0",
+    "#022372",
+    "#5183e2",
+    "#1150b9",
+    "#b29f59",
+    "#ffffb0",
+    "#a7924d"
+   ]
+  },
+  {
+   "file": "asset/branded/ZEC.svg",
+   "key": "ZEC",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/ZEC.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 222,
+   "sha256": "ab9f4903efcc3fb9815d4a5c7f38d39671aabb4fa9923eef2a67e980a63b3738",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#ecb244"
+   ]
+  },
+  {
+   "file": "asset/branded/ZEN.svg",
+   "key": "ZEN",
+   "kind": "asset",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/branded/ZEN.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1383,
+   "sha256": "1e5734b7c08787f9790a792c94d9f4cef29f458e9cfed3cc9a4b212219b36ac7",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#fff",
+    "#26db8d",
+    "#23d29a",
+    "#1abbbb",
+    "#0e9de5"
+   ]
+  },
+  {
+   "file": "asset/mono/AAVE.svg",
+   "key": "AAVE",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/AAVE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 498,
+   "sha256": "3b211a17d6cda9136fe5fe29f2b6fcf89b50f8c3b8589a8c46d9fbf1bf128d87",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/ADA.svg",
+   "key": "ADA",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/ADA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 3239,
+   "sha256": "66d21d43adc77c285bc3428b1fd709a76575d5cb5662a779bbf9585152047461",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/ALGO.svg",
+   "key": "ALGO",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/ALGO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 241,
+   "sha256": "1581515fab3a0801e15e2d844cbf233156404e1fc917bb6546fb12d6c90a9f8a",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/APE.svg",
+   "key": "APE",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/APE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 3932,
+   "sha256": "9900407e26a6d29d5c2e5c50875397179d5bb1b0c2481938e93249bf68bb5c67",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "warnings": [
+    "carries a drop-shadow filter, which collides with ds-arena rule 10 (nothing glows)"
+   ]
+  },
+  {
+   "file": "asset/mono/APEX.svg",
+   "key": "APEX",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/APEX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1256,
+   "sha256": "49e8c035009b15aa4cf255d494e9414a3df871aaa9f2a0c208b821adcbfb65f7",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/APT.svg",
+   "key": "APT",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/APT.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 490,
+   "sha256": "b64b2ef7bbc14a0c6aa62430c9170bc55f65a310d8e91481d650017a5b2fa18b",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/AR.svg",
+   "key": "AR",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/AR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 893,
+   "sha256": "f213593cb4836975a83c65bf20362ba1c3e0f87463aab4f77c834bd9188a4cee",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/ARB.svg",
+   "key": "ARB",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/ARB.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1992,
+   "sha256": "5afc75950c44189728ee1b4bbf2d9052a4e60a3a53aaea581d173ee17b0b2bf9",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/ATOM.svg",
+   "key": "ATOM",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/ATOM.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 3560,
+   "sha256": "e27d4cf1f32d60c56c2eb421a782c6fb787882cd8421abf0684f72be4f609e3b",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/AVAX.svg",
+   "key": "AVAX",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/AVAX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 765,
+   "sha256": "bd957558cd4a43faf5e5ea5ddef04638abe716a508ce75b20fc33bd61a26a612",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/AXS.svg",
+   "key": "AXS",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/AXS.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 723,
+   "sha256": "097cced302a45eefcae15d1d5dab61e0902259e4b92e7b1eb5a549435e97c092",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/BCH.svg",
+   "key": "BCH",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/BCH.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 790,
+   "sha256": "05a3b32c9bddb6670dfd83bc879e8befb4e7bb897cd7bfb1ba9667947a75a5ae",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/BLUR.svg",
+   "key": "BLUR",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/BLUR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 713,
+   "sha256": "f33d1552c4ad43c236e6b49cc0abf2a7f0abf1024e9e673ff4a200367ec65161",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/BNB.svg",
+   "key": "BNB",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/BNB.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 722,
+   "sha256": "3d405ab0ec930a10c6d215fd3b0149e6416bfde1819533219a0cbbd9f1e1b5f6",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/BSV.svg",
+   "key": "BSV",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/BSV.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 494,
+   "sha256": "57ce31ae296bd5151ad0214a51ba68ae866656a21640ae71c0234ad140196584",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/BTC.svg",
+   "key": "BTC",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/BTC.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 764,
+   "sha256": "c9ef8bace766187126dca1f7b2edf5dc28f7995e51e4fec009d8e082effefd24",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/CAKE.svg",
+   "key": "CAKE",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/CAKE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 757,
+   "sha256": "03a6b49b04dd8335ef5f29dfc2bb02b4c80d1259d54d8eec5e20aeed6f8011f2",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/CELO.svg",
+   "key": "CELO",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/CELO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 166,
+   "sha256": "af712cfd9a439069daab71b4557062acadb2ce20ed3c80851114ed5ef29d738c",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/CFX.svg",
+   "key": "CFX",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/CFX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 282,
+   "sha256": "bfe9ea6abf9e5fea57dc22a5f9836b6389848bc787bfdf072d9ba1ec0c257117",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/COMP.svg",
+   "key": "COMP",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/COMP.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 666,
+   "sha256": "22473b558532d73be874b9ea731bd0da3c2c135d656e46de23b3c297677baf41",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/DASH.svg",
+   "key": "DASH",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/DASH.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 729,
+   "sha256": "539ed1cc801b07d99ebed974271c44e882e1513f116bf3975d6e715581d382b7",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/DOGE.svg",
+   "key": "DOGE",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/DOGE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 436,
+   "sha256": "59a0aaf514beb17f55c8410a14cabdff8529eceea3434f2f4e9f94febf5ae213",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/DOT.svg",
+   "key": "DOT",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/DOT.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 875,
+   "sha256": "1dd9701b8dba68d244d5dcccb3f7f9c345301e658832f691ce7087c51543950b",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/DYDX.svg",
+   "key": "DYDX",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/DYDX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 229,
+   "sha256": "1c788a1581f060c7517c259d6f045e10532115fdf40487c07aa236748accbfc3",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/ENS.svg",
+   "key": "ENS",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/ENS.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 647,
+   "sha256": "a4f4fe205b7b8ce60ed779346e4e40c6802f3eec7259903635e6cdd447412eb5",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/ETC.svg",
+   "key": "ETC",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/ETC.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 258,
+   "sha256": "a0a8e73735fa52d799beec506833a8ee51f51bf0f5dcf9f270d5042927497e74",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/ETH.svg",
+   "key": "ETH",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/ETH.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 709,
+   "sha256": "3456d3326b0704fd02f111f7fb4cd2b0d781bc8995b31d1ffb5cc3a4dc6055f2",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/FET.svg",
+   "key": "FET",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/FET.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 507,
+   "sha256": "79c3435e6850c177cf1b7228f58a8578b99a0dd8190e76fca360f37d3c396502",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/FIL.svg",
+   "key": "FIL",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/FIL.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 889,
+   "sha256": "7d0ddf413540533b3210f6513d4889263a17034c20670543826d589c93c86324",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/FOGO.svg",
+   "key": "FOGO",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/FOGO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 386,
+   "sha256": "e27e2b565b3b4f0d3603f4a24d29629e8c8926bd9c2d2fae2fb7df5b79df8932",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/GALA.svg",
+   "key": "GALA",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/GALA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 422,
+   "sha256": "0cce1589e53cf81bf48f6fa0b296db96d3008cc095225f7729de7b0b0c4c3fb2",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/GAS.svg",
+   "key": "GAS",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/GAS.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 236,
+   "sha256": "3a5ff31093350a2195c92e1d727a14a481d7fd91172233a1182c2470592d5184",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/GMX.svg",
+   "key": "GMX",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/GMX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 186,
+   "sha256": "21447b678cd918f46ba317f518ca826cc3121046f45aa5b25901af4a6464b800",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/GRAM.svg",
+   "key": "GRAM",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/GRAM.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1055,
+   "sha256": "d26d0da825b9e7591d5935afe31bb439a82a0ab6867d3bb5aa83a279d580cbbe",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/HBAR.svg",
+   "key": "HBAR",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/HBAR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 213,
+   "sha256": "446722cdad5c1c6129de036ebb6d24440b6d1c4af7b8ff121b68e1cc0f8e3392",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/HYPE.svg",
+   "key": "HYPE",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "hyperliquid.gitbook.io/hyperliquid-docs/brand-kit @ 2026-09-06 (Hyperliquid SVG format.zip)",
+   "sourceFile": "SVG/Hyperliquid_Blob_Dark.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 419,
+   "sha256": "1da740536c99d594ddb2c77f5c8e48d4af2772f23b9a0fddd0c28feb690a9596",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)",
+    "placed at the HYPE asset key as well as the hyperliquid venue key: HYPE is Hyperliquid's own token and the blob is the mark it ships for both"
+   ]
+  },
+  {
+   "file": "asset/mono/ICP.svg",
+   "key": "ICP",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/ICP.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1142,
+   "sha256": "e76f17c8114dcff34fa3fcd6f81f19576a675f13ea90ffcdd9f143f19f20d892",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/IMX.svg",
+   "key": "IMX",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/IMX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1992,
+   "sha256": "fc493dc92e5f59345fe69430e5d8e3b210ffbbf53ba629f0b258e0f2c9b0bcf4",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/INJ.svg",
+   "key": "INJ",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/INJ.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1053,
+   "sha256": "daa7f6a46e1728e5e2111cb9819271d48d16c6823774b55f7ee29561491df72d",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/IOTA.svg",
+   "key": "IOTA",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/IOTA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 8637,
+   "sha256": "64e833736498328a572ddab34ee1290ccb0d60eac5512fb61bc4c133faeee888",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/JUP.svg",
+   "key": "JUP",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/JUP.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1370,
+   "sha256": "ad900ec7ea715b361114f8e4a6b9972de04b33a36ba54492742c68667a13968b",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/KAS.svg",
+   "key": "KAS",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/KAS.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 770,
+   "sha256": "ae1d018271a58843a55cd5486f1d39f21b703e140f42598c5262b211f4fd0168",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/LAYER.svg",
+   "key": "LAYER",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/LAYER.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 168,
+   "sha256": "e786aac7ec58d25e59bb74d8b7ce3e22692de8dc1956e994d4bf2cc01ff26e76",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/LDO.svg",
+   "key": "LDO",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/LDO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 353,
+   "sha256": "ce7819cf11e107a46a67a3fd03224295f4098d0cf74636ff1f180996c29a2d61",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/LINK.svg",
+   "key": "LINK",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/LINK.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 234,
+   "sha256": "162aa13e733fb4a15e5f8068ea826ce29773473746cb9cbba972cd96ac2a6301",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/LIT.svg",
+   "key": "LIT",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/LIT.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 936,
+   "sha256": "8a04b3b99ed4f4f7eab8c7001b77008bc7c99f274971a24114c75010f5c5620e",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/LTC.svg",
+   "key": "LTC",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/LTC.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 244,
+   "sha256": "9b605ac79f1efdc23e622dc25a683d06b1d578c306310b89fb492b87ba98b593",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/LUNC.svg",
+   "key": "LUNC",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/LUNC.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 586,
+   "sha256": "df60a223ed81ae90555a26d95e2f07b5c5f9a65da19b8e47cd5fabd1913cc280",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/MEME.svg",
+   "key": "MEME",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/MEME.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 464,
+   "sha256": "32cfe9a3bdc6f97de36a22430f7589651a5f41a34cd48a10d3c1a5a982471793",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/MET.svg",
+   "key": "MET",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/MET.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 563,
+   "sha256": "3dc46681056d78cba0159191243c7f3727323c0d2538fbe07f6e1cba0ce6c89d",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/MINA.svg",
+   "key": "MINA",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/MINA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1392,
+   "sha256": "e6d328283574c48f8fd64193f5212f0803128669bd890510082873d8f8e1e3ee",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/MNT.svg",
+   "key": "MNT",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/MNT.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 2084,
+   "sha256": "a1a40ce10118150c563236e27e198e0df12459eceb3ff2503f69ad7f5bd41edd",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/MOVE.svg",
+   "key": "MOVE",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/MOVE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 211,
+   "sha256": "1470552e87fd7462a12982955478ec2a97a1c354fa776ed359c0b51c65a4f6d4",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/NEAR.svg",
+   "key": "NEAR",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/NEAR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 539,
+   "sha256": "f926a99cbfc8803b07ff85fb3865bcbe737e9469cddbce9b3f6bf5dce45cd53a",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/NEO.svg",
+   "key": "NEO",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/NEO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 248,
+   "sha256": "30bf1fb078db862edfe4dab05f1d6d416213a6f758c66f51024bf6cee994b4e3",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/wordmark/OP.mono.svg",
+   "key": "OP",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/OP.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 948,
+   "sha256": "36d27d050724bdb33418e5375e4a3209a464467fdac54e04e3e06dc8853a81a0",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "indexed": false,
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+  },
+  {
+   "file": "asset/mono/ORDI.svg",
+   "key": "ORDI",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/ORDI.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 443,
+   "sha256": "48497a1e663c9bf2360a9c484065bc74023221d8b83e0b20dfe25335ce16d972",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/PAXG.svg",
+   "key": "PAXG",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/PAXG.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1472,
+   "sha256": "c76dcabfa058acd0ab9620ff4c7bd51d4f39db6cdb7fc06be1db2862a4742761",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/PENDLE.svg",
+   "key": "PENDLE",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/PENDLE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 257,
+   "sha256": "efd937a068cddd39ed0ebbd3c982be0d83274116c5fffe08535221247b546691",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/POL.svg",
+   "key": "POL",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/POL.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 901,
+   "sha256": "fb17a682ba0201e072b50a292033101c045e4f2fad827d6cacc8086491e9262d",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/POLYX.svg",
+   "key": "POLYX",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/POLYX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 452,
+   "sha256": "0928d901330912a20df2d149dcce016293c0439d5409128e2eab0710225bc645",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/PYTH.svg",
+   "key": "PYTH",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/PYTH.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 478,
+   "sha256": "dea39e83bc9df1fb8f466abc759c4e1d19c6a251a94923f6bf7599432847b2bf",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/RSR.svg",
+   "key": "RSR",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/RSR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1336,
+   "sha256": "b2d0606d8701d51482a7fe9d573c3ca9e526fa4bd347d08570248b2e35b15d88",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/RUNE.svg",
+   "key": "RUNE",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/RUNE.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 178,
+   "sha256": "cfaa2794fca704edb329d487f3dfa596c06b2597dfde3ecee2d103314e10e7cd",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/SAND.svg",
+   "key": "SAND",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/SAND.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 277,
+   "sha256": "6cd4fbe42713c982494ace382dd647603f27f28c648c495c3547799529d8df91",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/SEI.svg",
+   "key": "SEI",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/SEI.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1797,
+   "sha256": "a9f1c50544d5b87a00f76a7414eba96289988f39a2916ed94e76259b0f3f59be",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/SNX.svg",
+   "key": "SNX",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/SNX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 843,
+   "sha256": "d13b69d50100bfced0fd1be8eab8890b44ce1f02cbf03b7851b7af3e94411d43",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/SOL.svg",
+   "key": "SOL",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/SOL.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 483,
+   "sha256": "eff319650c68a008099acae35de95782d01a771c0b2a4087d5ecd4ba5857602d",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/SOPH.svg",
+   "key": "SOPH",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/SOPH.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 2517,
+   "sha256": "ff5999ec2e084a7720ed82f0f30fd570685db1443c45f61fa90f281004e5e076",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/SPX.svg",
+   "key": "SPX",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/SPX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 797,
+   "sha256": "ce3111a84cf297bda7aea144d230eac1939698bb25a04c389c5f8271ee06b484",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/STRK.svg",
+   "key": "STRK",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/STRK.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 156,
+   "sha256": "689fa42ed5fa289039312e2316e9251e0c952852fd2ba52fa883b83e4008c36c",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/STX.svg",
+   "key": "STX",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/STX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 529,
+   "sha256": "4dd9df76ee910e0c584049becd22666f637cbe0684d070a9158ebe14cc5b4932",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/SUI.svg",
+   "key": "SUI",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/SUI.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 761,
+   "sha256": "f7bba909c0592ab4f9980f1a69da1fbc82ab05854210bae2afeaa26bce883f37",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/SUSHI.svg",
+   "key": "SUSHI",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/SUSHI.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 2553,
+   "sha256": "fdbeaf6fc501b84d49404f69769ec3b0a4194238481dbe855a10dddad2bb549b",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/TAO.svg",
+   "key": "TAO",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/TAO.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 2912,
+   "sha256": "502c0ddea24c0d2b44ad2aaf8eb382ff1136a84a9ac8d42ac19578156aff0290",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/TIA.svg",
+   "key": "TIA",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/TIA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 3465,
+   "sha256": "fb26d48c3c9e4745c9ee1c068d85d2b1dac2a265501d8dad56a0c8faa0da394d",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/TRB.svg",
+   "key": "TRB",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/TRB.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 260,
+   "sha256": "913692b579dc46cbad9bca165c6033c16fbb6bba64b7c6c76e70a0e7f9509482",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/TRX.svg",
+   "key": "TRX",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/TRX.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 462,
+   "sha256": "4a3988789afe097805218814141aa1b8ddd5d3bb4f7a8fcb0f3185a6ddd99510",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/wordmark/UMA.mono.svg",
+   "key": "UMA",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/UMA.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1278,
+   "sha256": "8052249f87612990da251293efe2eb3392cfac3423870718e3cd392ce1ff7870",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "indexed": false,
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+  },
+  {
+   "file": "asset/mono/UNI.svg",
+   "key": "UNI",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/UNI.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 4931,
+   "sha256": "f7c2e7603a0cdfcab95b5978fbeca4c4dbd88a575e4be693b41a761a850b9acf",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/XLM.svg",
+   "key": "XLM",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/XLM.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 718,
+   "sha256": "b493f71e80550b13dc9048d98724ab0bbde6690c824d06497111599c2c530b77",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/XMR.svg",
+   "key": "XMR",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/XMR.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 351,
+   "sha256": "2995f54e719458477e582ea7884fa41fdddad32801144946c691a7f8e5ab778d",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/XRP.svg",
+   "key": "XRP",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/XRP.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 401,
+   "sha256": "c4d951ea65c089cd1b558ced94a10b815527bfe4663c059184480f986ff44c30",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/ZEC.svg",
+   "key": "ZEC",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/ZEC.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 227,
+   "sha256": "6b7c91f2acfa9c93d406a9f3bb0c77ee25b2899598d296ca963aca9442d8e4b6",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "asset/mono/ZEN.svg",
+   "key": "ZEN",
+   "kind": "asset",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/tokens/mono/ZEN.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 742,
+   "sha256": "586a89004c259f08ab3faaafd038689e28902c4f439d8a249affb924182d4b02",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "venue/branded/binance.svg",
+   "key": "binance",
+   "kind": "venue",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/branded/binance.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 361,
+   "sha256": "aa95347276251bc8ffa3bd147bc322c6933ee85c6b83b93f30704c503538fd22",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#f0b90b"
+   ]
+  },
+  {
+   "file": "venue/branded/bitget.svg",
+   "key": "bitget",
+   "kind": "venue",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/branded/bitget.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 346,
+   "sha256": "4f6c8473c5f47b12ce0e382174b0be55f164f05cd32ebb548fa2c245423043f2",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#00f0ff"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "venue/wordmark/bybit.branded.svg",
+   "key": "bybit",
+   "kind": "venue",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/branded/bybit.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 834,
+   "sha256": "777565efe5cc0fb61e2946a865fa4cea93205f4a74b86cf600b519a5cbb7c0fb",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#f6a500",
+    "#fff"
+   ],
+   "indexed": false,
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+  },
+  {
+   "file": "venue/branded/coinbase.svg",
+   "key": "coinbase",
+   "kind": "venue",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/branded/coinbase.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 377,
+   "sha256": "5e3dc78b7eb3dbb7ef3a07a9a32c66597f86fd6df1fb0b2b8ea885ccb4a4830e",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#0052ff"
+   ]
+  },
+  {
+   "file": "venue/branded/gate.svg",
+   "key": "gate",
+   "kind": "venue",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/branded/gate-io.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 234,
+   "sha256": "1e80e3618eee3d0102b274f9751aa8eed9987a31262e666ba2da870ac4aa7ebd",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#2354e6",
+    "#17e6a1"
+   ]
+  },
+  {
+   "file": "venue/branded/hyperliquid.svg",
+   "key": "hyperliquid",
+   "kind": "venue",
+   "variant": "branded",
+   "source": "hyperliquid.gitbook.io/hyperliquid-docs/brand-kit @ 2026-09-06 (Hyperliquid SVG format.zip)",
+   "sourceFile": "SVG/Hyperliquid_Blob_Green.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 414,
+   "sha256": "b8c062d1193f28fd4e62044fd5dcd57bf52f2442db5b6746933eec434483ed8e",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#97fce4"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the day card #FFF3DE — unreadable on the day theme"
+   ]
+  },
+  {
+   "file": "venue/branded/kraken.svg",
+   "key": "kraken",
+   "kind": "venue",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/branded/kraken.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 398,
+   "sha256": "10696166e327d19e5ff694cba9776314bfd2bf4629b6413319004a83bf38a74e",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#5741d9"
+   ]
+  },
+  {
+   "file": "venue/wordmark/okx.branded.svg",
+   "key": "okx",
+   "kind": "venue",
+   "variant": "branded",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/branded/okx.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1285,
+   "sha256": "086bfeb949b76e3818ab624d1ddb371be5ca0bc6a42d9b9306c192bcf8ae1161",
+   "modifications": [
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "inks": [
+    "#000"
+   ],
+   "warnings": [
+    "every ink is under 1.6:1 on the night card #17130D — unreadable on the night theme"
+   ],
+   "indexed": false,
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+  },
+  {
+   "file": "venue/mono/binance.svg",
+   "key": "binance",
+   "kind": "venue",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/mono/binance.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 366,
+   "sha256": "4cd7b58d3879c5526d986709fd58e600a718709e6cc763fd72fb18ff5b847745",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "venue/mono/bitget.svg",
+   "key": "bitget",
+   "kind": "venue",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/mono/bitget.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 356,
+   "sha256": "b239f1637c5bcaa2f47ba64d639384330b717562d7e8c438d4fc892d4cd8b30d",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "venue/wordmark/bybit.mono.svg",
+   "key": "bybit",
+   "kind": "venue",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/mono/bybit.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 815,
+   "sha256": "2862318cc8a1fcbde7f80ce0d9a28bd6495fc6370ef0334086e4e0b80728bc1c",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "indexed": false,
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+  },
+  {
+   "file": "venue/mono/coinbase.svg",
+   "key": "coinbase",
+   "kind": "venue",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/mono/coinbase.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 382,
+   "sha256": "60efc2e797a2e7b8f1ebfb93a9a134adf7fb3bda62f4f3bc34b96c9ef96bf040",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "venue/mono/gate.svg",
+   "key": "gate",
+   "kind": "venue",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/mono/gate-io.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 244,
+   "sha256": "90376a468a984ef8d29fefb02081b25ce9b477bffb9952f3e11019d67a1cd180",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "venue/mono/hyperliquid.svg",
+   "key": "hyperliquid",
+   "kind": "venue",
+   "variant": "mono",
+   "source": "hyperliquid.gitbook.io/hyperliquid-docs/brand-kit @ 2026-09-06 (Hyperliquid SVG format.zip)",
+   "sourceFile": "SVG/Hyperliquid_Blob_Dark.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 419,
+   "sha256": "1da740536c99d594ddb2c77f5c8e48d4af2772f23b9a0fddd0c28feb690a9596",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "venue/mono/kraken.svg",
+   "key": "kraken",
+   "kind": "venue",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/mono/kraken.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 403,
+   "sha256": "7055bca8b46b823524d4aa366b0799b2c7d7697bc885124a2d3f21efc4f74b9a",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ]
+  },
+  {
+   "file": "venue/wordmark/okx.mono.svg",
+   "key": "okx",
+   "kind": "venue",
+   "variant": "mono",
+   "source": "0xa3k5/web3icons@64e21e68cc6eaa36ff9d0a135ca2c809a759ccd6",
+   "sourceFile": "raw-svgs/exchanges/mono/okx.svg",
+   "retrieved": "2026-09-06",
+   "bytes": 1293,
+   "sha256": "412fce5c7ba16c393ca3fac4a4162f2129830c97e2916b2cf023df666c78f624",
+   "modifications": [
+    "every fill rewritten to currentColor (one ink, set by the page)",
+    "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
+   ],
+   "indexed": false,
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+  }
+ ],
+ "wordmarksNotIndexed": {
+  "what": "Four codes ship a wordmark rather than a glyph in BOTH variants, so eight files sit in <kind>/wordmark/ and are not indexed: venue okx, venue bybit, asset UMA, asset OP.",
+  "howFound": "Ink bounding box measured on a 96 px raster in Chrome: seven of 93 mono files are wider than 1.6:1. Three of those are genuinely wide glyphs and stay (asset STX 2.40, ICP 2.12, AAVE 2.00); four are the name set in type and were confirmed by eye at 96 px (UMA 4.00, okx 3.27, bybit 3.00, OP 2.00).",
+  "whyItMatters": "In the 16 px square slot a 3:1 lockup draws 4 px of ink. OP is the clearest case: its wordmark and our two-character fallback are the same two characters, so the file adds a typeface and nothing else.",
+  "restore": "git mv the files back into <kind>/<variant>/<KEY>.svg and rerun tools/index.py."
+ }
+}

@@ -136,6 +136,37 @@ the two sides of a depth band. The feed state is a 9px dot — filled for observ
 ring for nothing observed — and the word is in the `title`. No icon font, no SVG icon set,
 no emoji. A first icon would need the same argument the bot system's sun/moon had to make.
 
+**One exception, and it is identity, not decoration.** A venue's own mark and an asset's own
+mark may appear in the identity columns — beside the platform name, beside the pair on the
+list, once in a pair page's header — and nowhere else. The mark answers the question the
+`platform` and `symbol` columns already answer in type, only faster; it carries no meaning
+the row does not already state in words, which is the test decoration fails. It is layered
+onto a name that is always there and never replaces it, because most rows have no mark: 83
+of 177 collected assets have a usable one-ink file, and of the eight venue codes artwork was
+found for, six do. Everything
+the rule already said still holds — no icon font, no icon set, no emoji, no glyph for
+anything the page merely *does*. The five terms of the exception:
+
+1. **One ink, always.** A mark is drawn in `--text-data`, the ink of the name beside it —
+   never in the brand's own colours. Colour on this surface means which call wrote a figure
+   (rules 4 and 6), and a brand's hue is somebody else's decision about nothing we measured.
+   One ink is also the only variant that survives both grounds: 26 of the 98 full-colour
+   files fall under 1.6:1 against apricot or against night, and 45 of 98 under 3:1 on the
+   day card.
+2. **A mark does not fade with its row.** It joins the age line (rule 3), not the figures.
+   The fade says *this evidence is old*; a venue's identity is not evidence and does not
+   age. And at the 0.15 floor a faded mark is indistinguishable from a slot that has none —
+   the dash-vs-zero confusion, in graphic form.
+3. **Two sizes and no others.** `--slot-ident` (16px) in a table row, `--slot-ident-page`
+   (28px) in a page header, square, `--gap-ident` before the name.
+4. **Below 16px there is no mark.** Under it a brand mark is a smear, so the slot holds the
+   monogram instead: the first two characters of the code, mono caps at `--track-label`, in
+   `--text-unmeasured` — the ink of the em dash. Same fallback when no file exists. No tile,
+   no disc, no ring: a shape around a letter *is* a logo shape, and inventing one is the
+   graphic form of printing `0` where nothing was measured.
+5. **A glyph, not a lockup.** A file that spells the name is not admissible: in a square
+   16px slot it draws 3–4px of ink and repeats a word the row has already said.
+
 **No logo was provided.** The wordmark is set in Anton as plain type; nothing here is drawn
 to stand in for a mark. The bot system's assets were not copied in — they belong to that
 surface.
@@ -150,7 +181,7 @@ surface.
 - `components/core/` — **Num**, **Tag**, **StateDot**, **AgeLine**, **CompareBar**,
   **MirrorBar**, **Sparkline**
 - `components/market/` — **CallBands**, **FreshnessStrip**, **VenueCell**, **MetricCell**,
-  **CandlePanel**
+  **CandlePanel**, **IdentityMark**
 - `ui_kits/pairs-monitor/` — the public venue comparison, day and night
 - `vendor/lightweight-charts/` — the charting library the candle panel draws with (vendored
   from the product repo, Apache-2.0)
@@ -169,6 +200,11 @@ data contract rather than lifted from a component library:
   empty cell says nothing about scale.
 - **MetricCell** exists to fix the vertical order inside a cell — mark slot, figure, history,
   age — so figures sit on one line across a row.
+- **IdentityMark** exists because the identity marks are an exception taken to a house rule,
+  and an exception needs exactly one place that implements it — including the case that is
+  the majority, where there is no file and the slot holds a monogram. The files themselves
+  are not in this system: they are `marks/` at the repository root, keyed by `exchange.code`
+  and `asset.code` verbatim, with provenance in `marks/MANIFEST.json` and `docs/logos.md`.
 
 ## Sources
 
@@ -205,3 +241,20 @@ checked against the rendered `pairs-monitor` and against the product schema, not
 
 The page was treated as the authority in both cases. A rule that disagrees with the surface
 it governs is the thing that is wrong.
+
+**Iconography took an exception on 2026-09-06.** The section said "No icons … no icon font,
+no SVG icon set, no emoji. A first icon would need the same argument the bot system's
+sun/moon had to make." It now says that, and then names one class of object it does not
+cover: a venue's or an asset's own mark, in the identity columns only. This is not a
+correction of a rule that disagreed with the page — the page had no marks — it is an
+exception being taken, so it is written down rather than absorbed. The argument the old
+sentence demanded is made in the section itself and at length in `RULE-CHANGES.md` items
+5–9; the short form is that a mark states the same fact the identity column already states
+in type, which is the test decoration fails.
+
+Rules 4 and 6 are untouched, and that is the reason the mark is drawn in one ink. A
+full-colour mark would have put a hue on this surface that means nothing about our data, and
+rule 4's table — colour means *which call* — would have needed a sixth row saying "and
+sometimes it means nothing." Measurement pointed the same way before taste did: 26 of the 98
+full-colour files are under 1.6:1 on one of the two card grounds. The palette survives the
+feature intact.
