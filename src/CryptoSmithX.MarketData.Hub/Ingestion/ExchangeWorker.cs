@@ -2,6 +2,7 @@ using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Connectors.Fake;
 using CryptoSmithX.MarketData.Connectors.Hyperliquid;
 using CryptoSmithX.MarketData.Connectors.Kraken;
+using CryptoSmithX.MarketData.Connectors.Pacing;
 using CryptoSmithX.MarketData.Connectors.Weex;
 using CryptoSmithX.MarketData.Hub.Retention;
 using CryptoSmithX.MarketData.Hub.Rollups;
@@ -39,6 +40,11 @@ public sealed class ExchangeWorker : BackgroundService
     private readonly ILoggerFactory _loggers;
     private readonly ILogger<ExchangeWorker> _logger;
 
+    // One request ceiling per venue for the life of the process, shared by this exchange's
+    // collectors and by the connectors' own background feeds. Held here rather than injected: the
+    // Hub is the only process that talks to venues, and a second registry would be a second ceiling.
+    private readonly VenueGates _gates;
+
     private readonly Dictionary<string, Func<CancellationToken, Task>> _serviceFactories = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Task> _serviceTasks = new(StringComparer.Ordinal);
 
@@ -54,6 +60,7 @@ public sealed class ExchangeWorker : BackgroundService
         _clock = clock;
         _loggers = loggers;
         _logger = logger;
+        _gates = new VenueGates(clock);
     }
 
     protected override async Task ExecuteAsync(CancellationToken ct)
@@ -157,9 +164,11 @@ public sealed class ExchangeWorker : BackgroundService
                 // Build and must die with this token when the exchange is disabled.
                 var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 IExchangeMarketData adapter;
+                VenueGate gate;
                 try
                 {
-                    adapter = Build(config, cts.Token);
+                    gate = GateFor(config, snapshot);
+                    adapter = Build(config, gate, cts.Token);
                 }
                 catch (Exception ex)
                 {
@@ -178,7 +187,7 @@ public sealed class ExchangeWorker : BackgroundService
                     _logger.LogWarning(ex, "{Exchange}: writing declared capability failed", code);
                 }
 
-                runner = new ExchangeRunner(cts, adapter, BuildBodies(adapter));
+                runner = new ExchangeRunner(cts, adapter, BuildBodies(adapter, gate));
                 running[code] = runner;
 
                 // One discovery pass before the other loops so the first snapshot has rows to join to.
@@ -247,16 +256,44 @@ public sealed class ExchangeWorker : BackgroundService
             .ToList();
     }
 
+    /// <summary>
+    /// The venue's request ceiling for this segment — keyed on <c>exchange.code</c>, never on the
+    /// segment code: two segments of one venue share one IP budget, which is the entire reason the
+    /// venue level exists (0019). A segment whose venue row is missing is a misconfiguration the
+    /// caller turns into "enabled but cannot be built", not a segment quietly running unpaced.
+    /// </summary>
+    private VenueGate GateFor(ExchangeConfig config, SettingsSnapshot snapshot)
+    {
+        var venue = snapshot.Venue(config.ExchangeCode)
+            ?? throw new InvalidOperationException(
+                $"Segment '{config.Code}' names venue '{config.ExchangeCode}', which has no exchange row — "
+                + "no request budget can be resolved for it.");
+
+        var gate = _gates.For(venue.Code, venue.RequestBudgetPerS, venue.MaxConcurrentRequests);
+        if (gate.RequestsPerSecond != venue.RequestBudgetPerS || gate.MaxConcurrentRequests != venue.MaxConcurrentRequests)
+        {
+            // The gate was built earlier in this process from different numbers and keeps them; see
+            // VenueGates for why. Say so, rather than letting the console show a budget nothing obeys.
+            _logger.LogWarning(
+                "Venue {Venue} budget in the database is {Rps} req/s x{Concurrency}, but the live gate runs "
+                + "{LiveRps} req/s x{LiveConcurrency}; the change applies on restart",
+                venue.Code, venue.RequestBudgetPerS, venue.MaxConcurrentRequests,
+                gate.RequestsPerSecond, gate.MaxConcurrentRequests);
+        }
+
+        return gate;
+    }
+
     /// <summary>One collector instance per known dataset, wired to this adapter — built once per
     /// exchange start so <see cref="ReconcileCollectors"/> only ever starts/stops the loops around
     /// them, never rebuilds them.</summary>
-    private Dictionary<string, Func<CancellationToken, Task<int>>> BuildBodies(IExchangeMarketData adapter)
+    private Dictionary<string, Func<CancellationToken, Task<int>>> BuildBodies(IExchangeMarketData adapter, VenueGate gate)
     {
         var discovery = new DiscoveryCollector(adapter, _settings, _db);
         var snapshot = new SnapshotCollector(adapter, _db, _settings, _clock, _loggers.CreateLogger<SnapshotCollector>());
-        var depth = new DepthCollector(adapter, _db, _clock);
-        var candles = new CandleCollector(adapter, _settings, _db, _clock);
-        var funding = new FundingCollector(adapter, _settings, _db, _clock);
+        var depth = new DepthCollector(adapter, _db, gate);
+        var candles = new CandleCollector(adapter, _settings, _db, _clock, gate);
+        var funding = new FundingCollector(adapter, _settings, _db, _clock, gate);
 
         return new Dictionary<string, Func<CancellationToken, Task<int>>>(StringComparer.Ordinal)
         {
@@ -490,12 +527,12 @@ public sealed class ExchangeWorker : BackgroundService
             new { segmentCode, datasetCode, key, old, newValue }, cancellationToken: ct));
     }
 
-    private IExchangeMarketData Build(ExchangeConfig config, CancellationToken ct) => config.Adapter switch
+    private IExchangeMarketData Build(ExchangeConfig config, VenueGate gate, CancellationToken ct) => config.Adapter switch
     {
         "fake" => new FakeExchangeMarketData(),
         "kraken-futures" => BuildKraken(config, ct),
-        "weex-futures" => BuildWeex(config, ct),
-        "hyperliquid" => BuildHyperliquid(config, ct),
+        "weex-futures" => BuildWeex(config, gate, ct),
+        "hyperliquid" => BuildHyperliquid(config, gate, ct),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
@@ -526,12 +563,12 @@ public sealed class ExchangeWorker : BackgroundService
     // WEEX is REST-only for now (see the commit that added this adapter for why WS was deferred).
     // Open interest has no batched endpoint on WEEX, so a background cycle keeps a fresh-enough
     // sample per symbol; it starts here and dies with this exchange's token, same as Kraken's WS feed.
-    private IExchangeMarketData BuildWeex(ExchangeConfig config, CancellationToken ct)
+    private IExchangeMarketData BuildWeex(ExchangeConfig config, VenueGate gate, CancellationToken ct)
     {
         var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
         var client = new WeexFuturesClient(baseUrl);
 
-        var openInterest = new WeexOpenInterestFeed(client, _loggers, _clock);
+        var openInterest = new WeexOpenInterestFeed(client, gate, _loggers, _clock);
         openInterest.Start(ct);
 
         return new WeexFuturesMarketData(client, openInterest);
@@ -540,12 +577,12 @@ public sealed class ExchangeWorker : BackgroundService
     // Hyperliquid always runs the REST book cycler (bid/ask/size and depth have no batched form on
     // this venue at all — see the commit that added this adapter), and additionally starts the WS
     // feed when ws_url is set, which the adapter prefers whenever it is healthy.
-    private IExchangeMarketData BuildHyperliquid(ExchangeConfig config, CancellationToken ct)
+    private IExchangeMarketData BuildHyperliquid(ExchangeConfig config, VenueGate gate, CancellationToken ct)
     {
         var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
         var client = new HyperliquidClient(baseUrl);
 
-        var restFeed = new HyperliquidBookFeed(client, _loggers, _clock);
+        var restFeed = new HyperliquidBookFeed(client, gate, _loggers, _clock);
         restFeed.Start(ct);
 
         HyperliquidWsFeed? ws = null;

@@ -7,9 +7,9 @@ namespace CryptoSmithX.MarketData.Hub;
 /// <summary>
 /// The Hub's configuration, read from the database rather than appsettings. A plain class like
 /// <see cref="Db"/>, not IOptions: settings change at runtime from the admin UI, so a static
-/// options object would be a lie. A snapshot of the whole <c>setting</c> table, every <c>exchange</c>
-/// row, the <c>dataset</c> catalogue, <c>dataset_setting</c> and the full <c>segment_dataset</c>
-/// matrix is cached for ~30 s; loops read the cached copy on every iteration, so an edit in the UI
+/// options object would be a lie. A snapshot of the whole <c>setting</c> table, every venue
+/// (<c>exchange</c>) and segment row, the <c>dataset</c> catalogue, <c>dataset_setting</c> and the
+/// full <c>segment_dataset</c> matrix is cached for ~30 s; loops read the cached copy on every iteration, so an edit in the UI
 /// takes effect within that window plus one loop interval — no restart.
 /// </summary>
 public sealed class DbSettings
@@ -69,9 +69,24 @@ public sealed class DbSettings
             "select key, value from setting", cancellationToken: ct)))
             .ToDictionary(r => r.Key, r => r.Value, StringComparer.Ordinal);
 
+        // The venue level (0019) and its request budget (0021). One row per exchange, not per
+        // segment: the per-IP ceiling is shared by every segment of the venue, which is the whole
+        // reason the level exists.
+        var venues = (await conn.QueryAsync<VenueConfig>(new CommandDefinition(
+            """
+            select code                    as "Code",
+                   name                    as "Name",
+                   request_budget_per_s    as "RequestBudgetPerS",
+                   max_concurrent_requests as "MaxConcurrentRequests",
+                   request_budget_source   as "RequestBudgetSource"
+              from exchange
+             order by code
+            """, cancellationToken: ct))).ToList();
+
         var exchanges = (await conn.QueryAsync<ExchangeConfig>(new CommandDefinition(
             """
-            select code         as "Code",
+            select code          as "Code",
+                   exchange_code as "ExchangeCode",
                    adapter      as "Adapter",
                    base_url     as "BaseUrl",
                    charts_url   as "ChartsUrl",
@@ -113,7 +128,7 @@ public sealed class DbSettings
             """, cancellationToken: ct)))
             .ToDictionary(r => (r.SegmentCode, r.DatasetCode));
 
-        return new SettingsSnapshot(settings, exchanges, datasets, datasetSettings, matrix);
+        return new SettingsSnapshot(settings, venues, exchanges, datasets, datasetSettings, matrix);
     }
 }
 
@@ -126,6 +141,12 @@ public sealed class DbSettings
 public sealed record ExchangeConfig
 {
     public string Code { get; init; } = "";
+
+    /// <summary>The venue this trading surface belongs to (0019). Everything that is shared between
+    /// two segments of one exchange — today the request budget — is keyed on this, not on
+    /// <see cref="Code"/>.</summary>
+    public string ExchangeCode { get; init; } = "";
+
     public string Adapter { get; init; } = "";
     public string? BaseUrl { get; init; }
     public string? ChartsUrl { get; init; }
@@ -133,6 +154,28 @@ public sealed record ExchangeConfig
     public string[] QuoteAssets { get; init; } = [];
     public string[] Blacklist { get; init; } = [];
     public string Status { get; init; } = "";
+}
+
+/// <summary>
+/// One venue — an exchange as an organisation, and the only level at which a request budget means
+/// anything: the per-IP ceiling is shared by every segment underneath it (0019, 0021). This is the
+/// one <c>VenueConfig</c>; the depth/WS blueprints each sketched their own and they disagreed.
+/// </summary>
+public sealed record VenueConfig
+{
+    public string Code { get; init; } = "";
+    public string Name { get; init; } = "";
+
+    /// <summary>Requests per second we allow ourselves against this venue, all segments together.</summary>
+    public int RequestBudgetPerS { get; init; }
+
+    /// <summary>How many of those may be in flight at once. Not a budget — a latency knob; see the
+    /// 0021 header.</summary>
+    public int MaxConcurrentRequests { get; init; }
+
+    /// <summary>'documented' | 'measured' | 'assumed'. Carried into the process so an operator asking
+    /// "where did 20 req/s come from?" gets the honest answer rather than the comfortable one.</summary>
+    public string RequestBudgetSource { get; init; } = "";
 }
 
 /// <summary>One row of the <c>dataset</c> catalogue — the terminal default of the cascade.</summary>
@@ -174,17 +217,26 @@ public sealed class SettingsSnapshot
 
     public SettingsSnapshot(
         IReadOnlyDictionary<string, string> settings,
+        IReadOnlyList<VenueConfig> venues,
         IReadOnlyList<ExchangeConfig> exchanges,
         IReadOnlyDictionary<string, DatasetDefaults> datasets,
         IReadOnlyDictionary<(string Dataset, string Key), string> datasetSettings,
         IReadOnlyDictionary<(string Exchange, string Dataset), SegmentDatasetRow> matrix)
     {
         _settings = settings;
+        Venues = venues;
         Exchanges = exchanges;
         _datasets = datasets;
         _datasetSettings = datasetSettings;
         _matrix = matrix;
     }
+
+    /// <summary>The <c>exchange</c> rows — venues. <see cref="Exchanges"/> is the older name for what
+    /// 0019 renamed to segments; the two levels are not the same thing and only this one has a budget.</summary>
+    public IReadOnlyList<VenueConfig> Venues { get; }
+
+    public VenueConfig? Venue(string code) =>
+        Venues.FirstOrDefault(v => string.Equals(v.Code, code, StringComparison.Ordinal));
 
     public IReadOnlyList<ExchangeConfig> Exchanges { get; }
 

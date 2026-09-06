@@ -97,6 +97,7 @@ public sealed class CollectorSelectionTests
 
         return new SettingsSnapshot(
             new Dictionary<string, string>(StringComparer.Ordinal),
+            [],   // venues: nothing here reads a request budget
             [],
             datasets,
             new Dictionary<(string, string), string>(),

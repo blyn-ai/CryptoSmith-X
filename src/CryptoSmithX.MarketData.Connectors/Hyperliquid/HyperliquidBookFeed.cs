@@ -1,4 +1,5 @@
 using CryptoSmithX.MarketData.Connectors.Market;
+using CryptoSmithX.MarketData.Connectors.Pacing;
 using CryptoSmithX.MarketData.Connectors.Streaming;
 using Microsoft.Extensions.Logging;
 
@@ -21,20 +22,24 @@ public sealed class HyperliquidBookFeed : IHyperliquidLiveFeed
     // overlapped at startup (see the commit verdict). This feed is the rare-case degraded fallback
     // once a WS feed is healthy, not the primary path, so it paces gently — a slow, low-priority
     // trickle rather than competing for the same budget the ticker/candle/funding calls need.
+    // Kept on top of the venue ceiling: the gate says what the venue may be asked for in total, this
+    // says how little of it a degraded fallback should take.
     private static readonly TimeSpan Pace = TimeSpan.FromMilliseconds(800);
     private static readonly TimeSpan SymbolRefreshInterval = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(5);
 
     private readonly HyperliquidClient _client;
+    private readonly VenueGate _gate;
     private readonly MarketCache<(BookTop Top, Depth? Depth)> _cache;
     private readonly TimeProvider _clock;
     private readonly ILogger _log;
 
     private volatile string[] _symbols = [];
 
-    public HyperliquidBookFeed(HyperliquidClient client, ILoggerFactory loggers, TimeProvider clock)
+    public HyperliquidBookFeed(HyperliquidClient client, VenueGate gate, ILoggerFactory loggers, TimeProvider clock)
     {
         _client = client;
+        _gate = gate;
         _clock = clock;
         _cache = new MarketCache<(BookTop, Depth?)>(clock);
         _log = loggers.CreateLogger("Hyperliquid.Book");
@@ -88,7 +93,12 @@ public sealed class HyperliquidBookFeed : IHyperliquidLiveFeed
 
                 try
                 {
-                    var book = await _client.GetL2BookAsync(symbol, ct);
+                    HlL2Book book;
+                    using (await _gate.AcquireAsync(ct))
+                    {
+                        book = await _client.GetL2BookAsync(symbol, ct);
+                    }
+
                     var (top, depth) = HyperliquidBookMath.Compute(book, _clock.GetUtcNow());
                     if (top is not null)
                     {
@@ -98,7 +108,13 @@ public sealed class HyperliquidBookFeed : IHyperliquidLiveFeed
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     // One coin's failure must not stall the whole cycle; it just stays stale a little
-                    // longer and the next pass retries it.
+                    // longer and the next pass retries it. The 429 this feed already provoked once at
+                    // startup is the venue talking about the whole IP, so it goes to the gate.
+                    if (ex is HttpRequestException { StatusCode: System.Net.HttpStatusCode.TooManyRequests })
+                    {
+                        _gate.Penalize();
+                    }
+
                     _log.LogDebug(ex, "Hyperliquid book fetch failed for {Symbol}", symbol);
                 }
 

@@ -1,4 +1,7 @@
+using System.Net;
 using CryptoSmithX.MarketData.Connectors;
+using CryptoSmithX.MarketData.Connectors.Market;
+using CryptoSmithX.MarketData.Connectors.Pacing;
 using CryptoSmithX.Database;
 using Dapper;
 
@@ -9,6 +12,12 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 /// the historical series, which — unlike OI or the order book — the venue does serve back in time,
 /// so a fresh instance can back-fill it and a gap can be repaired. Appends what is missing
 /// (<c>on conflict do nothing</c>); a re-run is free.
+///
+/// One REST call per instrument, same as <see cref="DepthCollector"/> and
+/// <see cref="CandleCollector"/> — on WEEX that is on the order of a thousand calls a pass. Every
+/// one of them goes through the venue's shared <see cref="VenueGate"/> (0021): this loop used to
+/// issue them unpaced while depth alone respected the ceiling, which meant the venue-wide budget
+/// the gate exists to enforce was routinely blown by the other two-thirds of the traffic.
 /// </summary>
 public sealed class FundingCollector
 {
@@ -30,13 +39,15 @@ public sealed class FundingCollector
     private readonly DbSettings _settings;
     private readonly Db _db;
     private readonly TimeProvider _clock;
+    private readonly VenueGate _gate;
 
-    public FundingCollector(IExchangeMarketData adapter, DbSettings settings, Db db, TimeProvider clock)
+    public FundingCollector(IExchangeMarketData adapter, DbSettings settings, Db db, TimeProvider clock, VenueGate gate)
     {
         _adapter = adapter;
         _settings = settings;
         _db = db;
         _clock = clock;
+        _gate = gate;
     }
 
     /// <summary>Returns the number of new funding rows written.</summary>
@@ -74,7 +85,12 @@ public sealed class FundingCollector
                 from = floor;
             }
 
-            var rates = await _adapter.GetFundingHistoryAsync(symbol, from, now, ct);
+            IReadOnlyList<FundingRate> rates;
+            using (await _gate.AcquireAsync(ct).ConfigureAwait(false))
+            {
+                rates = await _adapter.GetFundingHistoryAsync(symbol, from, now, ct);
+            }
+
             foreach (var rate in rates)
             {
                 written += await conn.ExecuteAsync(new CommandDefinition(
@@ -93,6 +109,14 @@ public sealed class FundingCollector
             }
             catch (Exception ex)
             {
+                // A venue that pushed us away holds back every caller on this IP, not just this
+                // collector: that is what the venue-wide gate is for. Per-symbol isolation stays —
+                // one broken symbol still does not starve the rest — but a 429 now paces everyone.
+                if (ex is HttpRequestException { StatusCode: HttpStatusCode.TooManyRequests })
+                {
+                    _gate.Penalize();
+                }
+
                 failed++;
                 lastError = ex;
             }
