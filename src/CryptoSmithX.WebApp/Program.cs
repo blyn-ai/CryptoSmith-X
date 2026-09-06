@@ -117,6 +117,7 @@ foreach (var (name, page) in new[]
              ("arena", "arena.html"),
              ("strategy-modeler", "strategy-modeler.html"),
              ("pairs-monitor", "pairs-monitor.html"),
+             ("live-bots", "live-bots.html"),
              ("ui-mocks", "index.html"),
          })
 {
