@@ -1,0 +1,500 @@
+@model PairPageModel
+@{
+    var pair = $"{Model.BaseFamily}/{Model.QuoteFamily}";
+    ViewData["Title"] = $"{pair} across venues — Studio — CryptoSmith X";
+    ViewData["Eyebrow"] = $"Market monitor · {Model.BaseFamily} / {Model.QuoteFamily}";
+    ViewData["CollectedFrom"] = Model.CollectedFrom;
+    ViewData["CollectedTo"] = Model.CollectedTo;
+    ViewData["RenderedAt"] = Model.RenderedAt;
+    ViewData["ShowCollected"] = true;
+
+    // Candle panels are drawn only where there is a line to draw. A venue with one bar or none gets
+    // a sentence saying so, which is a fact about that venue; an empty axis would be a picture of
+    // a market that was flat.
+    var drawable = Model.Rows.Where(r => r.Candles.Present >= 2).ToList();
+    var listings = Statement.Listings(Model.Rows);
+
+    // The shared price scale is shared WITHIN A QUOTE ASSET, not across the page, and the reason is
+    // the same one that scopes the verdicts and the bars (blueprint §6): the fold guarantees this
+    // page can hold a book in USD beside a book in USDT, and one price axis across both would draw
+    // two currencies as one number line. Inside a quote the shared scale is what the panels are for
+    // — without it every panel autoscales to itself and a venue that moved two cents looks exactly
+    // as volatile as one that moved forty.
+    var scaleByQuote = drawable
+        .GroupBy(r => r.Row.QuoteAsset, StringComparer.Ordinal)
+        .ToDictionary(
+            g => g.Key,
+            g => (Lo: g.Min(r => r.Candles.Low!.Value), Hi: g.Max(r => r.Candles.High!.Value)),
+            StringComparer.Ordinal);
+}
+
+<main class="a-main">
+
+    <partial name="_Statement" model="Model" />
+
+    @*
+        The live button, and the sentence beside it.
+
+        It sits OUTSIDE every [data-live-region] deliberately: a control that redrew itself on each
+        update would lose its own state and its listener in the middle of the thing it started.
+
+        It starts hidden and studio-live.js reveals it, the same argument as the INK button — with
+        scripts off, or in a browser with no EventSource, this control could do nothing, and a
+        control that does nothing is a small lie. The page below it is complete either way.
+
+        The note is where a failure has to be said out loud. A stream that dies, a database signal
+        that stops, a feed at capacity: every one of those looks, on a page whose subject is a
+        market, exactly like a market that went quiet. So the note says which, in words, and the
+        page falls back to what it does without a stream — ages that keep counting from instants
+        that are still true.
+    *@
+    @*
+        RouteUrl by NAME, for the reason the pair links on the list page give: the default route is
+        registered first, so Url.Action resolves this to /Pairs/Live?baseFamily=… — the address the
+        route constraints do not cover. The constraints are no longer the only thing standing
+        between an anonymous caller and a held-open connection (PairAddress is), but a page that
+        emits the unconstrained form of its own URL is a page teaching every reader the address we
+        did not mean.
+    *@
+    @{
+        var liveUrl = Url.RouteUrl("pair-live", new
+        {
+            controller = "Pairs",
+            action = "Live",
+            baseFamily = Model.BaseFamily,
+            quoteFamily = Model.QuoteFamily
+        });
+    }
+    <div class="a-liverow" data-live-url="@liveUrl">
+        <button type="button" class="a-btn" id="a-live" aria-pressed="false"
+                aria-describedby="a-live-what" hidden>Live</button>
+
+        @*
+            RELOAD, and it is not the browser's button said twice.
+
+            It appears only once this document has gone stale under the reader, and it appears
+            beside the sentence that says so, because the two ways out of a stale page are not
+            equivalent and the reader has to be told which is which: reload asks the server for a
+            fresh read of every figure, Live leaves this document standing and replaces the table as
+            each collector pass lands. A reader looking at a page of `degraded` marks wants the
+            first one. Hidden until studio-ages.js decides the page has aged, and hidden again the
+            moment a live push replaces the fragments — at that point the document is new.
+        *@
+        <button type="button" class="a-btn" id="a-live-reload" hidden>Reload</button>
+
+        @*
+            WHAT THIS PAGE IS, in words, beside the control that changes it.
+
+            The live button worked and nobody found it: 54 by 32 pixels, one word, and nothing to
+            say what pressing it would do until it had been pressed. A control whose label is the
+            name of a state the reader cannot see is not discoverable, it is guessable. So the
+            sentence beside it names the state the page is IN — a snapshot whose ages count forward
+            from the render — and names the button as the thing that changes it. Written by
+            studio-ages.js and empty here on purpose: with scripts off the ages do not count forward,
+            and a server-rendered sentence saying they do would be false on exactly the pages that
+            cannot correct it.
+
+            It is also where this page admits it has gone stale; see THE DOCUMENT'S OWN AGE in
+            studio-ages.js for what that means and why it is stated once about the document rather
+            than 500 times about the cells.
+
+            role="status" AND NOT ONLY aria-describedby. The description is read when the Live button
+            takes focus, which is a reader who has gone looking; this sentence also REWRITES ITSELF
+            under a reader who has done nothing at all — a tab comes back from an hour in the
+            background and a box appears saying the document is an hour old. Announced only on
+            focus, the one fact that governs whether every figure on the page still means anything
+            was the one fact a screen reader was not told, while the connection note beside it — the
+            less consequential of the two — carried role="status" and was. It is polite, it is
+            written once per change (studio-ages.js holds the last text and does not repaint it), and
+            it is the only announcement the Reload button gets: that button appears silently, and
+            the sentence that appears with it is the sentence that names it.
+        *@
+        <p class="a-live-what" id="a-live-what" role="status"></p>
+
+        <span class="a-live-note" id="a-live-note" role="status"></span>
+    </div>
+
+    <partial name="_PairTable" model="Model" />
+
+    <section style="display:flex;flex-direction:column;gap:var(--gap-block)">
+        @*
+            The candles bar, in the reference's order: name, what the panels are, the rule running
+            off to the right, and the one control that belongs to this section. The rule used to sit
+            between the name and the meta line, which left the right end of the bar empty and gave a
+            right-aligned control nowhere to be.
+        *@
+        <div class="a-section-head">
+            <span class="csx-eyebrow" style="color:var(--brand-deep)">Candles</span>
+            <span class="csx-eyebrow" style="color:var(--text-faint)">
+                Hourly · 24 h · price only · one scale per quote · time axes tied
+            </span>
+            <hr>
+
+            @*
+                HOW MANY PANELS SIT SIDE BY SIDE.
+
+                Not decoration, and not a preference about density: the panels share one price scale
+                per quote asset and one time axis across all of them, and a shared scale is only
+                READABLE when the panels are stacked — two venues in one column put the same price at
+                the same height on the page, which is the comparison the shared scale exists to make
+                possible. Side by side, the reader is comparing two shapes at two different heights
+                and has to do the arithmetic themselves. So the control offers the stack, and the
+                glossary entry below says why anyone would want it.
+
+                The buttons choose a CEILING, not a count. `.a-charts[data-cols]` keeps a readable
+                minimum panel width in the same declaration, so a reader who asks for three on a
+                laptop gets two — the alternative was a fixed `repeat(3, 1fr)` and 210-pixel candle
+                panels, which is a picture of a chart rather than a chart.
+
+                SO THE LABEL SAYS "UP TO". It read "3 columns" while the pressed button sat over a
+                two-track grid on any window under about 1434px, and the choice is remembered, so
+                that was sticky rather than momentary: press 3 on a desktop, open a pair on a laptop
+                and the control names a layout the page is not in. On a page whose whole argument is
+                that nothing claims a state it is not in, the control claimed one. Rejected: moving
+                aria-pressed to whichever button matches the tracks actually drawn — the reader
+                presses 3, the control lights 2, and a control that answers a press by refusing it
+                is a worse lie than a loose label. One column has no ceiling to miss (the track is
+                `minmax(0, 1fr)`, which always draws exactly one), so it is named exactly.
+
+                Hidden until studio-candles.js reveals it, the same argument as the INK and LIVE
+                buttons: with scripts off it could do nothing, and a control that does nothing is a
+                small lie. The grid's scripts-off default packs as many panels as fit, which is what
+                the page has always drawn, so nothing is lost by the control being absent.
+
+                One panel is not an arrangement, so at one panel there is no control.
+            *@
+            @if (drawable.Count > 1)
+            {
+                <span class="a-cols" role="group" aria-label="Candle panel columns" hidden>
+                    <span class="csx-eyebrow a-cols-label">Columns</span>
+                    <span class="a-cols-set">
+                        @* The icon is the layout it asks for: one <i> per column, each painted as
+                           three stacked bars. Bars in markup would be nine empty elements per
+                           button for a 12-pixel picture. *@
+                        <button type="button" class="a-cols-btn" data-cols="3" title="Up to 3 columns" aria-pressed="false">
+                            <span class="a-cols-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+                        </button>
+                        <button type="button" class="a-cols-btn" data-cols="2" title="Up to 2 columns" aria-pressed="false">
+                            <span class="a-cols-icon" aria-hidden="true"><i></i><i></i></span>
+                        </button>
+                        <button type="button" class="a-cols-btn" data-cols="1" title="1 column" aria-pressed="false">
+                            <span class="a-cols-icon" aria-hidden="true"><i></i></span>
+                        </button>
+                    </span>
+                </span>
+            }
+        </div>
+
+        @if (drawable.Count == 0)
+        {
+            <div class="a-panel a-empty">
+                <h2>No hourly bars</h2>
+                <p class="a-note">
+                    No venue on this page has two closed hourly bars in the last 24 hours. That is a
+                    statement about the history we hold, not about whether the market traded.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="a-charts">
+                @foreach (var v in drawable)
+                {
+                    var r = v.Row;
+                    var scale = scaleByQuote[r.QuoteAsset];
+                    var series = v.Candles;
+
+                    @* A window with no bar goes out as time only, with no OHLC. That reserves its
+                       slot on the axis so the gap stays a gap; dropping it would slide the
+                       surrounding candles together, and a venue that went dark for six hours would
+                       draw as one that never stopped. *@
+                    var json = System.Text.Json.JsonSerializer.Serialize(
+                        series.Windows.Select((w, i) => new
+                        {
+                            time = new DateTimeOffset(DateTime.SpecifyKind(w, DateTimeKind.Utc)).ToUnixTimeSeconds(),
+                            o = series.Bars[i]?.Open,
+                            h = series.Bars[i]?.High,
+                            l = series.Bars[i]?.Low,
+                            c = series.Bars[i]?.Close
+                        }));
+
+                    var gaps = series.Windows.Count - series.Present;
+
+                    <section class="a-chart-panel">
+                        <header class="a-chart-head">
+                            <h2 class="a-chart-title">
+                                @r.ExchangeName
+                                <span class="a-chart-symbol">@r.Symbol</span>
+                            </h2>
+                            <span class="a-chart-range">
+                                @Format.Num(series.Low, Format.Decimals(r.PriceStep, fallback: 4)) –
+                                @Format.Num(series.High, Format.Decimals(r.PriceStep, fallback: 4)) @r.QuoteAsset@(gaps > 0 ? $" · {gaps} of {series.Windows.Count} hours have no bar" : "")@(series.Partial > 0 ? $" · {series.Partial} partly covered" : "")
+                            </span>
+                        </header>
+                        <div class="a-chart-body">
+                            <div class="a-chart"
+                                 data-candles="@json"
+                                 data-scale-lo="@scale.Lo.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                 data-scale-hi="@scale.Hi.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                 data-decimals="@Format.Decimals(r.PriceStep, fallback: 4)"></div>
+                        </div>
+                    </section>
+                }
+            </div>
+
+            @if (drawable.Count < listings)
+            {
+                @* LISTINGS, not venues. One panel is drawn per instrument, so a venue quoting the
+                   pair against two quotes in the same family has two of them, and counting rows
+                   under the word "venue" overstates how many order books this page could not draw
+                   — the same substitution the statement line above used to make. *@
+                <p class="a-note">
+                    @(listings - drawable.Count) of @listings listing@(listings == 1 ? "" : "s")
+                    @(listings - drawable.Count == 1 ? "has" : "have") fewer than two closed hourly bars in
+                    this window and no panel is drawn for @(listings - drawable.Count == 1 ? "it" : "them").
+                </p>
+            }
+        }
+    </section>
+    @* The paragraph that used to close this page — rows are not differenced, candles share their
+       axes, hollow above the open — is not gone: it is two headed entries in the reading section
+       below, THE ROWS and CANDLES. Two blocks of running prose stacked above the footer were the
+       same wall the table's own note was, one section further down. *@
+</main>
+
+@*
+    HOW TO READ THIS PAGE.
+
+    A section, so the layout can put it in the footer: this is where the link under the table lands,
+    and it has to be past the candles rather than in front of them. See _Layout.cshtml.
+
+    It is one entry per rule, each under the name of the thing it explains, and that shape is the
+    point of the whole change. This was a single ~350-word paragraph wedged between the table and
+    the charts, which meant the reader who wanted one rule read thirteen and the reader who wanted
+    the charts read thirteen they had not asked for. Every rule that paragraph stated is here, plus
+    the ones the closing note held, and each of them can now be found by looking rather than by
+    reading everything.
+
+    Terms are markup, not data: they are the marks the table prints — △, CROSSED, BEST — and a
+    reader matching what they saw against what it means is doing a lookup, so the words are set as
+    labels and the entries stay in the order the eye meets them, from the age on a cell outwards.
+*@
+@section reading {
+    <section class="a-reading" id="reading">
+        @*
+            NO RULE HERE, AND THE REFERENCE IS EXPLICIT ABOUT IT. Measured on the live mock: the
+            candles head draws a 1px rule between its meta line and the columns control, and
+            `#reading h2` is a bare heading with no sibling rule at all. That is not an oversight in
+            the mock, it is the difference between the two pieces of furniture — the candles bar is
+            a section head whose rule exists to carry the eye to a control at the right end, and
+            this is a caption over a block of prose with nothing at its right end to reach. Reusing
+            `.a-section-head` gave the footer a 1710px divider that reads as a section boundary
+            where the reference reads as a label.
+
+            The SIZE stays the design system's own eyebrow (9px / .17em) rather than the mock's
+            hardcoded 10px / .18em. The mock is not token-aligned there — it writes the same two
+            values inline on its candles head as well — and matching it would mean a raw font size
+            in one view against a token used everywhere else on this surface.
+        *@
+        <h2 class="csx-eyebrow a-reading-title">How to read this page</h2>
+
+        <div class="a-reading-grid">
+            <div class="a-term">
+                <span class="a-term-name">12 s ago</span>
+                <span class="a-term-body">
+                    The age of the call that wrote the figure, counted from the instant that call
+                    landed. The figure is at full strength when it lands and fades across that
+                    call's own window; each cell names its own window in its hover.
+                </span>
+            </div>
+
+            <div class="a-term">
+                @* The second sentence used to read "nothing is measured beyond it — a second over
+                   and a week over read the same", which is true of the FADE (Freshness.Weight
+                   clamps at one window) and false of everything the reader actually reads: the age
+                   is still spelled out to the second, and the figure still takes its rank, until
+                   the call goes degraded. The entry immediately below said the opposite, so the
+                   glossary contradicted itself two terms apart. *@
+                <span class="a-term-name">△</span>
+                <span class="a-term-body">
+                    That call is past its window, so the fade has run out — a second over and a week
+                    over are drawn at the same strength. The count itself does not stop: the age is
+                    still spelled out to the second and the figure still takes its rank, until the
+                    call goes <b>degraded</b>.
+                </span>
+            </div>
+
+            <div class="a-term">
+                @* The multiple is interpolated from Freshness.DegradedWindows and never typed
+                   here. A number in this sentence would be a fourth copy of a constant the server,
+                   the client and the tests already share, and this repository still carries the
+                   test file named after the last time one of those copies drifted. *@
+                <span class="a-term-name">99+ s · degraded</span>
+                <span class="a-term-body">
+                    <b>99+ s</b> is the count still running, in a slot that does not widen to say how
+                    far past a hundred it has gone. <b>degraded</b> replaces the count once the call
+                    is @Freshness.DegradedWindows times its own window behind, where it has stopped
+                    meaning anything; the feed is behind, not missing. A degraded figure takes no
+                    rank and no bar: it sets no column maximum, wins nothing and loses nothing, and
+                    when the call under a mark goes degraded while this page is open the column
+                    drops both its marks and its bars rather than leave half a comparison standing.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">— and 0</span>
+                <span class="a-term-body">
+                    <b>—</b> is not measured and is never a zero. A <b>0</b> is an observation: a
+                    band with nothing resting in it, which is a fact about that book. A listing that
+                    carries no mark, index, funding or open interest shows dashes there.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">fresh / old</span>
+                <span class="a-term-body">
+                    The scale in the venue cell is measured in windows and not in seconds, so the
+                    two names under it are the call least far into its own window and the call
+                    furthest into its own — which on a venue whose depth pass is minutes wide is not
+                    the same pair as the youngest and the oldest age. When any call on that row has
+                    gone <b>degraded</b> both names are replaced by that fact, because a scale with a
+                    dead end is not a scale.
+                </span>
+            </div>
+
+            <div class="a-term">
+                @* SCOPE IS PER COLUMN, AND THE ENTRY HAS TO SAY WHICH. The notebar sentence this
+                   replaced carried the qualifier "for anything priced in the quote currency" and
+                   was printed only on a page that actually held two quotes; the first rewrite
+                   dropped both, and the unconditional claim it left behind is false for three of
+                   the columns it names. Bid size, ask size and open interest are
+                   VerdictScope.WholePair (Data/Verdicts.cs) — they are carried into base units by
+                   contract_multiplier, so they are one measurement across every venue and are
+                   ranked across every row on the page regardless of quote. A reader following the
+                   old text read an acid BEST on open interest as "largest USDT book" when it means
+                   "largest book on the page", which is the scope error this entry exists to
+                   prevent, made by the entry. *@
+                <span class="a-term-name">Best / worst</span>
+                <span class="a-term-body">
+                    The two ends of one column across the venues compared here: the highest bid, the
+                    lowest ask, the largest turnover or depth — and the other end of each. Everything
+                    between the ends carries no mark. Which rows are compared is decided per column,
+                    not per page: anything priced in the quote currency ranks only against rows
+                    quoting in the same asset, because a figure in USD and a figure in USDT are two
+                    claims and a page holding two quotes holds two comparisons — while the two sizes
+                    and open interest are in base units through the venue's own contract multiplier,
+                    which makes them one measurement, so they rank across every row on the page.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">Tight / wide</span>
+                <span class="a-term-body">
+                    The spread column's own words for those two ends — the narrowest and the widest
+                    spread among the rows compared, not a fixed number either side of which a spread
+                    changes name. A spread in bps carries no currency, so this column compares every
+                    row on the page whatever it quotes in. <b>Wide</b> takes the same chip as
+                    <b>worst</b>, because it is the same verdict.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">Crossed</span>
+                <span class="a-term-body">
+                    That venue's bid stands at or above its ask. The figure beside the chip is the
+                    negative spread that quotation implies, written as it stands, and the row is
+                    left out of the spread ranking at both ends because a crossed book is not a
+                    narrow one.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">Bar</span>
+                <span class="a-term-body">
+                    The figure against the largest venue in its own comparison, log-scaled — linear
+                    flattens a sixty-unit book against a three-thousand-unit one to nothing, which
+                    is the case these columns exist to show.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">Depth</span>
+                <span class="a-term-body">
+                    Bid / ask resting within that band of the mid. The mirrored bar under the pair
+                    puts bid left of centre and ask right, so a one-sided book reads as a lopsided
+                    bar rather than as a smaller one.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">Sizes · open interest</span>
+                <span class="a-term-body">
+                    In base units, through the venue's own contract multiplier, so a perp quoted in
+                    thousand-token lots can be set beside a spot book. The venue's own figure is in
+                    the hover.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">Funding</span>
+                <span class="a-term-body">
+                    Quoted per payment, carrying its interval and a normalised per-day figure. It is
+                    <b>not ranked</b>: which direction is good depends on which side of the trade
+                    you are on.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">The line under a figure</span>
+                <span class="a-term-body">
+                    That figure's last 25 hours, in its call's own colour, broken at every hour the
+                    venue has no row for. Bid, ask and last share one line because they share one
+                    price series.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">Candles</span>
+                <span class="a-term-body">
+                    Hourly, 24 h back, price only. One price scale per quote asset, and one time
+                    axis across every panel — pan or zoom any one of them and the rest follow.
+                    Hollow above the open, filled below: direction is not a result and takes no
+                    money colour here. Stack them in one column with the control above them to
+                    compare two venues by eye — the shared scale is what makes that reading valid,
+                    and it is only legible when the same price sits at the same height.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">The rows</span>
+                <span class="a-term-body">
+                    Rows are not differenced against each other and this page states no cross-venue
+                    spread from them: the poll passes are unsynchronised, a depth sweep across a
+                    large venue takes minutes, and the interval is set per segment. The ages say
+                    which.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">Ticker · oi · depth</span>
+                <span class="a-term-body">
+                    Three calls, three clocks. The bands above the columns say which call each
+                    column came from, and a line under a figure takes that call's hue.
+                </span>
+            </div>
+        </div>
+    </section>
+}
+
+@section scripts {
+    @* Loaded only where a panel exists. A 198 KB charting library on a page with nothing to chart is
+       198 KB spent to draw nothing. *@
+    @if (drawable.Count > 0)
+    {
+        <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
+        <script src="~/studio-candles.js?v=2"></script>
+    }
+
+    @* 4 KB, on the pair page only, and it opens nothing until the button is pressed. *@
+    <script src="~/studio-live.js?v=1" defer></script>
+}

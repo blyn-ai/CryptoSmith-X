@@ -1,6 +1,6 @@
 # marks
 
-Vendored identity marks for the Arena surface: an exchange's own logo, and an asset's.
+Vendored identity marks for the Studio surface: an exchange's own logo, and an asset's.
 Third-party artwork, self-hosted, nothing loads from a CDN.
 
 **Read `docs/logos.md` first.** It carries the reasoning — why this is allowed at all against
@@ -30,7 +30,7 @@ whole thing is written to avoid. 90 of 177 collected assets have a mark; 87 do n
 **`mono` is masked, never `<img>`-ed.** Every fill in a mono file is `currentColor`, and an
 `<img>` cannot inherit it — load one that way and it renders black, invisible on the night
 theme. Use `mask-image` plus `background: currentColor`, or inline the file.
-`src/web/ds-arena/components/market/IdentityMark.jsx` does both correctly.
+`src/web/ds-studio/components/market/IdentityMark.jsx` does both correctly.
 
 191 files, 284,370 bytes.
 

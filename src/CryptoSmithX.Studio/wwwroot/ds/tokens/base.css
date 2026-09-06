@@ -1,0 +1,19 @@
+/* CSX Studio — the reset the surface assumes. */
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--surface-page);
+  background-image:var(--dot-pattern);
+  background-size:var(--dot-size) var(--dot-size);
+  color:var(--text-body);
+  font-family:var(--font-body);
+  font-size:var(--fs-body);
+  line-height:var(--lh-body);
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--link);text-decoration:none}
+a:hover{color:var(--link-hover)}
+h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform:uppercase;color:var(--text-heading)}
+.csx-num,.csx-mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:var(--track-num)}
+.csx-eyebrow{font:var(--fw-medium) var(--fs-eyebrow)/1.2 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow)}
+.csx-sheet{background:var(--surface-page);background-image:var(--dot-pattern);background-size:var(--dot-size) var(--dot-size)}

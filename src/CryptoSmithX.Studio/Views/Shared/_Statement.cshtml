@@ -1,0 +1,47 @@
+@model PairPageModel
+@*
+    The statement line: how many books quote this pair, and the worst thing that is true about the
+    page's freshness right now.
+
+    It is a partial for the same reason _PairTable is one — the live stream redraws it. A page whose
+    table has just been replaced with figures from a healthy feed, under a headline still saying
+    "one feed has stopped meaning anything", would be the loudest sentence on the surface left
+    stale. If it is derived from the data, it moves with the data.
+
+    THE SENTENCE ITSELF IS IN Models/Statement.cs, and it is re-derived every second by
+    studio-ages.js from the same data-at / data-win attributes it advances the ages from. That is the
+    fix for the worst thing this page did: the verdict was computed once, on the server, and never
+    advanced, so a tab left open for three minutes showed "Every call is inside its window." in the
+    largest type on the page over cells that had all flipped to "degraded". Only the SSE stream
+    re-rendered it, and the stream is behind a button nobody has to press.
+
+    The alternative was to stop the sentence claiming to be current — to caveat it, "as of the
+    render". Rejected: with scripts ON that only explains the contradiction instead of removing it,
+    because the ages under the sentence keep ticking and the reader can see them disagree with it;
+    and with scripts OFF the caveat is redundant, since nothing on the page moves and the header's
+    RENDERED stamp already dates the whole document. Re-deriving on the client is honest in both
+    worlds: with no script the sentence, the ages and the fades are all as of the render together,
+    and with a script they advance together. The one thing that must never happen — the sentence
+    standing still while everything around it moves — cannot happen either way.
+*@
+@{
+    var pair = $"{Model.BaseFamily}/{Model.QuoteFamily}";
+
+    @* Three different numbers, counted where the pair list counts them. Rows are LISTINGS; venues
+       are order books; platforms are exchanges. The page used to print the row count as all three,
+       which read as four exchanges quoting the pair when one of them was in the table twice. *@
+    var venues = Statement.Venues(Model.Rows);
+    var platforms = Statement.Platforms(Model.Rows);
+    var listings = Statement.Listings(Model.Rows);
+    var perps = Statement.Perps(Model.Rows);
+}
+<div class="a-statement-row" data-live-region="statement">
+    <h1 class="a-statement">
+        @venues venue@(venues == 1 ? "" : "s") quote@(venues == 1 ? "s" : "") @pair.<em data-statement-verdict>@Statement.Verdict(Model.Rows)</em>
+    </h1>
+    <span class="csx-eyebrow" style="color:var(--text-faint)">
+        @platforms platform@(platforms == 1 ? "" : "s") · @venues venue@(venues == 1 ? "" : "s") ·
+        @listings listing@(listings == 1 ? "" : "s") · @perps perp · @(listings - perps) spot ·
+        17 fields · ages live
+    </span>
+</div>

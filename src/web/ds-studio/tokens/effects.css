@@ -1,0 +1,25 @@
+/* CSX Studio — radii, borders, shadows, motion.
+   Zero radius everywhere; no shadow, no glow, no glass, no gradient — except the one
+   gradient that IS data: the freshness scale (--age-scale). Nothing moves for decoration.
+   The only thing on this surface that changes on its own is an age, and it changes because
+   it is a clock. */
+:root{
+--radius-xs:0px;--radius-sm:0px;--radius-md:0px;--radius-lg:0px;--radius-circle:50%;
+--radius-panel:0px;--radius-control:0px;
+
+--hairline:1px solid var(--border-hairline); /* @kind other */
+--panel-border:1px solid var(--border-card); /* @kind other */
+
+--shadow-none:none; /* @kind shadow */--shadow-panel:none; /* @kind shadow */
+
+--focus-ring:2px solid var(--accent); /* @kind other */
+
+/* ── the fade ramp: a figure at full strength when its call lands, a ghost at the end of
+      its window. Front-loaded — the first seconds cost little, the last cost a lot. ── */
+--fade-floor:.15; /* @kind other */--fade-exponent:.4; /* @kind other */
+
+/* ── motion: colour transitions only ── */
+--dur-fast:120ms; /* @kind other */--dur:180ms; /* @kind other */
+--ease:linear; /* @kind other */
+--transition-color:color var(--dur-fast) var(--ease),background-color var(--dur-fast) var(--ease); /* @kind other */
+}

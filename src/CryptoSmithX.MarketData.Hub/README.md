@@ -38,7 +38,7 @@ Then:
 
 Instruments appear immediately, snapshots within ten seconds, 1-minute candles within a minute and
 the first derived bars once a five-minute window has closed. There is no UI here — `/v1/*` is
-curl-able and that is enough until `CryptoSmithX.WebApp` arrives.
+curl-able and that is enough until `CryptoSmithX.WebApp.Admin` arrives.
 
 ## Run it locally
 

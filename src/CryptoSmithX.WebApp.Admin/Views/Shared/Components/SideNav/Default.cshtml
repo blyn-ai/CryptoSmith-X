@@ -1,0 +1,28 @@
+@model CryptoSmithX.WebApp.Admin.ViewComponents.SideNavModel
+@{
+    var path = (ViewContext.HttpContext.Request.Path.Value ?? "").TrimEnd('/');
+    bool Active(string href)
+    {
+        if (href == "#") return false;
+        var h = href.TrimEnd('/');
+        if (h == "/Admin") return path.Equals("/Admin", StringComparison.OrdinalIgnoreCase);
+        return path.StartsWith(h, StringComparison.OrdinalIgnoreCase);
+    }
+}
+<nav class="nav">
+    @foreach (var g in Model.Groups)
+    {
+        <div class="nav-group">
+            <span class="nav-label">@g.Label</span>
+            @foreach (var it in g.Items)
+            {
+                var cls = "nav-item" + (it.Soon ? " is-soon" : "") + (Active(it.Href) ? " is-active" : "");
+                <a class="@cls" href="@it.Href">
+                    <span class="bar"></span>
+                    <span class="lbl">@it.Label</span>
+                    <span class="bdg">@it.Badge</span>
+                </a>
+            }
+        </div>
+    }
+</nav>

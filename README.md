@@ -19,7 +19,7 @@ single server.
 ## What this is meant to become
 
 Three products on one foundation — Studio & API (market data and a public gateway),
-Agent (an autonomous execution environment) and Arena (a verified strategy
+Agent (an autonomous execution environment) and Studio (a verified strategy
 leaderboard) — and an honest account of how much of each exists today:
 [docs/product-vision.md](docs/product-vision.md).
 

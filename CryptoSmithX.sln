@@ -19,13 +19,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.MarketData.Con
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.MarketData.Hub.Tests", "tests\CryptoSmithX.MarketData.Hub.Tests\CryptoSmithX.MarketData.Hub.Tests.csproj", "{CA828AAA-C439-4318-AC9B-C1E99709273E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.WebApp", "src\CryptoSmithX.WebApp\CryptoSmithX.WebApp.csproj", "{E9B76D47-A6A7-4DE5-999C-2F46B4C7E3CF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.WebApp.Admin", "src\CryptoSmithX.WebApp.Admin\CryptoSmithX.WebApp.Admin.csproj", "{E9B76D47-A6A7-4DE5-999C-2F46B4C7E3CF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.WebApp.Tests", "tests\CryptoSmithX.WebApp.Tests\CryptoSmithX.WebApp.Tests.csproj", "{40924494-25B6-4A2A-BEDF-1F5C9BE9FF65}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.WebApp.Admin.Tests", "tests\CryptoSmithX.WebApp.Admin.Tests\CryptoSmithX.WebApp.Admin.Tests.csproj", "{40924494-25B6-4A2A-BEDF-1F5C9BE9FF65}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.Arena", "src\CryptoSmithX.Arena\CryptoSmithX.Arena.csproj", "{4FEE7AE4-0F39-4127-BBF7-E6509E409052}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.Studio", "src\CryptoSmithX.Studio\CryptoSmithX.Studio.csproj", "{4FEE7AE4-0F39-4127-BBF7-E6509E409052}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.Arena.Tests", "tests\CryptoSmithX.Arena.Tests\CryptoSmithX.Arena.Tests.csproj", "{7C2A1E5B-3D64-4F98-9A0C-51B7E4D8C620}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.Studio.Tests", "tests\CryptoSmithX.Studio.Tests\CryptoSmithX.Studio.Tests.csproj", "{7C2A1E5B-3D64-4F98-9A0C-51B7E4D8C620}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

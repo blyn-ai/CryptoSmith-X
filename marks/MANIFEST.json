@@ -118,9 +118,9 @@
   }
  ],
  "knownConflictsWithTheDesignSystem": [
-  "ds-arena readme.md, Iconography: 'No icons.' A venue's or an asset's own mark is identity, not decoration - it answers the same question the platform column already answers in 13px type, only faster. This is an exception being taken, stated out loud, and written up as item 5 of src/web/ds-arena/RULE-CHANGES.md. It licenses identity marks in the two identity columns and nothing else: no icon font, no icon set, no emoji, and no decorative glyph anywhere on the surface.",
-  "ds-arena readme.md, rule 4 and rule 6: colour means WHICH CALL wrote a figure, across five hues, and it is deliberately rare. Brand marks are full colour by nature. Measured: 25 of the 98 branded files are under 1.6:1 against one of the two card grounds, so on the evidence the colour route also does not work - #FFF3DE eats Hyperliquid's mint and OKX's black vanishes on #17130D. The mono set spends no colour at all and is legible on both themes, which is why it is the recommended default. Phase three settles it.",
-  "ds-arena readme.md, rule 10: 'nothing glows.' One vendored file (asset/mono/APE.svg) carries a Figma drop-shadow filter. Left in rather than silently altered; flagged in its record."
+  "ds-studio readme.md, Iconography: 'No icons.' A venue's or an asset's own mark is identity, not decoration - it answers the same question the platform column already answers in 13px type, only faster. This is an exception being taken, stated out loud, and written up as item 5 of src/web/ds-studio/RULE-CHANGES.md. It licenses identity marks in the two identity columns and nothing else: no icon font, no icon set, no emoji, and no decorative glyph anywhere on the surface.",
+  "ds-studio readme.md, rule 4 and rule 6: colour means WHICH CALL wrote a figure, across five hues, and it is deliberately rare. Brand marks are full colour by nature. Measured: 25 of the 98 branded files are under 1.6:1 against one of the two card grounds, so on the evidence the colour route also does not work - #FFF3DE eats Hyperliquid's mint and OKX's black vanishes on #17130D. The mono set spends no colour at all and is legible on both themes, which is why it is the recommended default. Phase three settles it.",
+  "ds-studio readme.md, rule 10: 'nothing glows.' One vendored file (asset/mono/APE.svg) carries a Figma drop-shadow filter. Left in rather than silently altered; flagged in its record."
  ],
  "files": [
   {
@@ -1222,7 +1222,7 @@
     "#fe0420"
    ],
    "indexed": false,
-   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-studio/RULE-CHANGES.md item 9."
   },
   {
    "file": "asset/branded/ORDI.svg",
@@ -1815,7 +1815,7 @@
     "#ff4a4a"
    ],
    "indexed": false,
-   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-studio/RULE-CHANGES.md item 9."
   },
   {
    "file": "asset/branded/UNI.svg",
@@ -2014,7 +2014,7 @@
     "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
    ],
    "warnings": [
-    "carries a drop-shadow filter, which collides with ds-arena rule 10 (nothing glows)"
+    "carries a drop-shadow filter, which collides with ds-studio rule 10 (nothing glows)"
    ]
   },
   {
@@ -2798,7 +2798,7 @@
     "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
    ],
    "indexed": false,
-   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-studio/RULE-CHANGES.md item 9."
   },
   {
    "file": "asset/mono/ORDI.svg",
@@ -3145,7 +3145,7 @@
     "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
    ],
    "indexed": false,
-   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-studio/RULE-CHANGES.md item 9."
   },
   {
    "file": "asset/mono/UNI.svg",
@@ -3292,7 +3292,7 @@
     "#fff"
    ],
    "indexed": false,
-   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-studio/RULE-CHANGES.md item 9."
   },
   {
    "file": "venue/branded/coinbase.svg",
@@ -3386,7 +3386,7 @@
     "every ink is under 1.6:1 on the night card #17130D — unreadable on the night theme"
    ],
    "indexed": false,
-   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-studio/RULE-CHANGES.md item 9."
   },
   {
    "file": "venue/mono/binance.svg",
@@ -3433,7 +3433,7 @@
     "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
    ],
    "indexed": false,
-   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-studio/RULE-CHANGES.md item 9."
   },
   {
    "file": "venue/mono/coinbase.svg",
@@ -3510,7 +3510,7 @@
     "optimised with svgo 4.1.0 (metadata, editor ids, width/height dropped; viewBox kept; ids namespaced)"
    ],
    "indexed": false,
-   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-arena/RULE-CHANGES.md item 9."
+   "notIndexed": "wordmark, not a glyph: rendered at 96 px this file spells the name (OKX, BYBIT, UMA, OP). The identity slot is square and 16 px, and the name is already beside it in 13px type, so a lockup delivers 3.0-4.0 px of ink height and repeats a word the row has already said. Moved out of the indexed variants on 2026-09-06 so tools/index.py stops listing the code and the page falls back to the monogram. Nothing deleted: the file is here if a venue's glyph-only mark is ever obtained and someone wants to compare. See src/web/ds-studio/RULE-CHANGES.md item 9."
   }
  ],
  "wordmarksNotIndexed": {
