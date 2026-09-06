@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="styles.css">
+<style>
+  html,body{margin:0;width:1280px;height:854px;overflow:hidden}
+  .tile{display:grid;grid-template-columns:1fr 320px;width:1280px;height:854px}
+  .main{background:var(--accent);display:flex;align-items:center;justify-content:center;background-image:var(--dot-pattern);background-size:var(--dot-size) var(--dot-size)}
+  .mark{font:400 190px/.86 var(--font-display);letter-spacing:.005em;color:var(--surface-page);text-transform:uppercase;text-align:center}
+  .strip{display:grid;grid-template-rows:repeat(4,1fr)}
+  .strip i{display:block}
+</style></head><body>
+<div class="tile">
+  <div class="main"><div class="mark">CSX<br>Arena</div></div>
+  <div class="strip"><i style="background:#8BFF6B"></i><i style="background:#FF4BD8"></i><i style="background:#8A5A12"></i><i style="background:#2F5A00"></i></div>
+</div>
+</body></html>

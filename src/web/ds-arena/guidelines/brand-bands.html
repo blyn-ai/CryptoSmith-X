@@ -1,0 +1,24 @@
+<!-- @dsCard group="Brand" viewport="700x130" subtitle="Three calls named over their own columns" name="Column bands" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;padding:16px;background:var(--surface-page)}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:8px}
+  .sw{display:flex;flex-direction:column;gap:5px;min-width:104px}
+  .chip{height:34px;display:flex;align-items:flex-end;padding:4px 6px}
+  .k{font:500 9px/1.2 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-heading)}
+  .v{font:400 9px/1.2 var(--font-mono);color:var(--text-faint)}
+  .cell{padding:8px 10px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;background:var(--surface-card);border:1px solid var(--border-hairline);min-width:104px}
+  .n{font:400 12px/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
+  .age{font:400 8.5px/1 var(--font-mono);letter-spacing:.02em;color:var(--text-faint)}
+  .lbl{font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase}
+</style></head><body>
+<div style="display:grid;grid-template-columns:120px 1fr 90px 150px;height:24px">
+<span style="display:flex;align-items:center;padding:0 10px;background:var(--surface-card);font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--eyebrow)">Venue</span>
+<span style="display:flex;align-items:center;padding:0 10px;background:var(--band-ticker);color:var(--band-ink);font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase">Ticker call · one response</span>
+<span style="display:flex;align-items:center;padding:0 10px;background:var(--band-oi);color:var(--band-ink);font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase">Oi call</span>
+<span style="display:flex;align-items:center;padding:0 10px;background:var(--band-depth);color:var(--band-ink);font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase">Depth sweep</span>
+</div>
+<p class="v" style="margin:10px 0 0;max-width:70ch">Order the columns so each call is contiguous. Turnover arrives in the ticker response, so it sits with the ticker fields — not after open interest, where the source page had it.</p></body></html>

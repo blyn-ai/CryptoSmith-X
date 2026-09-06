@@ -1,0 +1,47 @@
+<!-- @dsCard group="Components" viewport="700x300" subtitle="CallBands, VenueCell, FreshnessStrip, MetricCell, CandlePanel" name="Market" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;padding:16px;background:var(--surface-page)}
+  .grid{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+  .cell{padding:8px 10px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;background:var(--surface-card);border:1px solid var(--border-hairline);min-width:112px}
+  .n{font:400 12px/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
+  .age{font:400 8.5px/1 var(--font-mono);letter-spacing:.02em;color:var(--text-faint);width:66px;text-align:right}
+  .lbl{font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase}
+  .k{font:400 9px/1.2 var(--font-mono);color:var(--text-faint)}
+  .slot{height:12px;display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100%}
+  
+</style></head><body>
+<div style="border:1px solid var(--border-card);background:var(--surface-card)">
+  <div style="display:grid;grid-template-columns:168px 88px 104px 112px 148px;height:24px;border-bottom:1px solid var(--border-hairline)">
+    <span style="display:flex;align-items:center;padding:0 10px;font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--eyebrow)">Venue</span>
+    <span style="grid-column:span 2;display:flex;align-items:center;padding:0 10px;background:var(--band-ticker);color:var(--band-ink);font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase">Ticker call</span>
+    <span style="display:flex;align-items:center;padding:0 10px;background:var(--band-oi);color:var(--band-ink);font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase">Oi</span>
+    <span style="display:flex;align-items:center;padding:0 10px;background:var(--band-depth);color:var(--band-ink);font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase">Depth sweep</span>
+  </div>
+  <div style="display:grid;grid-template-columns:168px 88px 104px 112px 148px;height:34px;background:var(--surface-sunken);align-items:center;font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--eyebrow);border-bottom:1px solid var(--border-hairline)">
+    <span style="padding:0 10px">Platform</span><span style="padding:0 10px;text-align:right">Bid</span><span style="padding:0 10px;text-align:right">Spread bps</span><span style="padding:0 10px;text-align:right">Open interest</span><span style="padding:0 10px;text-align:right">Depth 25bps</span>
+  </div>
+  <div style="display:grid;grid-template-columns:168px 88px 104px 112px 148px;border-bottom:1px solid var(--border-hairline)">
+    <span style="padding:8px 10px;display:flex;flex-direction:column;gap:4px;justify-content:center">
+      <span style="font:400 13px/1.1 var(--font-mono);color:var(--text-data)">Bybit</span>
+      <span class="lbl" style="color:var(--kind-perp)">Perp</span>
+      <span style="position:relative;display:block;width:134px;height:3px;background:var(--age-scale)">
+        <i style="position:absolute;top:1px;height:1px;left:3%;width:60%;background:rgba(30,20,8,.8)"></i>
+        <i style="position:absolute;top:-2px;height:7px;width:1px;left:3%;background:var(--text-heading)"></i>
+        <i style="position:absolute;top:-2px;height:7px;width:1px;left:27%;background:var(--text-heading)"></i>
+        <i style="position:absolute;top:-2px;height:7px;width:1px;left:63%;background:var(--text-heading)"></i>
+      </span>
+      <span style="display:flex;justify-content:space-between;width:134px;font:400 8.5px/1 var(--font-mono);color:var(--text-faint)"><span>fresh 1 s</span><span>old 19 s</span></span>
+      <span style="font:500 8.5px/1 var(--font-mono);color:var(--text-faint)">Price 1 s · Depth 8 s · OI 19 s</span>
+    </span>
+    <span class="cell" style="border:0"><div class="slot"><span class="lbl" style="color:var(--tag-best-ink);background:var(--tag-best-bg);padding:2px 5px">Best</span></div><div class="n">6.4210</div><svg viewBox="0 0 60 11" width="60" height="11" style="display:block"><path d="M0.5 7.4L8 6.1L15 8.2L23 5.4L30 6.8L38 3.9L45 4.6L52 2.4L59.5 3.1" fill="none" stroke="var(--spark-ticker-hot)" stroke-width="1"></path></svg><div class="age">1 s ago</div></span>
+    <span class="cell" style="border:0"><div class="slot"><span class="lbl" style="color:var(--tag-tight)">Tight</span></div><div class="n">4.7</div><svg viewBox="0 0 60 11" width="60" height="11" style="display:block"><path d="M0.5 3.1L8 5.4L15 4.2L23 7.1L30 5.8L38 8.4L45 6.9L52 8.8L59.5 7.6" fill="none" stroke="var(--spark-ticker)" stroke-width="1"></path></svg><div class="age">1 s ago</div></span>
+    <span class="cell" style="border:0;background:var(--tint-oi)"><div class="slot"><span class="lbl" style="color:var(--tag-best-ink);background:var(--tag-best-bg);padding:2px 5px">Best</span></div><div class="n" style="opacity:.55">2,140,000</div><svg viewBox="0 0 60 11" width="60" height="11" style="display:block"><path d="M0.5 7.4L8 6.1L15 8.2L23 5.4L30 6.8L38 3.9L45 4.6L52 2.4L59.5 3.1" fill="none" stroke="var(--spark-oi)" stroke-width="1"></path></svg><div class="age">19 s ago</div></span>
+    <span class="cell" style="border:0;background:var(--tint-depth)"><div class="slot"></div><div class="n" style="opacity:.72">248,000 <span style="color:var(--text-faint)">/</span> 222,000</div>
+      <span style="display:flex;align-items:center;gap:1px;width:88px;height:4px"><span style="flex:1;display:flex;justify-content:flex-end;background:var(--tint-neutral)"><i style="display:block;height:4px;width:100%;background:var(--bar-depth-bid)"></i></span><span style="flex:1;background:var(--tint-neutral)"><i style="display:block;height:4px;width:88%;background:var(--bar-depth-ask)"></i></span></span>
+      <div class="age">8 s ago</div></span>
+  </div>
+</div>
+<p class="k" style="margin:10px 0 0">CallBands + VenueCell (with FreshnessStrip) + three MetricCells. CandlePanel is on the UI kit card.</p></body></html>

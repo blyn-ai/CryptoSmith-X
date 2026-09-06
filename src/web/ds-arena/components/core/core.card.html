@@ -1,0 +1,33 @@
+<!-- @dsCard group="Components" viewport="700x260" subtitle="Num, Tag, StateDot, AgeLine, CompareBar, MirrorBar, Sparkline" name="Core" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;padding:16px;background:var(--surface-page)}
+  .grid{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+  .cell{padding:8px 10px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;background:var(--surface-card);border:1px solid var(--border-hairline);min-width:112px}
+  .n{font:400 12px/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
+  .age{font:400 8.5px/1 var(--font-mono);letter-spacing:.02em;color:var(--text-faint);width:66px;text-align:right}
+  .lbl{font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase}
+  .k{font:400 9px/1.2 var(--font-mono);color:var(--text-faint)}
+  .slot{height:12px;display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100%}
+  
+</style></head><body>
+<div class="grid">
+  <div class="cell"><div class="slot"></div><div class="n">6.4182</div><svg viewBox="0 0 60 11" width="60" height="11" style="display:block"><path d="M0.5 7.4L8 6.1L15 8.2L23 5.4L30 6.8L38 3.9L45 4.6L52 2.4L59.5 3.1" fill="none" stroke="var(--spark-ticker-hot)" stroke-width="1"></path></svg><div class="age">3 s ago</div><div class="k">Num · Sparkline hot</div></div>
+  <div class="cell"><div class="slot"><span class="lbl" style="color:var(--tag-best-ink);background:var(--tag-best-bg);padding:2px 5px">Best</span></div><div class="n">3,200</div><span style="display:block;width:60px;height:3px;background:var(--tint-neutral)"><i style="display:block;height:3px;width:92%;background:var(--bar-ticker)"></i></span><div class="age">11 s ago</div><div class="k">Tag best · CompareBar</div></div>
+  <div class="cell"><div class="slot"><span class="lbl" style="color:var(--tag-wide)">Wide</span></div><div class="n" style="opacity:.31">71.5</div><svg viewBox="0 0 60 11" width="60" height="11" style="display:block"><path d="M0.5 3.1L8 5.4L15 4.2L23 7.1L30 5.8L38 8.4L45 6.9L52 8.8L59.5 7.6" fill="none" stroke="var(--spark-ticker)" stroke-width="1"></path></svg><div class="age" style="color:var(--state-hold-ink)">△ 94 s ago</div><div class="k">Tag wide · faded · △</div></div>
+  <div class="cell"><div class="slot"></div><div class="n" style="color:var(--text-unmeasured)">—</div><span style="display:block;height:11px"></span><div class="age" style="color:var(--text-unmeasured)">—</div><div class="k">Num null · not a zero</div></div>
+  <div class="cell" style="background:var(--surface-card);align-items:flex-start">
+    <div class="slot" style="justify-content:flex-start"><i style="width:9px;height:9px;border-radius:50%;background:var(--state-running)"></i><i style="width:9px;height:9px;border-radius:50%;border:1px solid var(--state-stopped)"></i></div>
+    <div class="row" style="display:flex;gap:8px"><span class="lbl" style="color:var(--kind-spot)">Spot</span><span class="lbl" style="color:var(--kind-perp)">Perp</span></div>
+    <span class="lbl" style="color:var(--tag-tight)">Tight</span>
+    <div class="k">StateDot · Tag tones</div>
+  </div>
+  <div class="cell" style="background:var(--tint-depth)"><div class="slot"></div><div class="n">162,000 <span style="color:var(--text-faint)">/</span> 143,000</div>
+    <span style="display:flex;align-items:center;gap:1px;width:88px;height:4px">
+      <span style="flex:1;display:flex;justify-content:flex-end;background:var(--tint-neutral)"><i style="display:block;height:4px;width:78%;background:var(--bar-depth-bid)"></i></span>
+      <span style="flex:1;background:var(--tint-neutral)"><i style="display:block;height:4px;width:66%;background:var(--bar-depth-ask)"></i></span>
+    </span>
+    <div class="age">7 s ago</div><div class="k">MirrorBar · depth tint</div></div>
+</div></body></html>

@@ -1,0 +1,21 @@
+<!-- @dsCard group="Colors" viewport="700x150" subtitle="A figure at 0 s, 3 s, 10 s, 20 s, 30 s and past the window" name="The fade ramp" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;padding:16px;background:var(--surface-page)}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:8px}
+  .sw{display:flex;flex-direction:column;gap:5px;min-width:104px}
+  .chip{height:34px;display:flex;align-items:flex-end;padding:4px 6px}
+  .k{font:500 9px/1.2 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-heading)}
+  .v{font:400 9px/1.2 var(--font-mono);color:var(--text-faint)}
+  .cell{padding:8px 10px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;background:var(--surface-card);border:1px solid var(--border-hairline);min-width:104px}
+  .n{font:400 12px/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
+  .age{font:400 8.5px/1 var(--font-mono);letter-spacing:.02em;color:var(--text-faint)}
+  .lbl{font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase}
+</style></head><body>
+<div class="row">
+<div class="sw"><div class="n" style="opacity:1.000">6.4182</div><div class="age">0 s ago</div><div class="v">1.00</div></div><div class="sw"><div class="n" style="opacity:0.662">6.4182</div><div class="age">3 s ago</div><div class="v">0.66</div></div><div class="sw"><div class="n" style="opacity:0.452">6.4182</div><div class="age">10 s ago</div><div class="v">0.45</div></div><div class="sw"><div class="n" style="opacity:0.277">6.4182</div><div class="age">20 s ago</div><div class="v">0.28</div></div><div class="sw"><div class="n" style="opacity:0.150">6.4182</div><div class="age">△ 30 s ago</div><div class="v">0.15</div></div><div class="sw"><div class="n" style="opacity:0.150">6.4182</div><div class="age">△ 90 s ago</div><div class="v">0.15</div></div>
+</div>
+<p class="v" style="margin:12px 0 0;max-width:70ch">1 − 0.85·(age/window)<sup>0.4</sup>, floored at 0.15. Front-loaded: the first seconds cost little, the last cost a lot, and past the window nothing is graded further.</p></body></html>

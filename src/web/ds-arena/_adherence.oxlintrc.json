@@ -1,0 +1,493 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "components/core/**",
+              "components/market/**",
+              "vendor/lightweight-charts/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Space Grotesk|Anton|DM Mono))/i]",
+        "message": "Font not provided by the design system. Available: Space Grotesk, Anton, DM Mono."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AgeLine'] > JSXAttribute > JSXIdentifier[name!=/^(?:seconds|windowSeconds|missing|key|ref|className|style|children)$/]",
+        "message": "<AgeLine> doesn't accept that prop. Declared props: seconds, windowSeconds, missing."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CallBands'] > JSXAttribute > JSXIdentifier[name!=/^(?:template|venueSpan|tickerSpan|oiSpan|depthSpan|venueLabel|tickerLabel|oiLabel|depthLabel|key|ref|className|style|children)$/]",
+        "message": "<CallBands> doesn't accept that prop. Declared props: template, venueSpan, tickerSpan, oiSpan, depthSpan, venueLabel, tickerLabel, oiLabel, depthLabel."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CandlePanel'] > JSXAttribute > JSXIdentifier[name!=/^(?:platform|symbol|range|onMount|height|key|ref|className|style|children)$/]",
+        "message": "<CandlePanel> doesn't accept that prop. Declared props: platform, symbol, range, onMount, height."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CompareBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|max|call|width|opacity|key|ref|className|style|children)$/]",
+        "message": "<CompareBar> doesn't accept that prop. Declared props: value, max, call, width, opacity."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CompareBar'] > JSXAttribute[name.name='call'] > Literal[value!=/^(?:ticker|oi)$/]",
+        "message": "<CompareBar> call must be one of 'ticker' | 'oi'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FreshnessCall'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|seconds|key|ref|className|style|children)$/]",
+        "message": "<FreshnessCall> doesn't accept that prop. Declared props: label, seconds."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MetricCell'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|decimals|signed|percent|unit|bid|ask|max|call|series|hot|best|band|age|windowSeconds|tint|key|ref|className|style|children)$/]",
+        "message": "<MetricCell> doesn't accept that prop. Declared props: value, decimals, signed, percent, unit, bid, ask, max, call, series, hot, best, band, age, windowSeconds, tint."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MetricCell'] > JSXAttribute[name.name='call'] > Literal[value!=/^(?:ticker|oi|depth)$/]",
+        "message": "<MetricCell> call must be one of 'ticker' | 'oi' | 'depth'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MetricCell'] > JSXAttribute[name.name='band'] > Literal[value!=/^(?:tight|wide)$/]",
+        "message": "<MetricCell> band must be one of 'tight' | 'wide'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MetricCell'] > JSXAttribute[name.name='tint'] > Literal[value!=/^(?:oi|depth)$/]",
+        "message": "<MetricCell> tint must be one of 'oi' | 'depth'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MirrorBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:bid|ask|max|width|opacity|key|ref|className|style|children)$/]",
+        "message": "<MirrorBar> doesn't accept that prop. Declared props: bid, ask, max, width, opacity."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Num'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|decimals|signed|percent|unit|tone|size|align|title|opacity|key|ref|className|style|children)$/]",
+        "message": "<Num> doesn't accept that prop. Declared props: value, decimals, signed, percent, unit, tone, size, align, title, opacity."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Num'] > JSXAttribute[name.name='align'] > Literal[value!=/^(?:left|right)$/]",
+        "message": "<Num> align must be one of 'left' | 'right'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Sparkline'] > JSXAttribute > JSXIdentifier[name!=/^(?:values|call|hot|width|height|opacity|key|ref|className|style|children)$/]",
+        "message": "<Sparkline> doesn't accept that prop. Declared props: values, call, hot, width, height, opacity."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Sparkline'] > JSXAttribute[name.name='call'] > Literal[value!=/^(?:ticker|oi|depth)$/]",
+        "message": "<Sparkline> call must be one of 'ticker' | 'oi' | 'depth'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StateDot'] > JSXAttribute > JSXIdentifier[name!=/^(?:state|size|title|key|ref|className|style|children)$/]",
+        "message": "<StateDot> doesn't accept that prop. Declared props: state, size, title."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StateDot'] > JSXAttribute[name.name='state'] > Literal[value!=/^(?:observed|stale|none)$/]",
+        "message": "<StateDot> state must be one of 'observed' | 'stale' | 'none'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tag'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|children|title|key|ref|className|style|children)$/]",
+        "message": "<Tag> doesn't accept that prop. Declared props: tone, children, title."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='VenueCell'] > JSXAttribute > JSXIdentifier[name!=/^(?:platform|kind|calls|windowSeconds|title|key|ref|className|style|children)$/]",
+        "message": "<VenueCell> doesn't accept that prop. Declared props: platform, kind, calls, windowSeconds, title."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='VenueCell'] > JSXAttribute[name.name='kind'] > Literal[value!=/^(?:spot|perp)$/]",
+        "message": "<VenueCell> kind must be one of 'spot' | 'perp'."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "AgeLine": {
+        "replaces": []
+      },
+      "CallBands": {
+        "replaces": []
+      },
+      "CandlePanel": {
+        "replaces": []
+      },
+      "CompareBar": {
+        "replaces": []
+      },
+      "FreshnessCall": {
+        "replaces": []
+      },
+      "MetricCell": {
+        "replaces": []
+      },
+      "MirrorBar": {
+        "replaces": []
+      },
+      "Num": {
+        "replaces": []
+      },
+      "Sparkline": {
+        "replaces": []
+      },
+      "StateDot": {
+        "replaces": []
+      },
+      "Tag": {
+        "replaces": []
+      },
+      "VenueCell": {
+        "replaces": []
+      }
+    },
+    "tokens": [
+      "--accent",
+      "--action-primary",
+      "--action-primary-hover",
+      "--age-fresh",
+      "--age-scale",
+      "--age-slot-w",
+      "--age-spent",
+      "--band-depth",
+      "--band-ink",
+      "--band-ink-dark",
+      "--band-oi",
+      "--band-ticker",
+      "--bar-depth-ask",
+      "--bar-depth-bid",
+      "--bar-h",
+      "--bar-oi",
+      "--bar-ticker",
+      "--bar-w",
+      "--border-card",
+      "--border-hairline",
+      "--border-input",
+      "--border-strong",
+      "--brand",
+      "--brand-deep",
+      "--brand-text",
+      "--call-depth",
+      "--call-oi",
+      "--call-ticker",
+      "--candle-down",
+      "--candle-up",
+      "--chart-h",
+      "--control-h",
+      "--dot",
+      "--dot-pattern",
+      "--dot-size",
+      "--dur",
+      "--dur-fast",
+      "--ease",
+      "--eyebrow",
+      "--fade-exponent",
+      "--fade-floor",
+      "--focus-ring",
+      "--font-body",
+      "--font-display",
+      "--font-heading",
+      "--font-mono",
+      "--fs-age",
+      "--fs-body",
+      "--fs-caption",
+      "--fs-data",
+      "--fs-eyebrow",
+      "--fs-h1",
+      "--fs-h2",
+      "--fs-h3",
+      "--fs-meta",
+      "--fs-micro",
+      "--fs-statement",
+      "--fs-ui",
+      "--fw-bold",
+      "--fw-light",
+      "--fw-medium",
+      "--fw-regular",
+      "--fw-semibold",
+      "--gap-block",
+      "--gap-cell",
+      "--gap-grid",
+      "--gap-inline",
+      "--hairline",
+      "--kind-perp",
+      "--kind-spot",
+      "--lh-body",
+      "--lh-flat",
+      "--lh-h1",
+      "--lh-mono",
+      "--link",
+      "--link-hover",
+      "--measure-legend",
+      "--measure-note",
+      "--mirror-h",
+      "--mirror-w",
+      "--pad-cell",
+      "--pad-panel",
+      "--page-max",
+      "--panel-border",
+      "--radius-circle",
+      "--radius-control",
+      "--radius-lg",
+      "--radius-md",
+      "--radius-panel",
+      "--radius-sm",
+      "--radius-xs",
+      "--row-band-h",
+      "--row-eyebrow-h",
+      "--row-h",
+      "--shadow-none",
+      "--shadow-panel",
+      "--slot-mark",
+      "--space-1",
+      "--space-10",
+      "--space-11",
+      "--space-12",
+      "--space-2",
+      "--space-3",
+      "--space-4",
+      "--space-5",
+      "--space-6",
+      "--space-7",
+      "--space-8",
+      "--space-9",
+      "--spark-depth",
+      "--spark-depth-hot",
+      "--spark-h",
+      "--spark-oi",
+      "--spark-oi-hot",
+      "--spark-ticker",
+      "--spark-ticker-hot",
+      "--spark-w",
+      "--state-hold-ink",
+      "--state-running",
+      "--state-stale",
+      "--state-stopped",
+      "--strip-h",
+      "--strip-w",
+      "--surface-band",
+      "--surface-card",
+      "--surface-overlay",
+      "--surface-page",
+      "--surface-sunken",
+      "--tag-best-bg",
+      "--tag-best-ink",
+      "--tag-tight",
+      "--tag-wide",
+      "--tag-worst-bg",
+      "--tag-worst-ink",
+      "--tap-min",
+      "--text-body",
+      "--text-data",
+      "--text-faint",
+      "--text-heading",
+      "--text-muted",
+      "--text-on-action",
+      "--text-unmeasured",
+      "--text-zero",
+      "--tint-brand",
+      "--tint-depth",
+      "--tint-neutral",
+      "--tint-oi",
+      "--tint-ticker",
+      "--track-age",
+      "--track-badge",
+      "--track-eyebrow",
+      "--track-h1",
+      "--track-label",
+      "--track-num",
+      "--transition-color"
+    ],
+    "tokenKinds": {
+      "--surface-page": "color",
+      "--surface-card": "color",
+      "--surface-sunken": "color",
+      "--surface-band": "color",
+      "--surface-overlay": "color",
+      "--text-heading": "font",
+      "--text-body": "font",
+      "--text-muted": "font",
+      "--text-faint": "font",
+      "--text-data": "font",
+      "--text-zero": "font",
+      "--text-unmeasured": "font",
+      "--eyebrow": "color",
+      "--text-on-action": "font",
+      "--brand": "color",
+      "--brand-deep": "color",
+      "--brand-text": "font",
+      "--accent": "color",
+      "--action-primary": "color",
+      "--action-primary-hover": "color",
+      "--link": "color",
+      "--link-hover": "color",
+      "--call-ticker": "color",
+      "--call-oi": "color",
+      "--call-depth": "color",
+      "--band-ticker": "color",
+      "--band-oi": "color",
+      "--band-depth": "color",
+      "--band-ink": "color",
+      "--band-ink-dark": "color",
+      "--tint-ticker": "color",
+      "--tint-oi": "color",
+      "--tint-depth": "color",
+      "--bar-ticker": "color",
+      "--bar-oi": "color",
+      "--bar-depth-bid": "color",
+      "--bar-depth-ask": "color",
+      "--spark-ticker": "color",
+      "--spark-ticker-hot": "color",
+      "--spark-oi": "color",
+      "--spark-oi-hot": "color",
+      "--spark-depth": "color",
+      "--spark-depth-hot": "color",
+      "--age-scale": "color",
+      "--age-fresh": "color",
+      "--age-spent": "color",
+      "--state-stale": "color",
+      "--state-hold-ink": "color",
+      "--state-running": "color",
+      "--state-stopped": "color",
+      "--candle-up": "color",
+      "--candle-down": "color",
+      "--tag-best-bg": "color",
+      "--tag-best-ink": "color",
+      "--tag-worst-bg": "color",
+      "--tag-worst-ink": "color",
+      "--tag-tight": "color",
+      "--tag-wide": "color",
+      "--kind-spot": "color",
+      "--kind-perp": "color",
+      "--border-hairline": "color",
+      "--border-card": "color",
+      "--border-strong": "color",
+      "--border-input": "color",
+      "--tint-neutral": "color",
+      "--tint-brand": "color",
+      "--dot-pattern": "color",
+      "--dot-size": "spacing",
+      "--font-display": "font",
+      "--font-body": "font",
+      "--font-mono": "font",
+      "--font-heading": "font",
+      "--fs-age": "font",
+      "--fs-eyebrow": "font",
+      "--fs-micro": "font",
+      "--fs-caption": "font",
+      "--fs-data": "font",
+      "--fs-meta": "font",
+      "--fs-body": "font",
+      "--fs-ui": "font",
+      "--fs-h3": "font",
+      "--fs-h2": "font",
+      "--fs-h1": "font",
+      "--fs-statement": "font",
+      "--fw-light": "font",
+      "--fw-regular": "font",
+      "--fw-medium": "font",
+      "--fw-semibold": "font",
+      "--fw-bold": "font",
+      "--lh-flat": "font",
+      "--lh-h1": "font",
+      "--lh-mono": "font",
+      "--lh-body": "font",
+      "--track-h1": "font",
+      "--track-eyebrow": "font",
+      "--track-label": "font",
+      "--track-badge": "font",
+      "--track-age": "font",
+      "--track-num": "font",
+      "--measure-note": "spacing",
+      "--measure-legend": "spacing",
+      "--space-1": "spacing",
+      "--space-2": "spacing",
+      "--space-3": "spacing",
+      "--space-4": "spacing",
+      "--space-5": "spacing",
+      "--space-6": "spacing",
+      "--space-7": "spacing",
+      "--space-8": "spacing",
+      "--space-9": "spacing",
+      "--space-10": "spacing",
+      "--space-11": "spacing",
+      "--space-12": "spacing",
+      "--row-h": "spacing",
+      "--row-eyebrow-h": "spacing",
+      "--row-band-h": "spacing",
+      "--pad-cell": "spacing",
+      "--pad-panel": "spacing",
+      "--gap-cell": "spacing",
+      "--gap-inline": "spacing",
+      "--gap-block": "spacing",
+      "--gap-grid": "spacing",
+      "--slot-mark": "spacing",
+      "--spark-w": "spacing",
+      "--spark-h": "spacing",
+      "--bar-w": "spacing",
+      "--bar-h": "spacing",
+      "--mirror-w": "spacing",
+      "--mirror-h": "spacing",
+      "--age-slot-w": "spacing",
+      "--strip-w": "spacing",
+      "--strip-h": "spacing",
+      "--dot": "spacing",
+      "--page-max": "spacing",
+      "--chart-h": "spacing",
+      "--control-h": "spacing",
+      "--tap-min": "spacing",
+      "--radius-xs": "radius",
+      "--radius-sm": "radius",
+      "--radius-md": "radius",
+      "--radius-lg": "radius",
+      "--radius-circle": "radius",
+      "--radius-panel": "radius",
+      "--radius-control": "radius",
+      "--hairline": "other",
+      "--panel-border": "other",
+      "--shadow-none": "shadow",
+      "--shadow-panel": "shadow",
+      "--focus-ring": "other",
+      "--fade-floor": "other",
+      "--fade-exponent": "other",
+      "--dur-fast": "other",
+      "--dur": "other",
+      "--ease": "other",
+      "--transition-color": "other"
+    },
+    "fontFamilies": [
+      "Anton",
+      "DM Mono",
+      "Space Grotesk"
+    ]
+  }
+}

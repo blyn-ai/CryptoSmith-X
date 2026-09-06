@@ -1,0 +1,24 @@
+<!-- @dsCard group="Brand" viewport="700x140" subtitle="What is framed, what is not, and what a dash means" name="Marks and states" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;padding:16px;background:var(--surface-page)}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:8px}
+  .sw{display:flex;flex-direction:column;gap:5px;min-width:104px}
+  .chip{height:34px;display:flex;align-items:flex-end;padding:4px 6px}
+  .k{font:500 9px/1.2 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-heading)}
+  .v{font:400 9px/1.2 var(--font-mono);color:var(--text-faint)}
+  .cell{padding:8px 10px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;background:var(--surface-card);border:1px solid var(--border-hairline);min-width:104px}
+  .n{font:400 12px/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
+  .age{font:400 8.5px/1 var(--font-mono);letter-spacing:.02em;color:var(--text-faint)}
+  .lbl{font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase}
+</style></head><body>
+<div class="row" style="gap:20px">
+<div class="sw"><span class="lbl" style="color:var(--tag-best-ink);background:var(--tag-best-bg);padding:2px 5px;align-self:flex-start">Best</span><div class="v">the winner of a column — the one chip</div></div>
+<div class="sw"><span class="lbl" style="color:var(--tag-tight)">Tight</span><span class="lbl" style="color:var(--tag-wide)">Wide</span><div class="v">under 8 bps / over 25 — unframed</div></div>
+<div class="sw"><span class="lbl" style="color:var(--kind-spot)">Spot</span><span class="lbl" style="color:var(--kind-perp)">Perp</span><div class="v">instrument type — unframed</div></div>
+<div class="sw"><div class="row" style="gap:6px"><i style="width:9px;height:9px;border-radius:50%;background:var(--state-running)"></i><i style="width:9px;height:9px;border-radius:50%;border:1px solid var(--state-stopped)"></i></div><div class="v">observed / no data</div></div>
+<div class="sw"><div class="n" style="color:var(--text-unmeasured)">—</div><div class="v">not measured, never a zero</div></div>
+</div></body></html>

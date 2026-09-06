@@ -1,0 +1,20 @@
+<!-- @dsCard group="Brand" viewport="700x130" subtitle="A 4px dot raster under the cards, never through one" name="The sheet" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;padding:16px;background:var(--surface-page)}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:8px}
+  .sw{display:flex;flex-direction:column;gap:5px;min-width:104px}
+  .chip{height:34px;display:flex;align-items:flex-end;padding:4px 6px}
+  .k{font:500 9px/1.2 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-heading)}
+  .v{font:400 9px/1.2 var(--font-mono);color:var(--text-faint)}
+  .cell{padding:8px 10px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;background:var(--surface-card);border:1px solid var(--border-hairline);min-width:104px}
+  .n{font:400 12px/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
+  .age{font:400 8.5px/1 var(--font-mono);letter-spacing:.02em;color:var(--text-faint)}
+  .lbl{font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase}
+</style></head><body>
+<div style="padding:14px;background:var(--surface-page);background-image:var(--dot-pattern);background-size:var(--dot-size) var(--dot-size)">
+<div style="padding:12px;background:var(--surface-card);border:1px solid var(--border-card);font:400 11px/1.5 var(--font-mono);color:var(--text-muted)">Panels are opaque. The raster shows on the sheet around them and never behind a figure.</div>
+</div></body></html>

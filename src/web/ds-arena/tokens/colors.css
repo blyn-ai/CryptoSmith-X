@@ -1,0 +1,116 @@
+/* CSX Arena — colour.
+
+   The market surface of CryptoSmith X: a public monitor that compares venues. Its palette is
+   the apricot register of the sibling product meetluko.eu (LKSPec/luko, website/styles.css),
+   widened by one bronze rung for the depth sweep. Five hues, each with exactly one job:
+
+     magenta  #B0007F  the ticker call — the fast clock, and the page's accent
+     green    #2F5A00  the open-interest call — the slow one
+     bronze   #8A5A12  the depth sweep — its own call again
+     pink     #FF4BD8  the only alarm: this call is past its window
+     acid     #8BFF6B  the loud note, kept rare: top rule, BEST chip, brand fill
+     ink      #1E1408  every figure. Data before decoration.
+
+   Arena is the day theme (:root). Night is [data-theme="night"] — same token set at
+   different luminance, magenta still the accent. Green and bronze are CALL colours here,
+   not money colours: this surface states no P&L, so nothing on it means profit or loss. */
+:root{
+/* ── surfaces ── */
+--surface-page:#FFDFAF;--surface-card:#FFF3DE;--surface-sunken:#FFE7C4;--surface-band:#FFF3DE;
+--surface-overlay:rgba(30,20,8,.42);
+
+/* ── text ── */
+--text-heading:#1E1408;--text-body:#3A2A16;--text-muted:#6B5230;--text-faint:#7A5F3C;
+--text-data:#1E1408;--text-zero:#7A5F3C;--text-unmeasured:#8C6E44;--eyebrow:#6B5230;
+--text-on-action:#FFF3DE;
+
+/* ── brand: acid is the fill rung, deep green the text rung, magenta the accent ── */
+--brand:#8BFF6B;--brand-deep:#2F5A00;--brand-text:#2F5A00;
+--accent:#B0007F;--action-primary:#B0007F;--action-primary-hover:#1E1408;
+--link:#B0007F;--link-hover:#1E1408;
+
+/* ── the three calls, as fills and as inks ── */
+--call-ticker:#B0007F;--call-oi:#2F5A00;--call-depth:#8A5A12;
+--band-ticker:#B0007F;--band-oi:#2F5A00;--band-depth:#8A5A12;
+--band-ink:#FFF3DE;--band-ink-dark:#1E1408;
+--tint-ticker:transparent;--tint-oi:rgba(47,90,0,.035);--tint-depth:rgba(138,90,18,.05);
+
+/* ── comparative bars: a figure against the largest venue on screen ── */
+--bar-ticker:rgba(176,0,127,.55);--bar-oi:#2F5A00;
+--bar-depth-bid:rgba(138,90,18,.85);--bar-depth-ask:rgba(201,168,106,.9);
+
+/* ── hourly lines: half strength normally, full where the series ran ── */
+--spark-ticker:rgba(176,0,127,.55);--spark-ticker-hot:#B0007F;
+--spark-oi:rgba(47,90,0,.55);--spark-oi-hot:#2F5A00;
+--spark-depth:rgba(138,90,18,.55);--spark-depth-hot:#8A5A12;
+
+/* ── freshness: a scale, not a state. Green where a call just landed, magenta where spent ── */
+--age-scale:linear-gradient(90deg,#8BFF6B,#B0007F); /* @kind color */
+--age-fresh:#8BFF6B;--age-spent:#B0007F;
+--state-stale:#FF4BD8;--state-hold-ink:#B0007F;--state-running:#1E1408;--state-stopped:rgba(30,20,8,.35);
+
+/* ── candles: direction is not a result, so it is not the money palette ── */
+--candle-up:#3F8F14;--candle-down:#B0007F;
+
+/* ── marks ── */
+/* Verdict marks. A wash, not a fill: the chip has to be readable at 9px, and a saturated
+   ground eats the word. BEST and WORST are computed across the venues on screen, so they are
+   the one framed thing in the table that is not a control — and they do not fade with the
+   row, because a verdict is not read off the call the row is waiting on. */
+--tag-best-bg:rgba(139,255,107,.5);--tag-best-ink:#2A4E00;
+--tag-worst-bg:rgba(176,0,127,.14);--tag-worst-ink:#8E0066;
+--tag-tight:#2F5A00;--tag-wide:#8E0066;
+--kind-spot:#2F5A00;--kind-perp:#B0007F;
+
+/* ── borders. A border means STATE or CONTROL; categorical labels wear none. ── */
+--border-hairline:rgba(30,20,8,.14);--border-card:rgba(30,20,8,.26);--border-strong:#B0007F;
+--border-input:rgba(30,20,8,.34);
+--tint-neutral:rgba(30,20,8,.09);--tint-brand:rgba(176,0,127,.08);
+
+/* ── the sheet: a 4 px raster under the card, never through a panel ── */
+--dot-pattern:radial-gradient(rgba(30,20,8,.06) 1px,transparent 1px); /* @kind color */
+--dot-size:4px; /* @kind spacing */
+}
+
+[data-theme="night"]{
+--surface-page:#0D0B08;--surface-card:#17130D;--surface-sunken:#0A0806;--surface-band:#17130D;
+--surface-overlay:rgba(0,0,0,.6);
+
+--text-heading:#FFDFAF;--text-body:#E6C89B;--text-muted:#C2A57B;--text-faint:#A88E66;
+--text-data:#FFDFAF;--text-zero:#A88E66;--text-unmeasured:#8F7A57;--eyebrow:#C2A57B;
+--text-on-action:#0D0B08;
+
+--brand:#8BFF6B;--brand-deep:#8BFF6B;--brand-text:#8BFF6B;
+--accent:#FF4BD8;--action-primary:#B0007F;--action-primary-hover:#FFDFAF;
+--link:#FF4BD8;--link-hover:#FFDFAF;
+
+--call-ticker:#FF4BD8;--call-oi:#8BFF6B;--call-depth:#C9A86A;
+--band-ticker:#B0007F;--band-oi:#3F8F14;--band-depth:#8A5A12;
+--band-ink:#FFDFAF;--band-ink-dark:#0D0B08;
+--tint-ticker:transparent;--tint-oi:rgba(139,255,107,.06);--tint-depth:rgba(201,168,106,.07);
+
+--bar-ticker:rgba(255,75,216,.55);--bar-oi:#8BFF6B;
+--bar-depth-bid:rgba(201,168,106,.85);--bar-depth-ask:rgba(201,168,106,.4);
+
+--spark-ticker:rgba(255,75,216,.5);--spark-ticker-hot:#FF4BD8;
+--spark-oi:rgba(139,255,107,.5);--spark-oi-hot:#8BFF6B;
+--spark-depth:rgba(201,168,106,.5);--spark-depth-hot:#C9A86A;
+
+--age-scale:linear-gradient(90deg,#8BFF6B,#FF4BD8); /* @kind color */
+--age-fresh:#8BFF6B;--age-spent:#FF4BD8;
+--state-stale:#FF4BD8;--state-hold-ink:#FF4BD8;--state-running:#FFDFAF;--state-stopped:rgba(255,223,175,.3);
+
+--candle-up:#8BFF6B;--candle-down:#FF4BD8;
+
+--tag-best-bg:rgba(139,255,107,.22);--tag-best-ink:#8BFF6B;
+--tag-worst-bg:rgba(255,75,216,.18);--tag-worst-ink:#FF4BD8;
+--tag-tight:#8BFF6B;--tag-wide:#FF4BD8;
+--kind-spot:#C2A57B;--kind-perp:#FF4BD8;
+
+--border-hairline:rgba(255,223,175,.16);--border-card:rgba(255,223,175,.3);--border-strong:#FF4BD8;
+--border-input:rgba(255,223,175,.36);
+--tint-neutral:rgba(255,223,175,.1);--tint-brand:rgba(255,75,216,.12);
+
+--dot-pattern:radial-gradient(rgba(255,223,175,.07) 1px,transparent 1px); /* @kind color */
+--dot-size:4px; /* @kind spacing */
+}

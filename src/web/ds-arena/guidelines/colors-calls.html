@@ -1,0 +1,24 @@
+<!-- @dsCard group="Colors" viewport="700x150" subtitle="One hue per call — and they are call colours, not money colours" name="The three calls" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;padding:16px;background:var(--surface-page)}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:8px}
+  .sw{display:flex;flex-direction:column;gap:5px;min-width:104px}
+  .chip{height:34px;display:flex;align-items:flex-end;padding:4px 6px}
+  .k{font:500 9px/1.2 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-heading)}
+  .v{font:400 9px/1.2 var(--font-mono);color:var(--text-faint)}
+  .cell{padding:8px 10px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;background:var(--surface-card);border:1px solid var(--border-hairline);min-width:104px}
+  .n{font:400 12px/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
+  .age{font:400 8.5px/1 var(--font-mono);letter-spacing:.02em;color:var(--text-faint)}
+  .lbl{font:500 9px/1 var(--font-mono);letter-spacing:.17em;text-transform:uppercase}
+</style></head><body>
+<div class="row">
+<div class="sw"><div class="chip" style="background:var(--band-ticker)"></div><div class="k">Ticker</div><div class="v">#B0007F</div></div>
+<div class="sw"><div class="chip" style="background:var(--band-oi)"></div><div class="k">OI</div><div class="v">#2F5A00</div></div>
+<div class="sw"><div class="chip" style="background:var(--band-depth)"></div><div class="k">Depth</div><div class="v">#8A5A12</div></div>
+<div class="sw"><div class="chip" style="background:var(--bar-depth-ask)"></div><div class="k">Depth ask</div><div class="v">#C9A86A</div></div>
+</div>
+<p class="v" style="margin:12px 0 0;max-width:60ch">Green and bronze mean <b>which call</b>, never profit and loss — this surface states no P&amp;L. The same three hues carry every bar, line and tick in the column they head.</p></body></html>
