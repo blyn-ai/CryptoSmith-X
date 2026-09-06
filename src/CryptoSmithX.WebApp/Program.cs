@@ -96,30 +96,43 @@ app.UseAuthorization();
 app.MapGet("/zurnalas", (IWebHostEnvironment env) =>
     Results.File(Path.Combine(env.WebRootPath, "ui-mocks", "zurnalas.html"), "text/html"));
 // Prototypes: reachable by anyone holding the link, deliberately kept out of search.
-// They render invented numbers for products that do not exist — /arena alone shows
-// "128 strategies · telemetry verified 100% · 4,489 observations" — and a search
+// They render invented numbers for products that do not exist — the Arena mock alone
+// shows "128 strategies · telemetry verified 100% · 4,489 observations" — and a search
 // result carrying those under the company's own domain stops being a mockup and
 // becomes a claim, from a company whose published position is that its figures are
 // research data and not an offer. noindex rather than a robots Disallow on purpose:
 // a disallowed URL can still be listed, because the crawler never gets far enough to
 // read the instruction telling it not to.
-// /ui-mocks is the superseded Lithuanian landing, a near-duplicate of the front page.
-foreach (var (route, page) in new[]
+//
+// They live under /feature-demo/ because the product is about to want their names.
+// The real Arena takes /arena; a mock sitting on the address of the thing it mocks is
+// a collision waiting for the deploy that loses one of them. The prefix says what
+// these are — a demonstration of a feature — so the top-level names stay free for
+// features that exist.
+// /feature-demo/ui-mocks is the superseded Lithuanian landing, a near-duplicate of the front page.
+foreach (var (name, page) in new[]
          {
-             ("/config", "config.html"),
-             ("/agent", "agent.html"),
-             ("/arena", "arena.html"),
-             ("/strategy-modeler", "strategy-modeler.html"),
-             ("/pairs-monitor", "pairs-monitor.html"),
-             ("/ui-mocks", "index.html"),
+             ("config", "config.html"),
+             ("agent", "agent.html"),
+             ("arena", "arena.html"),
+             ("strategy-modeler", "strategy-modeler.html"),
+             ("pairs-monitor", "pairs-monitor.html"),
+             ("ui-mocks", "index.html"),
          })
 {
     var file = page;
-    app.MapGet(route, (HttpContext ctx, IWebHostEnvironment env) =>
+    app.MapGet($"/feature-demo/{name}", (HttpContext ctx, IWebHostEnvironment env) =>
     {
         ctx.Response.Headers["X-Robots-Tag"] = "noindex";
         return Results.File(Path.Combine(env.WebRootPath, "ui-mocks", file), "text/html");
     });
+
+    // The old top-level address was shared with people, so it keeps answering. Found
+    // and not Moved Permanently on purpose: a 301 is cached by the browser for as long
+    // as it likes, and /arena is precisely the address the real Arena will claim — a
+    // permanent redirect there would send the people who once opened the mock to the
+    // mock forever, from their own cache, where no deploy can reach them.
+    app.MapGet($"/{name}", () => Results.Redirect($"/feature-demo/{name}", permanent: false));
 }
 
 // The re-execute target. Sends the status through itself so the page a person reads
