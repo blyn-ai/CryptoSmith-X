@@ -1,13 +1,45 @@
-# Cloudflare puts its managed AI-crawler block ahead of this file at the edge, so
-# what a crawler fetches is that block first and these rules after it.
+# Cloudflare puts its managed AI-crawler block ahead of this file at the edge, so what a
+# crawler fetches is that block first — content-signal definitions, its own User-agent: *
+# with Allow: /, then nine AI-bot Disallow groups — and these lines after it. Measured on
+# the wire: this file is a few hundred bytes, the served one close to two thousand. That
+# gap is the edge, not a tampered file.
 #
-# The prototype pages are not listed here on purpose. They carry
-# X-Robots-Tag: noindex instead: a Disallow would stop a crawler before it ever
-# read the instruction, and a blocked URL can still be listed by reference.
+# The consequence is worth stating once, because it is invisible from here: the served file
+# has TWO User-agent: * groups, and the Disallow lines below are in the second one. Per RFC
+# 9309 a crawler selects one group by user-agent match and merges the records that match
+# it, so the rules below do apply — but do not write a rule here on the assumption that
+# anyone reading the served file will find it where they expect. Sitemap directives are
+# group-independent and untouched by any of this.
 
 User-agent: *
 Disallow: /Admin
 Disallow: /api/
 Allow: /
 
+# The prototype pages are not listed above on purpose. They moved to /feature-demo/ and the
+# old top-level addresses answer 302; they render invented figures for products that do not
+# exist; and they carry X-Robots-Tag: noindex instead of a Disallow. A Disallow is the
+# weaker instrument here: it stops the crawler before it ever reads the instruction, and a
+# blocked URL can still be listed by reference. Blocking the crawl is not how you ask for a
+# page to be left out.
+
+# TWO APPLICATIONS ANSWER ON THIS HOST, AND EACH DECLARES ITS OWN URLS.
+#
+# This file is the only robots.txt either of them can have: a crawler reads robots.txt at
+# the host root and nowhere else, so a file served at /arena/robots.txt would be a file
+# nobody fetches. Hence two Sitemap lines here rather than two robots.txt files. Multiple
+# Sitemap lines are explicitly permitted and unlimited.
+#
+# A Sitemap line names an ADDRESS. That is the whole reason this shape was chosen over the
+# two alternatives: the address below is Arena's own front door, it is the same string
+# whatever Arena decides to publish, and so this file cannot go stale about Arena's
+# contents. A sitemap index here, or Arena's pages listed in this application's sitemap,
+# would both make one deploy responsible for another application's inventory. Argued in
+# full in plans/sitemaps.md.
+#
+# The second line is true only where Arena is actually running. Both containers are built
+# from this repository, so the line is wrong only in a deployment that took one and not the
+# other — and a crawler's answer to a sitemap it cannot fetch is to report it and move on,
+# which is the right size of consequence for exactly that mistake.
 Sitemap: https://cryptosmithx.blynai.eu/sitemap.xml
+Sitemap: https://cryptosmithx.blynai.eu/arena/sitemap.xml
