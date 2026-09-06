@@ -75,7 +75,6 @@ public sealed class BinanceBookBuilder
         DateTimeOffset at)
     {
         var book = _books.GetOrAdd(symbol, _ => new SymbolBook());
-        List<PendingFrame> replay;
 
         lock (book.Gate)
         {
@@ -98,7 +97,21 @@ public sealed class BinanceBookBuilder
             book.SeedFloor = book.Bids.Count > 0 ? book.Bids.Keys.Min() : 0;
             book.SeedCeiling = book.Asks.Count > 0 ? book.Asks.Keys.Max() : double.MaxValue;
 
-            replay = book.Pending;
+            // How much this seed could answer AT THE MOMENT IT WAS TAKEN — the baseline
+            // SeedWindowOutgrown compares against later. Recording it is what stops that check from
+            // firing on a book that was never going to cover the deep bands in the first place:
+            // BTCUSDT at limit=1000 reaches ~17 bps, so "the 50 bps band is uncovered" is its
+            // permanent, correct condition and must not be read as "the price has moved". Without
+            // this baseline the cross-check marked the venue's two most liquid symbols dirty on
+            // every pass and reseeded them forever, at weight 20 a time, for no gain at all —
+            // observed on a live run, not imagined.
+            var seedMid = book.Bids.Count > 0 && book.Asks.Count > 0
+                ? (book.Bids.Keys.Max() + book.Asks.Keys.Min()) / 2
+                : 0;
+            book.SeedBidReachBps = WidestCoveredBps(bps => BidCovered(seedMid, bps, book.SeedFloor));
+            book.SeedAskReachBps = WidestCoveredBps(bps => AskCovered(seedMid, bps, book.SeedCeiling));
+
+            var replay = book.Pending;
             book.Pending = [];
 
             // Replayed INSIDE the lock, and that is not incidental. Seeding runs on the seed loop's
@@ -149,60 +162,60 @@ public sealed class BinanceBookBuilder
         IReadOnlyList<(double Price, double Qty)> asks,
         DateTimeOffset at)
     {
+        // Buffered rather than dropped — and a book being RESEEDED is in exactly the same position
+        // as one being seeded for the first time. Binance's procedure needs frames from BEFORE the
+        // snapshot in hand, because the frame that straddles it is the one that starts the chain,
+        // and by the time the snapshot arrives that frame is already in the past.
+        //
+        // `Dirty` is precisely the state of waiting for a snapshot, so dropping frames while dirty
+        // throws away the seam and the reseed cannot possibly succeed: the snapshot lands, the next
+        // live frame starts after it, the first-event rule correctly calls that a gap, and the
+        // twenty weight bought nothing. Every reconnect goes through here — Binance closes public
+        // streams after twenty-four hours, so this is a daily event, not an edge case.
+        if (!book.Seeded || book.Dirty)
         {
-            if (!book.Seeded)
+            if (book.Pending.Count >= PendingLimit)
             {
-                // Buffered rather than dropped: Binance's procedure needs frames from BEFORE the
-                // snapshot in hand, because the frame that straddles it is the one that starts the
-                // chain, and by the time the snapshot arrives that frame is already in the past.
-                if (book.Pending.Count >= PendingLimit)
-                {
-                    book.Pending.RemoveAt(0);
-                }
-
-                book.Pending.Add(new PendingFrame(firstUpdateId, lastUpdateId, previousUpdateId, bids, asks));
-                return DeltaResult.Buffered;
+                book.Pending.RemoveAt(0);
             }
 
-            if (book.Dirty)
-            {
-                return DeltaResult.Ignored;   // waiting on a reseed; applying now would compound the error
-            }
+            book.Pending.Add(new PendingFrame(firstUpdateId, lastUpdateId, previousUpdateId, bids, asks));
+            return DeltaResult.Buffered;
+        }
 
-            // Already contained in the snapshot. Not a gap and not an error — just work already done.
-            if (lastUpdateId < book.LastUpdateId)
-            {
-                return DeltaResult.Ignored;
-            }
+        // Already contained in the snapshot. Not a gap and not an error — just work already done.
+        if (lastUpdateId < book.LastUpdateId)
+        {
+            return DeltaResult.Ignored;
+        }
 
-            if (book.AwaitingFirstEvent)
+        if (book.AwaitingFirstEvent)
+        {
+            // THE FIRST-EVENT RULE. The seam frame is the one whose range straddles the
+            // snapshot's lastUpdateId; anything that starts after it means the frames in between
+            // were missed while the snapshot was being fetched.
+            if (firstUpdateId > book.LastUpdateId)
             {
-                // THE FIRST-EVENT RULE. The seam frame is the one whose range straddles the
-                // snapshot's lastUpdateId; anything that starts after it means the frames in between
-                // were missed while the snapshot was being fetched.
-                if (firstUpdateId > book.LastUpdateId)
-                {
-                    book.Dirty = true;
-                    return DeltaResult.Gap;
-                }
-
-                book.AwaitingFirstEvent = false;
-            }
-            else if (previousUpdateId != book.LastUpdateId)
-            {
-                // THE STEADY-STATE RULE. pu is the previous frame's u; anything else means frames
-                // were missed, or duplicated, or belong to another stream. All three are the same
-                // statement: this book can no longer be trusted.
                 book.Dirty = true;
                 return DeltaResult.Gap;
             }
 
-            Apply(book.Bids, bids);
-            Apply(book.Asks, asks);
-            book.LastUpdateId = lastUpdateId;
-            book.UpdatedAt = at;
-            return DeltaResult.Applied;
+            book.AwaitingFirstEvent = false;
         }
+        else if (previousUpdateId != book.LastUpdateId)
+        {
+            // THE STEADY-STATE RULE. pu is the previous frame's u; anything else means frames
+            // were missed, or duplicated, or belong to another stream. All three are the same
+            // statement: this book can no longer be trusted.
+            book.Dirty = true;
+            return DeltaResult.Gap;
+        }
+
+        Apply(book.Bids, bids);
+        Apply(book.Asks, asks);
+        book.LastUpdateId = lastUpdateId;
+        book.UpdatedAt = at;
+        return DeltaResult.Applied;
     }
 
     public void MarkDirty(string symbol)
@@ -312,10 +325,21 @@ public sealed class BinanceBookBuilder
         return true;
     }
 
-    /// <summary>True when the seeded window no longer covers the widest band around the CURRENT mid —
-    /// the price has walked out from under the snapshot and the deep bands have gone dark. The feed
-    /// uses this to ask for a fresh seed, debounced; it is deliberately not a reason to stop serving,
-    /// because the narrow bands are usually still covered and still true.</summary>
+    /// <summary>
+    /// True when this book answers LESS than its own snapshot did — the price has walked out from
+    /// under the seed and a band that was covered has gone dark.
+    ///
+    /// The comparison is against the seed's own reach, not against the widest band, and that is the
+    /// whole difference between a useful signal and a reseed treadmill. On BTCUSDT the venue's
+    /// deepest snapshot spans ~17 bps, so 25 and 50 bps are uncovered the instant it lands and stay
+    /// uncovered forever; a check phrased as "does the window cover 50 bps?" answers no on a
+    /// perfectly good book and would have the cross-check reseeding the two most liquid symbols on
+    /// the venue on every single pass, at weight 20 each, buying nothing. Phrased as "does it still
+    /// cover what it covered?", it fires exactly when something changed.
+    ///
+    /// The feed uses this to ask for a fresh seed. It is deliberately not a reason to stop serving:
+    /// the narrow bands are usually still covered and still true.
+    /// </summary>
     public bool SeedWindowOutgrown(string symbol)
     {
         if (!_books.TryGetValue(symbol, out var book))
@@ -331,9 +355,28 @@ public sealed class BinanceBookBuilder
             }
 
             var mid = (book.Bids.Keys.Max() + book.Asks.Keys.Min()) / 2;
-            return !BidCovered(mid, 50, book.SeedFloor) || !AskCovered(mid, 50, book.SeedCeiling);
+
+            // The market has left the seeded window entirely. Asked separately because the reach
+            // comparison below cannot see it: a seed too narrow to answer even the 10 bps band has
+            // a baseline of zero on both sides, and nothing is ever less than zero — so a book born
+            // under-reaching would never ask for a fresh snapshot no matter how far the price
+            // walked away from it, and would sit there clean, useless, and silent. Containment is
+            // the one question that still has an answer in that state.
+            if (mid < book.SeedFloor || mid > book.SeedCeiling)
+            {
+                return true;
+            }
+
+            return WidestCoveredBps(bps => BidCovered(mid, bps, book.SeedFloor)) < book.SeedBidReachBps
+                || WidestCoveredBps(bps => AskCovered(mid, bps, book.SeedCeiling)) < book.SeedAskReachBps;
         }
     }
+
+    /// <summary>The widest band this book can answer, as one of 0 / 10 / 25 / 50 bps. Coarse on
+    /// purpose: it is compared against the same measure taken at seed time, and a continuous number
+    /// would make every tick of the mid look like a change in what we know.</summary>
+    private static int WidestCoveredBps(Func<int, bool> covered) =>
+        covered(50) ? 50 : covered(25) ? 25 : covered(10) ? 10 : 0;
 
     /// <summary>Mid of the top of a clean, seeded book — for the REST cross-check, which compares this
     /// against the venue's own batched book ticker to catch a book that has frozen behind a socket
@@ -436,6 +479,12 @@ public sealed class BinanceBookBuilder
         /// this book is COMPLETE, as opposed to merely populated.</summary>
         public double SeedFloor;
         public double SeedCeiling = double.MaxValue;
+
+        /// <summary>The widest band that range could answer at the moment it was taken — the baseline
+        /// <see cref="SeedWindowOutgrown"/> compares against, so that a book which never reached 50
+        /// bps is not mistaken for one that has stopped reaching it.</summary>
+        public int SeedBidReachBps;
+        public int SeedAskReachBps;
 
         public bool Dirty;
         public bool Seeded;

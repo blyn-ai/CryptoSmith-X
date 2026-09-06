@@ -142,9 +142,11 @@ public sealed class BinanceWsTests
         // Drop one frame from the middle of the run: the next one's pu no longer matches.
         Assert.Equal(BinanceBookBuilder.DeltaResult.Gap, Apply(books, deltas[seam + 3]));
 
-        // From here nothing is applied and nothing is served until a fresh seed lands — a dirty book
-        // yields no depth rather than a wrong one.
-        Assert.Equal(BinanceBookBuilder.DeltaResult.Ignored, Apply(books, deltas[seam + 4]));
+        // From here nothing is APPLIED and nothing is served until a fresh seed lands — a dirty book
+        // yields no depth rather than a wrong one. It is still held, though, not discarded: a dirty
+        // book is a book waiting for a snapshot, and the frames arriving while that snapshot is
+        // fetched are the ones the reseed needs to cross its own seam.
+        Assert.Equal(BinanceBookBuilder.DeltaResult.Buffered, Apply(books, deltas[seam + 4]));
         Assert.True(books.NeedsSeed("BTCUSDT"));
         Assert.False(books.TryGetDepth("BTCUSDT", T0, out _));
         Assert.False(books.TryGetTopMid("BTCUSDT", out _));
@@ -222,6 +224,87 @@ public sealed class BinanceWsTests
         Assert.True(books.TryGetDepth("TESTUSDT", T0, out var after));
         Assert.Null(after.Bid10Bps);   // still null: the 99.99–99.91 region remains unknown to us
         Assert.Null(after.Ask10Bps);
+    }
+
+    [Fact]
+    public void A_book_that_never_reached_the_deep_bands_is_not_mistaken_for_one_that_stopped()
+    {
+        // Caught on a live run, not reasoned about. The captured BTCUSDT snapshot is the venue's
+        // deepest available (limit=1000) and still spans only ~17 bps, so the 25 and 50 bps bands are
+        // uncovered the instant it lands and stay uncovered for as long as the book lives. A check
+        // phrased as "does the seeded window cover 50 bps?" answers no here — on a perfectly good,
+        // freshly seeded book — and the cross-check would have reseeded the two most liquid symbols
+        // on the venue on every pass, at weight 20 a time, forever, buying nothing.
+        var books = new BinanceBookBuilder();
+        var snapshot = LoadSnapshot();
+        books.ApplySnapshot("BTCUSDT", snapshot.LastUpdateId, snapshot.Bids, snapshot.Asks, T0);
+
+        Assert.True(books.TryGetDepth("BTCUSDT", T0, out var depth));
+        Assert.NotNull(depth.Bid10Bps);
+        Assert.Null(depth.Bid50Bps);                            // it genuinely cannot answer 50 bps
+        Assert.False(books.SeedWindowOutgrown("BTCUSDT"));      // and that is not a reason to reseed
+    }
+
+    [Fact]
+    public void A_reseed_buffers_the_seam_the_same_way_the_first_seed_does()
+    {
+        // The reconnect case, and it is not rare: Binance closes public streams after twenty-four
+        // hours, so every book on the venue is marked dirty and reseeded at least daily.
+        //
+        // While the REST snapshot is in flight the socket keeps delivering, and the frame that
+        // straddles the snapshot arrives during that window — the transcript of the live capture
+        // has it landing about four frames after the request left, on an open socket carrying a
+        // kilobyte, while the snapshot is a fresh sixty-kilobyte response. A dirty book that
+        // discards those frames therefore discards the seam, the snapshot lands, the next live
+        // frame starts after it, and the first-event rule correctly calls that a gap. Twenty weight
+        // spent, nothing gained, and the symbol waits out the whole seed walk before trying again.
+        var books = new BinanceBookBuilder();
+        var snapshot = LoadSnapshot();
+        var deltas = LoadDeltas();
+        var seam = deltas.FindIndex(d => d.LastUpdateId >= snapshot.LastUpdateId);
+
+        // A live, healthy book — then a reconnect, which marks every book dirty.
+        books.ApplySnapshot("BTCUSDT", snapshot.LastUpdateId, snapshot.Bids, snapshot.Asks, T0);
+        books.MarkAllDirty();
+        Assert.True(books.NeedsSeed("BTCUSDT"));
+
+        // Frames arriving while the reseed snapshot is being fetched are held, not dropped — the
+        // seam frame among them.
+        foreach (var d in deltas.Skip(seam))
+        {
+            Assert.Equal(BinanceBookBuilder.DeltaResult.Buffered, Apply(books, d));
+        }
+
+        // The reseed replays them and comes back clean, which is the whole point. Dropped instead,
+        // the replay would start after the snapshot and gap — the failure
+        // The_buffer_is_what_makes_the_seam_crossable_at_all pins.
+        Assert.True(books.ApplySnapshot("BTCUSDT", snapshot.LastUpdateId, snapshot.Bids, snapshot.Asks, T0));
+        Assert.False(books.NeedsSeed("BTCUSDT"));
+    }
+
+    [Fact]
+    public void A_seed_that_reached_nothing_still_asks_for_a_fresh_one_once_the_price_leaves_it()
+    {
+        // The starvation the reach baseline introduced. A seed too narrow to answer even the 10 bps
+        // band has a baseline of zero on both sides, and "answers less than it did" can never be
+        // true of zero — so without a second question this book would sit clean and silent forever
+        // while the market walked away from it, serving six nulls and, because it reports itself as
+        // a usable source, suppressing the REST fallback behind it.
+        var books = new BinanceBookBuilder();
+        books.ApplySnapshot(
+            "TESTUSDT", 100,
+            bids: [(100.00, 5), (99.99, 5)],
+            asks: [(100.01, 5), (100.02, 5)],
+            T0);
+
+        Assert.False(books.SeedWindowOutgrown("TESTUSDT"));   // sitting inside its window, narrow as it is
+
+        // The price leaves the seeded window entirely.
+        Assert.Equal(
+            BinanceBookBuilder.DeltaResult.Applied,
+            books.ApplyDelta("TESTUSDT", 100, 101, 100, [(105.00, 5)], [(105.01, 5)], T0));
+
+        Assert.True(books.SeedWindowOutgrown("TESTUSDT"));
     }
 
     [Fact]

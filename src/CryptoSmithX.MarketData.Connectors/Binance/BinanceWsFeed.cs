@@ -359,13 +359,17 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
                         snapshot = await _client.GetDepthAsync(symbol, BinanceUsdmClient.SeedDepthLimit, ct);
                     }
 
-                    if (!TryLevels(snapshot.Bids, out var bids) || !TryLevels(snapshot.Asks, out var asks))
-                    {
-                        continue;   // unreadable snapshot; the book stays dirty and is retried
-                    }
-
-                    // Our receive time, for the same reason the deltas use it.
-                    if (_books.ApplySnapshot(symbol, snapshot.LastUpdateId, bids, asks, _clock.GetUtcNow()))
+                    // Deliberately not `continue`: the weight is already spent by the time a
+                    // snapshot turns out to be unusable, and `continue` would jump past the
+                    // SeedPace delay at the bottom of this loop. The symbols that fail are the same
+                    // ones every pass — a venue-side depth incident, or a batch of thin perps — so
+                    // skipping the pace on failure is skipping it on precisely the symbols that
+                    // repeat, and the trickle this loop exists to be becomes the burst it exists to
+                    // avoid: 570 symbols at weight 20 in the time the gate allows is ~16,700
+                    // weight/min against a budget of 2,400.
+                    if (TrySeedLevels(snapshot, out var bids, out var asks)
+                        // Our receive time, for the same reason the deltas use it.
+                        && _books.ApplySnapshot(symbol, snapshot.LastUpdateId, bids, asks, _clock.GetUtcNow()))
                     {
                         seeded++;
                         Interlocked.Increment(ref _seedsSinceLastReport);
@@ -558,6 +562,24 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     /// book: this method must not be able to answer "nothing changed on that side", because that is
     /// indistinguishable from a real empty side and is how a half-applied frame becomes a book that
     /// is wrong without being dirty.</summary>
+    /// <summary>
+    /// Both sides of a seed snapshot, or false. False means the book stays dirty and comes round
+    /// again — never that the levels are used as far as they go.
+    ///
+    /// A one-sided snapshot would seed a book with no floor or no ceiling, and the window guard
+    /// reads a missing side as "nothing is covered": permanently clean, permanently useless, and
+    /// never asking to be seeded again because by its own account nothing is wrong with it.
+    /// </summary>
+    private static bool TrySeedLevels(
+        BinanceDepth snapshot,
+        out List<(double Price, double Qty)> bids,
+        out List<(double Price, double Qty)> asks)
+    {
+        asks = [];
+        return TryLevels(snapshot.Bids, out bids) && TryLevels(snapshot.Asks, out asks)
+            && bids.Count > 0 && asks.Count > 0;
+    }
+
     private static bool TryLevels(List<string[]>? array, out List<(double Price, double Qty)> levels)
     {
         levels = [];

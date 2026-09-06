@@ -112,9 +112,9 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
                 // covers 1000 units the venue says so in the SYMBOL rather than in a multiplier
                 // field, which is why the raw base above carries the prefix.
                 ContractMultiplier: 1m,
-                PriceStep: Decimal(price.TickSize, s, "PRICE_FILTER.tickSize"),
-                QtyStep: Decimal(lot.StepSize, s, "LOT_SIZE.stepSize"),
-                MinQty: Decimal(lot.MinQty, s, "LOT_SIZE.minQty"),
+                PriceStep: Required(price.TickSize, s, "PRICE_FILTER.tickSize"),
+                QtyStep: Required(lot.StepSize, s, "LOT_SIZE.stepSize"),
+                MinQty: Required(lot.MinQty, s, "LOT_SIZE.minQty"),
                 // Unlike Kraken, Binance does define one — but not for every symbol, so a missing
                 // MIN_NOTIONAL is null ("the venue does not define one") rather than zero.
                 MinNotional: MinNotional(s),
@@ -336,7 +336,7 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
         return filter?.Notional is { } n ? decimal.Parse(n, CultureInfo.InvariantCulture) : null;
     }
 
-    private static decimal Decimal(string? value, BinanceSymbol s, string what) =>
+    private static decimal Required(string? value, BinanceSymbol s, string what) =>
         value is not null
             ? decimal.Parse(value, CultureInfo.InvariantCulture)
             : throw new InvalidOperationException($"Binance USDⓈ-M returned {s.Symbol} with no {what}.");
