@@ -1,0 +1,176 @@
+@model PairPageModel
+@{
+    var pair = $"{Model.BaseFamily}/{Model.QuoteFamily}";
+    ViewData["Title"] = $"{pair} across venues — Arena — CryptoSmith X";
+    ViewData["Eyebrow"] = $"Market monitor · {Model.BaseFamily} / {Model.QuoteFamily}";
+    ViewData["CollectedFrom"] = Model.CollectedFrom;
+    ViewData["CollectedTo"] = Model.CollectedTo;
+    ViewData["RenderedAt"] = Model.RenderedAt;
+    ViewData["ShowCollected"] = true;
+
+    // Candle panels are drawn only where there is a line to draw. A venue with one bar or none gets
+    // a sentence saying so, which is a fact about that venue; an empty axis would be a picture of
+    // a market that was flat.
+    var drawable = Model.Rows.Where(r => r.Candles.Present >= 2).ToList();
+    var listings = Statement.Listings(Model.Rows);
+
+    // The shared price scale is shared WITHIN A QUOTE ASSET, not across the page, and the reason is
+    // the same one that scopes the verdicts and the bars (blueprint §6): the fold guarantees this
+    // page can hold a book in USD beside a book in USDT, and one price axis across both would draw
+    // two currencies as one number line. Inside a quote the shared scale is what the panels are for
+    // — without it every panel autoscales to itself and a venue that moved two cents looks exactly
+    // as volatile as one that moved forty.
+    var scaleByQuote = drawable
+        .GroupBy(r => r.Row.QuoteAsset, StringComparer.Ordinal)
+        .ToDictionary(
+            g => g.Key,
+            g => (Lo: g.Min(r => r.Candles.Low!.Value), Hi: g.Max(r => r.Candles.High!.Value)),
+            StringComparer.Ordinal);
+}
+
+<main class="a-main">
+
+    <partial name="_Statement" model="Model" />
+
+    @*
+        The live button, and the sentence beside it.
+
+        It sits OUTSIDE every [data-live-region] deliberately: a control that redrew itself on each
+        update would lose its own state and its listener in the middle of the thing it started.
+
+        It starts hidden and arena-live.js reveals it, the same argument as the INK button — with
+        scripts off, or in a browser with no EventSource, this control could do nothing, and a
+        control that does nothing is a small lie. The page below it is complete either way.
+
+        The note is where a failure has to be said out loud. A stream that dies, a database signal
+        that stops, a feed at capacity: every one of those looks, on a page whose subject is a
+        market, exactly like a market that went quiet. So the note says which, in words, and the
+        page falls back to what it does without a stream — ages that keep counting from instants
+        that are still true.
+    *@
+    @*
+        RouteUrl by NAME, for the reason the pair links on the list page give: the default route is
+        registered first, so Url.Action resolves this to /Pairs/Live?baseFamily=… — the address the
+        route constraints do not cover. The constraints are no longer the only thing standing
+        between an anonymous caller and a held-open connection (PairAddress is), but a page that
+        emits the unconstrained form of its own URL is a page teaching every reader the address we
+        did not mean.
+    *@
+    @{
+        var liveUrl = Url.RouteUrl("pair-live", new
+        {
+            controller = "Pairs",
+            action = "Live",
+            baseFamily = Model.BaseFamily,
+            quoteFamily = Model.QuoteFamily
+        });
+    }
+    <div class="a-liverow" data-live-url="@liveUrl">
+        <button type="button" class="a-btn" id="a-live" aria-pressed="false" hidden>Live</button>
+        <span class="a-live-note" id="a-live-note" role="status"></span>
+    </div>
+
+    <partial name="_PairTable" model="Model" />
+
+    <section style="display:flex;flex-direction:column;gap:var(--gap-block)">
+        <div class="a-section-head">
+            <span class="csx-eyebrow" style="color:var(--brand-deep)">Candles</span>
+            <hr>
+            <span class="csx-eyebrow" style="color:var(--text-faint)">
+                Hourly · 24 h · price only · one scale per quote · time axes tied
+            </span>
+        </div>
+
+        @if (drawable.Count == 0)
+        {
+            <div class="a-panel a-empty">
+                <h2>No hourly bars</h2>
+                <p class="a-note">
+                    No venue on this page has two closed hourly bars in the last 24 hours. That is a
+                    statement about the history we hold, not about whether the market traded.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="a-charts">
+                @foreach (var v in drawable)
+                {
+                    var r = v.Row;
+                    var scale = scaleByQuote[r.QuoteAsset];
+                    var series = v.Candles;
+
+                    @* A window with no bar goes out as time only, with no OHLC. That reserves its
+                       slot on the axis so the gap stays a gap; dropping it would slide the
+                       surrounding candles together, and a venue that went dark for six hours would
+                       draw as one that never stopped. *@
+                    var json = System.Text.Json.JsonSerializer.Serialize(
+                        series.Windows.Select((w, i) => new
+                        {
+                            time = new DateTimeOffset(DateTime.SpecifyKind(w, DateTimeKind.Utc)).ToUnixTimeSeconds(),
+                            o = series.Bars[i]?.Open,
+                            h = series.Bars[i]?.High,
+                            l = series.Bars[i]?.Low,
+                            c = series.Bars[i]?.Close
+                        }));
+
+                    var gaps = series.Windows.Count - series.Present;
+
+                    <section class="a-chart-panel">
+                        <header class="a-chart-head">
+                            <h2 class="a-chart-title">
+                                @r.ExchangeName
+                                <span class="a-chart-symbol">@r.Symbol</span>
+                            </h2>
+                            <span class="a-chart-range">
+                                @Format.Num(series.Low, Format.Decimals(r.PriceStep, fallback: 4)) –
+                                @Format.Num(series.High, Format.Decimals(r.PriceStep, fallback: 4)) @r.QuoteAsset@(gaps > 0 ? $" · {gaps} of {series.Windows.Count} hours have no bar" : "")@(series.Partial > 0 ? $" · {series.Partial} partly covered" : "")
+                            </span>
+                        </header>
+                        <div class="a-chart-body">
+                            <div class="a-chart"
+                                 data-candles="@json"
+                                 data-scale-lo="@scale.Lo.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                 data-scale-hi="@scale.Hi.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                 data-decimals="@Format.Decimals(r.PriceStep, fallback: 4)"></div>
+                        </div>
+                    </section>
+                }
+            </div>
+
+            @if (drawable.Count < listings)
+            {
+                @* LISTINGS, not venues. One panel is drawn per instrument, so a venue quoting the
+                   pair against two quotes in the same family has two of them, and counting rows
+                   under the word "venue" overstates how many order books this page could not draw
+                   — the same substitution the statement line above used to make. *@
+                <p class="a-note">
+                    @(listings - drawable.Count) of @listings listing@(listings == 1 ? "" : "s")
+                    @(listings - drawable.Count == 1 ? "has" : "have") fewer than two closed hourly bars in
+                    this window and no panel is drawn for @(listings - drawable.Count == 1 ? "it" : "them").
+                </p>
+            }
+        }
+    </section>
+
+    <p class="a-note">
+        Rows are not differenced against each other and this page states no cross-venue spread from
+        them: the poll passes are unsynchronised, a depth sweep across a large venue takes minutes,
+        and the interval is set per segment. The ages say which. Candles share a time axis — pan or
+        zoom any panel and the rest follow — and a price axis within one quote asset. Hollow above
+        the open, filled below: direction is not a result and takes no money colour here.
+    </p>
+</main>
+
+@section scripts {
+    @* Loaded only where a panel exists. A 198 KB charting library on a page with nothing to chart is
+       198 KB spent to draw nothing. *@
+    @if (drawable.Count > 0)
+    {
+        <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
+        <script src="~/arena-candles.js?v=1"></script>
+    }
+
+    @* 4 KB, on the pair page only, and it opens nothing until the button is pressed. *@
+    <script src="~/arena-live.js?v=1" defer></script>
+}

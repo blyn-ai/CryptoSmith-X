@@ -110,15 +110,27 @@ app.MapGet("/zurnalas", (IWebHostEnvironment env) =>
 // these are — a demonstration of a feature — so the top-level names stay free for
 // features that exist.
 // /feature-demo/ui-mocks is the superseded Lithuanian landing, a near-duplicate of the front page.
-foreach (var (name, page) in new[]
+//
+// The third element is whether the OLD top-level address still redirects here. It is false for
+// exactly one entry, and that is the whole point of the flag existing rather than the entry being
+// deleted: /arena now belongs to the real Arena, which is a different container behind the same
+// traefik, so this application must stop answering there — but /feature-demo/arena is the mock's
+// permanent address and has to keep working. Dropping the tuple would have taken both.
+foreach (var (name, page, redirectFromRoot) in new[]
          {
-             ("config", "config.html"),
-             ("agent", "agent.html"),
-             ("arena", "arena.html"),
-             ("strategy-modeler", "strategy-modeler.html"),
-             ("pairs-monitor", "pairs-monitor.html"),
-             ("live-bots", "live-bots.html"),
-             ("ui-mocks", "index.html"),
+             ("config", "config.html", true),
+             ("agent", "agent.html", true),
+             // The redirect that used to stand here was always temporary, and the 302 was chosen
+             // for this day: a 301 would have pinned every visitor who once opened the mock to the
+             // mock forever, out of their own cache, where no deploy could reach them. Nobody's
+             // browser is holding a stale answer, so /arena is free to become Arena.
+             ("arena", "arena.html", false),
+             ("strategy-modeler", "strategy-modeler.html", true),
+             ("pairs-monitor", "pairs-monitor.html", true),
+             // New, so no top-level address was ever shared and none is claimed: a prototype
+             // should not hold a name a real feature might want.
+             ("live-bots", "live-bots.html", false),
+             ("ui-mocks", "index.html", true),
          })
 {
     var file = page;
@@ -128,11 +140,16 @@ foreach (var (name, page) in new[]
         return Results.File(Path.Combine(env.WebRootPath, "ui-mocks", file), "text/html");
     });
 
+    if (!redirectFromRoot)
+    {
+        continue;
+    }
+
     // The old top-level address was shared with people, so it keeps answering. Found
     // and not Moved Permanently on purpose: a 301 is cached by the browser for as long
-    // as it likes, and /arena is precisely the address the real Arena will claim — a
-    // permanent redirect there would send the people who once opened the mock to the
-    // mock forever, from their own cache, where no deploy can reach them.
+    // as it likes, and the top-level names are the ones real features come to claim — a
+    // permanent redirect would send the people who once opened a mock to the mock
+    // forever, from their own cache, where no deploy can reach them.
     app.MapGet($"/{name}", () => Results.Redirect($"/feature-demo/{name}", permanent: false));
 }
 

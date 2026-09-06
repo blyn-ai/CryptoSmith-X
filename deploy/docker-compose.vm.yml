@@ -70,3 +70,39 @@ services:
       # Same rule as the api: the tunnel address, never the LAN.
       - "10.11.12.28:7777:8080"
     restart: unless-stopped
+
+  # Arena — the public showcase at /arena, in its own container for the same reason it is
+  # one everywhere else: the anonymous internet and the admin console fail differently.
+  arena:
+    container_name: cryptosmithx-arena
+    image: ghcr.io/blyn-ai/cryptosmithx-arena:latest
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      # NOT *db. That anchor carries the marketdata credential, which owns the schema; a
+      # public surface must not hold one that can write. Migration 0025 has the role, the
+      # grant list and the argument.
+      #
+      # Required, with no default, and that is the one place this file differs from
+      # docker-compose.prod.yml. Postgres here runs on the host, so its address is the
+      # docker gateway and lives only inside DATABASE_CONNECTION_STRING in
+      # /opt/cryptosmithx/.env — there is no correct literal to fall back to. And on this
+      # host the schema owner has no CREATEROLE (provision-host.sh created it as
+      # `create role marketdata login`), so 0025 cannot create arena_reader either: an
+      # operator does it once as postgres, with a generated password, and writes the string
+      # here. Before that first deploy, add to /opt/cryptosmithx/.env:
+      #
+      #     ARENA_DATABASE_CONNECTION_STRING=Host=<gateway>;Port=5432;Database=marketdata;Username=arena_reader;Password=<generated>;Maximum Pool Size=20
+      #
+      # A loud refusal to start beats a public site quietly running as the schema owner.
+      ConnectionStrings__Database: ${ARENA_DATABASE_CONNECTION_STRING:?arena_reader, не marketdata — см. миграцию 0025; строка в /opt/cryptosmithx/.env}
+      ASPNETCORE_ENVIRONMENT: Production
+      Sentry__Dsn: ${SENTRY_DSN:-}
+    ports:
+      # Same rule as the api and the webapp: the tunnel address, never the LAN. The public
+      # entrance is the proxy, which forwards /arena unstripped — the app strips it itself
+      # with UsePathBase, and two places stripping one prefix is a link that breaks the day
+      # someone reorders middleware.
+      - "10.11.12.28:7778:8080"
+    restart: unless-stopped

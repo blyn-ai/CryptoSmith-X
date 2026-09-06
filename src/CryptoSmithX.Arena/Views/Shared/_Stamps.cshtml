@@ -1,0 +1,51 @@
+@*
+    The two marks in the header: when the data was collected, and when this HTML was built.
+
+    They are a partial for one reason — the live stream re-sends them. Under a live connection the
+    table is rebuilt every time a pass lands, and a header still showing the instant of the first
+    paint would have the page contradicting itself: fresh figures below, a three-minute-old
+    "collected" above. Both marks are facts about the fragment they sit beside, so both travel with
+    it (blueprint §5).
+
+    It reads ViewData rather than taking a model, because it is rendered from the layout, which has
+    none, and inventing a model for two timestamps would mean the pair list page — which has no
+    collected mark at all — needing one too.
+
+    A page with nothing collected prints a dash here. Never a zero, and never the render time
+    standing in for it: those are different facts and one of them is not an observation.
+
+    COLLECTED IS A SPAN, not an instant, and that is the correction this partial exists to carry.
+    One stamp used to print the freshest received_at on the page — the healthiest row standing in
+    for the whole table, so a page holding one venue frozen three days ago announced itself as
+    seconds old — and it read only the price call, on a surface whose entire thesis is that price,
+    open interest and the depth sweep are three separate clocks. Both ends are printed, from all
+    three calls, and they collapse to one clock only when they really are one instant.
+
+    WHICH OF THOSE THREE SHAPES IT IS, is decided in Models/Stamps.cs and not here. It was decided
+    here, in one expression, and it was wrong: the two ends were compared as their FORMATTED clocks,
+    and HH:mm:ssZ carries no date, so a three-day span whose ends fell on the same second of the day
+    compared equal — the span collapsed, the header printed the freshest end alone, and the oldest
+    observation left the DOM with it. That is the original defect back, reintroduced by its own fix,
+    in the one place on this surface nothing in CI could read.
+*@
+@{
+    var renderedAt = ViewData["RenderedAt"] as DateTimeOffset?;
+    var showCollected = ViewData["ShowCollected"] as bool? ?? false;
+
+    var collected = CollectedStamp.Of(
+        ViewData["CollectedFrom"] as DateTime?,
+        ViewData["CollectedTo"] as DateTime?);
+}
+<span class="a-stamps" data-live-region="stamps">
+    @if (showCollected)
+    {
+        <span class="a-stamp">
+            <span class="a-stamp-label">Collected</span>
+            <span class="a-stamp-value" title="@collected.Title">@collected.Text</span>
+        </span>
+    }
+    <span class="a-stamp">
+        <span class="a-stamp-label">Rendered</span>
+        <span class="a-stamp-value" title="@Format.Utc(renderedAt?.UtcDateTime)">@Format.UtcClock(renderedAt?.UtcDateTime)</span>
+    </span>
+</span>

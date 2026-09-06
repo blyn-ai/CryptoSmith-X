@@ -1,0 +1,117 @@
+@*
+    The chrome of the public surface, by the csx-arena design system.
+
+    Three things in here are load-bearing and none of them are decoration.
+
+    1. THE HEADER CARRIES BOTH MARKS. When the data was collected, and when this HTML was built.
+       They are different facts (blueprint §5): a page served from a second-old cache was rendered
+       now and collected then, and a reader who is given one number cannot tell which one it is.
+       A page with nothing collected prints a dash there, never a zero and never the render time
+       standing in for it.
+
+    2. NOTHING IS FETCHED FROM ANYWHERE ELSE. No CDN, no analytics, no font host, no map tile.
+       Every byte this page pulls comes from this application. A surface whose whole argument is
+       "we do not show you anything we cannot account for" must not open the visitor's browser to
+       a third party before it has said one true thing about a market.
+
+    3. THE PAGE IS COMPLETE WITH SCRIPTS OFF. Every fade, every verdict, every age is in the HTML
+       as delivered. The scripts below advance the ages and draw the candles; neither of them is
+       what makes the page correct.
+*@
+@{
+    var eyebrow = ViewData["Eyebrow"] as string;
+
+    // The two header marks moved into _Stamps.cshtml, which reads CollectedFrom / CollectedTo / RenderedAt /
+    // ShowCollected out of ViewData itself; only the render instant is still needed here, for the
+    // clock anchor below.
+    var renderedAt = ViewData["RenderedAt"] as DateTimeOffset?;
+
+    // The anchor the client corrects its own clock against. It goes out as an absolute instant and
+    // the script pairs it with performance.now(); see arena-ages.js. Without it a visitor whose
+    // clock is forty seconds fast reads the entire page as degraded — every figure faded to the
+    // floor, every age wearing △ — on data that is two seconds old.
+    var serverNowMs = (renderedAt ?? DateTimeOffset.UtcNow).ToUnixTimeMilliseconds();
+}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>@(ViewData["Title"] ?? "Arena — CryptoSmith X")</title>
+
+    @* Both faces the table cannot be read without. Self-hosted, so these are same-origin — but a
+       font preload still needs crossorigin, because fonts are fetched in CORS mode whatever their
+       origin, and a preload whose mode does not match the real request is a second download. *@
+    <link rel="preload" href="~/ds/fonts/dm-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="~/ds/fonts/anton-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+
+    <link rel="stylesheet" href="~/ds/styles.css?v=1">
+    <link rel="stylesheet" href="~/arena.css?v=2">
+
+    @* The night register, chosen before the first paint so the page never flashes the day one at a
+       reader who asked for dark. Inline and tiny on purpose: a separate file would be a round trip
+       in front of the paint it exists to get right.
+
+       With scripts off this does not run and the page renders in the day register, which is the
+       system's own :root default and completely correct — the reason the INK button below starts
+       hidden and this script reveals it. A control that does nothing is a small lie, and this page
+       does not get to tell small ones.
+
+       localStorage is written only when the visitor presses the button. Nothing is stored for a
+       reader who never asks for anything. *@
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('csx-arena-theme');
+                var night = stored ? stored === 'night'
+                    : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (night) { document.documentElement.setAttribute('data-theme', 'night'); }
+            } catch (e) { /* Private mode refuses storage. The day register is a fine answer. */ }
+        })();
+    </script>
+    @await RenderSectionAsync("head", required: false)
+</head>
+<body>
+@*
+    The fade's three constants travel from the server rather than being written a second time in
+    JavaScript. They are the design system's rule 2, they are already in Freshness.cs, and a copy of
+    them in a file nothing in CI compiles is exactly the shape of the bug this project has already
+    had once: a threshold written as a literal in one place, disagreed with in another, and Kraken
+    reading as degraded at 39 seconds. The amplitude is not sent at all — it is 1 − floor, derived
+    on both sides, never a fourth number to keep in agreement with a third.
+*@
+<div class="a-sheet"
+     data-now="@serverNowMs"
+     data-fade-floor="@Freshness.Floor.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+     data-fade-exponent="@Freshness.Exponent.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+     data-degraded-windows="@Freshness.DegradedWindows">
+    <i class="a-topline"></i>
+
+    <header class="a-head">
+        <span class="a-wordmark">CryptoSmith X</span>
+        @if (!string.IsNullOrEmpty(eyebrow))
+        {
+            <span class="csx-eyebrow">@eyebrow</span>
+        }
+        <span class="a-head-right">
+            @* Both marks, in a partial because the live stream re-sends them: see _Stamps.cshtml. *@
+            <partial name="_Stamps" />
+            <button type="button" class="a-btn" id="a-ink" hidden>Ink</button>
+        </span>
+    </header>
+
+    @RenderBody()
+
+    <footer class="a-foot">
+        @* Verbatim. The content rules give this line word for word and it is not paraphrased. *@
+        <span class="csx-eyebrow">Not investment advice · Own funds only</span>
+        <span class="csx-eyebrow a-foot-right">blynai.eu · MB „BlynAI“</span>
+    </footer>
+</div>
+
+@* Manual cache-bust rather than asp-append-version: the Script TagHelper trips a Razor compiler
+   bug on this SDK and the WebApp's own pair page loads its chart the same way. Bump v= on change. *@
+<script src="~/arena-ages.js?v=2" defer></script>
+@await RenderSectionAsync("scripts", required: false)
+</body>
+</html>

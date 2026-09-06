@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [migrator, hub, api, webapp]
+        target: [migrator, hub, api, webapp, arena]
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

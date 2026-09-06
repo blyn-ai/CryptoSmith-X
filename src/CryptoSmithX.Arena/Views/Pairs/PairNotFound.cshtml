@@ -1,0 +1,38 @@
+@{
+    var pair = ViewData["MissingPair"] as string ?? "";
+    ViewData["Title"] = "Not listed — Arena — CryptoSmith X";
+    ViewData["Eyebrow"] = "Market monitor · not listed";
+    ViewData["RenderedAt"] = DateTimeOffset.UtcNow;
+    ViewData["ShowCollected"] = false;
+}
+@*
+    A pair nobody lists is a 404 with a page that names the pair, not an empty table.
+
+    An empty table would be a claim about the market — "no venue quotes this" — made by a page that
+    checked one database. This is a claim about the page, and they are not the same sentence.
+
+    The second paragraph is the case that actually brings people here, and it is not an error: a pair
+    has exactly ONE address after the fold, so /USDT-anything resolves to nothing by construction —
+    USDT folds into USD, and the pair lives at the USD address. Saying that is more useful than
+    saying "not found" twice.
+*@
+<main class="a-main">
+    <div class="a-statement-row">
+        <h1 class="a-statement">
+            @pair is not on this board.<em>That is about us, not about the market.</em>
+        </h1>
+    </div>
+
+    <div class="a-panel a-empty">
+        <h2>Nothing here quotes it</h2>
+        <p class="a-note" style="max-width:var(--measure-note);margin:0 auto">
+            No instrument we collect lists this pair under that heading. It may trade somewhere we do
+            not collect, and it may trade here under the other half of a folded quote: quotes are
+            folded into families, so a pair has exactly one address on this site — USDT and USDC live
+            at the USD one. Codes are matched exactly, case included.
+        </p>
+        <p style="margin-top:var(--space-7)">
+            <a class="a-btn" href="@Url.Action("Index", "Pairs")" style="display:inline-flex;align-items:center">All pairs</a>
+        </p>
+    </div>
+</main>

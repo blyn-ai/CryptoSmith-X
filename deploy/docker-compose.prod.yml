@@ -71,3 +71,50 @@ services:
       # cryptosmithx.blynai.eu (config lives in /opt/traefik/dynamic/).
       - "10.8.0.1:7777:8080"
     restart: unless-stopped
+
+  # Arena — the public showcase at /arena. Its own container rather than another route on
+  # the webapp: the anonymous internet and the admin console have different availability
+  # needs and different blast radii when one of them has a bad afternoon.
+  arena:
+    container_name: cryptosmithx-arena
+    image: ghcr.io/blyn-ai/cryptosmithx-arena:latest
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      # arena_reader, not marketdata: a public surface must not hold a credential that is
+      # allowed to insert. The role, its grants and the argument for both are migration 0025.
+      #
+      # The default matches the password 0025 sets when it creates the role. That works, but
+      # it is not the finished setting: everyone who has seen the repository knows it, so
+      # rotate the role on this host and put the real string in /opt/cryptosmithx/.env. The
+      # default is deliberate all the same — this host redeploys automatically on every push
+      # to main (vps-deploy.sh), and a required variable would take the whole stack down,
+      # webapp included, on the first such deploy after this file lands.
+      ConnectionStrings__Database: ${ARENA_DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=arena_reader;Password=arena_reader;Maximum Pool Size=20}
+      ASPNETCORE_ENVIRONMENT: Production
+      # Sentry errors (component=arena).
+      Sentry__Dsn: ${SENTRY_DSN:-}
+    ports:
+      # VPN fallback entrance, as for the webapp. The public entrance is traefik on
+      # cryptosmithx.blynai.eu, whose dynamic config lives in /opt/traefik/dynamic/ and is
+      # not part of this repository. The router there reads:
+      #
+      #     http:
+      #       routers:
+      #         csx-arena:
+      #           rule: "Host(`cryptosmithx.blynai.eu`) && PathPrefix(`/arena`)"
+      #           service: csx-arena
+      #           priority: 100     # above the webapp rule, or that one swallows /arena
+      #       services:
+      #         csx-arena:
+      #           loadBalancer:
+      #             servers: [{ url: "http://10.8.0.1:7778" }]
+      #
+      # With NO stripPrefix middleware. The application starts with UsePathBase("/arena")
+      # and puts the prefix back into every link it generates. Two places stripping the same
+      # prefix produce a correct URL only while both agree, and the day someone reorders the
+      # proxy middleware every link on the site breaks at once — silently, and in production
+      # only.
+      - "10.8.0.1:7778:8080"
+    restart: unless-stopped

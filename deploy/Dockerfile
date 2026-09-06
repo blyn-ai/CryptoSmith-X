@@ -1,4 +1,4 @@
-# One build stage publishes all four deployables; four final stages pick one each.
+# One build stage publishes all five deployables; five final stages pick one each.
 # Build context is the repository root (the WebApp links src/web/ds, so it must be reachable).
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
@@ -9,16 +9,19 @@ COPY src/CryptoSmithX.MarketData.Connectors/CryptoSmithX.MarketData.Connectors.c
 COPY src/CryptoSmithX.MarketData.Hub/CryptoSmithX.MarketData.Hub.csproj         src/CryptoSmithX.MarketData.Hub/
 COPY src/CryptoSmithX.MarketData.Api/CryptoSmithX.MarketData.Api.csproj         src/CryptoSmithX.MarketData.Api/
 COPY src/CryptoSmithX.WebApp/CryptoSmithX.WebApp.csproj                         src/CryptoSmithX.WebApp/
+COPY src/CryptoSmithX.Arena/CryptoSmithX.Arena.csproj                           src/CryptoSmithX.Arena/
 RUN dotnet restore src/CryptoSmithX.Database/CryptoSmithX.Database.csproj \
  && dotnet restore src/CryptoSmithX.MarketData.Hub/CryptoSmithX.MarketData.Hub.csproj \
  && dotnet restore src/CryptoSmithX.MarketData.Api/CryptoSmithX.MarketData.Api.csproj \
- && dotnet restore src/CryptoSmithX.WebApp/CryptoSmithX.WebApp.csproj
+ && dotnet restore src/CryptoSmithX.WebApp/CryptoSmithX.WebApp.csproj \
+ && dotnet restore src/CryptoSmithX.Arena/CryptoSmithX.Arena.csproj
 
 COPY src/ src/
 RUN dotnet publish src/CryptoSmithX.Database/CryptoSmithX.Database.csproj         -c Release -o /app/migrator --no-restore \
  && dotnet publish src/CryptoSmithX.MarketData.Hub/CryptoSmithX.MarketData.Hub.csproj -c Release -o /app/hub --no-restore \
  && dotnet publish src/CryptoSmithX.MarketData.Api/CryptoSmithX.MarketData.Api.csproj -c Release -o /app/api --no-restore \
- && dotnet publish src/CryptoSmithX.WebApp/CryptoSmithX.WebApp.csproj             -c Release -o /app/webapp --no-restore
+ && dotnet publish src/CryptoSmithX.WebApp/CryptoSmithX.WebApp.csproj             -c Release -o /app/webapp --no-restore \
+ && dotnet publish src/CryptoSmithX.Arena/CryptoSmithX.Arena.csproj               -c Release -o /app/arena --no-restore
 
 # The migrator applies the schema and exits — the runtime image is enough, no ASP.NET.
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS migrator
@@ -52,3 +55,15 @@ ARG SOURCE_COMMIT=""
 ENV CSX_COMMIT=$SOURCE_COMMIT
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "CryptoSmithX.WebApp.dll"]
+
+# Arena is the public showcase — MVC on ASP.NET, its own container because a public
+# surface and the admin console have different availability needs and different blast
+# radii. It takes no SOURCE_COMMIT: the webapp bakes the commit in to print a version
+# badge for the people who operate it, and Arena has no such badge — a build argument
+# whose value nothing reads is a thing that drifts unnoticed.
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS arena
+WORKDIR /app
+COPY --from=build /app/arena ./
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "CryptoSmithX.Arena.dll"]

@@ -90,3 +90,37 @@ services:
     ports:
       - "8081:8080"
     restart: unless-stopped
+
+  # The public showcase. Its own container, not another route on the webapp: the two have
+  # different audiences (anonymous internet vs. signed-in operators), different availability
+  # expectations and different scale, and a bad afternoon on one should not be a bad afternoon
+  # on the other.
+  #
+  # No healthcheck, and that is the same choice the webapp and the api made above: the
+  # aspnet:10.0 image ships neither curl nor wget, so a healthcheck here would mean installing
+  # a network client into the runtime image of the one service the whole internet can reach.
+  # Compose ordering already gates the start on the migrator, and the app refuses to serve on a
+  # schema that is behind.
+  arena:
+    container_name: cryptosmithx-arena
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: arena
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      # arena_reader, not marketdata: a public surface must not hold a credential that can write.
+      # The role, the grants and the argument are migration 0025; the local default password
+      # matches the one that migration sets when it creates the role.
+      ConnectionStrings__Database: ${ARENA_DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=arena_reader;Password=arena_reader;Maximum Pool Size=20}
+      # Sentry errors (component=arena). Empty locally → SDK stays disabled.
+      Sentry__Dsn: ${SENTRY_DSN:-}
+      ASPNETCORE_ENVIRONMENT: ${ARENA_ENVIRONMENT:-Development}
+    ports:
+      # The app serves under /arena (UsePathBase), so the local address is
+      # http://localhost:8082/arena — traefik forwards the prefix unstripped in front of the
+      # deployed one, and a local port that behaved differently would hide exactly that.
+      - "8082:8080"
+    restart: unless-stopped

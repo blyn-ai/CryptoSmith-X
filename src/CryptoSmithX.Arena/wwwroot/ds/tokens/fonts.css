@@ -1,0 +1,104 @@
+/* CSX Arena — faces. Arena's copy of the design system's tokens/fonts.css.
+
+   The one difference from the system's own file, and the reason this is a copy rather than a
+   reference: the system ships with
+
+       @import url("https://fonts.googleapis.com/css2?family=Anton&family=DM+Mono...");
+
+   on line 8, and its readme calls downloading those two "the one open task". That import is
+   deleted here. Arena is the first surface of this project that anyone opens without an
+   account, its whole claim is that it does not hand the reader anything it cannot account for,
+   and a stylesheet that makes every visitor's browser announce itself to a third party for two
+   typefaces contradicts that claim on the first paint — before the page has said a single true
+   thing about a market. It also puts a hard dependency on a host we do not run in front of a
+   page whose subject is whether OUR data arrived on time.
+
+   So all three faces are woff2 in the repo, served from this application:
+
+     Anton     display, condensed caps — the statement line and panel titles.
+     DM Mono   every figure, label, state word, API enum and age. Tabular, always.
+     Space Grotesk  the two or three sentences of prose the surface allows. Already local
+                    in the design system; copied across unchanged.
+
+   Subsets: latin + latin-ext only, matching wwwroot/ds/tokens/fonts.css in the WebApp. The
+   vietnamese subset Google also serves is dropped — this surface is English, and latin-ext is
+   what carries the Lithuanian diacritics in „BlynAI“ and the company line in the footer.
+
+   Weights: Anton has one (400). DM Mono is taken at 400 and 500 only, which is exactly what
+   typography.css asks for — --fw-regular for figures, --fw-medium for labels and eyebrows. The
+   300 that DM Mono also ships is not referenced by any token, and a face nothing asks for is a
+   round trip nobody needs.
+
+   Sources: fonts.google.com — Anton (OFL), DM Mono (OFL), Space Grotesk (OFL).
+   Refresh: the css2 URL above with a woff2-capable user agent gives the current file names;
+   Google revs the version segment (/v27/, /v16/) when it reissues a face. */
+
+/* ── Anton 400 · display ── */
+@font-face {
+  font-family: 'Anton';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/anton-400-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Anton';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/anton-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ── DM Mono 400 / 500 · every figure, label and age ── */
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/dm-mono-400-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/dm-mono-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/dm-mono-500-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/dm-mono-500-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ── Space Grotesk 300–700 variable · the little running prose ── */
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("../fonts/space-grotesk-300-700-latin.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("../fonts/space-grotesk-300-700-latin-ext.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
