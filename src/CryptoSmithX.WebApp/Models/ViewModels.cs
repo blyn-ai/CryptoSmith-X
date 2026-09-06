@@ -408,6 +408,36 @@ public sealed record AssetDetails(
     IReadOnlyList<AssetListing> Listings,
     IReadOnlyList<AssetAliasRow> Aliases);
 
+// ── Asset families (display-only folding, 0024) ───────────────────────────
+
+public sealed record AssetFamilyListItem(
+    string Code,
+    string? Name,
+    int MemberCount,
+    string? MembersSummary,     // "USD · USDC · USDT"
+    int InstrumentCount);       // listings whose base or quote falls into this family
+
+/// <summary>One asset folded into a family, with what currently references that code. The counts
+/// are the honest answer to "does this membership do anything yet": a code nothing lists is a
+/// legitimate entry (someone seeded it ahead of a listing), and the page says so rather than
+/// hiding it.</summary>
+public sealed record AssetFamilyMemberRow(
+    string AssetCode,
+    string? Note,
+    string? CreatedBy,
+    DateTime CreatedAt,
+    int BaseListings,
+    int QuoteListings);
+
+public sealed record AssetFamilyDetails(
+    string Code,
+    string? Name,
+    string? Note,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt,
+    string? UpdatedBy,
+    IReadOnlyList<AssetFamilyMemberRow> Members);
+
 // ── Instruments ───────────────────────────────────────────────────────────
 public sealed record InstrumentListItem(
     int Id,

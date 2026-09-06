@@ -1,0 +1,59 @@
+@model IReadOnlyList<AssetFamilyListItem>
+@{
+    ViewData["Title"] = "Families";
+    var q = ViewData["Search"] as string;
+    const string Cols = "grid-template-columns:minmax(0,1.1fr) minmax(0,1.4fr) minmax(0,2.4fr) minmax(0,0.8fr) minmax(0,0.9fr)";
+}
+
+<div class="page-head">
+    <div class="t"><p class="eyebrow">Admin · operations</p><h1>Families</h1></div>
+    <p class="page-note">A family folds several asset codes into one heading for display. It is the level above the canonical asset: aliases decide what an asset <em>is</em>, a family decides only what is shown together. Stored data is untouched — every comparison row still carries its venue's real quote.</p>
+</div>
+
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-error">@err</div>
+}
+@if (TempData["Saved"] is string saved)
+{
+    <div class="alert alert-ok">@saved</div>
+}
+
+<form method="get" action="/Admin/Families" class="field" style="max-width:340px;margin-bottom:16px">
+    <label for="q">Search</label>
+    <input id="q" name="q" type="text" value="@q" placeholder="code or name" spellcheck="false">
+</form>
+
+<div class="panel scroll" style="margin-bottom:var(--gap-card)">
+    <div class="th" style="@Cols"><span>Family</span><span>Name</span><span>Folds</span><span>Members</span><span style="justify-self:end">Instruments</span></div>
+    @if (Model.Count == 0)
+    {
+        <div class="empty"><h3>No families</h3><p>@(string.IsNullOrEmpty(q) ? "Every asset is its own family until one is created here." : "No family matches that search.")</p></div>
+    }
+    @foreach (var f in Model)
+    {
+        <a class="tr" style="@Cols" href="/Admin/Families/Details/@f.Code">
+            <span class="cell"><span class="name mono">@f.Code</span></span>
+            <span class="muted">@(string.IsNullOrEmpty(f.Name) ? Format.Dash : f.Name)</span>
+            <span class="code">@(f.MemberCount == 0 ? "folds nothing" : f.MembersSummary)</span>
+            <span class="num">@f.MemberCount</span>
+            <span class="num" style="justify-self:end">@f.InstrumentCount</span>
+        </a>
+    }
+</div>
+
+<div class="panel" style="padding:18px">
+    <h2 style="margin-bottom:5px">New family</h2>
+    <p style="margin:0 0 14px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">The code is what a pair heading prints. It is matched against asset codes exactly, so spell it the way the venues do.</p>
+    <form method="post" action="/Admin/Families/Create">
+        @Html.AntiForgeryToken()
+        <div class="form-row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div class="field" style="width:130px"><label for="code">Code</label><input id="code" name="code" type="text" placeholder="USD" spellcheck="false"></div>
+            <div class="field" style="flex:1;min-width:180px"><label for="name">Name</label><input id="name" name="name" type="text" placeholder="human name, e.g. US dollar"></div>
+            <div class="field" style="flex:2;min-width:220px"><label for="note">Note</label><input id="note" name="note" type="text" placeholder="why these codes fold together"></div>
+            <button class="btn" type="submit">Create</button>
+        </div>
+    </form>
+</div>
+
+<p class="panel-note">Instruments counts the collected listings whose base or quote falls into the family. An asset with no family is its own family — that is the absence of a row here, not a missing one.</p>

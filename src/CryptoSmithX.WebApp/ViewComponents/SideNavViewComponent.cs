@@ -61,6 +61,10 @@ public sealed class SideNavViewComponent : ViewComponent
                 new NavItem("Exchanges", "/Admin/Exchanges", p),
                 new NavItem("Datasets", "/Admin/Datasets"),
                 new NavItem("Assets", "/Admin/Assets"),
+                // Sits between assets and pairs on purpose: a family is the level above the
+                // canonical asset and below the pair, and it is only ever read while looking at
+                // one of those two.
+                new NavItem("Families", "/Admin/Families"),
                 new NavItem("Pairs", "/Admin/Pairs"),
                 new NavItem("Instruments", "/Admin/Instruments"),
                 // Built in the same pass as the feeds regrouping and then left unreachable: no nav

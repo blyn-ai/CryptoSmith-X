@@ -1,0 +1,90 @@
+@model AssetFamilyDetails
+@{
+    ViewData["Title"] = Model.Code;
+    const string Cols = "grid-template-columns:minmax(0,1fr) minmax(0,2fr) 110px 110px 80px";
+}
+
+<div class="page-head">
+    <div class="t">
+        <p class="eyebrow">Admin · <a href="/Admin/Families">families</a> · @Model.Code</p>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>@(string.IsNullOrEmpty(Model.Name) ? Model.Code : Model.Name)</h1><span class="tag mono">@Model.Code</span></div>
+    </div>
+    <div style="display:flex;gap:14px;align-items:center">
+        <a class="linkbtn" href="/Admin/Assets">Assets & aliases →</a>
+        <a class="linkbtn" href="/Admin/Families">← Families</a>
+    </div>
+</div>
+
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-error">@err</div>
+}
+@if (TempData["Saved"] is string saved)
+{
+    <div class="alert alert-ok">@saved</div>
+}
+
+<div class="panel" style="padding:18px;margin-bottom:var(--gap-card)">
+    <h2 style="margin-bottom:12px">Family</h2>
+    <form method="post" action="/Admin/Families/Save/@Model.Code" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+        @Html.AntiForgeryToken()
+        <div class="field" style="flex:1;min-width:200px"><label for="name">Name</label><input id="name" name="name" type="text" value="@Model.Name" placeholder="human name, e.g. US dollar"></div>
+        <div class="field" style="flex:2;min-width:240px"><label for="note">Note</label><input id="note" name="note" type="text" value="@Model.Note"></div>
+        <button class="btn" type="submit">Save</button>
+    </form>
+    <p class="panel-note">Created @Format.Utc(Model.CreatedAt)@(Model.UpdatedBy is null ? "" : $" · last edited by {Model.UpdatedBy} {Format.Utc(Model.UpdatedAt)}")</p>
+</div>
+
+<div class="panel" style="margin-bottom:var(--gap-card)">
+    <div class="panel-h"><h2>Members</h2><span class="meta">@Model.Members.Count code(s) fold into @Model.Code</span></div>
+    <div class="scroll">
+        <div class="th" style="@Cols"><span>Asset</span><span>Note</span><span>As base</span><span>As quote</span><span></span></div>
+        @if (Model.Members.Count == 0)
+        {
+            <div class="empty"><h3>Folds nothing</h3><p>This family has no members, so it changes nothing on any page. It can be deleted below.</p></div>
+        }
+        @foreach (var m in Model.Members)
+        {
+            <div class="tr" style="@Cols">
+                <span class="cell"><span class="name mono">@m.AssetCode</span></span>
+                <span class="muted">@(string.IsNullOrEmpty(m.Note) ? Format.Dash : m.Note)</span>
+                <span class="num">@(m.BaseListings == 0 ? Format.Dash : m.BaseListings.ToString())</span>
+                <span class="num">@(m.QuoteListings == 0 ? Format.Dash : m.QuoteListings.ToString())</span>
+                <form method="post" action="/Admin/Families/RemoveMember/@Model.Code" style="justify-self:end">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="assetCode" value="@m.AssetCode">
+                    <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+                </form>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="grid2">
+    <div class="panel" style="padding:18px">
+        <h2 style="margin-bottom:5px">Add a member</h2>
+        <p style="margin:0 0 14px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">The code is matched against <span class="mono">base_asset</span> and <span class="mono">quote_asset</span> exactly, so spell it the way the venues do. Adding an asset that already belongs elsewhere moves it: an asset folds exactly one way.</p>
+        <form method="post" action="/Admin/Families/AddMember/@Model.Code">
+            @Html.AntiForgeryToken()
+            <div class="form-row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+                <div class="field" style="width:130px"><label for="assetCode">Asset</label><input id="assetCode" name="assetCode" type="text" placeholder="USDT" spellcheck="false"></div>
+                <div class="field" style="flex:1;min-width:180px"><label for="note-member">Note</label><input id="note-member" name="note" type="text" placeholder="why it folds here"></div>
+                <button class="btn" type="submit">Add</button>
+            </div>
+        </form>
+        <p class="panel-note">A family is display only. USDT stays USDT everywhere it is stored, and every comparison row keeps printing the quote its venue actually trades — the fold decides only which rows share a heading, and which figures may be ranked against each other.</p>
+    </div>
+
+    <div class="panel" style="padding:18px">
+        <h2 style="margin-bottom:5px">Delete</h2>
+        <p style="margin:0 0 14px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">A family can be removed only once nothing folds into it. Removing a member does not delete anything else — that asset simply becomes its own family again.</p>
+        <form method="post" action="/Admin/Families/Delete/@Model.Code">
+            @Html.AntiForgeryToken()
+            <button class="btn" type="submit" disabled="@(Model.Members.Count > 0)">Delete @Model.Code</button>
+        </form>
+        @if (Model.Members.Count > 0)
+        {
+            <p class="panel-note">@Model.Members.Count member(s) still fold here.</p>
+        }
+    </div>
+</div>
