@@ -130,4 +130,71 @@
   });
 
   document.addEventListener('csx-arena-theme', repaint);
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // HOW MANY PANELS SIT SIDE BY SIDE
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // The panels share one price scale per quote asset, and a shared scale is only legible when the
+  // panels are STACKED: one column puts the same price at the same height on the page, and that is
+  // the comparison the shared scale exists to make. Side by side, the reader compares two shapes at
+  // two different heights and does the arithmetic themselves. So the control is not a density
+  // preference, it is the switch between "look at five markets" and "compare two of them".
+  //
+  // It lives here rather than in a file of its own because it arranges these instances and nothing
+  // else, and because it inherits this file's one precondition for free: no library, no panels
+  // drawn, nothing to arrange. Reflowing five empty boxes is not a feature.
+  //
+  // The CHART instances need nothing from it. Lightweight Charts is created with autoSize, which is
+  // a ResizeObserver on the container, so a column change resizes every panel and the tie between
+  // their time axes is re-asserted by the same subscription that ties them when a reader pans one.
+  // fitContent is deliberately NOT called: a reader who has zoomed into four hours and then stacks
+  // the panels to compare them asked for a layout, not for their zoom to be thrown away.
+  const grid = document.querySelector('.a-charts');
+  const cols = document.querySelector('.a-cols');
+
+  if (grid && cols) {
+    const buttons = [...cols.querySelectorAll('.a-cols-btn[data-cols]')];
+    const KEY = 'csx-arena-cols';
+
+    // data-cols is a CEILING; arena.css keeps a readable minimum panel width in the same
+    // declaration, so this never has to know how wide the window is and there is no resize listener
+    // here to disagree with the stylesheet about it.
+    const apply = (n) => {
+      grid.dataset.cols = String(n);
+      for (const b of buttons) {
+        b.setAttribute('aria-pressed', b.dataset.cols === String(n) ? 'true' : 'false');
+      }
+    };
+
+    let chosen = null;
+
+    try {
+      const stored = localStorage.getItem(KEY);
+      if (buttons.some((b) => b.dataset.cols === stored)) chosen = Number(stored);
+    } catch (e) { /* Private mode refuses storage. The measurement below is a fine answer. */ }
+
+    // No stored choice: the control adopts the layout the page is ALREADY drawing, by counting the
+    // tracks the stylesheet's auto-fit landed on. Picking a number instead — three, say — would
+    // reflow the page on load for every reader who has never touched the control, and starting with
+    // no button pressed would be a control that shows no state on a page whose subject is state.
+    if (chosen === null) {
+      const tracks = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+      chosen = Math.min(Math.max(tracks, 1), 3);
+    }
+
+    apply(chosen);
+    cols.hidden = false;
+
+    for (const b of buttons) {
+      b.addEventListener('click', () => {
+        apply(Number(b.dataset.cols));
+        try {
+          // Written only because the visitor pressed the button, like the register flip. Nothing is
+          // stored for a reader who never asks for anything, and what is stored is one small number
+          // about this browser's own window — not about them.
+          localStorage.setItem(KEY, b.dataset.cols);
+        } catch (e) { /* Private mode. The choice holds for this page and is not remembered. */ }
+      });
+    }
+  }
 })();

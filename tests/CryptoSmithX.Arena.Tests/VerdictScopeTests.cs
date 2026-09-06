@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using CryptoSmithX.Arena;
 using CryptoSmithX.Arena.Data;
 using CryptoSmithX.Arena.Models;
@@ -698,22 +699,106 @@ public sealed class VerdictScopeTests
         Assert.Contains("CrossedTitle", view, StringComparison.Ordinal);
     }
 
+    // Both rules below used to be sentences in the notebar under the table and are now headed
+    // entries in the pair page's reading section — the footer glossary the notebar links to. What
+    // is asserted is unchanged and deliberately so: the point was never WHERE the surface says
+    // this, it is THAT it says it. A rule the table runs on and does not state is the failure,
+    // wherever the missing sentence would have gone.
+
+    /// <summary>
+    /// A view's prose with its line breaks flattened, which is what a sentence assertion is
+    /// actually about. The source wraps at 100 columns, so "a crossed book is not a narrow one"
+    /// carries a newline and eight spaces of indent inside it in one file and not in the next —
+    /// and a test that fails when a paragraph is rewrapped fails on the wrong thing. These
+    /// assertions have to fail when the sentence is deleted or reworded, and only then.
+    /// </summary>
+    private static string Prose(string name) =>
+        Regex.Replace(Read(name), @"\s+", " ");
+
     [Fact]
-    public void The_notebar_states_the_crossed_rule_too()
+    public void The_reading_section_states_the_crossed_rule_too()
     {
-        var notebar = Read("_PairTable.cshtml");
-        Assert.Contains("bid stands at or above its ask", notebar, StringComparison.Ordinal);
-        Assert.Contains("a crossed book is not a narrow one", notebar, StringComparison.Ordinal);
+        var reading = Prose("Pair.cshtml");
+        Assert.Contains("bid stands at or above its ask", reading, StringComparison.Ordinal);
+        Assert.Contains("a crossed book is not a narrow one", reading, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void The_notebar_states_the_ranking_rule_it_runs_on()
+    public void The_reading_section_states_the_ranking_rule_it_runs_on()
     {
         // The house standard is already set on this surface: phase 2's board limit is announced in
         // the H1 and again above the cards, precisely so a page never shows less than it has
         // without saying so. An unranked figure is the same shape of omission.
-        var notebar = Read("_PairTable.cshtml");
-        Assert.Contains("takes no rank", notebar, StringComparison.Ordinal);
-        Assert.Contains("drops both its marks and its bars", notebar, StringComparison.Ordinal);
+        var reading = Prose("Pair.cshtml");
+        Assert.Contains("takes no rank", reading, StringComparison.Ordinal);
+        Assert.Contains("drops both its marks and its bars", reading, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_reading_section_states_the_scope_each_column_is_actually_ranked_in()
+    {
+        var reading = Prose("Pair.cshtml");
+
+        // THE RULE WAS NOT MOVED, IT WAS REWRITTEN, AND THE REWRITE WAS FALSE. The notebar sentence
+        // this replaced carried a qualifier — "for anything priced in the quote currency" — and was
+        // printed only on a page that actually held two quotes. The entry that replaced it dropped
+        // both, enumerated "the highest bid, the lowest ask, the largest size, turnover, open
+        // interest or depth" and then said flatly "They rank only rows quoting in the same asset",
+        // which is wrong for three of the columns it names: bid size, ask size and open interest
+        // are WholePair. A reader following it read an acid BEST on open interest as "largest USDT
+        // book" when it means "largest book on the page" — the exact scope error the entry exists
+        // to prevent, committed by the entry.
+        Assert.DoesNotContain(
+            "They rank only rows quoting in the same asset", reading, StringComparison.Ordinal);
+
+        Assert.Contains(
+            "anything priced in the quote currency ranks only against rows quoting in the same asset",
+            reading, StringComparison.Ordinal);
+        Assert.Contains(
+            "the two sizes and open interest are in base units through the venue's own contract"
+            + " multiplier, which makes them one measurement, so they rank across every row on the"
+            + " page", reading, StringComparison.Ordinal);
+
+        // And the sentence is checked against the specs rather than against itself. These are the
+        // two lists the prose above is written from; a column moving between them makes this test
+        // fail beside the sentence that would have started lying.
+        foreach (var perQuote in new[]
+        {
+            PairColumn.Bid, PairColumn.Ask, PairColumn.Turnover24h,
+            PairColumn.Depth10, PairColumn.Depth25, PairColumn.Depth50
+        })
+        {
+            Assert.Equal(VerdictScope.PerQuoteAsset, Verdicts.Scope(perQuote));
+        }
+
+        foreach (var wholePair in new[]
+        {
+            PairColumn.BidSize, PairColumn.AskSize, PairColumn.OpenInterest, PairColumn.SpreadBps
+        })
+        {
+            Assert.Equal(VerdictScope.WholePair, Verdicts.Scope(wholePair));
+        }
+
+        // The spread is the fourth WholePair column and it is ranked under the spread column's own
+        // words, so its scope is stated in that entry rather than in this one.
+        Assert.Contains(
+            "A spread in bps carries no currency, so this column compares every row on the page",
+            reading, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_notebar_still_carries_the_reader_to_the_rules_it_no_longer_prints()
+    {
+        // The move is only safe while the link survives. A notebar of two sentences with no way
+        // down to the other fourteen rules is not a shorter note, it is a page that stopped saying
+        // what it does — so the anchor and its target are asserted as one fact, in the two files
+        // that have to keep agreeing about it.
+        Assert.Contains("href=\"#reading\"", Read("_PairTable.cshtml"), StringComparison.Ordinal);
+        Assert.Contains("id=\"reading\"", Read("Pair.cshtml"), StringComparison.Ordinal);
+
+        // And it has to be a plain fragment: with scripts off this link is the only navigation on
+        // the page, so nothing may stand between the press and the jump.
+        Assert.DoesNotContain("a-note-link", Read("arena-live.js"), StringComparison.Ordinal);
+        Assert.DoesNotContain("a-note-link", Read("arena-ages.js"), StringComparison.Ordinal);
     }
 }

@@ -98,6 +98,109 @@
 // degraded rows are dropped before the count — and the first paint is exact rather than withdrawn.
 // The only thing the two halves must agree on is what `degraded` means, and that is one predicate
 // over three numbers this file is handed rather than told.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// THE DOCUMENT'S OWN AGE, AND THE DEFECT IT CLOSES
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// A reader opened this page, left the tab and came back to "99+ s ago" on every cell, `degraded` on
+// two venues, and "4 feeds have stopped meaning anything." in the largest type on the page. The
+// collector was fine — on the host that produced the complaint, 566 of 566 Binance rows were under
+// 30 s, 177 of 177 Hyperliquid, 272 of 280 Kraken. Every mark on that screen was true. The page was
+// honest and it looked broken, and what the reader actually asked was "why are some so old".
+//
+// The page was answering a question it had not been asked. "How old is this figure" and "has this
+// venue stopped" are different questions, and with no stream open the first one cannot tell them
+// apart: nothing is re-read after the render, so every age on the page advances by exactly the same
+// amount, and what the reader is looking at is the DOCUMENT's age painted onto five hundred cells.
+// A venue that died in that window is indistinguishable from one that did not, because the page has
+// not looked at either of them since.
+//
+// So the distinction is not per cell. It is per document, and it is stated once.
+//
+// (a) MAKE LIVE THE DEFAULT — every reader gets a stream, the page never sits still and the
+//     question never comes up. REJECTED three ways. It spends a held-open connection per visitor on
+//     the many who never asked for one, on a feed that already has a sentence prepared for the day
+//     it runs out of capacity. It fixes nothing for the readers who cannot have it — scripts off,
+//     no EventSource, feed full — and they get the identical page with the defect intact, which
+//     means the defect would not be closed, only hidden from the majority. And it converts a
+//     document into a monitor without being asked: the argument this whole surface makes is that
+//     the reader is told what they are looking at, and a page that starts replacing its own figures
+//     on arrival has made that decision on their behalf.
+//
+// (b) A DIFFERENT MARK ON THE CELLS — draw "this aged along with the page" differently from "this
+//     call died". REJECTED as a category error, and worth being precise about, because it is the
+//     first idea anyone has and it is the one the brief names. With no stream there is no cell that
+//     died: the page holds ONE render, every age advances in lockstep, and a cell that crosses into
+//     `degraded` at T+180 crossed because the document is 180 s old. A per-cell mark would draw a
+//     difference between cells that does not exist between them. And the only version of it that
+//     would quiet the page down is the subtractive one — withhold the △ from a cell that spent its
+//     window after the render — which is the page claiming a figure is fresher than it is, the one
+//     thing this surface may never do. The idea is right; its level is wrong.
+//
+// (c) THE DOCUMENT SAYS HOW OLD IT IS — this. The page states its own age, once, in the row under
+//     the statement line: it was rendered N ago, nothing below has been re-read since, and what the
+//     venues have done in that time is not a thing this page knows. The feeds that were ALREADY
+//     degraded at the render are counted separately in the same sentence, because those ARE facts
+//     about a venue — they are the half of the reader's question that has a real answer, and the
+//     half the old page buried by making every other row look like them.
+//
+//     AND THE OTHER HALF STAYS OPEN. The first version of this sentence closed it: the feeds that
+//     crossed into `degraded` after the render were described as marks that "date the page, not the
+//     venue". That is a cause, and this page has no evidence for one — the paragraph above says so
+//     itself, three ways. It was also flatly wrong for the calls that were already visibly late when
+//     the server rendered them: a depth sweep 800 s into a 300 s window is not degraded yet, so it
+//     crosses under the reader, is counted here as freshly degraded, and was exonerated by name
+//     while the venue had in fact been silent for two and a half windows before the page existed.
+//     A page that resolves its own ambiguity in its own favour is worse than one that states it,
+//     and the one failure the reader most needs to see is the one that treatment hid.
+//
+// Nothing is retracted, softened or un-faded. The cells say exactly what they said. This adds one
+// claim, about the document, and it is a claim that can only ever make the page under-state its own
+// freshness — the direction this surface is allowed to be wrong in. The property that no figure is
+// ever shown as fresher than it is survives untouched, because nothing here touches a figure.
+//
+// THE TRIGGER IS THE DOCUMENT'S OWN AGE, measured against the page's own windows. Four candidates:
+//
+//   * A fixed document age — "this page is more than two minutes old". A new constant, disagreeing
+//     with every window on the page: two minutes is ancient for a 10 s ticker and nothing at all
+//     for a 653 s depth sweep, and this surface has already shipped the bug where one flat number
+//     stood in for per-call windows.
+//
+//   * Any call crossing OUT OF ITS WINDOW since the render. Measured: it fires seven seconds after
+//     load on this pair, and it is firing about a mark that is behaving correctly — △ says "past
+//     its window, no longer graded", the age beside it is still spelled out to the second, and
+//     nothing has been claimed about the venue. A box saying the page is stale, seven seconds in,
+//     over a page that is telling the exact truth legibly, is the page interrupting itself.
+//
+//   * A call going `degraded` since the render. SHIPPED, AND WRONG ON ITS OWN TERMS: it is an event
+//     in the FEEDS used to gate a sentence about the DOCUMENT, and the two come apart on exactly
+//     the page this row exists for. Where every feed was already degraded when the server built it,
+//     nothing can cross, the count is permanently zero, and a tab left open for an hour over a
+//     screen of `degraded` never states its age, never shows this box and never offers Reload. The
+//     reader who is most misled is the one the gate kept silent.
+//
+//   * THE DOCUMENT ITSELF PAST `degraded` ON THE QUICKEST WINDOW IT CARRIES — this. The same
+//     predicate, asked of the document: once the page's own age has passed DEGRADED_WINDOWS times
+//     the shortest window on it, a figure written by the fastest call here would read `degraded`
+//     from the document standing still alone, whoever is publishing. It is not a new constant and
+//     not a flat one — it is per page, off the windows the server sent, so a page of ten-second
+//     tickers admits it in minutes and a page of daily sweeps does not admit it at ten minutes,
+//     which is the correct answer in both cases.
+//
+// A verdict changing under the reader is kept as a SECOND trigger, ORed with the first: that is the
+// one boundary where the page's story changes rather than its arithmetic — the count stops being
+// spelled out, the comparative claims in that column are withdrawn (see THE VERDICTS above), and
+// the statement line starts saying feeds have stopped meaning anything — and it can happen while
+// the document is still young. It gates when the sentence is said; it never decides what it says.
+//
+// No new constant enters the surface either way: `degraded` is the predicate three of the other
+// judgements in this file are already made with, over the windows the server sent.
+//
+// It is also where the LIVE button is finally discoverable. The button worked — the stream connects,
+// the table updates — and the reader reported it missing, because 54 by 32 pixels reading "Live"
+// says nothing about what the page is doing NOW or what pressing it would change. The sentence
+// beside it says both, and at the moment the reader most wants an answer it says which of the two
+// controls in that row solves what they are looking at.
 (() => {
   'use strict';
 
@@ -116,6 +219,13 @@
   if (!Number.isFinite(serverNow)) return;
 
   const nowMs = () => serverNow + (performance.now() - anchor);
+
+  // The instant the figures currently on screen were produced, which starts as the render instant
+  // and is NOT the same variable as serverNow. serverNow is a clock correction and moves whenever
+  // the browser's arithmetic is re-checked against the server (a HEAD on the way back to the tab);
+  // this moves only when the fragments themselves are replaced, which is a live push and nothing
+  // else. Conflating the two would let a clock correction declare the document fresh.
+  let renderedAt = serverNow;
 
   // ── rule 2, as arithmetic. The same three lines as Freshness.Weight, and deliberately no more:
   //    clamped at BOTH ends. Below zero because received_at is the venue's own clock on some
@@ -143,6 +253,22 @@
     if (ageS === null) return '—';
     const whole = Math.round(Math.max(ageS, 0));
     return whole > 99 ? '99+ s' : whole + ' s';
+  };
+
+  // How old the DOCUMENT is, and deliberately not in the two formats above. A cell's age caps at
+  // "99+ s" for two reasons that both stop applying here: the slot must not change width as the
+  // count runs, and past its window a call is not graded further so 31 seconds and 30 days are one
+  // verdict. The document is graded against nothing and sits in a sentence, so it is written at
+  // whatever size it actually is — "99+ s" for a tab left open since lunch would be the page hiding
+  // the one figure the sentence exists to state.
+  const durationText = (seconds) => {
+    const whole = Math.round(Math.max(seconds, 0));
+    if (whole < 120) return whole + ' s';
+    const minutes = Math.round(whole / 60);
+    if (minutes < 120) return minutes + ' min';
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return rest === 0 ? hours + ' h' : hours + ' h ' + rest + ' min';
   };
 
   // ── the strip's two end labels ──
@@ -201,6 +327,159 @@
   // numbers do. It CAN change shape between updates — the live stream patches a re-rendered table
   // in, and a venue can appear or disappear in one — so this is a function and not a one-off, and
   // the live path calls it back below. With no live stream it runs exactly once, as before.
+  // ── The row under the statement line ──
+  // Queried once and never re-queried: it sits outside every [data-live-region] on purpose, so it
+  // is the one part of this page a live push cannot replace. On a page with no live control — the
+  // pair list — none of these exist and every use below is guarded.
+  const liveRow = document.querySelector('.a-liverow');
+  const pageState = document.getElementById('a-live-what');
+  const reloadButton = document.getElementById('a-live-reload');
+  const liveButton = document.getElementById('a-live');
+
+  // location.reload() and not an anchor to the same address. A link would be answered from the
+  // browser's own cache as readily as from the server, and handing the reader back a copy of the
+  // document they just asked to replace is the exact failure this control exists to fix.
+  if (reloadButton) {
+    reloadButton.addEventListener('click', () => { window.location.reload(); });
+  }
+
+  // Held so the sentence is written only when it changes. It is rebuilt on every tick from figures
+  // that mostly do not move, and rewriting identical text once a second for the life of the tab is
+  // work for nothing.
+  let said = null;
+
+  // See THE DOCUMENT'S OWN AGE at the top of this file. Every number here is gathered in the same
+  // walk as the statement line above, so the sentence about the page and the sentence about the
+  // feeds can never be reading two different clocks.
+  //
+  // WHAT THIS SENTENCE MAY SAY, AND WHAT IT MAY NOT.
+  //
+  // It shipped once saying that the marks a tab's own age produced "date the page, not the venue",
+  // and that was a cause asserted where the page has no evidence for one. The header above states
+  // the reason in the other direction and it is the whole argument of this row: with no stream
+  // open, a venue that died one second after the render and a venue that is still publishing
+  // produce EXACTLY the same thing on this screen, because the page has not looked at either since
+  // it was built. Picking one of the two and printing it in body ink resolved the reader's question
+  // in our favour — and it resolved it wrongest on the page that matters most, the one whose calls
+  // were already visibly late when the server rendered them: a call 800 s into a 300 s window is
+  // not degraded yet (that is DEGRADED_WINDOWS windows away), so it crosses later, is counted here
+  // as freshly degraded, and was then exonerated by name.
+  //
+  // So the sentence states the document's age, states that nothing has been re-read, and says the
+  // ambiguity out loud rather than closing it. The half of the reader's question that HAS an answer
+  // — the feeds the server itself found degraded — is still answered, and still counted apart.
+  const sayPageState = (docAgeS, freshlyDegraded, alreadyDegraded, fastestWinS) => {
+    if (!pageState) return;
+
+    const liveOn = liveButton !== null && liveButton.getAttribute('aria-pressed') === 'true';
+
+    // THE GATE IS THE DOCUMENT'S OWN AGE, because the document's own age is what the sentence is
+    // about. It was a feed CROSSING into degraded after the render, which is a different question
+    // and left silent the page the complaint describes: every feed already degraded when the server
+    // built it, `freshlyDegraded` permanently 0, and a tab open for an hour that never states its
+    // age, never shows this box and never reveals Reload — the reader most misled, told least.
+    //
+    // The threshold is not a new constant, which the header rejects and this surface has already
+    // shipped the bug for: it is `degraded` — the predicate three other judgements in this file are
+    // made with — asked of the DOCUMENT against the quickest window the page carries. Past it, a
+    // figure written by the fastest call on this page would read `degraded` from the document
+    // sitting still alone, whatever any venue has done. Below it the page is younger than its own
+    // fastest cadence's write-off and has nothing to admit.
+    //
+    // Kept as a second trigger: a verdict that changed under the reader. That can happen while the
+    // document is still young — a call one second short of degraded at the render crosses at T+1 —
+    // and it is the moment the page's story changes (the count stops being spelled out, the chips
+    // come off, the statement line starts saying feeds have stopped meaning anything), so it is
+    // still owed an explanation. The two triggers are ORed; neither claims a cause.
+    const aged = fastestWinS !== null && degraded(docAgeS, fastestWinS);
+    const stale = aged || freshlyDegraded > 0;
+    const marked = freshlyDegraded + alreadyDegraded;
+
+    let text;
+
+    if (stale) {
+      text = 'Rendered ' + durationText(docAgeS) + ' ago, and nothing below has been re-read since. ';
+
+      if (freshlyDegraded > 0) {
+        // Deliberately the statement line's own unit and the table's own word. The sentence this
+        // one sits under says "N feeds have stopped meaning anything", the cells say `degraded`,
+        // and a reader who has just read both is owed the arithmetic in the same terms rather than
+        // a second vocabulary to reconcile with the first.
+        text += (marked === 1
+          // One feed on the page and it crossed under the reader: "1 of the 1 feeds" is what a
+          // count says when nobody wrote the sentence for the smallest page it can appear on.
+          ? 'The one feed reading degraded crossed that line after the render'
+          : freshlyDegraded === marked
+            ? 'All ' + marked + ' feeds reading degraded crossed that line after the render'
+            : freshlyDegraded === 1
+              ? 'One of the ' + marked + ' feeds reading degraded crossed that line after the render'
+              : freshlyDegraded + ' of the ' + marked + ' feeds reading degraded crossed that line'
+                + ' after the render')
+          // The unknown, said out loud. This is the sentence the defect was in, and it is now the
+          // one place on the page that names the ambiguity instead of resolving it.
+          + ', and this page cannot tell you why: a venue that has stopped and a document left open'
+          + ' look exactly the same from here.'
+          // The other half of the reader's question, and the half that has a real answer: a feed the
+          // SERVER found degraded is an observation about a venue, and it stays one however long the
+          // tab is left open. Counted apart from the ones above and never merged with them.
+          + (alreadyDegraded === 1
+            ? ' The other was already degraded at the render, and that is a fact about the venue.'
+            : alreadyDegraded > 1
+              ? ' The other ' + alreadyDegraded + ' were already degraded at the render, and those'
+                + ' are facts about the venues.'
+              : '');
+      } else if (marked > 0) {
+        // Every degraded mark on the page is the server's own observation. Nothing here is the
+        // document's doing, so nothing is counted against it — but the document is still old, and
+        // what those venues have done since is still not a thing this page knows.
+        text += (marked === 1
+          ? 'The one feed reading degraded was already degraded at the render, and that is a fact'
+            + ' about the venue.'
+          : 'All ' + marked + ' feeds reading degraded were already degraded at the render, and'
+            + ' those are facts about the venues.')
+          + ' What has happened at any venue since is not something this page can know.';
+      } else {
+        // A stale page with nothing reading degraded, which the gate above cannot actually produce:
+        // `aged` means the document has outlived DEGRADED_WINDOWS of the quickest window on it, and
+        // the call carrying that window has aged by at least as much, so it is degraded by then.
+        // Written anyway, and not as an assertion or a throw: this branch is what the sentence says
+        // if that gate is ever loosened, and a page whose stale row can come out undefined is a
+        // worse failure than a paragraph that is never printed. It is the same fact as the two
+        // above it with the counting removed.
+        text += 'What the venues have done in that time is not something this page can know until'
+          + ' it is re-read.';
+      }
+
+      // Deliberately NOT "the stream is open and nothing has arrived" when the button reads
+      // pressed. `aria-pressed` is the reader's INTENT, not the connection: arena-live.js keeps it
+      // pressed while a dropped stream retries, and while a backgrounded tab has no stream at all.
+      // Reading intent and reporting it as connection health would have this sentence assert an
+      // open socket where there is none — and "nothing has arrived" would then read as a fact about
+      // the venues, which is the one claim arena-live.js's own header says this page exists to
+      // refuse. The connection has a voice already: the note beside this one, written by the file
+      // that actually holds the socket.
+      text += (liveOn
+        ? ' Reload for a fresh read.'
+        : ' Reload for a fresh read, or press Live and the table is replaced as each collector'
+          + ' pass lands.');
+    } else if (liveOn) {
+      // A stream is open and arena-live.js is already saying what it is doing, in the note beside
+      // this one. Two sentences about one thing is two systems talking over each other.
+      text = '';
+    } else {
+      text = 'This page is a snapshot. The ages below count forward from the render — nothing is'
+        + ' re-read until you press Live.';
+    }
+
+    if (text !== said) {
+      pageState.textContent = text;
+      said = text;
+    }
+
+    if (liveRow) liveRow.classList.toggle('a-liverow--stale', stale);
+    if (reloadButton) reloadButton.hidden = !stale;
+  };
+
   let cells = [];
   let strips = [];
   let statement = null;
@@ -288,6 +567,17 @@
     let windowed = 0;
     let oldestLate = null;
 
+    // How old the figures on screen are AS A DOCUMENT, and what that age alone has done to the
+    // verdicts printed on them. Floored at zero: a clock correction on the way back to the tab can
+    // land a hair behind the render instant, and a negative document age is not a fact.
+    const docAgeS = Math.max(0, (nowMs() - renderedAt) / 1000);
+    let freshlyDegraded = 0;
+    let alreadyDegraded = 0;
+    // The quickest cadence anywhere on this page, and the only thing the DOCUMENT's own age is
+    // judged against. Read off the calls rather than named as a number here: see the gate in
+    // sayPageState for why a flat threshold is the one answer this surface may not give.
+    let fastestWinS = null;
+
     for (const c of cells) {
       const ageS = ageOf(c.cell);
       c.cell.style.setProperty('--w', weight(ageS, c.win).toFixed(3));
@@ -298,6 +588,7 @@
       let lo = null;
       let hi = null;
       let anyDegraded = false;
+      let anyDegradedThen = false;
 
       for (const t of s.ticks) {
         const ageS = ageOf(t.el);
@@ -333,6 +624,14 @@
         // observed but cannot judge is not the same silence as a call we have never seen.
         landed += 1;
         if (call.win !== null) windowed += 1;
+        if (call.win !== null && call.win > 0 && (fastestWinS === null || call.win < fastestWinS)) {
+          fastestWinS = call.win;
+        }
+
+        // The same predicate, asked of this call's age AT THE RENDER. Nothing else on the page is
+        // computed twice against two instants; this is, because the whole question the row below
+        // answers is which of these marks the server put there and which the open tab did.
+        anyDegradedThen = anyDegradedThen || degraded(ageS - docAgeS, call.win);
         if (spent && (oldestLate === null || ageS > oldestLate.age)) {
           oldestLate = { label: call.label, age: ageS };
         }
@@ -367,12 +666,24 @@
 
       // Per ROW, matching the server: a feed has stopped meaning anything when any one of its three
       // calls has, not once per dead call.
-      if (anyDegraded) degradedFeeds += 1;
+      if (anyDegraded) {
+        degradedFeeds += 1;
+        // And the same row, split by WHO SAID SO. The two counts are disjoint by construction and
+        // together they are exactly the feeds the statement line above is about, which is what lets
+        // the row below say "3 of the 4" without a second walk or a second definition.
+        if (anyDegradedThen) alreadyDegraded += 1;
+        else freshlyDegraded += 1;
+      }
     }
 
     if (statement) {
       statement.textContent = statementText(degradedFeeds, oldestLate, landed, windowed);
     }
+
+    // Said after the statement line and derived from the same walk: where that sentence says what
+    // is true of the FEEDS, this one says what is true of the PAGE, and a reader who has just read
+    // "4 feeds have stopped meaning anything" is owed the second one immediately underneath.
+    sayPageState(docAgeS, freshlyDegraded, alreadyDegraded, fastestWinS);
 
     // ── The withdrawal ──
     // One question per group, and it is not "who is best now" — it is "has a row this claim was
@@ -452,6 +763,10 @@
     if (Number.isFinite(at)) {
       serverNow = at;
       anchor = performance.now();
+      // The fragments that just landed were rendered at this instant, so the document is new and
+      // its age starts again from zero. This is the only thing on the page that may move it, and it
+      // is why a reader who presses Live never sees the stale row: the document stops being old.
+      renderedAt = at;
     }
     collect();
     tickAll();

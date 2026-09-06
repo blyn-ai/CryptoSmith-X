@@ -304,4 +304,49 @@ public sealed class FreshnessTests
         Assert.DoesNotContain("'fresh '", script, StringComparison.Ordinal);
         Assert.DoesNotContain("'old '", script, StringComparison.Ordinal);
     }
+
+    // ── What the glossary says the mark means, against what the code does with it ────────────────
+
+    /// <summary>A view's prose with its line breaks flattened: the source wraps at 100 columns, so
+    /// a sentence carries a newline and its indent in one file and not in the next, and a test that
+    /// fails on a rewrap fails on the wrong thing.</summary>
+    private static string Reading() => System.Text.RegularExpressions.Regex.Replace(
+        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", "Pair.cshtml")), @"\s+", " ");
+
+    [Fact]
+    public void The_triangle_entry_says_what_stops_at_the_window_and_what_does_not()
+    {
+        var reading = Reading();
+
+        // THE DEFECT. The entry read "Nothing is measured beyond it — a second over and a week over
+        // read the same", which is true of the FADE and false of everything the reader reads: past
+        // one window the age is still spelled out to the second and the figure still takes its
+        // rank. The entry two terms below said the opposite, so the glossary contradicted itself.
+        Assert.DoesNotContain("Nothing is measured beyond it", reading, StringComparison.Ordinal);
+        Assert.Contains(
+            "That call is past its window, so the fade has run out", reading, StringComparison.Ordinal);
+        Assert.Contains(
+            "The count itself does not stop: the age is still spelled out to the second and the"
+            + " figure still takes its rank, until the call goes", reading, StringComparison.Ordinal);
+
+        // Each half of that sentence, against the code it describes. The fade: one window over and
+        // a week over are the same weight, which is the only thing the old text got right.
+        Assert.Equal(Freshness.Weight(31, 30), Freshness.Weight(TimeSpan.FromDays(7).TotalSeconds, 30), 10);
+
+        // The count: still exact at three windows, and still a number rather than the word.
+        Assert.Equal("90 s ago", Format.Age(90, 30));
+        Assert.False(Freshness.Degraded(90, 30));
+
+        // The rank: withheld at `degraded` and not at the window. A figure one window over is still
+        // compared — see A_figure_past_its_window_still_ranks_because_that_is_not_the_same_verdict.
+        Assert.True(Freshness.PastWindow(31, 30));
+        Assert.False(Freshness.Degraded(31, 30));
+
+        // And the boundary the entry below it hands off to, from the constant rather than from a
+        // number typed into a sentence: the view interpolates Freshness.DegradedWindows.
+        Assert.Equal("degraded", Format.Age(30 * Freshness.DegradedWindows, 30));
+        Assert.Contains(
+            "<b>degraded</b> replaces the count once the call is @Freshness.DegradedWindows times"
+            + " its own window behind", reading, StringComparison.Ordinal);
+    }
 }

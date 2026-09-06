@@ -254,6 +254,55 @@ public static class RowCells
         ];
     }
 
+    /// <summary>
+    /// The longest single figure printed in each metric column, in characters — the one number the
+    /// stylesheet needs in order to fit a figure to a column whose width it will not widen.
+    ///
+    /// <b>Why the column and not the cell.</b> The size is the column's, not each figure's, because
+    /// a column is the unit this page is read in: the whole argument for the table is comparing one
+    /// quantity down four venues. Fitting each cell on its own would print 765,034,123,000 at 9.2px
+    /// and 19,824,942,751,000 at 7.7px one above the other, in the same column, right-aligned — the
+    /// digit stack the comparison is made on stops lining up, and type size, which means nothing
+    /// here, starts looking like emphasis on the SMALLER of two numbers. One column, one size.
+    ///
+    /// <b>Characters, not pixels.</b> This class does not know what a column is wide, and must not
+    /// learn: the seventeen track widths live in one custom property in <c>arena.css</c>, and the
+    /// comment on it says why four copies are four chances to drift. The server counts glyphs; the
+    /// sheet, which is the only place that knows the track, turns a count into a type size. Every
+    /// character a figure can hold is one advance of DM Mono — digits, the group separator, the
+    /// decimal point, a sign, the per-cent, and the em dash a missing figure prints — so the count
+    /// is <see cref="string.Length"/> and there are no surrogate pairs to spoil it.
+    ///
+    /// A column of nothing but dashes counts 1, never 0: the sheet divides by this number.
+    /// </summary>
+    public static IReadOnlyList<int> FigureGlyphs(IReadOnlyList<IReadOnlyList<MetricCellModel>> rows)
+    {
+        var widest = new int[rows.Count == 0 ? 0 : rows.Max(cells => cells.Count)];
+
+        foreach (var cells in rows)
+        {
+            for (var i = 0; i < cells.Count; i++)
+            {
+                // Both figures of a depth cell, each on its own: the pair may break BETWEEN them
+                // (see `.a-pair`), so what has to fit a column is the wider of the two, never their
+                // sum. Counting the pair whole would shrink all three depth columns for a book that
+                // prints perfectly well on two lines.
+                widest[i] = Math.Max(widest[i], cells[i].Text.Length);
+                if (cells[i].Second is { } second)
+                {
+                    widest[i] = Math.Max(widest[i], second.Length);
+                }
+            }
+        }
+
+        for (var i = 0; i < widest.Length; i++)
+        {
+            widest[i] = Math.Max(1, widest[i]);
+        }
+
+        return widest;
+    }
+
     // ── builders ────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>

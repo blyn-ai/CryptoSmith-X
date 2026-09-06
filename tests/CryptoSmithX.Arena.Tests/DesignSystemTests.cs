@@ -164,26 +164,115 @@ public sealed class DesignSystemTests
     }
 
     /// <summary>
-    /// Every figure is contained, and not only the two in a depth cell.
+    /// A figure is never broken across two lines.
     ///
-    /// The containment used to live on <c>.a-pair</c> alone, and the mechanism it fixes has nothing
-    /// to do with depth: <c>.a-cell</c> is a flex column at <c>align-items: flex-end</c>, so every
-    /// <c>.a-fig</c> is a content-sized item with no maximum and hangs LEFT out of its own column,
-    /// over the right-aligned figure of the column before it. Migration 0023's contract multipliers
-    /// of 1000 and 1000000 make that the ordinary printed value on those pairs, not an edge case:
-    /// open interest at 122.4px in an 84px content box, 28.4px of it inside the turnover cell.
+    /// This test used to assert the opposite — <c>overflow-wrap: anywhere</c> on <c>.a-fig</c>, with
+    /// <c>white-space: nowrap</c> asserted ABSENT — and the deployed page it described printed eleven
+    /// figures on PEPE/USD as "6,521,172," above "000". The mechanism it was written for is real (a
+    /// content-sized flex item at <c>align-items: flex-end</c> hangs LEFT over the previous column's
+    /// figure, and migration 0023's multipliers make nineteen-character open interest ordinary); the
+    /// answer was not. A number split across two lines is not a smaller number, it is an unreadable
+    /// one, and Num.jsx — the design system component this class implements — sets nowrap on every
+    /// figure on the surface.
     /// </summary>
     [Fact]
-    public void Every_figure_is_contained_by_its_own_column_and_not_only_a_depth_pair()
+    public void A_figure_is_never_broken_across_two_lines()
     {
         var fig = Block(Source("arena.css"), ".a-fig");
 
-        Assert.Matches(@"max-width:\s*100%", fig);
-        Assert.Matches(@"overflow-wrap:\s*anywhere", fig);
+        Assert.Matches(@"white-space:\s*nowrap", fig);
 
-        // And `nowrap` is gone, because it is what made the two declarations above unreachable: a
-        // line that may not break cannot be contained by a box it does not fit.
-        Assert.DoesNotMatch(@"white-space:\s*nowrap", fig);
+        // The two ways of breaking a number, named so neither comes back: `anywhere` breaks between
+        // any two characters, `break-word` breaks the same way one moment later.
+        Assert.DoesNotMatch(@"overflow-wrap:\s*(anywhere|break-word)", fig);
+        Assert.DoesNotMatch(@"word-break:\s*break-all", fig);
+
+        // Kept, and for a different job than it used to have: it is what lets a `.a-fig` shrink
+        // inside `.a-pair` so the pair can break BETWEEN its two figures.
+        Assert.Matches(@"max-width:\s*100%", fig);
+    }
+
+    /// <summary>
+    /// A figure too wide for its column is fitted to the column instead — and the fit is the
+    /// column's, not the cell's.
+    ///
+    /// The server counts characters (<c>RowCells.FigureGlyphs</c>) and the sheet turns the count
+    /// into a size against <c>100cqw</c>, because the seventeen track widths live in <c>--a-cols</c>
+    /// and a second copy of them anywhere is a copy free to drift. Delete the container declaration
+    /// and <c>100cqw</c> resolves against the viewport instead of the cell: every figure on the page
+    /// silently takes the wrong size, and nothing else fails.
+    /// </summary>
+    [Fact]
+    public void A_figure_wider_than_its_column_is_fitted_to_the_column_and_not_hidden()
+    {
+        var css = Source("arena.css");
+        var cell = Block(css, ".a-cell");
+        var fig = Block(css, ".a-fig");
+
+        Assert.Matches(@"container-type:\s*inline-size", cell);
+        Assert.Matches(@"--a-adv:", cell);
+
+        // The fit itself, and the plain declaration under it that an engine without container-query
+        // units falls back to. Two `font-size` lines, in that order.
+        var sizes = Regex.Matches(fig, @"font-size:([^;]+);").Select(m => m.Groups[1].Value).ToList();
+        Assert.Equal(2, sizes.Count);
+        Assert.Matches(@"^\s*var\(--fs-data\)\s*$", sizes[0]);
+        Assert.Contains("100cqw", sizes[1], StringComparison.Ordinal);
+        Assert.Contains("--fig-n", sizes[1], StringComparison.Ordinal);
+
+        // Never larger than the figure size the type ladder names: the fit only ever shrinks.
+        Assert.Contains("min(var(--fs-data)", sizes[1].Replace(" ", ""), StringComparison.Ordinal);
+
+        // The count is per column and the same on every row of it, so the view must read it from
+        // the column index rather than from the cell it is drawing.
+        Assert.Contains("--fig-n:@figureGlyphs[column]", Source("_PairTable.cshtml"), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A shrunken figure does not take the history and the age under it up by the pixels it saved.
+    ///
+    /// <c>line-height: 1</c> would: a 7.7px figure in a 7.7px line box moves everything below it 4px
+    /// up, in one column, down the whole table — the "three figure lines and three age lines per
+    /// row" this file removed, re-created by the fix for something else. The line box is a length,
+    /// so it is one figure tall whatever the figure inside it is.
+    /// </summary>
+    [Fact]
+    public void The_figure_slot_is_one_figure_tall_whatever_size_the_figure_is()
+    {
+        Assert.Matches(@"line-height:\s*var\(--fs-data\)", Block(Source("arena.css"), ".a-fig"));
+    }
+
+    /// <summary>
+    /// And the figures in it sit on one baseline, which the fixed line box does not give on its own.
+    ///
+    /// A glyph box is centred in its line box by half-leading, so holding the line box at 12px while
+    /// the font shrinks to fit moves the BASELINE up: measured in a browser over 5- to 19-character
+    /// figures in an 84px cell, baselines at 10.0 / 10.0 / 9.5 / 9.0 / 8.0px below the box top,
+    /// against age lines that all stayed at 12.0. Three numbers on one row floating two pixels above
+    /// the rest, on a surface whose argument is that a row is one venue's single statement.
+    ///
+    /// The strut is a zero-width space at the ROW's size: it puts the line box's baseline where a
+    /// full-size figure would put it, and the fitted text — always smaller, never larger — aligns to
+    /// that. Its height comes from the font rather than from a literal, so it holds for the three
+    /// fallbacks --font-mono names. <c>height</c> is the other half: the strut alone lets the box
+    /// grow with the fitted line's own descent (12 → 14px at 19 characters, measured), which would
+    /// push the history and the age back down and re-open the defect the line box was pinned to
+    /// close. Measured after: baseline 10.0px and box 12.0px at every one of those five sizes.
+    /// </summary>
+    [Fact]
+    public void A_fitted_figure_sits_on_the_same_baseline_as_the_rest_of_its_row()
+    {
+        var css = Source("arena.css");
+        var strut = Block(css, ".a-fig::before");
+        var fig = Block(css, ".a-fig");
+
+        Assert.Matches(@"content:\s*""\\200B""", strut);
+        Assert.Matches(@"font-size:\s*var\(--fs-data\)", strut);
+        Assert.Matches(@"height:\s*var\(--fs-data\)", fig);
+
+        // The strut is the row's size and never the fitted one: sized by --fig-n it would shrink
+        // with the text it exists to hold still, and pin nothing.
+        Assert.DoesNotContain("--fig-n", strut, StringComparison.Ordinal);
     }
 
     [Fact]

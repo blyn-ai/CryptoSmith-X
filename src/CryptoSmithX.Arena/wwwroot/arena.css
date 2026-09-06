@@ -123,19 +123,42 @@
   gap: var(--gap-block);
 }
 
+/* The footer is a STACK now, not a row: it carries the reading glossary above the compliance line
+   on any page that renders one, and the compliance line alone on every other. The row it used to be
+   is `.a-foot-legal`, unchanged in every declaration, so the pages with no glossary look exactly as
+   they did. */
 .a-foot {
   display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--space-7);
   padding: var(--space-7) var(--space-9);
   background: var(--surface-card);
   border-top: var(--hairline);
 }
 
+.a-foot-legal {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+/* The hairline between the glossary and the compliance line, written as a sibling selector rather
+   than as a border on `.a-foot-legal` itself. On a page with no glossary that border would be a
+   second rule sitting a few pixels under the footer's own top border — a line with nothing on
+   either side of it. */
+.a-reading + .a-foot-legal {
+  padding-top: var(--space-5);
+  border-top: var(--hairline);
+}
+
 /* Verbatim, per the content rules: NOT INVESTMENT ADVICE · OWN FUNDS ONLY. Tracking is loosened
-   from --track-label because the line is long and a compliance line has to stay readable. */
-.a-foot .csx-eyebrow {
+   from --track-label because the line is long and a compliance line has to stay readable.
+
+   Scoped to the legal row and not to the whole footer, which it was: the footer now also holds the
+   reading section's heading, an eyebrow of the same class, and `.a-foot .csx-eyebrow` out-specified
+   it and painted a section head in the compliance line's faint ink. */
+.a-foot-legal .csx-eyebrow {
   letter-spacing: .1em;
   color: var(--text-faint);
 }
@@ -206,6 +229,92 @@
   padding: var(--space-4) var(--space-7);
   border-top: var(--hairline);
 }
+
+/* The one link on this surface that is dressed as a link. The pair cards are links too and they are
+   dressed as cards (.a-plain), which is what leaves --link free to mean exactly one thing here: a
+   single coloured phrase on a page of grey mono reads as the one thing to press. Its colour, its
+   hover and its lack of an underline are base.css's `a` and are deliberately not restated — this
+   rule sets only what makes it a label rather than body text. It does not move; rule 10.
+
+   white-space keeps "How to read this page ↓" whole, so the arrow never lands alone on a line
+   pointing at nothing. */
+.a-note-link {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
+  line-height: 1.5;
+  letter-spacing: var(--track-badge);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.a-note-link:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+/* ── How to read this page ──────────────────────────────────────────────────────────────────── */
+
+/* The glossary, in the footer, one headed entry per rule. It is not a paragraph and that is the
+   whole design: the reader arrives from one link with one question, and a term they can scan for
+   answers it without their reading the twelve rules either side of it.
+
+   The 230px minimum is the second raw number in this file, for the same reason as the first (the
+   column widths): it is this section's layout rather than the system's spacing. It is the width at
+   which a mono line of about thirty characters stops breaking mid-phrase — measured, at 1920 it
+   gives six columns, at a tablet three, and on a 375px phone one, with no media query and no
+   second layout to keep in agreement with the first. */
+.a-reading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* The same eyebrow the Candles head wears, in the same ink — and NOT the same furniture. The
+   candles head is `.a-section-head`: a name, a meta line, a rule, and a control the rule runs to.
+   This is a caption over a block of prose, and the reference draws it exactly that way (`#reading
+   h2`, no sibling rule, full width). The rule was borrowed with the class and had to be given
+   back: a hairline under a footer heading reads as a section boundary in a footer that already has
+   one above it and another under the glossary. */
+.a-reading-title { color: var(--brand-deep); }
+
+/* The gutter is --space-10 (34px) where the reference measures 30, and the row gap is --space-6
+   (14px) where it measures 14. The row gap agrees because 14 is a token; 30 is not one — the mock
+   writes it inline, as it writes its own head at 10px/.18em — and the choice here is between a
+   number from the spacing scale and a number copied off a picture. The scale wins: 34 is the step
+   above 26 and the columns are within 4px of the reference's at 1920. */
+.a-reading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--space-6) var(--space-10);
+  align-items: start;
+}
+
+.a-term {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* The term is set as a label rather than as a heading: it is the mark the reader just saw in the
+   table — △, CROSSED, 12 S AGO — and it has to look like that mark's name, not like a headline
+   competing with the statement line at the top of the page. */
+.a-term-name {
+  font-family: var(--font-mono);
+  font-size: var(--fs-eyebrow);
+  font-weight: var(--fw-medium);
+  line-height: 1.2;
+  letter-spacing: var(--track-badge);
+  text-transform: uppercase;
+  color: var(--text-heading);
+}
+
+.a-term-body {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-mono);
+  color: var(--text-faint);
+}
+
+.a-term-body b { font-weight: var(--fw-medium); color: var(--text-muted); }
 
 /* ════════════════════════════════════════════════════════════════════════════
    The comparison table — seventeen columns, 1836px, two sticky
@@ -532,6 +641,31 @@
   justify-content: flex-start;
   gap: var(--gap-cell);
   min-width: 0;
+
+  /* THE CELL IS THE QUERY CONTAINER, and that is the whole trick behind `.a-fig`'s fit: it is what
+     lets a figure be sized against a column width that neither this rule nor the server knows. The
+     seventeen widths live in `--a-cols` and nowhere else — see the comment there about four copies
+     of seventeen numbers — so nothing here repeats them. 100cqw inside a cell is its CONTENT box,
+     verified on the rendered page rather than assumed: 84px in the 104px open-interest track, which
+     is 104 less the 10px of --pad-cell a side.
+
+     `container-type: inline-size` also applies inline-size, layout and style containment. All three
+     are free here: the cell's width comes from a fixed grid track and never from its content, and
+     nothing inside a cell is positioned out of it — the one absolutely-positioned thing in the
+     table is the freshness strip, which lives in `.a-venue`. */
+  container-type: inline-size;
+
+  /* One glyph of DM Mono advances .6 of its font-size. MEASURED on the rendered page — 7.2px at
+     12px, over strings of 5 to 18 characters — not read off the metrics. The number is .605 rather
+     than .6 so the fit still holds on the three fallbacks the token names: ui-monospace resolves to
+     SF Mono at .6, Menlo is .6023, DejaVu Sans Mono .602. The 0.8% it costs is a fifth of a pixel
+     on the widest figure this schema can print, and it is the difference between a fit that is
+     right for the font that loaded and one that is right for the font that was asked for.
+
+     Rule 1 of this file — nothing is a literal the tokens already name — is kept: the tokens name
+     the family, and no token anywhere names its advance, because the design system's own Num sets
+     `white-space: nowrap` and never has to fit anything. */
+  --a-adv: .605;
 }
 
 /* Vertical group washes: the open-interest column at 3.5% green, the depth columns at 5% bronze.
@@ -551,10 +685,11 @@
    different columns on top of each other.
 
    What happens instead is decided in `.a-pair` below: the pair wraps inside its own cell, between
-   its two figures, so each of them stays whole. (The last-resort break INSIDE a single figure is on
-   `.a-fig`, and it is a different case: it applies where one number alone is wider than a whole
-   cell, which is the twelve single-figure columns' version of this same problem.) What was
-   rejected, and why:
+   its two figures, so each of them stays whole. (A single figure wider than a whole cell is the
+   twelve single-figure columns' version of this same problem, and it is answered differently: not
+   by a break — there is nothing in one number to break between — but by the fit on `.a-fig`, which
+   sizes a column's figures to the column. That comment is the long one.) What was rejected, and
+   why:
 
      * a wider column — rule 12. Seventeen columns at 1836px, no horizontal scroll at 1920. The
        three depth tracks would need ~33px more between them and there is nowhere honest to take
@@ -596,47 +731,137 @@
   opacity: var(--w, 1);
 }
 
-/* THE CONTAINMENT IS ON THE FIGURE, not on the depth wrapper, because the mechanism was never about
-   depth. `.a-cell` is a flex column at `align-items: flex-end`, so every `.a-fig` is a content-sized
-   item with no maximum: a figure wider than its column does not shrink, it hangs LEFT, out of its
-   own cell and over the right-aligned figure of the column before it. The wrap added for `.a-pair`
-   fixed the two-figure cells and left the twelve single-figure ones exactly as they were.
+/* A FIGURE IS NEVER BROKEN, AND IT IS FITTED TO ITS COLUMN INSTEAD.
+   ══════════════════════════════════════════════════════════════════════════════════════════════
+   The mechanism this is answering is real and it is not about depth. `.a-cell` is a flex column at
+   `align-items: flex-end`, so a `.a-fig` is a content-sized item with no maximum: a figure wider
+   than its column does not shrink, it hangs LEFT, out of its own cell and over the right-aligned
+   figure of the column before it. Nor is it an edge case in this schema. Migration 0023 seeds
+   contract multipliers of 1000 and 1000000, and RowCells multiplies the venue's figure THROUGH the
+   multiplier into base units, so nineteen-character open interest is the ORDINARY printed value on
+   the meme pairs — measured across eighteen live pairs, the widest figure the site prints is BONK's
+   119,386,224,822,000 at 129.6px in an 84px content box, with SHIB, PEPE and 1000BONK behind it and
+   thirteen-character bid and ask sizes at 93.6px in 76px.
 
-   That is not an edge case in this schema. Migration 0023 seeds contract multipliers of 1000 and
-   1000000 (1000CAT, 1000LUNC, 1MBABYDOGE, 1000000MOG), and RowCells multiplies the venue's figure
-   THROUGH the multiplier into base units, so open interest of 2,000,000,000,000 is the ordinary
-   printed value for those pairs: 122.4px of DM Mono in an 84px content box, its left edge 28.4px
-   inside the turnover cell and two and a half characters drawn on top of that column's own number.
-   Bid size and ask size reach 93.6px in a 76px box on the same rows.
+   WHAT WAS HERE BEFORE WAS `overflow-wrap: anywhere`, AND IT IS THE DEFECT IT WAS MEANT TO FIX.
+   It contained the box by breaking the number: at 1920, unprompted, on the deployed page, eleven
+   figures on PEPE/USD printed as
 
-   `max-width` is what stops the box. `overflow-wrap: anywhere` is what a number that still does not
-   fit does next, and it is the LAST resort in a fixed order:
+       6,521,172,
+       000
 
-     1. the figure fits its column — every ordinary row, and nothing below ever applies;
-     2. a depth cell's two figures wrap BETWEEN them (`.a-pair`), so each stays whole;
-     3. and only a single figure wider than the whole cell breaks inside itself.
+   A number split across two lines is not a smaller number, it is an unreadable one, and on a page
+   whose whole subject is comparing figures across venues it is the worst failure available. It also
+   contradicted the design system it claimed to implement: Num.jsx sets `white-space: nowrap` on
+   every figure on the surface, and the comment on `.a-pair` below has always said the pair breaks
+   between its children "because each `.a-fig` is `white-space: nowrap`" — which had stopped being
+   true of this rule. The three sizes it comes in are 1836px of fixed tracks, so it broke identically
+   at 1280 and at 1920: nothing here ever depended on the viewport.
 
-   Flex settles that order without being told: a flex line is broken between items before any item's
-   own text is, so the ask still moves whole whenever it fits alone. Step 3 is admissible for exactly
-   the reason step 2 was — "a figure that is complete, inside its column, and one line off beats a
-   figure that is on the line and printed over its neighbour" — and it hides nothing: every digit is
-   present, in order, in the same right-aligned tabular stack. The alternatives are the ones the
-   `.a-cell--depth` block already rejected one by one, and each of them either hides a digit
-   (`overflow: hidden`, an abbreviated magnitude, dropped separators) or is not available (a wider
-   column: seventeen of them already fill 1836px at 1920).
+   SO A FIGURE FITS BY TYPE. --fig-n arrives from the server on the cell: the longest figure printed
+   anywhere in THIS COLUMN, in characters (RowCells.FigureGlyphs, which argues the column-not-cell
+   part). The cell is a query container, so 100cqw is that column's content box, and the figure takes
+   the largest size that still prints the column's longest number whole on one line — `min()` keeps
+   it at --fs-data everywhere the ordinary case applies, which is fifteen of the seventeen columns on
+   almost every pair. Measured after the change, on the live pages: open interest 7.7px on PEPE and
+   7.3px on BONK, bid and ask size 9.7px, prices 11.2px on the sub-cent pairs, 12px everywhere else,
+   and no figure wrapped or overflowing at 1024, 1280 or 1920.
 
-   `overflow-wrap: break-word` was the near miss: it breaks at the same moment but leaves the item's
-   min-content size at the whole number, which is the size that made the box overflow in the first
-   place. `anywhere` is the one that also lets the box be as narrow as its column. */
+   IT IS UNIFORM DOWN A COLUMN AND THAT IS THE POINT. The size is not per figure: a column is what
+   this table is read down, and 765,034,123,000 at 9.2px above 19,824,942,751,000 at 7.7px, both
+   right-aligned, breaks the digit stack the comparison is made on and makes the smaller number look
+   emphasised. One column, one size, one comparison.
+
+   What it costs, said plainly: the open-interest column on a meme pair is printed smaller than its
+   neighbours, below the 8.5px the ages are set at, and a column in smaller type reads as a quieter
+   column. That is the price, it is paid only by the pairs whose values genuinely cannot fit, and
+   every digit is present, in order, in the right column, on one line.
+
+   REJECTED, each against the same test — does the reader see the number that was measured?
+
+     * a wider column (and a per-page track template) — rule 12, and arithmetic. Seventeen tracks at
+       1836px with no horizontal scroll at 1920. Open interest needs +46px and ask size +18; the
+       measured slack at 1920 is the 30px the grid leaves inside `.a-table-inner`, and the only
+       column with real slack on those pages is spread (~12px once its own eyebrow is fitted). It
+       does not add up, and buying it would move a number the readme states as a fact.
+     * `text-overflow: ellipsis` with the value in the title, the way `.a-venue-name` truncates —
+       for a NAME the tail is decoration; for a number the tail is the magnitude. "19,824,942,7…" is
+       read as billions when it is trillions, which is the dash-vs-zero lie with a marker on it.
+     * an abbreviated magnitude ("19.8T") — content fundamentals: numbers are always precise. Five
+       hidden digits on the one surface whose argument is that it hides nothing.
+     * dropping the group separators — 14 digits still needs 100.8px in an 84px box, so it does not
+       even fix it, and it makes one column number itself differently from the other sixteen.
+     * `overflow: hidden` — a clipped digit is a figure the page silently changed.
+     * a scroll inside the cell — rule 10, and 84px of scroll is not a control anyone can use.
+     * spending the cell's own side padding before shrinking the type, which would buy 12px and put
+       BONK at 8.4px instead of 7.3px — rejected for its price, not its arithmetic. --pad-cell is
+       what the mark, the history and the age are right-aligned to as well; moving it onto the four
+       children (the only way to take it without a cycle between a container's padding and its own
+       cq units) is a rewrite of the vertical rhythm this file has just finished proving, for one
+       pixel of type on two pairs.
+
+   Left in place: `max-width: 100%`, which is what makes a `.a-fig` shrinkable inside `.a-pair` so
+   the pair can break between its two figures. It is not what stops the overflow any more — the fit
+   is — and it stops nothing on its own: a nowrap line paints outside a capped box. It is kept
+   because the depth pair still needs its children to be flexible. */
 .a-fig {
   font-family: var(--font-mono);
+
+  /* Two declarations, and the plain one is load-bearing: an engine without container-query units
+     drops the second and every figure prints at 12px, which is exactly the behaviour of this page
+     before the fit existed — a figure wider than its track paints left across its neighbour's own
+     right-aligned number. That is a bad page and it is not a broken one: nothing is hidden, nothing
+     is clipped, every digit is on screen, and it is the same page the reader had last month. The
+     alternative was `overflow: hidden` as a fallback, which is rejected here for the same reason it
+     is rejected everywhere else in this file — a clipped digit is a figure the page silently
+     changed. */
   font-size: var(--fs-data);
+  font-size: min(var(--fs-data), calc(100cqw / (max(1, var(--fig-n, 1)) * var(--a-adv))));
+
   font-variant-numeric: tabular-nums;
   letter-spacing: var(--track-num);
-  line-height: 1;
+
+  /* THE LINE BOX IS A FIGURE TALL WHATEVER THE FIGURE IS. A length, not the 1 that used to be here:
+     at `line-height: 1` a 7.7px figure sits in a 7.7px line box and takes the history and the age
+     under it 4px up with it, which is the "three figure lines and three age lines per row" this
+     section spent a phase removing — one shrunken column would have re-created it down the whole
+     table.
+
+     THAT PINS THE BOX AND NOT THE BASELINE, which is the half this rule used to be missing. A
+     glyph box is centred in its line box by half-leading, so with the line box held at 12px and the
+     font shrinking to fit, the baseline climbs: measured, 12px figures sit their baseline 10px
+     below the box top, 10.7px figures 9.5, 8.7px 9.0 and 7.3px 8.0 — a two-pixel float on the three
+     narrowest columns, down every row of the table, on a surface whose argument is that a row is
+     one venue's single statement.
+
+     The strut below fixes it. A zero-width space at the ROW's size sets the line box's baseline
+     where a full-size figure would put it, and the fitted text — always smaller, never larger — is
+     aligned to that. Its height is taken from the font rather than written down, so it holds for
+     the three fallbacks --font-mono names as well as for DM Mono. `height` then holds the box at
+     one figure again: the strut alone would let the box grow with the fitted line's own descent
+     (12 → 14px at 19 characters, measured) and push the history and age lines back down, which is
+     the defect this rule opened with. Nothing is clipped — overflow stays visible, and a descender
+     paints into the gap under the box rather than being cut.
+
+     Rejected: `align-items: baseline` on the venue row. It aligns the CELLS, so the figures agree
+     and the age lines under them disagree instead, by the same two pixels. Rejected: giving the
+     strut an explicit height in pixels — that is the ascent of one font at one size written as a
+     literal, and it stops being true on the first fallback. Measured after: baseline 10.0px and box
+     12.0px for every figure from 5 to 19 characters. */
+  line-height: var(--fs-data);
+  height: var(--fs-data);
+
   max-width: 100%;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
   color: var(--text-data);
+}
+
+/* The strut. See THAT PINS THE BOX AND NOT THE BASELINE above: it is what holds a row's fitted
+   figures on one baseline. A zero-width space and not an empty box, because an empty box would need
+   its height in pixels and this needs the font's own ascent. */
+.a-fig::before {
+  content: "\200B";
+  font-size: var(--fs-data);
 }
 
 /* Rule 8, and it is the product. A dash means NOT MEASURED and takes its own ink; a zero is an
@@ -657,8 +882,10 @@
    was hanging 5.2px into the previous depth column. With it the pair can be no wider than the cell
    it belongs to, and `flex-wrap` decides what a pair that cannot fit does next.
 
-   It breaks between CHILDREN and never inside one, because each `.a-fig` is `white-space: nowrap`:
-   the ask moves to a second line whole, and no figure is ever split across two lines. The separator
+   It breaks between CHILDREN and never inside one, because each `.a-fig` is `white-space: nowrap` —
+   which is a property that rule really has again, and did not while it said `overflow-wrap:
+   anywhere`; the sentence you are reading was the first thing to go false when it changed.
+   The ask moves to a second line whole, and no figure is ever split across two lines. The separator
    stays with the bid, so the first line ends "16,400,000 /" and reads as continuing rather than as
    finished. Both lines are right-aligned with the column, so the digits stay in the same tabular
    stack the rest of the table is read down.
@@ -679,10 +906,16 @@
 
 /* line-height: the figures beside it are all at 1, and a separator at `normal` made the whole
    figure row 3.6px taller in the three depth columns — see the block at the top of this section.
-   It is punctuation, not a figure, so it takes the faint ink and none of the width. */
+   It is punctuation, not a figure, so it takes the faint ink and none of the width.
+
+   It takes `.a-fig`'s fit as well, and has to: a slash left at 12px between two 9px figures is
+   punctuation drawn louder than what it punctuates, and it would add width the pair then has to
+   wrap for. `line-height: 1` still, not the figures' fixed line box, because it is centred in a
+   flex row whose height the figures set — at its own size it takes none of that height. */
 .a-pair-sep {
   font-family: var(--font-mono);
   font-size: var(--fs-data);
+  font-size: min(var(--fs-data), calc(100cqw / (max(1, var(--fig-n, 1)) * var(--a-adv))));
   line-height: 1;
   color: var(--text-faint);
 }
@@ -849,10 +1082,145 @@
    Candle panels
    ════════════════════════════════════════════════════════════════════════════ */
 
+/* The grid, and the one number in it that is not a token.
+
+   460px is the width at which a 24-bar hourly panel still has an axis a reader can price off:
+   under it the time labels start dropping every other hour and the price axis rounds. It is this
+   section's layout rather than the system's spacing, like the 230px in the glossary, so it is a
+   local custom property named where it is used and not a raw number repeated four times below.
+
+   NO data-cols: the scripts-off default, and the state the control adopts on load because it
+   counts the tracks the sheet actually drew. ONE COLUMN, which is two decisions at once.
+
+   It is what the reference draws — measured on the live mock at 1920, 1440 and 1280: one
+   grid-template-columns of a single full-sheet track, seven panels, and the "1 column" button
+   already wearing the pressed wash. The auto-fit default that was here landed on three tracks at
+   1920 and two at 1440, so the two pages opened at visibly different layouts with no interaction
+   at all — the one thing about this control a reader sees before touching it.
+
+   And it is the layout this section's own argument asks for. The panels share ONE price scale per
+   quote asset and one time axis; a shared scale is only readable stacked, because that is what puts
+   the same price at the same height on the page. A default of "as many as fit" opens the section in
+   the arrangement that makes its shared scale hardest to use and calls the stacked one an option.
+   Rejected: keeping auto-fit and pressing 1 in script — that leaves a reader with scripts off on
+   the old layout and makes the first paint move under everyone else.
+
+   min(100%, …) around the floor in the two declarations below that still have one. A bare 460px
+   floor is a floor the container cannot honour on a phone: measured at 390px, the track stayed
+   460px and the panel hung 122px past the grid it was in. A minimum wider than the space is not a
+   minimum, it is an overflow, and a page whose subject is a wide table must not gain a SECOND thing
+   sliding sideways under the reader's thumb. */
 .a-charts {
+  --a-chart-min: 460px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--gap-grid);
+}
+
+/* WITH a choice, the choice is a CEILING and not a count.
+
+   `repeat(N, 1fr)` is the obvious spelling and it is wrong: it holds three columns at 1200px too,
+   and three 380px candle panels are three pictures of charts. The min track here is the larger of
+   the readable minimum and the width one of N tracks would have, so auto-fit lands on exactly N
+   while N of them fit and drops to as many as do below that — one declaration, no media query, and
+   no second breakpoint list to keep in agreement with this one.
+
+   auto-fit and not auto-fill: a page with four panels asked to show three must not leave a
+   third-width hole in the second row. Empty tracks collapse and the two survivors take the width. */
+.a-charts[data-cols="3"] {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(var(--a-chart-min), (100% - 2 * var(--gap-grid)) / 3)), 1fr));
+}
+
+.a-charts[data-cols="2"] {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(var(--a-chart-min), (100% - var(--gap-grid)) / 2)), 1fr));
+}
+
+/* One column takes no minimum: stacking is the point of asking for it, and a floor here would be
+   the one setting that could refuse to do what it says. */
+.a-charts[data-cols="1"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ── The columns control ──
+   Right-aligned in the candles bar, past the rule, which is where the reference puts it and the
+   only place on that bar with nothing else in it. */
+.a-cols {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  /* The bar is baseline-aligned and this group has no text baseline to give it — the buttons are
+     boxes of graphics. Centred in the line instead, or the icons hang below the eyebrow. */
+  align-self: center;
+}
+
+/* `.a-cols` sets display, and an author rule beats the UA sheet's `[hidden]`, so the attribute the
+   markup ships with would do nothing without this. */
+.a-cols[hidden] { display: none; }
+
+.a-cols-label { color: var(--text-faint); }
+
+.a-cols-set {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* 28×22, the reference's size. Below 986px the control is not drawn at all (see the media query at
+   the end of this block), so this size is never the only target on a phone. */
+.a-cols-btn {
+  width: 28px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-color);
+}
+
+.a-cols-btn:hover { color: var(--accent); border-color: var(--border-strong); }
+.a-cols-btn:focus-visible { outline: var(--focus-ring); outline-offset: 1px; }
+
+/* The pressed state is `.a-btn[aria-pressed="true"]`'s, to the letter: accent ink, the strong
+   border, and nothing that moves.
+
+   The reference paints the pressed button in the acid BEST wash. REJECTED — on this surface acid
+   green is a verdict. It is the ink of the highest bid and the largest book, it is three inches
+   above this control in the table, and spending it on "the layout you picked" would say that three
+   columns is the best of the three. Magenta is what every other pressed control on the page wears
+   (Ink, Live) and it means one thing: this is on. */
+.a-cols-btn[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--border-strong);
+  background: var(--tint-brand);
+}
+
+/* The icon IS the layout: one <i> per column it asks for, each painted as three stacked bars —
+   2.5px of ink every 4px, three of them in 10.5px. currentColor, so the pressed and hover states
+   above reach the bars without a second rule per state. */
+.a-cols-icon { display: flex; gap: 1.5px; }
+
+.a-cols-icon i {
+  display: block;
+  height: 10.5px;
+  background: repeating-linear-gradient(to bottom, currentColor 0 2.5px, transparent 2.5px 4px);
+}
+
+/* Wider bars for fewer columns, so all three icons are about 11px across and the buttons read as
+   one control rather than as three different-sized pictures. */
+.a-cols-btn[data-cols="3"] .a-cols-icon i { width: 3px; }
+.a-cols-btn[data-cols="2"] .a-cols-icon i { width: 5px; }
+.a-cols-btn[data-cols="1"] .a-cols-icon i { width: 11px; }
+
+/* Two panels need 2 × 460px + a 14px gap inside .a-main's 26px padding either side: 986px. Under
+   that width every setting draws one column, so the control could only ever say something the page
+   would not do — the same reason the whole thing is hidden with scripts off. */
+@media (max-width: 985px) {
+  .a-cols { display: none; }
 }
 
 .a-chart-panel {
@@ -1027,16 +1395,51 @@
   flex-wrap: wrap;
 }
 
+/* THE ROW SAYING THE DOCUMENT HAS GONE STALE.
+
+   A border, because the design system spends borders on STATE and on CONTROLS and this is both: the
+   page is in a state, and the two controls that leave it are in the box. It is drawn from the same
+   surface and border as every panel on the page, so it reads as a piece of the page rather than as
+   an alert; there is no red, no icon and no motion. A stale document is not an emergency, it is a
+   caveat — every figure under it is still exactly as true as the age it carries.
+
+   It appears at a boundary and stays. That is the same class of event as a cell taking its △, which
+   is the one kind of change rule 10 allows: a clock crossing a line the page had already drawn. */
+.a-liverow--stale {
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-card);
+  border: var(--panel-border);
+}
+
 /* Where a failure gets said. Same voice as the note under the table — mono, small, faint — because
    it is the same kind of sentence: a fact about what this page can and cannot currently show. It is
    deliberately not red and not loud; a broken stream is not an alarm, it is a caveat, and the
    figures below it are still true as of the ages they carry. */
-.a-live-note {
+.a-live-note,
+.a-live-what {
+  margin: 0;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-caption);
   line-height: 1.5;
   color: var(--text-faint);
 }
+
+/* The row holds two sentences now — what the page IS, and what the connection is DOING — and they
+   have to be one voice or they read as two systems talking. The size was a raw 10.5px; --fs-caption
+   is 11px, the token nearest it, and it is now set once for both. */
+
+/* Neither sentence is always there: the connection note is empty until a stream is opened, and the
+   page-state note is empty while one is open. `:empty` and not a `hidden` attribute, because both
+   are written as text by scripts that should not also be managing a second attribute to say the
+   text is blank. Without this the flex gap doubles around nothing. */
+.a-live-note:empty,
+.a-live-what:empty { display: none; }
+
+/* Stale, the sentence takes the body ink. It is the one moment this row is the most important thing
+   on the page — the reader is looking at a screen of `degraded` marks and this is what explains them
+   — and faint mono is the treatment that already failed once here. The size does not change: a
+   sentence that grew when it mattered would be the page raising its voice. */
+.a-liverow--stale .a-live-what { color: var(--text-body); }
 
 .a-empty {
   padding: var(--space-10) var(--space-9);

@@ -60,16 +60,30 @@
         + "spread that quotation implies — written as it stands. A crossed book is not a narrow "
         + "spread, so it is left out of this column's ranking at both ends.";
 }
-@{
-    // The fold is a decided feature, so this page is guaranteed to be able to hold Kraken's book in
-    // USD beside WEEX's in USDT. Whether it actually does decides how loudly the row has to say so.
-    var mixedQuotes = Model.Rows.Select(r => r.Row.QuoteAsset).Distinct(StringComparer.Ordinal).Count() > 1;
-}
+@* The quote-scope rule this table runs on — a verdict compares only rows quoting in the same asset
+   — used to be printed here, and only when the page happened to hold two quotes. It is now a headed
+   entry in "How to read this page", stated always: a rule that is announced only in the case where
+   it bites teaches the reader that the other case has no rule. Nothing here computes it any more,
+   which is why the mixed-quote check that lived at this spot is gone. *@
 @* data-live-region marks this element as one the live stream replaces in place. The stream sends
    THIS partial re-rendered, and arena-live.js patches the existing nodes rather than swapping the
    element: the horizontal scroll position of .a-table below lives in a node inside here, and a
    reader who scrolled right to read the depth bands must not be yanked back to bid every time a
    collector pass lands. *@
+@*
+    THE CELLS OF EVERY ROW ARE BUILT BEFORE THE FIRST ROW IS DRAWN, and that is not a cache — it is
+    what makes the next line possible. Fitting a figure to its column is a question about the
+    COLUMN ("what is the longest number anyone printed in open interest?"), and a loop that builds
+    one row at a time cannot answer it until it has already emitted the row that would have to
+    change. RowCells.Build is called exactly as often as before; only its position moved.
+*@
+@{
+    var built = Model.Rows
+        .Select(venue => (Venue: venue, Cells: RowCells.Build(venue, Model.Verdicts, Model.Scales)))
+        .ToList();
+
+    var figureGlyphs = RowCells.FigureGlyphs(built.Select(b => b.Cells).ToList());
+}
 <section class="a-panel" data-live-region="table">
     <div class="a-table">
         <div class="a-table-inner">
@@ -105,11 +119,10 @@
                 <span class="a-e-num">Depth 50bps</span>
             </div>
 
-            @foreach (var venue in Model.Rows)
+            @foreach (var (venue, cells) in built)
             {
                 var r = venue.Row;
                 var strip = StripModel.Build(venue);
-                var cells = RowCells.Build(venue, Model.Verdicts, Model.Scales);
                 var perp = !string.Equals(r.SegmentKind, "spot", StringComparison.Ordinal);
                 var quoteFolded = !string.Equals(r.QuoteAsset, Model.QuoteFamily, StringComparison.Ordinal);
 
@@ -215,8 +228,9 @@
                        window in seconds. The script advances the age from those against a monotonic
                        anchor; it never reads the visitor's wall clock, and it never reads a
                        pre-computed age. *@
-                    @foreach (var c in cells)
+                    @for (var column = 0; column < cells.Count; column++)
                     {
+                        var c = cells[column];
                         var tint = c.Tint switch
                         {
                             CallTone.OpenInterest => " a-cell--oi",
@@ -228,8 +242,14 @@
                            so the class became the literal "a-cell@tint": no flex column, no vertical
                            order, no call wash, on all seventy cells. The rendered page is the only
                            place that shows it. *@
+                        @* --fig-n is the LONGEST FIGURE IN THIS COLUMN, in characters, and it is
+                           the same number on all five rows of it. The sheet divides the column's
+                           own width by it and prints every figure in the column at the largest
+                           size that leaves the longest one whole, on one line, inside its cell.
+                           The count is here rather than a width because this file does not know
+                           what a column is wide, and `.a-fig` in arena.css carries the argument. *@
                         <span class="a-cell@(tint)"
-                              style="--w:@c.Weight.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"
+                              style="--w:@c.Weight.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);--fig-n:@figureGlyphs[column]"
                               title="@c.Title"
                               data-at="@c.InstantMs"
                               data-win="@c.WindowSeconds?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"
@@ -327,30 +347,37 @@
         </div>
     </div>
 
+    @*
+        TWO SENTENCES AND A LINK. What stood here was one ~350-word paragraph carrying thirteen
+        separate rules, and its shape was the problem rather than its content: it sat between the
+        table and the candles, so a reader on the way to the charts had to walk through the whole
+        rulebook, and a reader looking for one rule — what CROSSED does to the ranking, why funding
+        is not ranked — had to read all of it to find out whether that rule was in there. A rule
+        nobody can locate is not stated.
+
+        So the split is the reference surface's (/feature-demo/pairs-monitor): the two sentences a
+        reader needs to not misread the table on sight stay under the table, and every other rule
+        becomes a headed entry in "How to read this page" in the footer, where it is looked up
+        rather than waded through. NOTHING WAS DROPPED — crossed books, the venue cell's scale, the
+        contract multiplier, funding's exception, the 25-hour line, what a degraded figure forfeits
+        and the quote scope of a verdict are all down there, each under its own name.
+
+        The link is a bare fragment with no handler bound to it, which is the whole point: this is
+        the one control on the page that works identically with scripts off.
+    *@
     <div class="a-notebar">
+        @* Two sentences that fit ON ONE LINE beside the link at 1920, measured: the note runs
+           1600px inside a 1830px bar with 170px of link and a 14px gap after it. That is not a
+           nicety. .a-notebar wraps, so a note eleven pixels too long does not shorten — it pushes
+           "How to read this page ↓" onto a line of its own, where a lone magenta phrase under a
+           paragraph reads as a heading for the candles below rather than as the paragraph's tail.
+           There is room for about seven more characters. Past that, cut a word. *@
         <p class="a-note">
-            Every figure carries the age of the call that wrote it and fades across that call's own
-            window — price, open interest and the depth sweep are three calls with three clocks, and
-            each cell's window is in its hover. <b>△</b> means the count is no longer being graded;
-            <b>degraded</b> means it has stopped meaning anything. <b>Crossed</b> on the spread
-            means that venue's bid stands at or above its ask; the figure is the negative spread
-            that implies, written as it stands, and the row is left out of the spread ranking
-            because a crossed book is not a narrow one. The scale in the venue cell is
-            measured in windows and not in seconds, so the two names under it are the call least far
-            into its own window and the call furthest into its own — which on a venue whose depth
-            pass is minutes wide is not the same pair as the youngest and oldest ages. Depth is bid / ask at that band.
-            <b>—</b> is not measured and is never a zero; a <b>0</b> is an observation. Sizes and open
-            interest are in base units through the venue's contract multiplier, with the venue's own
-            figure in the hover. Funding is quoted per payment and carries its interval and a
-            normalised per-day figure; it is <b>not ranked</b>, because which direction is good depends
-            on your side of the trade. A line under a figure is that figure's last 25 hours in its
-            call's own colour, broken at every hour the venue has no row for; bid, ask and last share
-            one line because they share one price series. A <b>degraded</b> figure takes no rank and
-            no bar: it sets no column maximum, wins nothing and loses nothing, and when the call under
-            a mark goes degraded while this page is open the column drops both its marks and its bars
-            rather than leave half a comparison standing.@if (mixedQuotes)
-            {<text> <b>Best</b> and <b>worst</b> rank only rows quoting in the same asset for anything
-            priced in the quote currency — this page holds more than one quote.</text>}
+            Every figure carries the age of the call that wrote it and fades over that call's
+            window; <b>△</b> means the call is past that window and <b>degraded</b> means the count
+            has stopped meaning anything. Depth is bid / ask at that band; <b>—</b> is not measured
+            and never a zero.
         </p>
+        <a class="a-note-link" href="#reading">How to read this page ↓</a>
     </div>
 </section>
