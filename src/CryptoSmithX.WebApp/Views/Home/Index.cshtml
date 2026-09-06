@@ -19,6 +19,37 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="~/ds/styles.css" asp-append-version="true">
 <link rel="stylesheet" href="~/ui-mocks/assets/site.css" asp-append-version="true">
+<style>
+/* Prototype preview. A prototype is not the product, so it opens inside a frame that
+   says so and can be closed — rather than replacing the page and leaving the reader
+   to find the back button. The chrome is deliberately plain: an address line and two
+   controls, no imitation traffic lights. */
+.pv{position:fixed;inset:0;z-index:90;display:none;padding:clamp(12px,3.2vw,44px)}
+.pv[data-open]{display:block}
+.pv__veil{position:absolute;inset:0;background:rgba(10,10,14,.72);backdrop-filter:blur(2px)}
+.pv__win{position:relative;height:100%;display:flex;flex-direction:column;
+  border-radius:12px;overflow:hidden;background:#fff;
+  box-shadow:0 24px 70px rgba(0,0,0,.42),0 0 0 1px rgba(255,255,255,.10)}
+.pv__bar{flex:none;display:flex;align-items:center;gap:10px;padding:9px 10px 9px 14px;
+  background:#14141a;border-bottom:1px solid rgba(255,255,255,.09)}
+.pv__name{font:600 12px/1 var(--font-mono,ui-monospace,monospace);color:#fff;
+  letter-spacing:.02em;white-space:nowrap}
+.pv__url{flex:1;min-width:0;display:block;padding:6px 11px;border-radius:999px;
+  background:rgba(255,255,255,.08);color:rgba(255,255,255,.62);
+  font:400 11.5px/1.25 var(--font-mono,ui-monospace,monospace);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv__act{flex:none;border:0;cursor:pointer;border-radius:7px;padding:6px 11px;
+  background:rgba(255,255,255,.10);color:#fff;
+  font:500 11.5px/1.2 var(--font-body,system-ui,sans-serif);text-decoration:none}
+.pv__act:hover{background:rgba(255,255,255,.18)}
+.pv__act--x{padding:6px 12px}
+.pv__frame{flex:1;width:100%;border:0;background:#fff}
+.pv__note{flex:none;padding:7px 14px;background:#14141a;color:rgba(255,255,255,.45);
+  border-top:1px solid rgba(255,255,255,.09);
+  font:400 10.5px/1.4 var(--font-body,system-ui,sans-serif)}
+body[data-pv-open]{overflow:hidden}
+@@media (max-width:640px){.pv{padding:0}.pv__win{border-radius:0}.pv__name{display:none}}
+</style>
 </head>
 <body>
 <div class="shell">
@@ -43,11 +74,16 @@
       <!-- Prototypes anyone may open without an account, above the fold and above the
            headline. Both status chips are violet now so gold belongs to this row alone
            and nothing else on the pane competes with it. -->
+      @* Each chip keeps a real href: without JavaScript, and on ctrl/cmd-click or
+         middle-click, it is an ordinary link to the prototype. With JavaScript a plain
+         left-click opens it framed instead, so looking at a prototype no longer throws
+         the reader out of the product with no way back. *@
       <p class="features"><span class="features__label">Features</span>
-        <a class="tag tag--violet" href="/strategy-modeler">Strategy modeler →</a>
-        <a class="tag tag--violet" href="/config">Bot config →</a>
-        <a class="tag tag--violet" href="/agent">Agent →</a>
-        <a class="tag tag--violet" href="/arena">Arena →</a>
+        <a class="tag tag--violet" data-preview="Pairs monitor" href="/pairs-monitor">Pairs monitor →</a>
+        <a class="tag tag--violet" data-preview="Strategy modeler" href="/strategy-modeler">Strategy modeler →</a>
+        <a class="tag tag--violet" data-preview="Bot config" href="/config">Bot config →</a>
+        <a class="tag tag--violet" data-preview="Agent" href="/agent">Agent →</a>
+        <a class="tag tag--violet" data-preview="Arena" href="/arena">Arena →</a>
       </p>
 
       <h1>Fast markets guess and forget.<br>
@@ -123,7 +159,10 @@
         @Html.AntiForgeryToken()
         <div class="field">
           <label for="username">User</label>
-          <input id="username" name="username" type="text" autocomplete="username" autofocus placeholder="name">
+          @* No autofocus: on a phone it raises the keyboard the instant the page opens, which
+             covers the page and puts the caret in a field nobody asked for. The reader came to
+             look first. *@
+          <input id="username" name="username" type="text" autocomplete="username" placeholder="name">
         </div>
         <div class="field">
           <label for="pw">Password</label>
@@ -455,6 +494,79 @@
   refresh();
   setInterval(refresh, 60000);
 })());
+</script>
+
+<!-- ─── предпросмотр прототипа ─── -->
+<div class="pv" id="pv" role="dialog" aria-modal="true" aria-labelledby="pvName">
+  <div class="pv__veil" data-pv-close></div>
+  <div class="pv__win">
+    <div class="pv__bar">
+      <span class="pv__name" id="pvName">Preview</span>
+      <span class="pv__url" id="pvUrl"></span>
+      <a class="pv__act" id="pvTab" href="#" target="_blank" rel="noopener">Open in new tab</a>
+      <button class="pv__act pv__act--x" type="button" data-pv-close>Close</button>
+    </div>
+    <iframe class="pv__frame" id="pvFrame" title="Prototype preview" src="about:blank"
+            referrerpolicy="no-referrer"></iframe>
+    <p class="pv__note">A prototype, not the product: the numbers in it are invented. Esc closes this.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var pv = document.getElementById('pv');
+  if (!pv || !('addEventListener' in window)) { return; }
+  var frame = document.getElementById('pvFrame'),
+      name  = document.getElementById('pvName'),
+      urlEl = document.getElementById('pvUrl'),
+      tab   = document.getElementById('pvTab'),
+      opener = null;
+
+  var close_ = pv.querySelector('.pv__act--x');
+
+  function open(href, label, byKeyboard) {
+    opener = document.activeElement;
+    name.textContent = label;
+    urlEl.textContent = location.host + href;
+    tab.href = href;
+    frame.src = href;
+    pv.setAttribute('data-open', '');
+    document.body.setAttribute('data-pv-open', '');
+    // Focus is moved only for a reader who is already on a keyboard — a click carries
+    // detail > 0, Enter or Space carries 0. Grabbing it on touch raises the on-screen
+    // keyboard over the very thing that just opened.
+    if (byKeyboard) { close_.focus(); }
+  }
+
+  function close() {
+    pv.removeAttribute('data-open');
+    document.body.removeAttribute('data-pv-open');
+    // Blanked on close, not merely hidden: a prototype left loaded keeps its timers
+    // and its polling running behind the page for as long as the tab is open.
+    frame.src = 'about:blank';
+    // Only give focus back if we took it; otherwise leave the page as the reader left it.
+    if (opener && opener.focus && document.activeElement !== document.body) { opener.focus(); }
+    opener = null;
+  }
+
+  document.addEventListener('click', function (ev) {
+    var close_ = ev.target.closest ? ev.target.closest('[data-pv-close]') : null;
+    if (close_) { ev.preventDefault(); close(); return; }
+
+    var link = ev.target.closest ? ev.target.closest('[data-preview]') : null;
+    // Only a plain left-click is intercepted. Ctrl, cmd, shift and the middle button
+    // keep meaning what they mean everywhere else in a browser.
+    if (!link || ev.defaultPrevented || ev.button !== 0
+        || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) { return; }
+    ev.preventDefault();
+    open(link.getAttribute('href'), link.getAttribute('data-preview'), ev.detail === 0);
+  });
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && pv.hasAttribute('data-open')) { close(); }
+  });
+})();
 </script>
 </body>
 </html>

@@ -110,6 +110,7 @@ foreach (var (route, page) in new[]
              ("/agent", "agent.html"),
              ("/arena", "arena.html"),
              ("/strategy-modeler", "strategy-modeler.html"),
+             ("/pairs-monitor", "pairs-monitor.html"),
              ("/ui-mocks", "index.html"),
          })
 {
