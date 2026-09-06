@@ -127,6 +127,24 @@ public sealed class WsConnection
         var buffer = new byte[64 * 1024];
         var assembly = new StringBuilder();
 
+        // A STATEFUL decoder, not Encoding.UTF8.GetString per fragment. ReceiveAsync fills the buffer
+        // and stops; it has no idea where characters begin, so a message longer than 64 KB is split
+        // wherever the 65 536th byte falls — which can be the middle of a multi-byte sequence. Decoding
+        // each fragment independently turns that one character into replacement characters in BOTH
+        // halves, and the JSON that contained it either fails to parse or parses into a string that is
+        // silently not what the venue sent. Demonstrated on a real socket: a 65 556-byte message whose
+        // first continuation byte lands on the boundary came back with three U+FFFD; the ASCII control
+        // was clean. The decoder carries the partial sequence across the seam instead, and flushing on
+        // EndOfMessage is what still reports a genuinely truncated tail rather than hiding it.
+        //
+        // Not currently reachable on Binance depth (909 B mean, pure ASCII) — this is here because the
+        // buffer size, not the payload, decides when it fires, and the next stream added is not
+        // required to be ASCII.
+        var decoder = Encoding.UTF8.GetDecoder();
+        var chars = new char[Encoding.UTF8.GetMaxCharCount(buffer.Length)];
+
+        var handlerFaults = 0L;
+
         while (!ct.IsCancellationRequested && socket.State == WebSocketState.Open)
         {
             var result = await socket.ReceiveAsync(buffer, ct);
@@ -137,7 +155,8 @@ public sealed class WsConnection
                 return;
             }
 
-            assembly.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
+            var written = decoder.GetChars(buffer, 0, result.Count, chars, 0, result.EndOfMessage);
+            assembly.Append(chars, 0, written);
             if (!result.EndOfMessage)
             {
                 continue;
@@ -145,7 +164,35 @@ public sealed class WsConnection
 
             var text = assembly.ToString();
             assembly.Clear();
-            onMessage(text);
+
+            // A HANDLER FAULT IS OURS, AND IT MUST NOT COST THE CONNECTION. Without this catch an
+            // exception out of onMessage ends the receive loop, and RunAsync's outer handler logs it
+            // as "WS connection to {Url} dropped" and reconnects — so one unbindable frame reads in
+            // the logs as a venue-side disconnect, and a venue that keeps sending that frame reads as
+            // a reconnect storm we would go looking for on the network. Reproduced: 11 frames
+            // delivered, 11 reconnects in 12 s. Rethrowing on cancellation keeps shutdown a shutdown.
+            try
+            {
+                onMessage(text);
+            }
+            catch (Exception ex)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+
+                handlerFaults++;
+
+                // The first one carries the stack; after that it is the RATE that matters and a
+                // per-frame warning at ~2 000 frames a second would bury it.
+                if (handlerFaults == 1 || handlerFaults % 1000 == 0)
+                {
+                    _logger.LogWarning(
+                        ex, "WS to {Url}: message handler threw ({Faults} so far on this connection). The "
+                        + "connection is HEALTHY and stays open; this frame is lost", _url, handlerFaults);
+                }
+            }
         }
     }
 

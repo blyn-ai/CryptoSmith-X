@@ -85,6 +85,15 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     /// version is that a seed costs weight 20 and a reconnect wants ~570 of them.</summary>
     private static readonly TimeSpan SeedPace = TimeSpan.FromSeconds(2);
 
+    /// <summary>Connects per hour above which the reconnect rate is itself the incident. Binance closes
+    /// a healthy public stream after twenty-four hours, so the expected steady rate is about one a day;
+    /// a handful an hour is already the venue refusing us or the network breaking, and thirty an hour —
+    /// what Production ran at — leaves the books permanently unseeded, because MarkAllDirty on every
+    /// connect plus <see cref="SeedPace"/> needs ~19 minutes to walk 566 symbols and a drop arrives
+    /// every two. Four is chosen as "unambiguously not the daily close" rather than as a tuned
+    /// threshold; the number in the message is what to read, not the fact that it tripped.</summary>
+    private const int ReconnectsPerHourAlarm = 4;
+
     private readonly WsConnection _conn;
     private readonly BinanceUsdmClient _client;
     private readonly VenueGate _gate;
@@ -99,11 +108,29 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     /// WEEX there is no map to keep — only a case fold, in <see cref="BinanceMarkets.ToStream"/>.</summary>
     private volatile string[] _symbols = [];
 
+    /// <summary>Which connection is which. See <see cref="ConnectionLog"/> — the short version is that
+    /// every delayed check in this file used to read a counter a reconnect had already zeroed for a
+    /// different socket, and an epoch is what stops that.</summary>
+    private readonly ConnectionLog _connections;
+
+    /// <summary>Serialises every SUBSCRIBE/UNSUBSCRIBE across the whole feed. See
+    /// <see cref="SubscribeAsync"/>: the venue's ten-per-second incoming cap is a property of the
+    /// CONNECTION, not of a call, and this file has two callers that can be in it at once.</summary>
+    private readonly SemaphoreSlim _subscribeGate = new(1, 1);
+
     private long _nextRequestId;
     private long _lastFrameTicks;
     private long _framesThisConnection;
     private long _gapsSinceLastReport;
     private long _seedsSinceLastReport;
+    private long _lastSubscribeTicks;
+
+    /// <summary>Frames this feed threw away because it could not read them: the first would not parse
+    /// as JSON at all, the second parsed but would not bind to <see cref="BinanceWsDepth"/>. Both are
+    /// reported by <see cref="RefreshSymbolsAsync"/> rather than swallowed — see
+    /// <see cref="HandleDepth"/> for why losing one is survivable and why it must still be visible.</summary>
+    private long _unparseableSinceLastReport;
+    private long _unbindableSinceLastReport;
 
     public BinanceWsFeed(
         string wsUrl, BinanceUsdmClient client, VenueGate gate, ILoggerFactory loggers, TimeProvider clock,
@@ -114,6 +141,7 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         _clock = clock;
         _log = loggers.CreateLogger("Binance.Ws");
         _conn = new WsConnection(wsUrl, loggers.CreateLogger("Binance.Ws.Conn"), clock);
+        _connections = new ConnectionLog(clock);
         _books = new BinanceBookBuilder();
         _staleAfter = staleAfter;
         _crosscheckInterval = crosscheckInterval;
@@ -187,17 +215,24 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     private async Task OnOpenAsync(CancellationToken ct)
     {
         _books.MarkAllDirty();
-        Interlocked.Exchange(ref _framesThisConnection, 0);
+
+        // One swap does both halves: it zeroes the live counter for the connection now opening and
+        // hands the outgoing connection's final total to the log, so no frame is counted against the
+        // wrong socket and none is lost between the two. The epoch it returns is this connection's
+        // identity, and every delayed check below is scoped to it.
+        var epoch = _connections.Open(Interlocked.Exchange(ref _framesThisConnection, 0));
         Interlocked.Exchange(ref _lastFrameTicks, _clock.GetUtcNow().UtcTicks);
 
         var symbols = _symbols;
-        _log.LogInformation("Binance WS: subscribing {Count} symbols to {Stream}", symbols.Length, DepthStreamSuffix);
+        _log.LogInformation(
+            "Binance WS: connection #{Epoch} subscribing {Count} symbols to {Stream}",
+            epoch, symbols.Length, DepthStreamSuffix);
         await SubscribeAsync("SUBSCRIBE", symbols, ct);
 
         // Fire-and-forget on purpose: WsConnection awaits this method BEFORE it starts reading, so
         // waiting for the liveness window here would guarantee the answer "no frames" and would also
         // stop any from arriving. The check has to run alongside the receive loop, not in front of it.
-        _ = WatchStartupLivenessAsync(symbols.Length, ct);
+        _ = WatchStartupLivenessAsync(epoch, symbols.Length, ct);
     }
 
     /// <summary>
@@ -211,8 +246,24 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     /// once-working socket goes quiet. What is missing without this is any signal at all: the feed
     /// would sit connected and silent, the books would be seeded from REST and look clean, and the
     /// only visible symptom would be depth that never got better.
+    ///
+    /// IT ALSO HAS TO SAY WHICH CONNECTION IT IS TALKING ABOUT, and that is not a detail. This method
+    /// wakes fifteen seconds after a connect and reads a counter; if a reconnect happened in between,
+    /// the counter it reads belongs to the SUCCESSOR socket, freshly zeroed. Production ran at thirty
+    /// reconnects an hour and this fired on connections that had delivered forty thousand frames,
+    /// reporting them as having "received NOTHING" and pointing the reader at ws_url — a setting that
+    /// was correct, on a venue where the misrouted-stream failure the text describes had not occurred.
+    /// Hours went into the network path because of it. So the epoch is compared before anything is
+    /// claimed, and the two situations are reported as the two different things they are:
+    ///
+    ///   SILENT   — still the live connection, still open, and not one frame. That is the misroute,
+    ///              and ws_url is exactly the right place to look.
+    ///   REPLACED — the connection this watch was armed for is already gone. Nothing whatsoever is
+    ///              known about whether it was silent, and the message must not guess: what is known
+    ///              is that it did not survive fifteen seconds, which is its own symptom with its own
+    ///              causes, none of them ws_url.
     /// </summary>
-    private async Task WatchStartupLivenessAsync(int subscribed, CancellationToken ct)
+    private async Task WatchStartupLivenessAsync(long epoch, int subscribed, CancellationToken ct)
     {
         try
         {
@@ -223,21 +274,53 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
             return;
         }
 
-        if (Interlocked.Read(ref _framesThisConnection) > 0 || subscribed == 0)
+        // Read the count BEFORE asking for the verdict; ConnectionLog.Judge documents why that
+        // ordering is what makes the pair safe without a lock.
+        var frames = Interlocked.Read(ref _framesThisConnection);
+        var verdict = _connections.Judge(epoch, frames, _conn.Connected);
+
+        if (verdict == ConnectionVerdict.Replaced)
+        {
+            // A run that has aged out of the log answers neither question, and the house rule for a
+            // figure we did not measure is a dash — never a zero, which here would read as "delivered
+            // nothing" and put the reader back on the wrong trail.
+            var known = _connections.TryGet(epoch, out var run);
+            var lifetime = known && run.ClosedAt is not null
+                ? $"{(run.ClosedAt.Value - run.OpenedAt).TotalSeconds:0.0}s"
+                : "—";
+            var delivered = known ? run.Frames.ToString(CultureInfo.InvariantCulture) : "—";
+
+            _log.LogWarning(
+                "Binance WS: connection #{Epoch} was replaced after {Lifetime} and did not live long enough "
+                + "to be judged silent; it delivered {Frames} frames, and there have been {Connects} connects "
+                + "in the last hour. This is NOT the misrouted-stream signature and ws_url is not the suspect "
+                + "— a misrouted stream stays open and quiet, it does not close. Depth for the affected "
+                + "symbols is on REST, and at this reconnect rate it will stay there: every connect marks all "
+                + "books dirty and a full reseed takes ~19 minutes.",
+                epoch, lifetime, delivered, _connections.CountOpenedWithin(TimeSpan.FromHours(1)));
+            return;
+        }
+
+        if (verdict != ConnectionVerdict.Silent || subscribed == 0)
         {
             return;
         }
 
         _log.LogError(
-            "Binance WS: subscribed {Count} symbols to {Stream} and received NOTHING in {Seconds}s. The "
-            + "handshake and the subscribe ack both succeed on a misrouted stream — this venue splits "
-            + "its public socket across /public, /market and /private, and a stream on the wrong path "
-            + "is acknowledged and then silent forever. Check that the segment's ws_url is the "
-            + "/public endpoint. Depth stays on REST until frames arrive.",
-            subscribed, DepthStreamSuffix, StartupLiveness.TotalSeconds);
+            "Binance WS: connection #{Epoch} subscribed {Count} symbols to {Stream}, is STILL OPEN, and has "
+            + "received NOTHING in {Seconds}s. The handshake and the subscribe ack both succeed on a "
+            + "misrouted stream — this venue splits its public socket across /public, /market and /private, "
+            + "and a stream on the wrong path is acknowledged and then silent forever. Check that the "
+            + "segment's ws_url is the /public endpoint. Depth stays on REST until frames arrive.",
+            epoch, subscribed, DepthStreamSuffix, StartupLiveness.TotalSeconds);
     }
 
-    private void OnMessage(string text)
+    /// <summary>The receive loop's whole handler. Internal rather than private so a test can hand it
+    /// a frame the venue could send and prove it does not THROW: an exception out of here used to end
+    /// the receive loop and be logged as a dropped connection, which is one malformed frame costing
+    /// all 566 streams. <see cref="WsConnection"/> now contains such a fault as well, so this is the
+    /// inner of two independent guards and both are pinned.</summary>
+    internal void OnMessage(string text)
     {
         JsonDocument doc;
         try
@@ -246,6 +329,9 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         }
         catch (JsonException)
         {
+            // Counted, not silently swallowed — see HandleDepth for why losing a frame is survivable
+            // on this stream and why the count still has to reach an operator.
+            Interlocked.Increment(ref _unparseableSinceLastReport);
             return;
         }
 
@@ -285,11 +371,42 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         }
     }
 
+    /// <summary>
+    /// One <c>depthUpdate</c> into one book — and the place where this feed decides what a frame it
+    /// cannot use is allowed to cost.
+    ///
+    /// A FRAME THAT DOES NOT BIND IS DROPPED, ON PURPOSE, AND THAT IS SAFE HERE FOR ONE SPECIFIC
+    /// REASON. Dropping a diff normally produces the worst state this system has: a book that is wrong
+    /// without being dirty. On this stream it cannot, because the venue's own <c>pu</c> chain makes the
+    /// loss self-detecting — the NEXT frame for that symbol carries a <c>pu</c> that no longer equals
+    /// the book's <c>lastUpdateId</c>, <see cref="BinanceBookBuilder"/> calls it a gap, and the book is
+    /// dirty and queued for a reseed without anyone having to know which symbol was lost. So the
+    /// choice is not between dropping and being correct; it is between dropping one symbol's frame and
+    /// taking down the whole socket, which is what happened before this guard existed: the exception
+    /// escaped into <see cref="WsConnection"/>'s receive loop, ended it, and was logged as a dropped
+    /// connection. One venue frame with a non-string level would have cost all 566 streams and a
+    /// nineteen-minute reseed. Not attempting to name the symbol is deliberate too — a frame that
+    /// would not bind is a frame whose <c>s</c> we have no right to trust.
+    ///
+    /// The count is what makes the drop honest, and it goes out with the periodic report rather than
+    /// per frame: at ~2 000 frames a second a per-drop warning is the wall of text that hides the rate.
+    /// </summary>
     private void HandleDepth(JsonElement data)
     {
-        var frame = data.Deserialize<BinanceWsDepth>(BinanceJson.Options);
+        BinanceWsDepth? frame;
+        try
+        {
+            frame = data.Deserialize<BinanceWsDepth>(BinanceJson.Options);
+        }
+        catch (JsonException)
+        {
+            Interlocked.Increment(ref _unbindableSinceLastReport);
+            return;
+        }
+
         if (frame is null || frame.Symbol.Length == 0)
         {
+            Interlocked.Increment(ref _unbindableSinceLastReport);
             return;
         }
 
@@ -493,12 +610,38 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         var prev = _symbols;
         _symbols = next;
 
+        // Frames we could not read are reported here, at the rate, for the same reason gaps are: on
+        // ~570 symbols the individual event is noise. Reporting them at all is the point — this system's
+        // thesis is that a gap is visible, and a frame dropped in silence is the one thing that would
+        // make it not.
+        var reconnects = _connections.CountOpenedWithin(TimeSpan.FromHours(1));
         _log.LogInformation(
             "Binance WS: {Fresh} of {Total} books live, {Seeds} seeded and {Gaps} sequence breaks since the "
-            + "last report",
+            + "last report; {Unparseable} frames would not parse and {Unbindable} would not bind; "
+            + "{Connects} connects in the last hour",
             _books.FreshCount(_staleAfter, _clock.GetUtcNow()), next.Length,
             Interlocked.Exchange(ref _seedsSinceLastReport, 0),
-            Interlocked.Exchange(ref _gapsSinceLastReport, 0));
+            Interlocked.Exchange(ref _gapsSinceLastReport, 0),
+            Interlocked.Exchange(ref _unparseableSinceLastReport, 0),
+            Interlocked.Exchange(ref _unbindableSinceLastReport, 0),
+            reconnects);
+
+        // The RATE is where the alarm belongs, not on the individual drop. A single reconnect is
+        // routine — Binance closes a healthy public stream once a day — and the per-connect warning in
+        // WatchStartupLivenessAsync says what happened to one socket. This says the feed is not
+        // recovering: above this rate the seed loop never finishes a pass, so every book stays dirty
+        // and every symbol's depth is coming from the REST fallback in BinanceUsdmMarketData.
+        if (reconnects > ReconnectsPerHourAlarm)
+        {
+            _log.LogError(
+                "Binance WS: {Connects} connects in the last hour, against about one a day for a healthy "
+                + "stream. The socket is being CLOSED ON US repeatedly, which is the opposite of the silent "
+                + "misrouted stream — ws_url is not the suspect. Every connect marks all {Total} books dirty "
+                + "and a full reseed at one snapshot per {Pace}s takes ~{Minutes} minutes, so at this rate "
+                + "the books never finish seeding and depth is served entirely from REST.",
+                reconnects, next.Length, SeedPace.TotalSeconds,
+                Math.Round(next.Length * SeedPace.TotalSeconds / 60.0));
+        }
 
         if (!_conn.Connected)
         {
@@ -522,39 +665,72 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         }
     }
 
-    /// <summary><c>{"method":"SUBSCRIBE","params":["btcusdt@depth@100ms"],"id":N}</c>. The id is echoed
-    /// on the ack; it is monotonic here only so one request can be told from its neighbours in a log,
-    /// since the ack itself carries no other identity — and, on this venue, no information.</summary>
+    /// <summary>
+    /// <c>{"method":"SUBSCRIBE","params":["btcusdt@depth@100ms"],"id":N}</c>. The id is echoed on the
+    /// ack; it is monotonic here only so one request can be told from its neighbours in a log, since
+    /// the ack itself carries no other identity — and, on this venue, no information.
+    ///
+    /// THE PACING IS GLOBAL, and it was not. Binance caps INCOMING messages at ten per second per
+    /// CONNECTION and answers a breach by closing the socket — without a close handshake, which is
+    /// exactly the shape of the drops this venue was producing in Production. <see cref="SubscribePause"/>
+    /// used to be spaced inside each call, so one call sat comfortably at five a second and two calls
+    /// at once sat at ten, on the edge. Two callers really can be in here together: <see cref="OnOpenAsync"/>
+    /// subscribes the whole set on every reconnect while <see cref="RefreshSymbolsAsync"/>, on its own
+    /// five-minute timer, subscribes the diff — and a reconnect during a refresh is not a rare
+    /// coincidence at thirty reconnects an hour. The gate serialises the callers and the spacing is now
+    /// measured against the last frame sent by ANYONE, so the cap is a property of the connection here
+    /// as it is at the venue.
+    ///
+    /// This is not offered as the cause of the Production drops — nothing measured says it was. It is
+    /// a rule we were relying on luck to keep.
+    /// </summary>
     private async Task SubscribeAsync(string method, IReadOnlyList<string> symbols, CancellationToken ct)
     {
-        for (var i = 0; i < symbols.Count; i += SubscribeChunk)
+        await _subscribeGate.WaitAsync(ct);
+        try
         {
-            var parameters = new StringBuilder();
-            foreach (var symbol in symbols.Skip(i).Take(SubscribeChunk))
+            for (var i = 0; i < symbols.Count; i += SubscribeChunk)
             {
-                if (parameters.Length > 0)
+                var parameters = new StringBuilder();
+                foreach (var symbol in symbols.Skip(i).Take(SubscribeChunk))
                 {
-                    parameters.Append(',');
+                    if (parameters.Length > 0)
+                    {
+                        parameters.Append(',');
+                    }
+
+                    parameters.Append('"').Append(BinanceMarkets.ToStream(symbol)).Append(DepthStreamSuffix).Append('"');
                 }
 
-                parameters.Append('"').Append(BinanceMarkets.ToStream(symbol)).Append(DepthStreamSuffix).Append('"');
-            }
+                if (parameters.Length == 0)
+                {
+                    continue;
+                }
 
-            if (parameters.Length == 0)
-            {
-                continue;
-            }
+                await PaceAsync(ct);
 
-            var id = Interlocked.Increment(ref _nextRequestId);
-            await _conn.SendAsync($"{{\"method\":\"{method}\",\"params\":[{parameters}],\"id\":{id}}}", ct);
-
-            // Binance caps incoming messages at ten per second per connection, and a connection that
-            // breaks that rule is closed rather than throttled.
-            if (i + SubscribeChunk < symbols.Count)
-            {
-                await Task.Delay(SubscribePause, _clock, ct);
+                var id = Interlocked.Increment(ref _nextRequestId);
+                await _conn.SendAsync($"{{\"method\":\"{method}\",\"params\":[{parameters}],\"id\":{id}}}", ct);
             }
         }
+        finally
+        {
+            _subscribeGate.Release();
+        }
+    }
+
+    /// <summary>Waits until <see cref="SubscribePause"/> has passed since the last frame this feed put
+    /// on the socket, from any caller. Held under <see cref="_subscribeGate"/>, so the read and the
+    /// stamp cannot interleave.</summary>
+    private async Task PaceAsync(CancellationToken ct)
+    {
+        var since = _clock.GetUtcNow() - new DateTimeOffset(_lastSubscribeTicks, TimeSpan.Zero);
+        if (since < SubscribePause)
+        {
+            await Task.Delay(SubscribePause - since, _clock, ct);
+        }
+
+        _lastSubscribeTicks = _clock.GetUtcNow().UtcTicks;
     }
 
     /// <summary>Levels are <c>[price, qty]</c> pairs of STRINGS, both of them — asserted against the
