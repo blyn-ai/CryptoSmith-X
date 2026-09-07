@@ -98,7 +98,6 @@ public static class StudioStore
                and x.code <> 'fake'
         )
         select base_family                    as "BaseFamily",
-               quote_family                   as "QuoteFamily",
                count(distinct segment_code)::int as "Venues",
                count(*)::int                  as "Listings",
                -- How many pairs the filter matched, on every row because a window function is the
@@ -110,8 +109,10 @@ public static class StudioStore
          where @search = ''
             or base_family  ilike @like
             or quote_family ilike @like
-         group by 1, 2
-         order by count(distinct segment_code) desc, count(*) desc, 1, 2
+         -- Grouped by the BASE alone: one card per asset, because that is now one page. The quote
+         -- stays in the search predicate above so typing USDC still finds the assets quoted in it.
+         group by 1
+         order by count(distinct segment_code) desc, count(*) desc, 1
          -- Bounded, and the bound is stated on the page rather than applied behind it. See the
          -- remarks above for why this is a limit and not paging.
          limit @limit
@@ -140,12 +141,6 @@ public static class StudioStore
             union
             select @baseFamily
              where not exists (select 1 from asset_family_member where asset_code = @baseFamily)
-        ),
-        quote_codes as (
-            select m.asset_code from asset_family_member m where m.family_code = @quoteFamily
-            union
-            select @quoteFamily
-             where not exists (select 1 from asset_family_member where asset_code = @quoteFamily)
         )
         select i.id                             as "InstrumentId",
                i.segment_code                   as "SegmentCode",
@@ -193,14 +188,17 @@ public static class StudioStore
           -- the page saying so. An inner join would delete it, and a deleted row is a claim that the
           -- venue does not list the pair.
           left join market_snapshot_latest s on s.exchange_instrument_id = i.id
-         where i.base_asset  in (select asset_code from base_codes)
-           and i.quote_asset in (select asset_code from quote_codes)
+         where i.base_asset in (select asset_code from base_codes)
            and i.collect
            -- Same three guards as the list, same arguments; see PairsSql.
            and i.status <> 'delisted'
            and sg.status = 'enabled'
            and x.code <> 'fake'
-         order by x.name, i.segment_code, i.quote_asset, i.exchange_symbol
+         -- Venue first, then the busiest book inside it. Grouping by venue is what keeps a
+         -- venue's several listings together — Binance quotes PEPE in both USDT and USDC, and two
+         -- rows for one venue is the correct answer, not a duplicate. Turnover orders them within
+         -- the venue so the book that actually trades leads, and the symbol only breaks ties.
+         order by x.name, s.turnover_24h desc nulls last, i.quote_asset, i.exchange_symbol
         """;
 
     /// <summary>
@@ -230,7 +228,7 @@ public static class StudioStore
         var matching = rows.Count == 0 ? 0 : rows[0].Matching;
 
         return new PairListPage(
-            rows.Select(r => new PairListItem(r.BaseFamily, r.QuoteFamily, r.Venues, r.Listings)).ToList(),
+            rows.Select(r => new PairListItem(r.BaseFamily, r.Venues, r.Listings)).ToList(),
             matching,
             MaxPairs);
     }
@@ -241,21 +239,31 @@ public static class StudioStore
     /// a per-row copy of a page-level figure is an invitation to print the wrong one.
     /// </summary>
     private sealed record PairListRow(
-        string BaseFamily, string QuoteFamily, int Venues, int Listings, int Matching);
+        string BaseFamily, int Venues, int Listings, int Matching);
 
     /// <summary>
-    /// One pair across every venue, with each row's three windows attached.
+    /// One BASE ASSET across every venue and every quote, with each row's three windows attached.
+    ///
+    /// Keyed on the base alone, and that is the whole decision. The page exists to show how venues
+    /// disagree about one instrument; splitting it by quote compared two venues where four list the
+    /// asset, and for a perpetual the quote currency moves inside a few basis points. Quote is an
+    /// attribute of the listing, not a market of its own — so it travels on the row and never in
+    /// the address.
+    ///
+    /// A venue therefore appears more than once when it runs more than one book: Binance quotes
+    /// PEPE in USDT and in USDC, which is two order books, two funding streams and two open-interest
+    /// figures. Two rows is the correct answer and neither may be collapsed or hidden.
     ///
     /// Null when nothing lists it — including when the caller addressed an asset that folds into
     /// some other family, because the expansion in <see cref="PairVenuesSql"/> yields the empty set
-    /// for a family code that is itself a member of another. That is the right answer: the pair has
+    /// for a family code that is itself a member of another. That is the right answer: the asset has
     /// exactly one address, and it is the one the fold produces.
     /// </summary>
-    public static async Task<PairComparison?> GetPairAsync(
-        DbConnection conn, string baseFamily, string quoteFamily, CancellationToken ct)
+    public static async Task<AssetComparison?> GetAssetAsync(
+        DbConnection conn, string baseFamily, CancellationToken ct)
     {
         var rows = (await conn.QueryAsync<PairVenueRow>(new CommandDefinition(
-            PairVenuesSql, new { baseFamily, quoteFamily }, cancellationToken: ct))).ToList();
+            PairVenuesSql, new { baseFamily }, cancellationToken: ct))).ToList();
 
         if (rows.Count == 0)
         {
@@ -275,6 +283,6 @@ public static class StudioStore
 
         // No verdicts here. They depend on which calls have gone degraded, which is a subtraction
         // against the time of the REQUEST, and this object is cached — see PairComparison.
-        return new PairComparison(baseFamily, quoteFamily, venues);
+        return new AssetComparison(baseFamily, venues);
     }
 }

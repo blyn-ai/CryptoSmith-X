@@ -124,7 +124,6 @@
                 var r = venue.Row;
                 var strip = StripModel.Build(venue);
                 var perp = !string.Equals(r.SegmentKind, "spot", StringComparison.Ordinal);
-                var quoteFolded = !string.Equals(r.QuoteAsset, Model.QuoteFamily, StringComparison.Ordinal);
 
                 @* The absolute clocks live in the title. The columns that used to hold them were
                    dropped once every cell carried its own age. *@
@@ -134,7 +133,13 @@
 
                     @* ── Venue ──────────────────────────────────────────────────────────────── *@
                     <span class="a-venue" title="@rowTitle">
-                        <span class="a-venue-name">@r.ExchangeName</span>
+                        @* The quote rides on the VENUE, not on the symbol, and that is what makes
+                           two rows of one venue readable. Binance quotes this asset in USDT and in
+                           USDC — two books, two funding streams, two open-interest figures — so the
+                           table holds "Binance · USDT" and "Binance · USDC" and never collapses
+                           either away. Leaning on the symbol column for the distinction was the old
+                           arrangement and it failed the moment the symbol was truncated. *@
+                        <span class="a-venue-name">@r.ExchangeName · @r.QuoteAsset</span>
                         <span class="a-tag @(perp ? "a-tag--perp" : "a-tag--spot")">@r.SegmentKind</span>
 
                         <span class="a-strip-wrap">
@@ -205,14 +210,11 @@
                     <span class="a-symbol">
                         <span class="a-symbol-code" title="@r.Symbol">@r.Symbol</span>
                         <span class="a-symbol-meta">
-                            @* The venue's real quote, always. The heading folds; the row never does —
-                               that is the whole contract of 0024. It takes the accent when it differs
-                               from the folded heading, because that is what the reader has to notice
-                               before comparing a single figure across two rows. *@
-                            <span class="@(quoteFolded ? "a-quote-folded" : "")"
-                                  title="@(quoteFolded
-                                      ? $"This venue quotes in {r.QuoteAsset}; the page addresses the pair as {Model.BaseFamily}/{Model.QuoteFamily}"
-                                      : $"Quoted in {r.QuoteAsset}")">@r.QuoteAsset</span>
+                            @* Repeated here beside the multiplier, because these two together are
+                               what make the price readable: 0.0000036 and 0.0036 sit next to each
+                               other unexplained unless the row says which quote and which contract
+                               size produced them. *@
+                            <span title="Quoted in @r.QuoteAsset">@r.QuoteAsset</span>
                             ·
                             @(r.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(r.ContractMultiplier, 0))
                         </span>

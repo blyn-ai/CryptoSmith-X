@@ -224,7 +224,7 @@ public sealed class PublicSurfaceTests
         // emitted it taught every reader the URL we did not mean.
         var view = Source("Pair.cshtml");
 
-        Assert.Contains("Url.RouteUrl(\"pair-live\"", view, StringComparison.Ordinal);
+        Assert.Contains("Url.RouteUrl(\"asset-live\"", view, StringComparison.Ordinal);
         Assert.DoesNotContain("Url.Action(\"Live\"", view, StringComparison.Ordinal);
     }
 
@@ -254,7 +254,7 @@ public sealed class PublicSurfaceTests
     public void A_full_board_knows_that_it_is_full()
     {
         var cards = Enumerable.Range(0, StudioStore.MaxPairs)
-            .Select(i => new PairListItem("A" + i, "USD", 1, 1))
+            .Select(i => new PairListItem("A" + i, 1, 1))
             .ToList();
 
         var full = new PairListModel(cards, 4812, StudioStore.MaxPairs, "", DateTimeOffset.UnixEpoch);

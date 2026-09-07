@@ -91,12 +91,17 @@ public sealed class PublicQueryTests
     }
 
     [Fact]
-    public void The_fold_applies_to_both_halves_of_the_pair()
+    public void The_fold_applies_to_the_base_and_the_quote_is_not_part_of_the_address()
     {
-        // Nothing in 0024 makes membership quote-only, and a WBTC/BTC family is the obvious next
-        // entry an operator makes. A fold that worked on one side would break the day they made it.
+        // The page is keyed on the base asset alone: quote is an attribute of a listing, not a
+        // market, so it travels on the row and never in the query's key. A WBTC/BTC family is still
+        // the obvious next entry an operator makes, and it still has to fold.
         Assert.Contains("family_code = @baseFamily", StudioStore.PairVenuesSql, StringComparison.Ordinal);
-        Assert.Contains("family_code = @quoteFamily", StudioStore.PairVenuesSql, StringComparison.Ordinal);
+        Assert.DoesNotContain("@quoteFamily", StudioStore.PairVenuesSql, StringComparison.Ordinal);
+
+        // And every quote a venue runs has to survive into the rows: filtering by quote here is what
+        // would silently drop Binance's second book.
+        Assert.DoesNotContain("i.quote_asset in", StudioStore.PairVenuesSql, StringComparison.Ordinal);
     }
 
     [Fact]

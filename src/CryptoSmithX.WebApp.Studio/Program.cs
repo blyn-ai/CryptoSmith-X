@@ -188,6 +188,16 @@ app.MapControllerRoute("default", "{controller=Pairs}/{action=Index}/{id?}");
 // the same rule was also checked at the action. It lives in PairAddress, and the two are held to the
 // same pattern by a test. What only a route can do is the paragraph above this one: stop the
 // two-segment template from claiming /studio/ds/styles.css.
+// The asset page: /studio/PEPE. One base asset, every venue and every quote that lists it.
+app.MapControllerRoute(
+    "asset",
+    @"{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
+    new { controller = "Pairs", action = "Asset" });
+
+// The address the site published before the pages were merged, /studio/PEPE/USD, kept working as a
+// redirect to the asset page. Below the asset route, and it must stay below: a two-segment pattern
+// registered above a one-segment one is harmless, but the reverse of the default-route rule above
+// applies to every future addition here.
 app.MapControllerRoute(
     "pair",
     @"{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}/{quoteFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
@@ -204,8 +214,8 @@ app.MapControllerRoute(
 // is reachable as /studio/Pairs/Live?baseFamily=… too, where no constraint applies. Verified against
 // the running app: that address returned 200 and an open event stream on any string at all.
 app.MapControllerRoute(
-    "pair-live",
-    @"live/{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}/{quoteFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
+    "asset-live",
+    @"live/{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
     new { controller = "Pairs", action = "Live" });
 
 await app.RunAsync();

@@ -18,7 +18,7 @@ namespace CryptoSmithX.WebApp.Studio.Models;
 /// own book, their own spread and their own quote asset. Publishing only <paramref name="Venues"/>
 /// would quietly claim a venue has one book for the pair when it has two.
 /// </param>
-public sealed record PairListItem(string BaseFamily, string QuoteFamily, int Venues, int Listings);
+public sealed record PairListItem(string BaseFamily, int Venues, int Listings);
 
 /// <summary>
 /// One board's worth of that list: the cards themselves, how many pairs the filter matched, and the
@@ -159,10 +159,27 @@ public sealed record PairVenue(PairVenueRow Row, FreshnessWindows Windows);
 /// to carry a clock. <see cref="CryptoSmithX.WebApp.Studio.Data.Verdicts.Compute"/> is called per request,
 /// beside the ages it now depends on.
 /// </summary>
-public sealed record PairComparison(
+public sealed record AssetComparison(
     string BaseFamily,
-    string QuoteFamily,
-    IReadOnlyList<PairVenue> Venues);
+    IReadOnlyList<PairVenue> Venues)
+{
+    /// <summary>Rows. One order book on one venue with one quote — Binance's PEPE/USDT and
+    /// PEPE/USDC are two of them.</summary>
+    public int Listings => Venues.Count;
+
+    /// <summary>Distinct venues. Smaller than <see cref="Listings"/> whenever a venue runs more
+    /// than one book on the asset, and the header must never print one number for both.</summary>
+    public int VenueCount => Venues.Select(v => v.Row.SegmentCode).Distinct(StringComparer.Ordinal).Count();
+
+    /// <summary>Distinct platforms — the company behind the venues. Kraken's futures and a future
+    /// Kraken spot are two venues on one platform, so this is a third number again.</summary>
+    public int PlatformCount => Venues.Select(v => v.Row.ExchangeCode).Distinct(StringComparer.Ordinal).Count();
+
+    /// <summary>The quotes present, in the order the rows carry them. The page defaults to all of
+    /// them together; a filter over this set is an option, never the address.</summary>
+    public IReadOnlyList<string> Quotes =>
+        Venues.Select(v => v.Row.QuoteAsset).Distinct(StringComparer.Ordinal).ToList();
+}
 
 /// <summary>
 /// The three windows a row's three calls are judged against — price, open interest and the depth

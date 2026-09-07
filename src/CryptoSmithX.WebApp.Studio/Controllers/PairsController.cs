@@ -112,27 +112,49 @@ public sealed class PairsController : Controller
     /// A pair nobody lists is a 404 with a page that says which pair, rather than an empty table.
     /// An empty table would be a claim about the market; this is a claim about the page.
     /// </remarks>
+    /// <summary>
+    /// The old two-segment address, /studio/PEPE/USD, kept alive as a redirect to /studio/PEPE.
+    ///
+    /// 302 and not 301: a permanent redirect is cached by the browser forever, and this address may
+    /// yet come back as a quote filter on the asset page. The quote is dropped rather than carried
+    /// into a query string, because the page's default is deliberately all quotes together and a
+    /// link that silently narrowed it would defeat the reason the pages were merged.
+    /// </summary>
     [HttpGet]
-    public async Task<IActionResult> Pair(string baseFamily, string quoteFamily, CancellationToken ct)
+    public IActionResult Pair(string baseFamily, string quoteFamily)
     {
-        // The route constraint is not what makes this safe, because this action is also reachable as
-        // /studio/Pairs/Pair?baseFamily=… through the default route, where no constraint applies. The
-        // rule is checked here, at the action, so it holds for every address that reaches it. The
-        // full argument is on PairAddress.
         if (!PairAddress.IsFamily(baseFamily) || !PairAddress.IsFamily(quoteFamily))
         {
             return NotFound();
         }
 
-        var model = await LoadAsync(baseFamily, quoteFamily, ct);
+        return RedirectToAction(nameof(Asset), new { baseFamily });
+    }
+
+    /// <summary>
+    /// One base asset, every venue and every quote that lists it.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> Asset(string baseFamily, CancellationToken ct)
+    {
+        // The route constraint is not what makes this safe, because this action is also reachable as
+        // /studio/Pairs/Asset?baseFamily=… through the default route, where no constraint applies.
+        // The rule is checked here, at the action, so it holds for every address that reaches it.
+        // The full argument is on PairAddress.
+        if (!PairAddress.IsFamily(baseFamily))
+        {
+            return NotFound();
+        }
+
+        var model = await LoadAsync(baseFamily, ct);
         if (model is null)
         {
-            ViewData["MissingPair"] = baseFamily + "/" + quoteFamily;
+            ViewData["MissingPair"] = baseFamily;
             Response.StatusCode = StatusCodes.Status404NotFound;
             return View("PairNotFound");
         }
 
-        return View(model);
+        return View("Pair", model);
     }
 
     /// <summary>
@@ -140,14 +162,14 @@ public sealed class PairsController : Controller
     /// one loader, so a figure cannot mean one thing when the page is opened and another thing when
     /// it is updated.
     /// </summary>
-    private async Task<PairPageModel?> LoadAsync(string baseFamily, string quoteFamily, CancellationToken ct)
+    private async Task<PairPageModel?> LoadAsync(string baseFamily, CancellationToken ct)
     {
         var data = await _cache.GetAsync<PairData?>(
-            "pair:" + baseFamily + "/" + quoteFamily,
+            "asset:" + baseFamily,
             async token =>
             {
                 await using var conn = await _db.OpenAsync(token);
-                var comparison = await StudioStore.GetPairAsync(conn, baseFamily, quoteFamily, token);
+                var comparison = await StudioStore.GetAssetAsync(conn, baseFamily, token);
                 if (comparison is null)
                 {
                     return null;
@@ -212,7 +234,6 @@ public sealed class PairsController : Controller
 
         return new PairPageModel(
             comparison.BaseFamily,
-            comparison.QuoteFamily,
             rows,
             verdicts,
             ColumnScales.Compute(rows),
@@ -243,13 +264,13 @@ public sealed class PairsController : Controller
     /// an update that cannot have changed them — would be the page moving for its own sake.
     /// </summary>
     [HttpGet]
-    public async Task Live(string baseFamily, string quoteFamily, CancellationToken ct)
+    public async Task Live(string baseFamily, CancellationToken ct)
     {
         // Same check as Pair, and here it matters more rather than less — Program.cs says so about
         // the route constraint and it is just as true of the address that bypasses it: what this
         // endpoint hands out is a connection held open, and until this line existed an anonymous
         // caller could open one on any string at all through /studio/Pairs/Live?baseFamily=….
-        if (!PairAddress.IsFamily(baseFamily) || !PairAddress.IsFamily(quoteFamily))
+        if (!PairAddress.IsFamily(baseFamily))
         {
             Response.StatusCode = StatusCodes.Status404NotFound;
             return;
@@ -258,7 +279,7 @@ public sealed class PairsController : Controller
         // Everything below writes an event stream, so the status code is settled here, before the
         // first byte, and never again. An error after the headers are out cannot be reported as a
         // status — it has to be reported in words, which is what the notice event is for.
-        var model = await LoadAsync(baseFamily, quoteFamily, ct);
+        var model = await LoadAsync(baseFamily, ct);
         if (model is null)
         {
             Response.StatusCode = StatusCodes.Status404NotFound;
@@ -361,7 +382,7 @@ public sealed class PairsController : Controller
                 // exactly what the load below produces.
             }
 
-            var opening = await LoadAsync(baseFamily, quoteFamily, ct) ?? model;
+            var opening = await LoadAsync(baseFamily, ct) ?? model;
             segments = SegmentsOf(opening);
             await PushAsync(opening, ct);
 
@@ -419,7 +440,7 @@ public sealed class PairsController : Controller
                 PairPageModel? next;
                 try
                 {
-                    next = await LoadAsync(baseFamily, quoteFamily, ct);
+                    next = await LoadAsync(baseFamily, ct);
                     stalled = false;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
@@ -430,7 +451,7 @@ public sealed class PairsController : Controller
                     // blip — but it stops claiming to be replacing anything, and the next iteration
                     // sends that as a signal. Cached failures were already ruled out one layer down
                     // (StudioCache), so the retry is a real retry.
-                    _logger.LogWarning(ex, "Studio live: rebuilding {Pair} failed", baseFamily + "/" + quoteFamily);
+                    _logger.LogWarning(ex, "Studio live: rebuilding {Asset} failed", baseFamily);
                     stalled = true;
                     await SyncSignalAsync();
                     continue;
@@ -594,7 +615,7 @@ public sealed class PairsController : Controller
     /// on. See <see cref="StudioCache"/>.
     /// </summary>
     private sealed record PairData(
-        PairComparison Comparison,
+        AssetComparison Comparison,
         IReadOnlyDictionary<int, CandleSeries> Candles,
         IReadOnlyDictionary<int, MetricHourSeries> Metrics);
 }

@@ -265,7 +265,7 @@ public sealed class StudioCacheTests
         // is guaranteed is that the record which gets cached cannot carry a timestamp of its own —
         // the instants inside it are absolute, so a row served from a 900 ms-old cache still reports
         // a truthful age.
-        var names = typeof(Models.PairComparison).GetProperties().Select(p => p.Name).ToArray();
+        var names = typeof(Models.AssetComparison).GetProperties().Select(p => p.Name).ToArray();
         Assert.DoesNotContain("Now", names);
         Assert.DoesNotContain("AsOf", names);
         Assert.DoesNotContain("BuiltAt", names);

@@ -535,13 +535,14 @@
   text-overflow: ellipsis;
 }
 
+/* Not truncated. The symbol is what differentiates two listings of one venue — PEPEUSDT from
+   PEPEUSDC — and an ellipsis eats exactly the end that carries the difference. It wraps instead:
+   a symbol on two lines is legible, a symbol cut to "PEPEUS…" is not. */
 .a-symbol-code {
   font-family: var(--font-mono);
   font-size: var(--fs-data);
   color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .a-symbol-meta {
@@ -551,11 +552,6 @@
   color: var(--text-faint);
   white-space: nowrap;
 }
-
-/* The venue's real quote, always shown. The heading folds; the row never does — that is the whole
-   contract of 0024. It takes the accent only when it differs from the folded heading, because that
-   is the case the reader has to notice before reading a single figure beside it. */
-.a-quote-folded { color: var(--accent); }
 
 /* ── The freshness strip ── */
 .a-strip-wrap {

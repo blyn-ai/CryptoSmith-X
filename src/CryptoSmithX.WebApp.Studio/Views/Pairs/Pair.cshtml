@@ -1,8 +1,8 @@
 @model PairPageModel
 @{
-    var pair = $"{Model.BaseFamily}/{Model.QuoteFamily}";
+    var pair = Model.BaseFamily;
     ViewData["Title"] = $"{pair} across venues — Studio — CryptoSmith X";
-    ViewData["Eyebrow"] = $"Market monitor · {Model.BaseFamily} / {Model.QuoteFamily}";
+    ViewData["Eyebrow"] = $"Market monitor · {Model.BaseFamily}";
     ViewData["CollectedFrom"] = Model.CollectedFrom;
     ViewData["CollectedTo"] = Model.CollectedTo;
     ViewData["RenderedAt"] = Model.RenderedAt;
@@ -57,12 +57,11 @@
         did not mean.
     *@
     @{
-        var liveUrl = Url.RouteUrl("pair-live", new
+        var liveUrl = Url.RouteUrl("asset-live", new
         {
             controller = "Pairs",
             action = "Live",
-            baseFamily = Model.BaseFamily,
-            quoteFamily = Model.QuoteFamily
+            baseFamily = Model.BaseFamily
         });
     }
     <div class="a-liverow" data-live-url="@liveUrl">

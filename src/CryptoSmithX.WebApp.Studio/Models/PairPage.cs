@@ -174,7 +174,6 @@ public sealed record CallAges(double? PriceSeconds, double? OpenInterestSeconds,
 /// </param>
 public sealed record PairPageModel(
     string BaseFamily,
-    string QuoteFamily,
     IReadOnlyList<VenueRowModel> Rows,
     VerdictTable Verdicts,
     ColumnScales Scales,
@@ -182,6 +181,16 @@ public sealed record PairPageModel(
     DateTime? CollectedTo,
     DateTimeOffset RenderedAt)
 {
+    /// <summary>Rows: one order book, on one venue, with one quote. Binance's PEPE/USDT and
+    /// PEPE/USDC are two of them, and the header must not print one number for both.</summary>
+    public int Listings => Rows.Count;
+
+    /// <summary>Distinct venues — trading surfaces with their own book.</summary>
+    public int VenueCount => Rows.Select(r => r.Row.SegmentCode).Distinct(StringComparer.Ordinal).Count();
+
+    /// <summary>Distinct platforms — the company behind the venues, a third number again.</summary>
+    public int PlatformCount => Rows.Select(r => r.Row.ExchangeCode).Distinct(StringComparer.Ordinal).Count();
+
     /// <summary>Every instant behind a figure on this page — three calls per row, absent where a
     /// call has never landed. The header's span is the two ends of this.</summary>
     public static IEnumerable<DateTime> Observations(IEnumerable<VenueRowModel> rows) =>

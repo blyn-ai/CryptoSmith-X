@@ -91,16 +91,15 @@
                    so link generation would otherwise resolve this to /Pairs/Pair?baseFamily=… and
                    the short address the page is designed around would exist only if a visitor typed
                    it. Naming the route asks for the address we mean. *@
-                var href = Url.RouteUrl("pair", new
+                var href = Url.RouteUrl("asset", new
                 {
                     controller = "Pairs",
-                    action = "Pair",
-                    baseFamily = p.BaseFamily,
-                    quoteFamily = p.QuoteFamily
+                    action = "Asset",
+                    baseFamily = p.BaseFamily
                 });
 
                 <a class="a-plain a-pair-card" href="@href">
-                    <span class="a-pair-name">@p.BaseFamily / @p.QuoteFamily</span>
+                    <span class="a-pair-name">@p.BaseFamily</span>
                     <span class="a-pair-counts">
                         <span title="Order books quoting this pair. Distinct segments, because a venue's spot book and its perp book are two books.">
                             <b>@p.Venues</b> venue@(p.Venues == 1 ? "" : "s")
