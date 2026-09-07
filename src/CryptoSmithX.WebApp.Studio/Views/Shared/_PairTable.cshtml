@@ -52,6 +52,15 @@
         end + " among the venues compared here — a figure whose call has gone "
         + "degraded is not ranked, and neither is the column it would have won";
 
+    // The quote a rank was decided in, or null where the whole page competed. RankGroup already
+    // carries it — "Bid:USDT" against "SpreadBps:" — so the scope rule lives in one place and this
+    // reads it rather than restating it.
+    static string? RankQuote(string? group)
+    {
+        var i = group?.IndexOf(':') ?? -1;
+        return i >= 0 && i < group!.Length - 1 ? group[(i + 1)..] : null;
+    }
+
     // The crossed book's own hover, and it is deliberately not RankTitle: this chip says why the row
     // is NOT in the comparison, so borrowing the sentence that explains a rank would be the fourth
     // chip claiming to have been ranked.
@@ -119,6 +128,10 @@
                 <span class="a-e-num">Depth 50bps</span>
             </div>
 
+            @{
+                // How many quotes this page holds. One means the old page: nothing to disambiguate.
+                var quoteCount = Model.Rows.Select(x => x.Row.QuoteAsset).Distinct(StringComparer.Ordinal).Count();
+            }
             @foreach (var (venue, cells) in built)
             {
                 var r = venue.Row;
@@ -290,13 +303,34 @@
                                     <span class="a-tag @(c.Band == SpreadBand.Wide ? "a-tag--worst" : "a-tag--tight")"
                                           title="@RankTitle(c.Band == SpreadBand.Wide ? "Widest spread" : "Narrowest spread")">@(c.Band == SpreadBand.Wide ? "Wide" : "Tight")</span>
                                 }
+                                @* The chip NAMES the quote it won in whenever the page holds more
+                                   than one. Ranking a figure denominated in the quote asset against
+                                   rows sharing that quote is the rule this table has always run on;
+                                   what changed is that a page now holds several quotes at once, so
+                                   the same page can carry two BEST chips truthfully — one per
+                                   quote — and an unlabelled pair of them reads as a contradiction.
+                                   Naming the scope is what makes them legible; widening the ranking
+                                   instead would put an acid-green BEST over a comparison of two
+                                   different currencies, which is a false statement rather than a
+                                   crowded one. Silent on a single-quote page, where there is only
+                                   one answer and the label would be noise. *@
+                                @{
+                                    var rankQuote = quoteCount > 1 ? RankQuote(c.RankGroup) : null;
+                                    var rankSuffix = rankQuote is null ? "" : " · " + rankQuote;
+                                    var rankScope = rankQuote is null
+                                        ? "Best in this column"
+                                        : "Best among the venues quoting in " + rankQuote;
+                                    var worstScope = rankQuote is null
+                                        ? "Worst in this column"
+                                        : "Worst among the venues quoting in " + rankQuote;
+                                }
                                 @if (c.Verdict == Verdict.Best)
                                 {
-                                    <span class="a-tag a-tag--best" title="@RankTitle("Best in this column")">Best</span>
+                                    <span class="a-tag a-tag--best" title="@RankTitle(rankScope)">Best@rankSuffix</span>
                                 }
                                 else if (c.Verdict == Verdict.Worst)
                                 {
-                                    <span class="a-tag a-tag--worst" title="@RankTitle("Worst in this column")">Worst</span>
+                                    <span class="a-tag a-tag--worst" title="@RankTitle(worstScope)">Worst@rankSuffix</span>
                                 }
                                 @if (c.Note is not null)
                                 {
