@@ -687,7 +687,7 @@ function Wordmark({
       color: 'var(--text-muted)',
       marginTop: Math.max(3, size * .12)
     }
-  }, /*#__PURE__*/React.createElement("span", null, "PERPS & CRYPTO"), /*#__PURE__*/React.createElement("span", null, "TRADE BOT")));
+  }, /*#__PURE__*/React.createElement("span", null, "MARKET DATA"), /*#__PURE__*/React.createElement("span", null, "MULTI-VENUE")));
 }
 Object.assign(__ds_scope, { Wordmark });
 })(); } catch (e) { __ds_ns.__errors.push({ path: "components/navigation/Wordmark.jsx", error: String((e && e.message) || e) }); }

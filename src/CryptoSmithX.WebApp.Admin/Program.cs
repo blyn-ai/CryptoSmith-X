@@ -116,29 +116,55 @@ app.MapGet("/zurnalas", (IWebHostEnvironment env) =>
 // deleted: /studio now belongs to the real Studio, which is a different container behind the same
 // traefik, so this application must stop answering there — but /feature-demo/studio is the mock's
 // permanent address and has to keep working. Dropping the tuple would have taken both.
-foreach (var (name, page, redirectFromRoot) in new[]
+//
+// The fourth element is whether the mock shows invented figures as if they were real ("128
+// strategies", "186 markets", live-looking bid/ask prints — see the numbers this comment used to
+// quote before every one of these got a banner). Those six get wrapped in a page carrying a plain,
+// permanent warning above an iframe of the mock itself; the mock file cannot be edited to add the
+// warning in place — it is a self-unpacking bundle that replaces its own document wholesale on
+// load, so anything written into that HTML is discarded the moment it runs. ui-mocks/index.html
+// is the superseded Lithuanian landing, not a figures demo, and keeps serving as-is.
+foreach (var (name, page, redirectFromRoot, showsInventedFigures) in new[]
          {
-             ("config", "config.html", true),
-             ("agent", "agent.html", true),
+             ("config", "config.html", true, true),
+             ("agent", "agent.html", true, true),
              // The redirect that used to stand here was always temporary, and the 302 was chosen
              // for this day: a 301 would have pinned every visitor who once opened the mock to the
              // mock forever, out of their own cache, where no deploy could reach them. Nobody's
              // browser is holding a stale answer, so /studio is free to become Studio.
-             ("studio", "studio.html", false),
-             ("strategy-modeler", "strategy-modeler.html", true),
-             ("pairs-monitor", "pairs-monitor.html", true),
+             ("studio", "studio.html", false, true),
+             ("strategy-modeler", "strategy-modeler.html", true, true),
+             ("pairs-monitor", "pairs-monitor.html", true, true),
              // New, so no top-level address was ever shared and none is claimed: a prototype
              // should not hold a name a real feature might want.
-             ("live-bots", "live-bots.html", false),
-             ("ui-mocks", "index.html", true),
+             ("live-bots", "live-bots.html", false, true),
+             ("ui-mocks", "index.html", true, false),
          })
 {
     var file = page;
-    app.MapGet($"/feature-demo/{name}", (HttpContext ctx, IWebHostEnvironment env) =>
+    var frameRoute = $"/feature-demo/{name}/frame";
+
+    if (showsInventedFigures)
     {
-        ctx.Response.Headers["X-Robots-Tag"] = "noindex";
-        return Results.File(Path.Combine(env.WebRootPath, "ui-mocks", file), "text/html");
-    });
+        app.MapGet($"/feature-demo/{name}", (HttpContext ctx) =>
+        {
+            ctx.Response.Headers["X-Robots-Tag"] = "noindex";
+            return Results.Content(PrototypeWarningPage(frameRoute), "text/html");
+        });
+        app.MapGet(frameRoute, (HttpContext ctx, IWebHostEnvironment env) =>
+        {
+            ctx.Response.Headers["X-Robots-Tag"] = "noindex";
+            return Results.File(Path.Combine(env.WebRootPath, "ui-mocks", file), "text/html");
+        });
+    }
+    else
+    {
+        app.MapGet($"/feature-demo/{name}", (HttpContext ctx, IWebHostEnvironment env) =>
+        {
+            ctx.Response.Headers["X-Robots-Tag"] = "noindex";
+            return Results.File(Path.Combine(env.WebRootPath, "ui-mocks", file), "text/html");
+        });
+    }
 
     if (!redirectFromRoot)
     {
@@ -168,6 +194,37 @@ app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 app.MapIngestEndpoints();
 
 await app.RunAsync();
+
+// A permanent banner above an iframe of the mock, not a fix to the mock file itself: the mock is a
+// self-unpacking bundle that discards its own document and rebuilds it from an embedded template on
+// load, so any warning written into that file is gone the moment a browser opens it. Plain inline
+// HTML on purpose — same "no framework" rule as the rest of this static surface.
+// $$"""...""" (not a single $): a CSS block needs single braces literally, and this raw string
+// only has one placeholder — {{frameSrc}} — so the interpolation delimiter is raised to double
+// braces instead of escaping every brace in the stylesheet.
+static string PrototypeWarningPage(string frameSrc) => $$"""
+    <!doctype html>
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Prototype — CryptoSmith X</title>
+    <meta name="robots" content="noindex">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { height: 100%; }
+      body { display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+      .warn { flex: none; background: #2a0f18; color: #fff; text-align: center;
+              font: 600 12px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; padding: 8px 14px; }
+      iframe { flex: 1; width: 100%; border: 0; }
+    </style>
+    </head>
+    <body>
+    <div class="warn">Prototype — every figure on this page is invented, not measured.</div>
+    <iframe src="{{frameSrc}}" title="Prototype preview" referrerpolicy="no-referrer"></iframe>
+    </body>
+    </html>
+    """;
 
 // Exposed so the test project can reference the composition assembly.
 public partial class Program;
