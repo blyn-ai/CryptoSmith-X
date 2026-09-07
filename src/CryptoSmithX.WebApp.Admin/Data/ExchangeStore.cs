@@ -94,10 +94,10 @@ public static class ExchangeStore
             new { code },
             cancellationToken: ct))).ToList();
 
-        // The stalest of OUR instruments — the oldest snapshots, which is where a failing feed shows.
-        // Filtered by collect rather than by the venue's status for the same reason as the health
-        // rule above it: a listing we switched off is not stale, it is off, and a listing we collect
-        // is worth alarming about whether or not the venue still calls it trading.
+        // The stalest of OUR LIVE instruments — the oldest snapshots, which is where a failing feed
+        // shows. Both halves of the predicate are load-bearing, same as the health rule: a listing
+        // we switched off is not stale but off, and a listing the venue delisted is not stale but
+        // over. Either one alone fills this panel with rows nobody can act on.
         var stalest = (await conn.QueryAsync<StaleInstrument>(new CommandDefinition(
             """
             select i.id as "Id",
@@ -105,7 +105,7 @@ public static class ExchangeStore
                    extract(epoch from now() - l.received_at)::double precision as "AgeSeconds"
               from exchange_instrument i
               join market_snapshot_latest l on l.exchange_instrument_id = i.id
-             where i.segment_code = @code and i.collect
+             where i.segment_code = @code and i.collect and i.status = 'trading'
              order by l.received_at asc limit 6
             """,
             new { code },

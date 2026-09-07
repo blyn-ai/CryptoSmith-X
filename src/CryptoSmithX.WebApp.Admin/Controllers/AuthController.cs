@@ -30,7 +30,7 @@ public sealed class AuthController : Controller
             || !string.Equals(user.Password, password, StringComparison.Ordinal))
         {
             TempData["LoginFailed"] = true;
-            return RedirectToAction(nameof(HomeController.Login), "Home");
+            return RedirectToAction(nameof(HomeController.Index), "Home");
         }
 
         var claims = new List<Claim>
