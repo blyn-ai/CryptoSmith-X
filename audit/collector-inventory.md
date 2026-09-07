@@ -1423,6 +1423,14 @@ is made here about `dotnet test CryptoSmithX.sln`.
    three increasing wall-clock times on 2026-09-07. Lags at 06:17 UTC: tf1 0.02 h, tf5 and tf15
    23.55 h, tf60 24.30 h, tf240 26.30 h, tf720 and tf1440 30.30 h — each timeframe additionally
    behind by its own un-closed window. `market_metric_hour` stops at 2026-09-06 05:00.
+
+   **A short sample will look stalled and is not.** Each pass rebuilds the same sliding window
+   `[now − 1 day, now − 1 day + MaxStep]` (`RollupJob.cs:86` with `ColdStartWindow` `:43` and
+   `MaxStep` `:37`), so the frontier advances in steps of the TIMEFRAME, not of the 60 s loop.
+   Sampled at 06:18:16, 06:19:17 and 06:20:17 UTC, tf5 and tf15 both read `2026-09-06 06:45:00`
+   unchanged — consistent with the model rather than against it: at 06:20 the window is
+   `09-06 06:20 → 06:50` and 06:45 is its last closed 5-minute bar. Anyone measuring this over two
+   minutes will conclude it is stopped; the frontier must be watched for at least one timeframe.
 3. **TEST's `binance-usdm` is `maintenance`**, set by the operator after a reconnect incident, so
    nothing is built for it (`ExchangeWorker.cs:149-151`) even though its 697 instruments and 373,055
    1m bars remain in the tables.
