@@ -183,9 +183,13 @@ begin
                     'один раз суперпользователем: sudo -u postgres psql -d marketdata -c "create role '
                     'arena_reader login password ''<сгенерированный>'' nosuperuser nocreatedb '
                     'nocreaterole noreplication nobypassrls connection limit 30;" — затем строкой в '
-                    '/opt/cryptosmithx/.env: ARENA_DATABASE_CONNECTION_STRING=Host=<шлюз>;Port=5432;'
-                    'Database=marketdata;Username=arena_reader;Password=<тот же>;Maximum Pool Size=20 '
-                    '— и повторить деплой.';
+                    '/opt/cryptosmithx/.env: STUDIO_DATABASE_CONNECTION_STRING=Host=<шлюз>;Port=5432;'
+                    'Database=marketdata;Username=studio_reader;Password=<тот же>;Maximum Pool Size=20 '
+                    '— и повторить деплой. Имена расходятся не по ошибке: роль заводится как '
+                    'arena_reader, потому что гранты ниже выданы этому имени, а 0027 сразу за '
+                    'этим переименовывает её в studio_reader, пароля не меняя. Переменная '
+                    'ARENA_DATABASE_CONNECTION_STRING не читается ничем — она осталась от '
+                    'имени, под которым витрина вышла первый раз.';
         end;
     end if;
 end $$;
