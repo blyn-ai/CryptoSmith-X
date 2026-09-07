@@ -141,6 +141,58 @@ public sealed class KrakenFuturesMarketDataTests
 
     /// <summary>Replays a fixture per endpoint; routes the order book by symbol so the thin and
     /// error cases can be reached, and 500s for the error symbol.</summary>
+    /// <summary>
+    /// A negative <c>contractValueTradePrecision</c> means the step is COARSER than one, and the
+    /// venue reports it on fifteen live instruments — PF_PEPEUSD, PF_SHIBUSD, PF_BONKUSD,
+    /// PF_FLOKIUSD and PF_MOGUSD at -3, PF_TURBOUSD and PF_PUMPUSD at -2, eight more at -1. It is
+    /// the ordinary way to quote a coin whose unit price is a millionth of a dollar.
+    ///
+    /// The loop this pins ran zero times on a negative precision and returned 1: a step a thousand
+    /// times finer than the venue accepts, written into BOTH qty_step and min_qty, and passed by
+    /// `CHECK (qty_step > 0)` in silence because 1 is a perfectly good positive number.
+    ///
+    /// The payload here is hand-written rather than captured, and deliberately so: the captured
+    /// instruments.json holds no negative precision, so appending one would make it no longer a
+    /// capture. The three values are the venue's own, read from its live response.
+    /// </summary>
+    [Theory]
+    [InlineData(-3, 1000)]
+    [InlineData(-2, 100)]
+    [InlineData(-1, 10)]
+    [InlineData(0, 1)]
+    [InlineData(3, 0.001)]
+    public async Task A_coarser_than_one_step_is_not_flattened_to_one(int precision, decimal expected)
+    {
+        var json = $$"""
+            {"result":"success","instruments":[{
+                "symbol":"PF_TESTUSD","type":"flexible_futures","tradeable":true,
+                "underlying":"rr_testusd","tickSize":1e-8,
+                "contractValueTradePrecision":{{precision}},
+                "isin":"","contractSize":1,"marginLevels":[],"openingDate":"2024-01-01T00:00:00.000Z"
+            }]}
+            """;
+
+        var market = new KrakenFuturesMarketData(
+            new KrakenFuturesClient(new HttpClient(new OneShotHandler(json)), BaseUrl, ChartsUrl));
+
+        var instruments = await market.GetInstrumentsAsync(CancellationToken.None);
+        var only = Assert.Single(instruments);
+
+        Assert.Equal(expected, only.QtyStep);
+        // The call site hands the same value to MinQty, so the defect was always two columns.
+        Assert.Equal(expected, only.MinQty);
+    }
+
+    private sealed class OneShotHandler(string json) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+            });
+    }
+
     private sealed class FixtureHandler : HttpMessageHandler
     {
         private static readonly string FixtureDir =

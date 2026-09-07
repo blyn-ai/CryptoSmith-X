@@ -212,12 +212,28 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
         : k.PostOnly ? InstrumentStatus.PostOnly
         : InstrumentStatus.Trading;
 
+    /// <summary>
+    /// The quantity step, as ten to the minus <paramref name="precision"/>.
+    ///
+    /// THE PRECISION CAN BE NEGATIVE, and fifteen of Kraken's live instruments say so:
+    /// PF_PEPEUSD, PF_SHIBUSD, PF_BONKUSD, PF_FLOKIUSD and PF_MOGUSD report -3, PF_TURBOUSD and
+    /// PF_PUMPUSD report -2, and eight more report -1. A negative precision is the venue saying the
+    /// step is COARSER than one — a thousand, a hundred, ten — which is the ordinary way to quote a
+    /// coin whose unit price is a millionth of a dollar.
+    ///
+    /// The loop this replaces ran zero times on those and returned 1. That is not a rounding error:
+    /// it is a step a thousand times finer than the venue accepts, written into
+    /// exchange_instrument.qty_step and — through <c>MinQty: qtyStep</c> at the call site — into
+    /// min_qty as well. `CHECK (qty_step > 0)` passes it in silence, because 1 is a perfectly good
+    /// positive number and nothing in the schema knows it is the wrong one.
+    /// </summary>
     private static decimal QtyStep(int precision)
     {
         var step = 1m;
-        for (var i = 0; i < precision; i++)
+
+        for (var i = 0; i < Math.Abs(precision); i++)
         {
-            step /= 10m;
+            step = precision > 0 ? step / 10m : step * 10m;
         }
 
         return step;

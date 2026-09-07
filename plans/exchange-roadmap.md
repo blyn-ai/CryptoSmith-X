@@ -50,7 +50,7 @@
 
 | адаптер | код | WS | чем питается стакан | известные оговорки |
 |---|---|---|---|---|
-| Kraken Futures | `kraken-futures` | да | книга по WS с контрольной суммой | — |
+| Kraken Futures | `kraken-futures` | да | книга по WS, порядок по `seq != book.Seq + 1` (`KrakenBookBuilder.cs:62`) | контрольной суммы нет — `grep -i "crc\|checksum"` по Connectors даёт ноль |
 | Hyperliquid | `hyperliquid` | да | книга по WS | сделки не храним (`docs/datagaps.md`) |
 | WEEX Futures | `weex-futures` | да, V3 | книга по WS; правило цепочки `U == prev.u`, не как у Binance | **лимит запросов под вопросом**, см. ниже |
 | Binance USDⓈ-M | `binance-usdm` | да | книга по WS с REST-засевом, вес 20 на засев | пик веса 92 % бюджета после реконнекта (`0023`) |
