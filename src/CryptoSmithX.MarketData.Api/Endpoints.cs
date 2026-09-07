@@ -303,45 +303,60 @@ public static class Endpoints
     /// </summary>
     private static async Task<IResult> Coverage(Db db, CancellationToken ct)
     {
+        // Untyped rows, like the four reads above. A positional record here would put Dapper's
+        // constructor matching between the query and the answer for no gain — it wants the exact
+        // types it infers from the reader, and text[] does not arrive as string[].
         await using var conn = await db.OpenAsync(ct);
-        var venues = (await conn.QueryAsync<CoverageRow>(new CommandDefinition(
+
+        var venues = await conn.QueryAsync(new CommandDefinition(
             """
-            select s.code                                                       as "Code",
-                   s.name                                                        as "Name",
-                   s.exchange_code                                               as "ExchangeCode",
-                   s.kind                                                        as "Kind",
-                   s.status                                                      as "Status",
+            select s.code                                                       as code,
+                   s.name                                                        as name,
+                   s.exchange_code                                               as "exchangeCode",
+                   s.kind                                                        as kind,
+                   s.status                                                      as status,
                    (select min(i.first_seen_at)::date from exchange_instrument i
-                     where i.segment_code = s.code)                              as "Since",
+                     where i.segment_code = s.code)                              as since,
                    (select count(*)::int from exchange_instrument i
-                     where i.segment_code = s.code and i.collect)                as "Instruments",
+                     where i.segment_code = s.code and i.collect)                as instruments,
                    (select count(*)::int from exchange_instrument i
-                     where i.segment_code = s.code and i.status = 'trading')     as "Trading",
+                     where i.segment_code = s.code and i.status = 'trading')     as trading,
                    (select count(*)::int from exchange_instrument i
-                     where i.segment_code = s.code)                              as "Listed",
+                     where i.segment_code = s.code)                              as listed,
                    (select coalesce(array_agg(sd.dataset_code order by sd.dataset_code), '{}')
                       from segment_dataset sd
                      where sd.segment_code = s.code
                        and sd.mode <> 'disabled'
-                       and sd.dataset_code not in ('discovery', 'rollup'))       as "Datasets"
+                       and sd.dataset_code not in ('discovery', 'rollup'))       as datasets
               from segment s
              where s.status = 'enabled'
              order by s.code
-            """, cancellationToken: ct))).ToList();
+            """, cancellationToken: ct));
 
-        return Results.Ok(new
-        {
-            venues,
-            totals = new
-            {
-                venues = venues.Count,
-                instruments = venues.Sum(v => v.Instruments),
-                trading = venues.Sum(v => v.Trading),
-                listed = venues.Sum(v => v.Listed),
-                since = venues.Where(v => v.Since is not null).Select(v => v.Since!.Value).DefaultIfEmpty().Min(),
-            },
-            measuredAt = DateTimeOffset.UtcNow,
-        });
+        // Summed in SQL rather than over the rows above, so the totals cannot drift from the list
+        // by one of them being filtered and the other not.
+        var totals = await conn.QuerySingleAsync(new CommandDefinition(
+            """
+            select count(*)::int                                                  as venues,
+                   coalesce(sum(x.instruments), 0)::int                            as instruments,
+                   coalesce(sum(x.trading), 0)::int                                as trading,
+                   coalesce(sum(x.listed), 0)::int                                 as listed,
+                   min(x.since)                                                    as since
+              from segment s
+              join lateral (
+                   select (select min(i.first_seen_at)::date from exchange_instrument i
+                            where i.segment_code = s.code)                          as since,
+                          (select count(*)::int from exchange_instrument i
+                            where i.segment_code = s.code and i.collect)            as instruments,
+                          (select count(*)::int from exchange_instrument i
+                            where i.segment_code = s.code and i.status = 'trading') as trading,
+                          (select count(*)::int from exchange_instrument i
+                            where i.segment_code = s.code)                          as listed
+                   ) x on true
+             where s.status = 'enabled'
+            """, cancellationToken: ct));
+
+        return Results.Ok(new { venues, totals, measuredAt = DateTimeOffset.UtcNow });
     }
 
     // timestamptz comes back from Npgsql as DateTime with Kind=Utc, so that is what these say.
@@ -357,18 +372,6 @@ public static class Endpoints
         int? InstrumentsExpected,
         int? LastDurationMs,
         double? AvgDurationMs);
-
-    private sealed record CoverageRow(
-        string Code,
-        string Name,
-        string ExchangeCode,
-        string Kind,
-        string Status,
-        DateTime? Since,
-        int Instruments,
-        int Trading,
-        int Listed,
-        string[] Datasets);
 
     private sealed record StaleRow(
         string SegmentCode,
