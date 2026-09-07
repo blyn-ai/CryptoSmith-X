@@ -67,7 +67,19 @@ public static class Format
             // Scale and compare against the integer: at d decimals the step is representable, so
             // that is the precision the venue quotes in.
             var scaled = step * Math.Pow(10, d);
-            if (Math.Abs(scaled - Math.Round(scaled)) < 1e-9)
+
+            // AND THE SCALED STEP HAS TO BE AT LEAST ONE UNIT. Without that second condition a tick
+            // SMALLER than the tolerance satisfies the first one at d = 0 — 1e-10 is within 1e-9 of
+            // zero — so the function answered "no decimals" for the finest ticks on the venue list,
+            // which is the opposite of what it exists to do. The deployed page printed Kraken's
+            // PF_PEPEUSD bid, ask, last and mark as `0`, and its candle panel's header as "0 – 0
+            // USD", on a book quoting 0.0000036209. A measured figure printed as zero is worse than
+            // the dash-for-zero lie this file opens by forbidding: a dash says nothing was measured
+            // and this said the price was nothing.
+            //
+            // "Representable at d decimals" means the step lands on a whole number of the LAST
+            // decimal place, so the whole number has to be one or more. Zero is not a step.
+            if (Math.Abs(scaled - Math.Round(scaled)) < 1e-9 && Math.Abs(Math.Round(scaled)) >= 1)
             {
                 return d;
             }
@@ -100,33 +112,45 @@ public static class Format
             fallback: 2, cap: 4);
 
     /// <summary>
-    /// The age line's text: whole seconds, and past twelve windows the word instead of the count.
+    /// <b>THE ONE AGE TOKEN THIS SURFACE PRINTS, AND IT IS THREE CHARACTERS WIDE.</b>
     ///
-    /// Capped at "99+ s ago" the way the design system's own AgeLine is, so the line never changes
-    /// width and the figures above it stay on one line across the row. Between the cap and the word
-    /// there is no lost information — the absolute instant is in the cell's title, and past one
-    /// window the △ beside this says the number has stopped being graded anyway.
+    /// Three places print an age — the freshness strip's named calls, the strip's two ends, and the
+    /// age line under every figure — and before this they printed four different lengths from one
+    /// vocabulary (<c>—</c>, <c>7 s</c>, <c>77 s</c>, <c>99+ s</c>). In a fixed-pitch face a length
+    /// is a width, so the venue cell's three items measured 21 to 58px each against 134px of room,
+    /// the row wrapped to a second line the moment two of its three ages reached ten seconds, and
+    /// every row below it moved. The box was not too small: the text was not designed.
+    ///
+    /// So it is designed. Two characters of figure and one of unit, right-aligned in a slot the
+    /// stylesheet sizes in characters — <c>7s</c>, <c>77s</c>, <c>2m</c>, <c>9h</c>, <c>4d</c> — and
+    /// the slack is leading spaces, which is what a duration field is supposed to look like. The
+    /// unit rung changes rather than the width: a figure that would need three digits is stated in
+    /// the next unit up instead, which is also why the old <c>99+</c> cap is gone. It existed only
+    /// to stop the slot changing width (its own comment said so); the slot does that now, and a
+    /// call 489 seconds behind reads <c>9m</c> rather than hiding behind a plus sign.
+    ///
+    /// <b>Rejected, and why.</b>
+    /// <list type="bullet">
+    ///   <item>Zero-padding to <c>07 s</c> — a leading zero on an ELAPSED count reads as a clock
+    ///     field (Atlassian's date-and-time guidance says not to zero-pad an hour; Windows' own
+    ///     locale formats split <c>s</c> from <c>ss</c> for exactly this). A duration is padded with
+    ///     spaces, and spaces are what the slot supplies.</item>
+    ///   <item>Keeping <c>99+ s</c> and widening the venue column — rule 12 fixes the table at
+    ///     1836px, and <c>--a-cols</c> says in as many words that it gets no more widenings. Three
+    ///     items of <c>label + " " + "99+ s"</c> need 165px in a 148px cell whatever the gaps are.
+    ///     Arithmetic, not preference.</item>
+    ///   <item>Keeping <c>99+ s</c> and fitting the type to the box the way <c>.a-fig</c> does —
+    ///     that division lands at 7.5px, below the 8.5px these ages are set at, on every page rather
+    ///     than on the two pairs whose figures genuinely cannot fit.</item>
+    ///   <item>Dropping the unit and stating it once (<c>Price 14</c>) — on a page with a price
+    ///     column, a bare number beside the word "Price" is a different claim.</item>
+    ///   <item>Spelling the unit (<c>2 min</c>) — six characters where four fit, and the reason the
+    ///     narrow form is admissible here is that this is a fixed field and not prose. Primer's
+    ///     relative-time guidance argues against narrow forms in running text and ships
+    ///     <c>format="narrow"</c> for space-constrained slots; the prose on this page keeps the long
+    ///     words (see <c>Statement</c> and the strip's own hovers).</item>
+    /// </list>
     /// </summary>
-    public static string Age(double? seconds, double? windowSeconds)
-    {
-        if (seconds is not { } age)
-        {
-            return Dash;
-        }
-
-        if (Freshness.Degraded(age, windowSeconds))
-        {
-            return "degraded";
-        }
-
-        // A venue clock running ahead of ours is not a negative age; it is a clock we do not own.
-        // Kraken stamps received_at from its own clock (SnapshotCollector), so this happens.
-        var whole = (int)Math.Round(Math.Max(age, 0));
-        return whole > 99 ? "99+ s ago" : whole.ToString(CultureInfo.InvariantCulture) + " s ago";
-    }
-
-    /// <summary>The same, without the trailing "ago" — for the freshness strip, where every age sits
-    /// beside the name of the call that carries it and the scale above says the tense.</summary>
     public static string ShortAge(double? seconds)
     {
         if (seconds is not { } age)
@@ -134,8 +158,84 @@ public static class Format
             return Dash;
         }
 
-        var whole = (int)Math.Round(Math.Max(age, 0));
-        return whole > 99 ? "99+ s" : whole.ToString(CultureInfo.InvariantCulture) + " s";
+        // A venue clock running ahead of ours is not a negative age; it is a clock we do not own.
+        // Kraken stamps received_at from its own clock (SnapshotCollector), so this happens.
+        //
+        // Held as a double and never as an int. A stopped feed's age is a difference between two
+        // instants and nothing bounds it: (int)1e12 does not overflow into a large number, it
+        // overflows into a WRONG one, and the wrong one prints as an ordinary age.
+        var whole = Math.Round(Math.Max(age, 0));
+        if (whole < 100)
+        {
+            return Rung(whole, "s");
+        }
+
+        // CEILING on every coarse rung, and it is not a rounding preference. Rounding a 149-second
+        // age to "2m" states that the figure is fresher than it is, which is the one direction this
+        // surface is never allowed to be wrong in; the ceiling is wrong in the direction that
+        // under-claims. The seconds rung keeps Math.Round because half a second is not a claim
+        // either way, and because it is the behaviour the tests already pin.
+        //
+        // The rungs are chosen so that each one's range fits two digits before the next begins, and
+        // that is why weeks are in the ladder: without them a call ninety-nine days behind would
+        // step straight to "1y", which over-states by nine months to save a rung nobody reads. This
+        // is the ladder GitHub's own narrow relative-time renders (s, m, h, d, w, y), not one
+        // invented here.
+        var minutes = Math.Ceiling(whole / 60.0);
+        if (minutes < 100)
+        {
+            return Rung(minutes, "m");
+        }
+
+        var hours = Math.Ceiling(whole / 3600.0);
+        if (hours < 100)
+        {
+            return Rung(hours, "h");
+        }
+
+        var days = Math.Ceiling(whole / 86400.0);
+        if (days < 100)
+        {
+            return Rung(days, "d");
+        }
+
+        var weeks = Math.Ceiling(whole / 604800.0);
+        if (weeks < 100)
+        {
+            return Rung(weeks, "w");
+        }
+
+        // The last rung, and it is clamped rather than continued. Ninety-nine years is older than
+        // the schema, so the clamp is unreachable rather than lossy, and a rung above it would be a
+        // seventh unit nobody will ever read.
+        return Rung(Math.Min(Math.Ceiling(whole / 31_557_600.0), 99), "y");
+    }
+
+    /// <summary>One rung of the ladder above: the figure, then its unit, with no space between
+    /// them. The space is what does not fit — see the rejections on ShortAge.</summary>
+    private static string Rung(double figure, string unit) =>
+        figure.ToString("0", CultureInfo.InvariantCulture) + unit;
+
+    /// <summary>
+    /// The age line's text: the token above with the tense on it, and past twelve windows the word
+    /// instead of the count.
+    ///
+    /// Eight characters at its longest, and the longest is the word <c>degraded</c> rather than any
+    /// age — <c>99y ago</c> is seven. <c>studio.css</c> reserves the slot from that count.
+    /// </summary>
+    public static string Age(double? seconds, double? windowSeconds)
+    {
+        if (seconds is null)
+        {
+            return Dash;
+        }
+
+        if (Freshness.Degraded(seconds.Value, windowSeconds))
+        {
+            return "degraded";
+        }
+
+        return ShortAge(seconds) + " ago";
     }
 
     /// <summary>The fade, rendered as a CSS number. Three decimals is finer than a display can show

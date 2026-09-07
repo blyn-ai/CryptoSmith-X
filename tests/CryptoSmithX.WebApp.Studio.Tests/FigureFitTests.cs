@@ -41,6 +41,42 @@ public sealed class FigureFitTests
     }
 
     /// <summary>
+    /// A TICK FINER THAN THE TOLERANCE IS NOT "NO DECIMALS".
+    ///
+    /// <c>Format.Decimals</c> walked d = 0..8 and returned the first d at which the step landed
+    /// within 1e-9 of a whole number. A step of 1e-10 is within 1e-9 of ZERO, so it satisfied that
+    /// at d = 0 and the finest ticks on the venue list printed with no decimals at all: the deployed
+    /// page showed Kraken's PF_PEPEUSD bid, ask, last and mark as <c>0</c> and its candle panel's
+    /// header as "0 – 0 USD" on a book quoting 0.0000036209.
+    ///
+    /// A measured figure printed as zero is worse than the dash-for-zero lie this file's neighbours
+    /// forbid — a dash says nothing was measured, and this said the price was nothing. The second
+    /// condition is that the scaled step must round to at least one unit, because "representable at
+    /// d decimals" means the step is a whole number of the last decimal place and zero is not a
+    /// step.
+    /// </summary>
+    [Theory]
+    [InlineData(1e-10, 8)]        // finer than the cap: printed to the cap, not to zero
+    [InlineData(0.0000001, 7)]
+    [InlineData(0.00000001, 8)]
+    [InlineData(0.01, 2)]
+    [InlineData(0.5, 1)]
+    [InlineData(2.5, 1)]
+    [InlineData(1, 0)]
+    [InlineData(50, 0)]
+    public void A_tick_finer_than_the_tolerance_still_asks_for_decimals(double step, int expected) =>
+        Assert.Equal(expected, CryptoSmithX.WebApp.Studio.Format.Decimals(step, fallback: 4));
+
+    /// <summary>A step that is not a measurement at all falls back, and the fallback is the
+    /// caller's — not zero, which would print every price on the row as an integer.</summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(double.NaN)]
+    public void A_step_that_is_not_a_step_falls_back(double step) =>
+        Assert.Equal(4, CryptoSmithX.WebApp.Studio.Format.Decimals(step, fallback: 4));
+
+    /// <summary>
     /// The count is the column's longest figure, taken across every row — not the row being drawn.
     ///
     /// This is the whole reason the view builds all five rows before it emits the first one. A cell

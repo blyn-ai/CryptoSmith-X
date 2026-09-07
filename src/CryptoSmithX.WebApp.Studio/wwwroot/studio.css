@@ -31,6 +31,56 @@
    parent's alpha. */
 
 /* ════════════════════════════════════════════════════════════════════════════
+   THE AGE SLOTS — one character, counted
+   ════════════════════════════════════════════════════════════════════════════
+   Three places on this page print an age: the freshness strip's named calls, the strip's two ends,
+   and the age line under every figure. All three print ONE vocabulary — Format.ShortAge, which is
+   two characters of figure and one of unit (`7s`, `77s`, `2m`, `9h`, `4d`), plus the em dash for a
+   call that has never landed — and all three reserve it by COUNTING CHARACTERS.
+
+   `--age-ch` is one character of that vocabulary. DM Mono is fixed-pitch by construction — post
+   .isFixedPitch = 1, every glyph advance 600/1000 in all four subsets under wwwroot/ds/fonts — so a
+   character is .6em, which is exactly what `1ch` (the advance of "0") measures. Letter-spacing is
+   added after every character and is NOT part of `ch`, so it is added here. At --fs-age and
+   --track-age that is 5.27px, and it is the unit every slot below is written in: a slot is then
+   auditable against the strings it exists for by counting them, which "66px" never was.
+
+   WHY `ch` HERE AND `--a-adv` ON `.a-cell`. They answer different questions. `.a-fig` computes a
+   FONT SIZE from a character count, and `1ch` inside that calculation would depend on the font size
+   being computed — circular — so it carries a constant that must be safe for the loaded font and
+   its three fallbacks at once (.605, deliberately generous). These are WIDTHS at a known font size,
+   which is not circular, and `ch` is measured from whichever font actually loaded rather than
+   guessed for four of them. Exact beats generous when there is no cycle to break.
+
+   TABULAR FIGURES ARE NOT THE ANSWER AND CANNOT BE, which is worth writing down where the four
+   existing `font-variant-numeric: tabular-nums` declarations can be read next to it. `tnum` equalises
+   DIGITS; it says nothing about a string that GAINS a character, which is the whole of what "7s"
+   does when it becomes "77s". And it is inert on both faces this page uses: DM Mono ships no `tnum`
+   because it is duplexed already, and Anton — the display face the statement line is set in — ships
+   none either. Width discipline here is a character-count problem, not a font-feature one. */
+:root {
+  --age-ch: calc(1ch + var(--track-age));
+
+  /* The token: two characters of figure and one of unit, right-aligned, so the slack is leading
+     spaces. Rejected: zero-padding to a constant `07s` — a leading zero on an elapsed count reads
+     as a clock field (Atlassian says not to zero-pad an hour; Windows' locale formats separate `s`
+     from `ss` for the same reason). A duration is space-padded, and the slot is what supplies the
+     spaces. Format.ShortAge argues the rest of the vocabulary. */
+  --age-tok-w: calc(3 * var(--age-ch));
+
+  /* The age line's own text: `77s ago` is seven characters and the word `degraded` is eight, so the
+     count is eight. */
+  --age-text-w: calc(8 * var(--age-ch));
+
+  /* The mark. U+25B3 is in NONE of the four DM Mono subsets this page ships, so it is drawn by a
+     fallback face at an advance nothing here controls — which is an unmeasured term in every width
+     budget it appears in. One character, centred, is the fix: the slot is a width this page can
+     promise, and a fallback that draws the triangle wider than that overhangs a gap rather than
+     moving type. Reserved whether or not there is a mark in it, so the △ ARRIVING moves nothing. */
+  --age-mark-w: var(--age-ch);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
    Sheet, header, footer
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -165,7 +215,23 @@
 
 .a-foot-right { margin-left: auto; }
 
-/* ── The statement line ── */
+/* ── The statement line ──
+   THERE IS NO FIXED-WIDTH SPAN IN HERE, AND THAT IS THE FIX RATHER THAN AN OMISSION.
+   This line changed width once a second, because the sentence it printed carried a live count
+   ("The oldest is price, 77 seconds behind."). It cannot be held still with type: Anton ships no
+   `tnum` and no `pnum`, so `font-variant-numeric: tabular-nums` here would be a declaration with
+   nothing to switch to, and its "1" advances 677/2048 against 1012/2048 for every other digit —
+   4.25px of jitter per digit at --fs-h1, ~13px when the count crosses nine.
+   A slot WOULD have held the line: size the accent half to its longest sentence and let the rest be
+   slack, which is what the owner asked for and what `.a-age` does eight sizes down. It is rejected
+   here because it treats the symptom. Rule 10 says the only thing that moves on its own is an age,
+   because an age is a clock, and a 26px display headline is not an age line; a slot would have kept
+   the LINE still while the digits inside it went on changing once a second in the largest type on
+   the page. So the count came out of the sentence instead — Models/Statement.cs carries the whole
+   argument — and what is left changes when a call crosses its window, which is an event. Measured
+   after: one width, 614.4px, across 164 seconds and six state changes.
+   If a figure is ever put back in this line, it needs a slot in `ch` and a guarded write, and it
+   needs an argument for why it is a clock in the first place. */
 .a-statement-row {
   display: flex;
   align-items: baseline;
@@ -548,7 +614,74 @@
    them. The mark is a separate element on purpose — it takes the alarm ink while the words take the
    hold ink, and one coloured string could not do both. */
 .a-strip-ends > span { display: flex; align-items: center; gap: 3px; }
-.a-strip-calls { gap: 7px; flex-wrap: wrap; font-weight: var(--fw-medium); width: auto; }
+
+/* THE ROW THAT USED TO WRAP, AND THE ARITHMETIC THAT SAYS IT CANNOT ANY MORE.
+   `flex-wrap: wrap` over items free to be any width: `Price 7 s` measured 47.5px and `Price 99+ s`
+   58.0px, three of them plus two 7px gaps ran from 140.5px to 172.2px against a 148px content box,
+   and the row tipped onto a second line the moment two of the three ages reached ten seconds — 16px
+   of venue cell, every row below it moved, the table 317.9 → 333.4 over six seconds.
+
+   Now every item is [name][3px][3-character token] and the token is the only part that changes:
+   Price 26.4 + 3 + 15.8 = 45.2, Depth the same, OI 10.5 + 3 + 15.8 = 29.4, two 7px gaps = 133.7px,
+   constant, in the 148px this cell has had all along. Fourteen pixels of headroom, and NOWRAP
+   because after that there is nothing left that could ask for a second line — if a fourth call is
+   ever added here the line overflows visibly instead of silently growing the table, which is the
+   failure mode you can see.
+
+   Rejected: `align-content` / a fixed two-line height — that is sizing the box to the text's worst
+   case and leaving the text free, which is the shape of the defect rather than a fix for it.
+   Rejected: a wider venue track — rule 12 fixes the table at 1836px and `--a-cols` says overhead
+   that it gets no more widenings; three items of `name + " " + "99+ s"` need 165px whatever the
+   gaps are. Rejected: fitting the type to the box the way `.a-fig` does — the division lands at
+   7.5px, under the 8.5px these ages are set at, on every page rather than on the two pairs whose
+   figures genuinely cannot fit. */
+.a-strip-calls {
+  gap: 7px;
+  flex-wrap: nowrap;
+  font-weight: var(--fw-medium);
+  width: auto;
+}
+
+.a-strip-calls > span { display: flex; align-items: center; gap: 3px; flex: none; }
+
+/* THE SLACK FALLS AWAY FROM THE EDGE THE SLOT IS ANCHORED TO. One rule, four slots.
+   The age line under a figure and the strip's spent end are anchored RIGHT, so their slack goes on
+   the left, where it lines the digits up down a column — that is the default on `.a-tok` above.
+   These two are anchored LEFT, so their slack goes on the right, where it falls between one pair
+   and the next instead of inside a pair. Measured before this rule: right-aligned, a two-character
+   token put 8.3px between "Depth" and "3m" (3px of gap plus 5.3px of empty slot) against 7px to the
+   next pair, so the space INSIDE a pair was wider than the space between pairs and the line read as
+   six loose words rather than three readings. The labels sit at the same x either way, so this
+   moves nothing; it decides which side of the figure the empty character sits on. */
+.a-strip-calls .a-tok,
+.a-strip-ends [data-fresh] .a-tok { text-align: left; }
+
+/* The name half. Static text — it is the call's own label and it never changes while the page is
+   open — so it needs no slot, only the promise not to break. */
+.a-lab { white-space: nowrap; }
+
+/* The age half, and the only part of either row that changes. Right-aligned in the token's own
+   three characters, so `7s` sits under the `7s` of `77s` and the slack is on the left where a
+   duration's slack belongs. `flex: none` so a narrow container shrinks the gaps and never the
+   field. */
+/* An empty token takes no slot. The three characters exist to hold a value; a degraded row has
+   none to hold, and reserving them there pushes "live data degraded" — eighteen characters — off
+   the end of the 134px scale it annotates. `:empty` is exact rather than a modifier class: the
+   condition IS that there is nothing in it, and a class would be a second statement of the same
+   fact, free to drift from the first. */
+.a-tok:empty { width: 0; }
+
+.a-tok {
+  flex: none;
+  width: var(--age-tok-w);
+  text-align: right;
+  white-space: nowrap;
+
+  /* NO `font-variant-numeric: tabular-nums` here, deliberately. It would be a no-op — DM Mono is
+     duplexed by construction and ships no `tnum` table to switch to — and a declaration that
+     cannot do anything reads to the next person as the thing holding this slot still. The width
+     above is what holds it still. */
+}
 
 .a-spent { color: var(--state-hold-ink); }
 
@@ -982,7 +1115,18 @@
 
 /* ── The age line ──
    The smallest type on the surface, because it is metadata about the figure above it. A fixed slot
-   so the block never changes width as the count ticks. It never fades. */
+   so the block never changes width as the count ticks. It never fades.
+
+   --age-slot-w is 66px, and it is now auditable against what goes in it rather than a number with
+   nothing behind it: [mark 1 char][--gap-inline][text 8 chars] = 5.3 + 4 + 42.2 = 51.5px, where
+   eight characters is the word `degraded` (`99y ago` is seven, `—` is one). Fourteen and a half
+   pixels of slack, and the slack is on the LEFT because the whole line is right-aligned to the
+   cell's --pad-cell like the figure above it.
+
+   The slot is left at the design system's 66px rather than tightened to the 51.5px it needs. It is
+   the system's token, AgeLine.jsx reserves the same one, and a slot with headroom is not the defect
+   here — a slot with nothing connecting it to the strings it holds was, and that is what the two
+   sentences above fix. */
 .a-age {
   display: flex;
   align-items: center;
@@ -998,12 +1142,33 @@
   color: var(--text-faint);
 }
 
+/* The words, in their own eight characters. Without this the text node was the last flex item and
+   the △ sat immediately left of it, so the MARK moved by a character every time the count crossed a
+   digit — `9s ago` to `10s ago` shifted it 5.3px. Right-aligned inside the slot, so the count grows
+   leftwards into the slack and the unit stays in one column, which is how a column of numbers is
+   read. */
+.a-age-text {
+  flex: none;
+  width: var(--age-text-w);
+  text-align: right;
+}
+
 /* Past its window. The count has stopped being graded, and the ink says so before the △ is read. */
 .a-age--spent { color: var(--state-hold-ink); }
 .a-age--missing { color: var(--text-unmeasured); }
 
-/* The only alarm colour in the palette, and this is the only thing that wears it. */
+/* The only alarm colour in the palette, and this is the only thing that wears it.
+   IT IS A SLOT, NOT A GLYPH. U+25B3 is in none of the four DM Mono subsets under wwwroot/ds/fonts,
+   so it is drawn by a fallback face at an advance this page cannot know — an unmeasured term in
+   every width budget it appears in, and the reason the element used to be emitted only when it was
+   needed and to push the words beside it left when it arrived. One character, centred, always
+   present, empty until there is something to say: the arrival of the mark is then a change of ink
+   and nothing else, and a fallback that draws the triangle wider simply overhangs its gap. */
 .a-tri {
+  flex: none;
+  display: inline-block;
+  width: var(--age-mark-w);
+  text-align: center;
   font-style: normal;
   color: var(--state-stale);
 }
@@ -1263,6 +1428,113 @@
   font-size: var(--fs-data);
   color: var(--text-faint);
   text-align: right;
+}
+
+/* ── The OHLC line ──
+   Above the chart, not inside it. A tooltip appears over the candles it describes, exists only
+   while a pointer is on them, and leaves a page read without a mouse — or printed, or with scripts
+   off — with no numbers at all; a line has one position and is in the HTML as delivered. It is the
+   arrangement Kraken, TradingView and Lightweight Charts' own legend example all use, which is the
+   point: this is not a scheme invented here.
+
+   EVERY FIGURE IS IN A COUNTED SLOT, so sweeping the crosshair across the panel changes what the
+   four figures say and never where they sit. --ohlc-n is the longest of the four figures in THIS
+   panel and --ohlc-chg-n the longest change, both in characters, both handed down from the server
+   (Models/OhlcLine.cs counts them the way `.a-fig`'s --fig-n is counted). Without them, an hour
+   that ran 0.00001 to 0.00002 would shuffle the keys sideways under the pointer, which is the same
+   defect as the one the venue cell had, arriving through a different door.
+
+   AND THE COUNT IS THE PANEL'S OWN, not a number somebody was confident about. The change slot was
+   `9ch` for one phase — "a sign, three digits, a point, two decimals and the per-cent, surely" —
+   which is the hypothetical maximum the owner rejected when he rejected sizing the venue cell to
+   its worst case, and it is also simply too small: an hour in which a memecoin trebles prints
+   `+1,204.55%`, which is ten. A slot counted from the bars the panel actually holds cannot be
+   overflowed by the data that produced it.
+
+   IT MAY WRAP, and that is safe here for the reason wrapping was not safe in the venue cell: the
+   content is a fixed width for a given panel, so where it breaks is decided once, at layout, and
+   never again by a value. A narrow panel gets two lines and keeps them. */
+.a-ohlc {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--gap-cell) var(--space-5);
+  padding: 8px 14px 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-data);
+  line-height: 1.3;
+  color: var(--text-data);
+}
+
+.a-ohlc-part { display: flex; align-items: baseline; gap: var(--gap-inline); }
+
+/* The key is a label and takes label type, so the four figures read as the row and the letters read
+   as its axis. Five keys, not four: the change carries CLOSE VS OPEN in the same slot the letters
+   sit in, because a percentage with no stated base is a claim with no subject.
+
+   NOWRAP, and it is load-bearing rather than tidy. Four of these are one character and cannot
+   break; the fifth is three words, and a flex item is free to wrap its own text when the panel is
+   narrow — which would make the OHLC line one line at three columns and two at two columns, i.e.
+   the panel would change HEIGHT on a layout change. The parts wrap; the words inside one do not. */
+.a-ohlc-k {
+  font-size: var(--fs-eyebrow);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--track-label);
+  color: var(--eyebrow);
+  white-space: nowrap;
+}
+
+.a-ohlc-v {
+  display: inline-block;
+  /* 1ch is the advance of "0" and does NOT include letter-spacing, so a slot of n * 1ch is short
+     by n tracks and the last character sits outside it. The track is added per character. */
+  width: calc(max(1, var(--ohlc-n, 1)) * (1ch + var(--track-num)));
+  text-align: right;
+  letter-spacing: var(--track-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The hour these four figures are a claim about. Rule 1 does not stop applying because the figure
+   came out of an hourly rollup: a figure with no date is a claim with no date, and a candle's date
+   is the window it covers.
+
+   NINE CHARACTERS, EXACTLY, and it is a slot for the same reason the ages are: `03:00 UTC` is what
+   this field says in every state a drawn panel can reach — the crosshair's hour, a gap hour, or the
+   panel's own last close — so the slot is the string's own length and there is no slack in it at
+   all. Written in --age-ch rather than in `9ch` because letter-spacing is added after every
+   character and is not part of `ch`; this field is set at --fs-age and --track-age, which is what
+   --age-ch measures. A slot short by nine tracking steps is a slot that clips. */
+.a-ohlc-when {
+  display: inline-block;
+  width: calc(9 * var(--age-ch));
+  font-size: var(--fs-age);
+  letter-spacing: var(--track-age);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+/* The move across that hour — close against open, which is the body the reader is looking at, and
+   which the key beside it says out loud. Right-aligned in a slot counted from this panel's own
+   bars, so the sign lands where the reader is looking and the slack falls left, away from the
+   figures.
+
+   IT IS NOT COLOURED, and the two candle inks were tried here first. Rule 5: this surface states no
+   P&L, so nothing on it may mean profit or loss, and a green per-cent says "up is good" on a page
+   that does not know which side the reader is on. The candle BODIES are the one exception the
+   readme grants, and RULE-CHANGES entry 10 draws the boundary in as many words: the exception
+   covers the body of a candle and nothing else — not a bar, not a chip, not a mark and not text.
+   A figure in a row of figures is the thing rule 5 is about, and the sign already carries the
+   direction, so there is nothing here an exception would have to buy. DesignSystemTests fails the
+   build if either candle ink reaches this file. */
+.a-ohlc-chg {
+  display: inline-block;
+  width: calc(max(1, var(--ohlc-chg-n, 1)) * (1ch + var(--track-num)));
+  text-align: right;
+  letter-spacing: var(--track-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-data);
 }
 
 .a-chart-body { padding: 12px 14px 10px; }

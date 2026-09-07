@@ -265,8 +265,69 @@ public sealed class FreshnessTests
 
         Assert.Null(strip.LeastSpent);
         Assert.Null(strip.MostSpent);
-        Assert.Equal("", StripModel.EndText(strip.LeastSpent));
+        Assert.Equal("", StripModel.EndLabel(strip.LeastSpent));
+        Assert.Equal("", StripModel.EndToken(strip.LeastSpent));
         Assert.False(strip.MostSpentPastWindow);
+    }
+
+    /// <summary>
+    /// THE AGE TOKEN IS THREE CHARACTERS WIDE FOR EVERY AGE THIS SCHEMA CAN PRODUCE.
+    ///
+    /// This is the fix for the venue cell, stated as a length. The strip's three named calls, its
+    /// two ends and every age line under a figure all print this one vocabulary; before, it ran from
+    /// one character to five ("—", "7 s", "77 s", "99+ s"), and in a fixed-pitch face a length is a
+    /// width — three items of "name + age" measured 140.5px at single digits and 172.2px at the cap,
+    /// against a 148px cell, so the row wrapped to a second line as the counts crossed ten and every
+    /// row below it moved.
+    ///
+    /// The count here is the assertion. Three characters is what studio.css reserves (--age-tok-w:
+    /// 3 × --age-ch), and a rung that ever printed four would overflow that slot silently.
+    /// </summary>
+    [Theory]
+    [InlineData(0, "0s")]
+    [InlineData(7.4, "7s")]
+    [InlineData(77, "77s")]
+    [InlineData(99, "99s")]
+    [InlineData(100, "2m")]                     // the rung changes, not the width
+    [InlineData(489, "9m")]                     // the age this page was reported with
+    [InlineData(5940, "99m")]
+    [InlineData(5941, "2h")]
+    [InlineData(356400, "99h")]
+    [InlineData(356401, "5d")]
+    [InlineData(8553600, "99d")]
+    [InlineData(8553601, "15w")]                // and the rung above it is accurate, not a jump
+    [InlineData(59875200, "99w")]
+    [InlineData(59875201, "2y")]
+    [InlineData(1e12, "99y")]                   // clamped, because there is no rung above it
+    public void Every_age_this_schema_can_produce_is_three_characters_or_fewer(
+        double seconds, string expected)
+    {
+        Assert.Equal(expected, Format.ShortAge(seconds));
+        Assert.True(expected.Length <= 3, $"`{expected}` does not fit the three-character slot");
+    }
+
+    /// <summary>
+    /// A coarse rung rounds UP, never down.
+    ///
+    /// Rounding 149 seconds to "2m" would state the figure as fresher than it is, and under-claiming
+    /// is the only direction this surface is allowed to be wrong in. The seconds rung keeps
+    /// Math.Round, where the error is half a second either way.
+    /// </summary>
+    [Fact]
+    public void A_coarse_rung_never_states_a_figure_as_fresher_than_it_is()
+    {
+        Assert.Equal("3m", Format.ShortAge(149));
+        Assert.Equal("2m", Format.ShortAge(120));
+        Assert.Equal("2m", Format.ShortAge(101));
+    }
+
+    /// <summary>Nothing measured is an em dash and never a zero, in this field as everywhere
+    /// else.</summary>
+    [Fact]
+    public void An_unmeasured_age_is_a_dash()
+    {
+        Assert.Equal(Format.Dash, Format.ShortAge(null));
+        Assert.Equal(Format.Dash, Format.Age(null, 30));
     }
 
     [Fact]
@@ -274,8 +335,14 @@ public sealed class FreshnessTests
     {
         var strip = StripModel.Build(Row(priceAge: 23, priceWindow: 10, depthAge: 38, depthWindow: 300));
 
-        Assert.Equal("Depth 38 s", StripModel.EndText(strip.LeastSpent));
-        Assert.Equal("Price 23 s", StripModel.EndText(strip.MostSpent));
+        // Two pieces, not one string: the name is static and the age is the half that changes, so
+        // the age is the half the stylesheet gives a three-character slot to. A single string could
+        // only ever be sized to whatever it happened to say, which is how the row below these ends
+        // came to wrap onto a second line every time an age reached ten seconds.
+        Assert.Equal("Depth", StripModel.EndLabel(strip.LeastSpent));
+        Assert.Equal("38s", StripModel.EndToken(strip.LeastSpent));
+        Assert.Equal("Price", StripModel.EndLabel(strip.MostSpent));
+        Assert.Equal("23s", StripModel.EndToken(strip.MostSpent));
         Assert.Equal(
             "Least spent: depth, 38 s into its 300 s window",
             StripModel.EndTitle(strip.LeastSpent, StripModel.LeastSpentLabel));
@@ -295,8 +362,11 @@ public sealed class FreshnessTests
 
         Assert.Contains("'" + StripModel.LeastSpentLabel + "'", script, StringComparison.Ordinal);
         Assert.Contains("'" + StripModel.MostSpentLabel + "'", script, StringComparison.Ordinal);
-        Assert.Contains("' into its '", script, StringComparison.Ordinal);
+        Assert.Contains("' s into its '", script, StringComparison.Ordinal);
         Assert.Contains("' s window'", script, StringComparison.Ordinal);
+
+        // And the degraded end's words, which the client writes over the name and the age token.
+        Assert.Contains("'" + StripModel.DegradedText + "'", script, StringComparison.Ordinal);
 
         // The selection itself: a share of the call's own window, and nothing that reaches for the
         // raw minimum or maximum age of the row.
@@ -320,21 +390,21 @@ public sealed class FreshnessTests
 
         // THE DEFECT. The entry read "Nothing is measured beyond it — a second over and a week over
         // read the same", which is true of the FADE and false of everything the reader reads: past
-        // one window the age is still spelled out to the second and the figure still takes its
+        // one window the age is still counted and the figure still takes its
         // rank. The entry two terms below said the opposite, so the glossary contradicted itself.
         Assert.DoesNotContain("Nothing is measured beyond it", reading, StringComparison.Ordinal);
         Assert.Contains(
             "That call is past its window, so the fade has run out", reading, StringComparison.Ordinal);
         Assert.Contains(
-            "The count itself does not stop: the age is still spelled out to the second and the"
-            + " figure still takes its rank, until the call goes", reading, StringComparison.Ordinal);
+            "The count itself does not stop: the age is still counted and the figure still takes"
+            + " its rank, until the call goes", reading, StringComparison.Ordinal);
 
         // Each half of that sentence, against the code it describes. The fade: one window over and
         // a week over are the same weight, which is the only thing the old text got right.
         Assert.Equal(Freshness.Weight(31, 30), Freshness.Weight(TimeSpan.FromDays(7).TotalSeconds, 30), 10);
 
         // The count: still exact at three windows, and still a number rather than the word.
-        Assert.Equal("90 s ago", Format.Age(90, 30));
+        Assert.Equal("90s ago", Format.Age(90, 30));
         Assert.False(Freshness.Degraded(90, 30));
 
         // The rank: withheld at `degraded` and not at the window. A figure one window over is still

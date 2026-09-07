@@ -84,9 +84,28 @@ public sealed record StripModel(
     /// the late one.</summary>
     public bool MostSpentPastWindow => MostSpent?.PastWindow ?? false;
 
-    /// <summary>An end label: the call's name and its age. Empty where there is no scale.</summary>
-    public static string EndText(StripCall? call) =>
-        call is null ? "" : call.Label + " " + Format.ShortAge(call.AgeSeconds);
+    /// <summary>
+    /// An end label, in TWO pieces, because the two are laid out differently.
+    ///
+    /// It used to be one string — <c>call.Label + " " + Format.ShortAge(...)</c> — printed into one
+    /// text node, and a single string cannot be given a slot: the age half changes length as the
+    /// count runs and the name half does not, so the pair could only ever be sized to whatever it
+    /// happened to say. Split, the name is static text and the age goes in the three-character
+    /// token slot <c>studio.css</c> reserves for it, so the end measures the same before and after
+    /// every tick. Empty where there is no scale, which is a row with no ends rather than ends with
+    /// no words.
+    /// </summary>
+    public static string EndLabel(StripCall? call) => call is null ? "" : call.Label;
+
+    /// <summary>The age half of an end label: the one token, so the strip's ends, the strip's named
+    /// calls and every age line under a figure all print the same vocabulary.</summary>
+    public static string EndToken(StripCall? call) =>
+        call is null ? "" : Format.ShortAge(call.AgeSeconds);
+
+    /// <summary>What the spent end says instead of a name and an age once the row has stopped
+    /// meaning anything. A constant here because <c>studio-ages.js</c> writes the same words every
+    /// second and a test reads both files for them.</summary>
+    public const string DegradedText = "live data degraded";
 
     /// <summary>
     /// An end label's hover, which is where the fraction the end was CHOSEN by is written out. The
@@ -96,8 +115,19 @@ public sealed record StripModel(
     public static string EndTitle(StripCall? call, string which) =>
         call is null
             ? "No call on this row states how often it looks, so the scale has no ends"
-            : which + ": " + call.Label.ToLowerInvariant() + ", " + Format.ShortAge(call.AgeSeconds)
-                + " into its " + Window(call.WindowSeconds) + " s window";
+            : which + ": " + call.Label.ToLowerInvariant() + ", " + Seconds(call.AgeSeconds)
+                + " s into its " + Window(call.WindowSeconds) + " s window";
+
+    /// <summary>The age in whole seconds, for the hovers only.
+    ///
+    /// NOT <see cref="Format.ShortAge"/>, which is a three-character field with a unit rung on it:
+    /// "9m into its 300 s window" puts two units in one clause and rounds away the number the
+    /// clause exists to let the reader check. A hover is prose and has all the room in the world,
+    /// so it gets the count itself.</summary>
+    private static string Seconds(double? seconds) =>
+        seconds is { } s
+            ? Math.Round(Math.Max(s, 0)).ToString("0", CultureInfo.InvariantCulture)
+            : Format.Dash;
 
     /// <summary>The green end's word, and the magenta end's, as constants — <c>studio-ages.js</c>
     /// rewrites both every second and a test reads this file and that one for the same strings.</summary>

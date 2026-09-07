@@ -102,7 +102,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // THE DOCUMENT'S OWN AGE, AND THE DEFECT IT CLOSES
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// A reader opened this page, left the tab and came back to "99+ s ago" on every cell, `degraded` on
+// A reader opened this page, left the tab and came back to minutes-old ages on every cell, `degraded` on
 // two venues, and "4 feeds have stopped meaning anything." in the largest type on the page. The
 // collector was fine — on the host that produced the complaint, 566 of 566 Binance rows were under
 // 30 s, 177 of 177 Hyperliquid, 272 of 280 Kraken. Every mark on that screen was true. The page was
@@ -240,27 +240,51 @@
   const pastWindow = (ageS, winS) => ageS !== null && winS !== null && winS > 0 && ageS >= winS;
   const degraded = (ageS, winS) => ageS !== null && winS !== null && winS > 0 && ageS >= winS * DEGRADED_WINDOWS;
 
-  // Word for word what Format.Age produces, including the 99+ cap that keeps the slot from changing
-  // width as the count runs.
-  const ageText = (ageS, winS) => {
-    if (ageS === null) return '—';
-    if (degraded(ageS, winS)) return 'degraded';
-    const whole = Math.round(Math.max(ageS, 0));
-    return whole > 99 ? '99+ s ago' : whole + ' s ago';
-  };
-
+  // ── THE ONE AGE TOKEN, AND IT IS THREE CHARACTERS WIDE ──
+  // Word for word what Format.ShortAge produces. Two characters of figure and one of unit, and the
+  // unit rung changes rather than the width — `7s`, `77s`, `2m`, `9h`, `4d`. The `99+ s` cap this
+  // replaces existed only to stop the slot changing width as the count ran (its own comment said
+  // so); the slot does that now, in studio.css, sized by counting these characters, so the cap can
+  // go and a call 489 seconds behind can say `9m` instead of hiding behind a plus sign.
+  //
+  // Ceiling on every coarse rung: rounding a 149-second age to `2m` would state the figure as
+  // fresher than it is, and that is the one direction this surface may not be wrong in. The seconds
+  // rung keeps Math.round, which is half a second either way and is what the server has always done.
+  // The rungs are chosen so each one's range fits two digits before the next begins, which is why
+  // weeks are in the ladder: without them a call ninety-nine days behind would step straight to
+  // "1y", over-stating by nine months to save a rung nobody reads. Same ladder as GitHub's narrow
+  // relative-time (s, m, h, d, w, y), not one invented here. Format.ShortAge is the other copy and
+  // a test reads this file for it.
   const shortAge = (ageS) => {
     if (ageS === null) return '—';
     const whole = Math.round(Math.max(ageS, 0));
-    return whole > 99 ? '99+ s' : whole + ' s';
+    if (whole < 100) return whole + 's';
+    const minutes = Math.ceil(whole / 60);
+    if (minutes < 100) return minutes + 'm';
+    const hours = Math.ceil(whole / 3600);
+    if (hours < 100) return hours + 'h';
+    const days = Math.ceil(whole / 86400);
+    if (days < 100) return days + 'd';
+    const weeks = Math.ceil(whole / 604800);
+    if (weeks < 100) return weeks + 'w';
+    return Math.min(Math.ceil(whole / 31557600), 99) + 'y';
   };
 
-  // How old the DOCUMENT is, and deliberately not in the two formats above. A cell's age caps at
-  // "99+ s" for two reasons that both stop applying here: the slot must not change width as the
-  // count runs, and past its window a call is not graded further so 31 seconds and 30 days are one
-  // verdict. The document is graded against nothing and sits in a sentence, so it is written at
-  // whatever size it actually is — "99+ s" for a tab left open since lunch would be the page hiding
-  // the one figure the sentence exists to state.
+  // Word for word what Format.Age produces: the token above with the tense on it, and the word
+  // instead of the count past twelve windows. Eight characters at its longest, and the longest is
+  // `degraded` rather than any age.
+  const ageText = (ageS, winS) => {
+    if (ageS === null) return '—';
+    if (degraded(ageS, winS)) return 'degraded';
+    return shortAge(ageS) + ' ago';
+  };
+
+  // How old the DOCUMENT is, and deliberately not in the two formats above. A cell's age is written
+  // in a three-character FIELD, and a field is what forces `9m` where the true count is 489 s: it
+  // has to hold still beside two others in 148px of venue cell. This figure sits in a SENTENCE,
+  // where there is no field and no neighbour, so it spells the unit out — `12 min`, not `12m` — and
+  // is not rounded up into the next rung to save two characters. Both halves of that are the same
+  // rule read twice: a slot's vocabulary is designed for the slot, and prose is not a slot.
   const durationText = (seconds) => {
     const whole = Math.round(Math.max(seconds, 0));
     if (whole < 120) return whole + ' s';
@@ -278,13 +302,48 @@
   // age on the row, which is a different question the moment the three calls have three cadences —
   // a price call 23 s into a 10 s window is at the spent end of a scale a depth sweep 38 s into a
   // 300 s pass is an eighth of the way along, and the labels named each other's end.
-  const endText = (end) => (end === null ? '' : end.label + ' ' + shortAge(end.age));
+  // In TWO pieces, because the two are laid out differently: the name is static and the age is the
+  // half that changes, so the age is the half that gets a slot. One string could only ever be sized
+  // to whatever it happened to say. Same split as StripModel.EndLabel / EndToken.
+  const endLabel = (end) => (end === null ? '' : end.label);
+  const endToken = (end) => (end === null ? '' : shortAge(end.age));
 
+  // StripModel.DegradedText, and a test reads both files for it.
+  const DEGRADED_TEXT = 'live data degraded';
+
+  // The hover is prose, so it gets the count itself and not the three-character field: "9m into its
+  // 300 s window" puts two units in one clause and rounds away the number the clause exists to let
+  // the reader check. StripModel.EndTitle says the same thing on the server.
   const endTitle = (end, which) =>
     end === null
       ? 'No call on this row states how often it looks, so the scale has no ends'
-      : which + ': ' + end.label.toLowerCase() + ', ' + shortAge(end.age)
-        + ' into its ' + Math.round(end.win) + ' s window';
+      : which + ': ' + end.label.toLowerCase() + ', ' + Math.round(Math.max(end.age, 0))
+        + ' s into its ' + Math.round(end.win) + ' s window';
+
+  // ── R6: A WRITE THAT CHANGES NOTHING IS STILL A WRITE ──
+  // Assigning textContent replaces the text node and invalidates layout for that subtree whether or
+  // not the string differs, and inside a live region an identical rewrite is a redundant
+  // announcement. This loop rebuilt thirteen strings a second on a four-venue page — twelve call
+  // labels and the statement line — of which, on a typical tick, none had changed: with the token
+  // above, a call older than a hundred seconds writes at most once a MINUTE. sayPageState already
+  // had this guard; these are the rest of the writers.
+  const setText = (el, text) => {
+    if (el && el.textContent !== text) el.textContent = text;
+  };
+
+  const setTitle = (el, text) => {
+    if (el && el.getAttribute('title') !== text) el.setAttribute('title', text);
+  };
+
+  // The fade, under the same guard. It is a custom property rather than text, so it invalidates
+  // style rather than layout, but it is written once per CELL — fifty-one times a tick on a
+  // three-venue page — and three quarters of those writes set the value that was already there: the
+  // curve is flat to three decimals over a second everywhere except the first few seconds of a
+  // window. Reading back an inline custom property is a string lookup on the declaration and forces
+  // nothing, which is what makes the guard cheaper than the write it skips.
+  const setVar = (el, name, value) => {
+    if (el.style.getPropertyValue(name) !== value) el.style.setProperty(name, value);
+  };
 
   const num = (el, name) => {
     const raw = el.dataset[name];
@@ -298,20 +357,20 @@
     return at === null ? null : (nowMs() - at) / 1000;
   };
 
-  // △ then the text, rebuilt rather than patched: the element holds two nodes in one order and
-  // writing both is shorter than working out which of the four transitions just happened. It writes
-  // NODES, never innerHTML — everything here came from the DOM the server sent, but a page that
-  // takes numbers from one place and text from another should not have a string-to-markup path in
-  // it at all.
+  // △ and the words, into two elements the SERVER already emitted, and neither is created or
+  // removed here.
+  //
+  // It used to rebuild: clear the element, append an <i class="a-tri"> when spent, append a text
+  // node. Two defects in one. The mark ARRIVED into the line — a state change that pushed the words
+  // beside it left by the triangle's own advance plus a gap — and the triangle is the one glyph on
+  // this page whose advance nothing here knows (U+25B3 is in none of the four DM Mono subsets under
+  // wwwroot/ds/fonts, so a fallback face draws it). And the text node was replaced on every tick
+  // whether or not it differed. Now the mark is a one-character slot that is always present and
+  // empty until there is something in it, the words have their own slot beside it, and both are
+  // written only when they change. It still writes TEXT, never innerHTML.
   const mark = (el, spent, text) => {
-    el.textContent = '';
-    if (spent) {
-      const tri = document.createElement('i');
-      tri.className = 'a-tri';
-      tri.textContent = '△';
-      el.appendChild(tri);
-    }
-    el.appendChild(document.createTextNode(text));
+    setText(el.querySelector('.a-tri'), spent ? '△' : '');
+    setText(el.querySelector('.a-age-text') || el.querySelector('.a-lab'), text);
   };
 
   // The cell's age line, which also carries the two state classes. The strip's end label uses mark()
@@ -528,13 +587,27 @@
 
     // Each venue's freshness strip: the ticks, the span between the freshest and the oldest call,
     // the two end labels, and the named ages under them.
+    // The two ends and the named calls are gathered down to the SLOT that changes, not to the span
+    // that holds it: an end is a name, a mark and a three-character age token, and only the last two
+    // are ever written. Querying them once here rather than per tick is the same decision as the
+    // rest of this function — the DOM does not change shape between ticks, only its numbers do.
+    const end = (venue, which) => {
+      const el = venue.querySelector('[' + which + ']');
+      return el === null ? null : {
+        el,
+        tri: el.querySelector('.a-tri'),
+        lab: el.querySelector('.a-lab'),
+        tok: el.querySelector('.a-tok'),
+      };
+    };
+
     strips = [...document.querySelectorAll('.a-venue')].map((venue) => ({
       ticks: [...venue.querySelectorAll('.a-strip-tick[data-at]')].map((t) => ({ el: t, win: num(t, 'win') })),
       span: venue.querySelector('.a-strip-span'),
-      fresh: venue.querySelector('[data-fresh]'),
-      old: venue.querySelector('[data-old]'),
+      fresh: end(venue, 'data-fresh'),
+      old: end(venue, 'data-old'),
       calls: [...venue.querySelectorAll('.a-strip-calls > span[data-at]')].map((c) => ({
-        el: c, win: num(c, 'win'), label: c.dataset.label || '',
+        el: c, win: num(c, 'win'), label: c.dataset.label || '', tok: c.querySelector('.a-tok'),
       })),
     }));
   };
@@ -543,15 +616,37 @@
   // reads this file. Same order of questions, so the two can only ever disagree about a boundary
   // they are both standing on: a degraded feed outranks a late call, a late call outranks silence,
   // and "nothing has been observed" is a different sentence from "nothing says how often it looks".
-  const statementText = (degradedFeeds, oldestLate, landed, windowed) => {
+  // ── THE SENTENCE NAMES A STATE, AND THAT IS WHY IT NO LONGER FLICKERS ──
+  // The second rung read "The oldest is price, 77 seconds behind." and the count in it was live, so
+  // the largest type on the page rewrote itself once a second for the life of the tab. Anton ships
+  // no `tnum` and no `pnum` — `font-variant-numeric` is inert on it, there is no tabular figure set
+  // to switch to — and its "1" advances 677/2048 against 1012/2048 for every other digit. At 26px
+  // that is 4.25px of jitter per digit per second and about 13px when the count crosses nine: the
+  // headline flickered and changed width. Rule 10 says the only thing that moves on its own is an
+  // age, because an age is a clock; a display headline is not an age line, and the seconds are
+  // already stated, to the second, in the age line under every figure this sentence is about.
+  //
+  // So the rung counts the calls in that state instead. It changes when a call crosses its window,
+  // which is an event, and between events it is character-for-character unchanged — which is what
+  // the header at the top of this file always claimed the whole sentence was.
+  //
+  // Rejected: keeping the count and putting it in a fixed-width span with tabular figures. The owner
+  // accepts visible slack over motion and a slot would have held the LINE still, but the digits
+  // inside it still change once a second in 26px type, and the digits are the flicker that was
+  // reported. Two further defects went with the old wording: it had no singular form, so "1 seconds
+  // behind" was reachable, and it lowercased the label, so "oi" appeared mid-sentence.
+  //
+  // Statement.cs says the same words, and a test reads this file for them.
+  const statementText = (degradedFeeds, lateCalls, landed, windowed) => {
     if (degradedFeeds > 0) {
       return degradedFeeds === 1
         ? 'One feed has stopped meaning anything.'
         : degradedFeeds + ' feeds have stopped meaning anything.';
     }
-    if (oldestLate !== null) {
-      return 'The oldest is ' + oldestLate.label.toLowerCase() + ', '
-        + Math.round(oldestLate.age) + ' seconds behind.';
+    if (lateCalls > 0) {
+      return lateCalls === 1
+        ? 'One call is past its window.'
+        : lateCalls + ' calls are past their windows.';
     }
     if (landed === 0) return 'Nothing here has been observed yet.';
     if (windowed === 0) return 'None of them states how often it looks.';
@@ -565,7 +660,8 @@
     let degradedFeeds = 0;
     let landed = 0;
     let windowed = 0;
-    let oldestLate = null;
+    // Counted, not ranked: the sentence names a state and no longer picks a worst call to date.
+    let lateCalls = 0;
 
     // How old the figures on screen are AS A DOCUMENT, and what that age alone has done to the
     // verdicts printed on them. Floored at zero: a clock correction on the way back to the tab can
@@ -580,7 +676,7 @@
 
     for (const c of cells) {
       const ageS = ageOf(c.cell);
-      c.cell.style.setProperty('--w', weight(ageS, c.win).toFixed(3));
+      setVar(c.cell, '--w', weight(ageS, c.win).toFixed(3));
       if (c.age) writeAge(c.age, ageS, c.win);
     }
 
@@ -618,7 +714,11 @@
         const spent = pastWindow(ageS, call.win);
         anyDegraded = anyDegraded || degraded(ageS, call.win);
         call.el.classList.toggle('a-spent', spent);
-        call.el.textContent = call.label + ' ' + shortAge(ageS);
+        // The NAME is not written. It is the call's own label, it is in the HTML the server sent,
+        // and nothing here can change it — writing it back every second was twelve of the thirteen
+        // pointless writes this loop used to make on a four-venue page. Only the token moves, and
+        // only when it says something different.
+        setText(call.tok, shortAge(ageS));
 
         // A call that landed. `windowed` counts the ones that also state a cadence — a call we have
         // observed but cannot judge is not the same silence as a call we have never seen.
@@ -632,9 +732,7 @@
         // computed twice against two instants; this is, because the whole question the row below
         // answers is which of these marks the server put there and which the open tab did.
         anyDegradedThen = anyDegradedThen || degraded(ageS - docAgeS, call.win);
-        if (spent && (oldestLate === null || ageS > oldestLate.age)) {
-          oldestLate = { label: call.label, age: ageS };
-        }
+        if (spent) lateCalls += 1;
 
         // The two ends, by share of this call's own window and UNCLAMPED — two calls both past
         // their windows are ordered by which is further past, not by which came first in the row.
@@ -651,17 +749,25 @@
       // flat number — a fifty-minute-old depth sweep is degraded on a venue that sweeps in six
       // minutes and perfectly normal on one that sweeps daily.
       if (s.fresh) {
-        s.fresh.textContent = anyDegraded ? '' : endText(least);
-        s.fresh.title = endTitle(least, 'Least spent');
+        // The least-spent end wears no mark and never can — it is by definition the call furthest
+        // from its own boundary — so it has no mark slot to reserve.
+        setText(s.fresh.lab, anyDegraded ? '' : endLabel(least));
+        setText(s.fresh.tok, anyDegraded ? '' : endToken(least));
+        setTitle(s.fresh.el, endTitle(least, 'Least spent'));
       }
       if (s.old) {
         // The △ and the hold ink belong to the call at THIS end, not to any call on the row: the
         // mark said "this has stopped being graded" beside a depth sweep at an eighth of its window
         // because some other call on the row was late.
         const late = most !== null && most.spent;
-        s.old.classList.toggle('a-spent', late);
-        s.old.title = endTitle(most, 'Most spent');
-        mark(s.old, late, anyDegraded ? 'live data degraded' : endText(most));
+        s.old.el.classList.toggle('a-spent', late);
+        setTitle(s.old.el, endTitle(most, 'Most spent'));
+        setText(s.old.tri, late ? '△' : '');
+        // A degraded row says one thing at this end instead of a name and an age, and the token slot
+        // stays reserved and empty under it. Emptying the slot rather than removing it is what keeps
+        // the transition from moving the sentence sideways as it arrives.
+        setText(s.old.lab, anyDegraded ? DEGRADED_TEXT : endLabel(most));
+        setText(s.old.tok, anyDegraded ? '' : endToken(most));
       }
 
       // Per ROW, matching the server: a feed has stopped meaning anything when any one of its three
@@ -676,9 +782,11 @@
       }
     }
 
-    if (statement) {
-      statement.textContent = statementText(degradedFeeds, oldestLate, landed, windowed);
-    }
+    // Guarded, like the row under it and for the same two reasons: an identical rewrite still
+    // replaces the text node and invalidates layout, and this element sits inside a live region
+    // ([data-live-region="statement"]), where an identical rewrite is a redundant announcement.
+    // With the sentence no longer carrying a clock, a typical tick now writes nothing here at all.
+    setText(statement, statementText(degradedFeeds, lateCalls, landed, windowed));
 
     // Said after the statement line and derived from the same walk: where that sentence says what
     // is true of the FEEDS, this one says what is true of the PAGE, and a reader who has just read

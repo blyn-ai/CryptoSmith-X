@@ -162,25 +162,40 @@
                                under three windows is a different question and routinely a different
                                call: the strip printed "fresh 23 s" under the green end for a price
                                call at 230% of its cadence. StripModel carries the whole account. *@
+                            @* THREE SLOTS PER END, AND THE MARK SLOT IS RESERVED WHETHER OR NOT
+                               THERE IS A MARK IN IT. The △ used to be emitted only when the end was
+                               past its window, so it ARRIVED into the line and pushed the words at
+                               this end left by its own advance plus a gap — a state change that
+                               moved type, on an element anchored to the right edge. It is now always
+                               present and always one character wide, empty until there is something
+                               to say; see `.a-tri` in studio.css for why one character is a width
+                               this page can promise and the glyph's own advance is not (U+25B3 is in
+                               none of the four DM Mono subsets in wwwroot/ds/fonts, so it is drawn
+                               by a fallback face whose advance nothing here controls).
+
+                               The name and the age are two elements for the same reason: the age is
+                               the half that changes, so it is the half that gets a slot. *@
                             <span class="a-strip-ends">
-                                <span data-fresh title="@StripModel.EndTitle(strip.LeastSpent, StripModel.LeastSpentLabel)">@(strip.Degraded ? "" : StripModel.EndText(strip.LeastSpent))</span>
+                                <span data-fresh title="@StripModel.EndTitle(strip.LeastSpent, StripModel.LeastSpentLabel)"><span class="a-lab">@(strip.Degraded ? "" : StripModel.EndLabel(strip.LeastSpent))</span> <span class="a-tok">@(strip.Degraded ? "" : StripModel.EndToken(strip.LeastSpent))</span></span>
                                 <span data-old class="@(strip.MostSpentPastWindow ? "a-spent" : "")"
-                                      title="@StripModel.EndTitle(strip.MostSpent, StripModel.MostSpentLabel)">
-                                    @if (strip.MostSpentPastWindow)
-                                    {
-                                        <i class="a-tri">△</i>
-                                    }
-                                    @(strip.Degraded ? "live data degraded" : StripModel.EndText(strip.MostSpent))
-                                </span>
+                                      title="@StripModel.EndTitle(strip.MostSpent, StripModel.MostSpentLabel)"><i class="a-tri">@(strip.MostSpentPastWindow ? Format.PastWindowMark : "")</i><span class="a-lab">@(strip.Degraded ? StripModel.DegradedText : StripModel.EndLabel(strip.MostSpent))</span> <span class="a-tok">@(strip.Degraded ? "" : StripModel.EndToken(strip.MostSpent))</span></span>
                             </span>
 
+                            @* THE ROW THAT USED TO WRAP. `flex-wrap: wrap` over free-width items:
+                               `Price 7 s` fitted on one line and `Price 14 s` did not, so the venue
+                               cell grew from 75px to 91px as the counts crossed ten and every row
+                               below it moved — the table went 317.9 to 333.4 in six seconds. The box
+                               is unchanged. The TEXT is designed: the name is static and the age is
+                               one three-character token in a slot, so the line measures 133.7px in a
+                               148px cell whatever any of the three calls says, and it is `nowrap`
+                               because there is now nothing that could need a second line. *@
                             <span class="a-strip-calls">
                                 @foreach (var call in strip.Calls)
                                 {
                                     <span class="@(call.PastWindow ? "a-spent" : "")"
                                           data-label="@call.Label"
                                           data-at="@call.InstantMs"
-                                          data-win="@call.WindowSeconds?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)">@call.Label @Format.ShortAge(call.AgeSeconds)</span>
+                                          data-win="@call.WindowSeconds?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"><span class="a-lab">@call.Label</span> <span class="a-tok">@Format.ShortAge(call.AgeSeconds)</span></span>
                                 }
                             </span>
                         </span>
@@ -333,13 +348,7 @@
 
                             @* The age never fades: a ghosted figure still has to be able to say when
                                it died. It is a SIBLING of the faded children for that reason. *@
-                            <span class="a-age@(c.AgeMissing ? " a-age--missing" : c.AgePastWindow ? " a-age--spent" : "")">
-                                @if (c.AgePastWindow)
-                                {
-                                    <i class="a-tri">△</i>
-                                }
-                                @c.AgeText
-                            </span>
+                            <span class="a-age@(c.AgeMissing ? " a-age--missing" : c.AgePastWindow ? " a-age--spent" : "")"><i class="a-tri">@(c.AgePastWindow ? Format.PastWindowMark : "")</i><span class="a-age-text">@c.AgeText</span></span>
                         </span>
                     }
                 </div>

@@ -36,8 +36,35 @@ public static class Statement
 
     public static string FeedsDegraded(int n) => $"{n} feeds have stopped meaning anything.";
 
-    public static string OldestBehind(string label, int seconds) =>
-        $"The oldest is {label.ToLowerInvariant()}, {seconds} seconds behind.";
+    /// <summary>
+    /// A call has run past its own window and none has gone degraded — the middle rung of the
+    /// ladder, and it NAMES A STATE rather than counting a clock.
+    ///
+    /// <b>What it replaced, and why that had to go.</b> It read "The oldest is price, 77 seconds
+    /// behind.", and the count in it was live: <c>studio-ages.js</c> re-derives this sentence every
+    /// second, so the largest type on the page rewrote itself once a second for the life of the tab.
+    /// In Anton — the display face this line is set in, which ships no <c>tnum</c> and no
+    /// <c>pnum</c>, so <c>font-variant-numeric</c> is inert on it — "1" advances 677/2048 and every
+    /// other digit 1012/2048. At 26px that is 4.25px of jitter per digit per second, and ~13px when
+    /// the count crosses nine. The headline flickered and changed width, which is precisely what
+    /// rule 10 forbids: the only thing on this surface that moves on its own is an age, because an
+    /// age is a clock, and a display headline is not an age line. The seconds are already stated,
+    /// to the second, in the age line under every figure the sentence is about.
+    ///
+    /// So the sentence says the STATE — how many calls are past their windows — and changes when a
+    /// call crosses that boundary, which is an event and not a tick. Two further defects went with
+    /// the old wording: it had no singular form, so "1 seconds behind" was reachable, and
+    /// <c>label.ToLowerInvariant()</c> put "oi" in the middle of an English sentence.
+    ///
+    /// <b>Rejected:</b> keeping the count and putting it in a fixed-width span with tabular figures.
+    /// The owner accepts visible slack over motion and it would have held the width — but a slot
+    /// only stops the LINE from moving; the digits inside it still change once a second in 26px
+    /// type, which is the flicker that was reported. Rule 10 is not about layout stability, it is
+    /// about what is allowed to move at all.
+    /// </summary>
+    public const string OneCallLate = "One call is past its window.";
+
+    public static string CallsLate(int n) => $"{n} calls are past their windows.";
 
     /// <summary>
     /// The accent half of the statement line.
@@ -58,15 +85,17 @@ public static class Statement
             return n == 1 ? OneFeedDegraded : FeedsDegraded(n);
         }
 
+        // Counted, not ranked. The sentence used to pick the oldest call and print its age, which
+        // made the headline a clock; what the reader needs from the largest type on the page is
+        // which of the four states the page is in, and the age of every one of these calls is
+        // already printed under the figure it dates.
         var late = strips
             .SelectMany(s => s.Calls)
-            .Where(c => c.PastWindow && c.AgeSeconds is not null)
-            .ToList();
+            .Count(c => c.PastWindow && c.AgeSeconds is not null);
 
-        if (late.Count > 0)
+        if (late > 0)
         {
-            var worst = late.MaxBy(c => c.AgeSeconds!.Value)!;
-            return OldestBehind(worst.Label, (int)Math.Round(worst.AgeSeconds!.Value));
+            return late == 1 ? OneCallLate : CallsLate(late);
         }
 
         // Two different silences, and they are not the same sentence. No calls at all means discovery

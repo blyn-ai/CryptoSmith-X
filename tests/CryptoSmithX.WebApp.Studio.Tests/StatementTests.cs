@@ -58,11 +58,43 @@ public sealed class StatementTests
         Assert.Equal(Statement.OneFeedDegraded, Statement.Verdict(rows));
     }
 
+    /// <summary>
+    /// The late sentence states a STATE and counts it. It does not date the worst call.
+    ///
+    /// It used to read "The oldest is depth, 81 seconds behind.", and that count was re-derived on
+    /// the client every second, in 26px Anton — a face with no tabular figure set to switch to — so
+    /// the largest type on the page changed width once a second. Rule 10: the only thing that moves
+    /// on its own is an age, because an age is a clock, and this line is not an age line. The
+    /// seconds are still printed, to the second, under every figure the sentence is about.
+    ///
+    /// Two more defects went with the wording. It had no singular form, so a call one second past
+    /// its window reached "1 seconds behind", and it lowercased the label, so "oi" appeared in the
+    /// middle of an English sentence.
+    /// </summary>
     [Fact]
-    public void The_late_sentence_names_the_call_and_says_how_old_it_is()
+    public void The_late_sentence_counts_the_calls_past_their_windows_and_dates_none_of_them()
     {
         var rows = new[] { Rows.At(Rows.Venue(1), depth: 81), Rows.At(Rows.Venue(2)) };
-        Assert.Equal("The oldest is depth, 81 seconds behind.", Statement.Verdict(rows));
+        Assert.Equal(Statement.OneCallLate, Statement.Verdict(rows));
+
+        // Two late calls, on one venue or on two, are the same sentence — it counts CALLS, which is
+        // the thing that has a window to be past. (The rung above it counts feeds, and says so.)
+        var two = new[] { Rows.At(Rows.Venue(1), depth: 81, price: 90), Rows.At(Rows.Venue(2)) };
+        Assert.Equal("2 calls are past their windows.", Statement.Verdict(two));
+    }
+
+    /// <summary>
+    /// The sentence holds still while the count under it runs. This is the defect the owner
+    /// reported, as an assertion: one second of the clock, one call, and the same words.
+    /// </summary>
+    [Fact]
+    public void One_second_of_the_clock_does_not_change_the_sentence()
+    {
+        var row = Rows.Venue(1);
+        var earlier = new[] { Rows.At(row, depth: 81), Rows.At(Rows.Venue(2)) };
+        var later = new[] { Rows.At(row, depth: 82), Rows.At(Rows.Venue(2)) };
+
+        Assert.Equal(Statement.Verdict(earlier), Statement.Verdict(later));
     }
 
     [Fact]
@@ -95,7 +127,7 @@ public sealed class StatementTests
         var muchLater = new[] { Rows.At(row, price: TimeSpan.FromDays(3).TotalSeconds), Rows.At(Rows.Venue(2)) };
 
         Assert.Equal(Statement.InsideTheWindow, Statement.Verdict(fresh));
-        Assert.Equal("The oldest is price, 60 seconds behind.", Statement.Verdict(later));
+        Assert.Equal(Statement.OneCallLate, Statement.Verdict(later));
         Assert.Equal(Statement.OneFeedDegraded, Statement.Verdict(muchLater));
     }
 
@@ -168,8 +200,8 @@ public sealed class StatementTests
     [InlineData(Statement.NoCadence)]
     [InlineData(Statement.OneFeedDegraded)]
     [InlineData(" feeds have stopped meaning anything.")]
-    [InlineData("The oldest is ")]
-    [InlineData(" seconds behind.")]
+    [InlineData(Statement.OneCallLate)]
+    [InlineData(" calls are past their windows.")]
     public void The_client_says_the_same_words_the_server_does(string sentence) =>
         Assert.Contains(sentence, Read("studio-ages.js"), StringComparison.Ordinal);
 

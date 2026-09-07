@@ -220,6 +220,32 @@
 
                     var gaps = series.Windows.Count - series.Present;
 
+                    @* ── THE OHLC LINE ──
+                       What the owner asked for, in the form every terminal puts it in: a legend
+                       above the chart rather than a tooltip inside it. Kraken, TradingView and
+                       Lightweight Charts' own documented "Legend" example all do the same thing, and
+                       the reason is not fashion — a tooltip appears where the pointer is, over the
+                       candles it is describing, and it exists only while the pointer is there, so
+                       the reader cannot see the numbers and the bar at the same time and a page
+                       printed or read without a mouse has no OHLC at all. A fixed line has one
+                       position, one set of slots, and it is in the HTML before any script runs.
+
+                       IT IS SERVER-RENDERED ON THE LAST CLOSED BAR, for that last reason. With
+                       scripts off this panel now states four figures and their hour instead of a
+                       shape with no numbers on it; with scripts on, the crosshair moves the figures
+                       to whatever bar is under it and puts them back when it leaves.
+
+                       BOTH SLOTS ARE COUNTED, like every other slot on this page, and the counting
+                       is in Models/OhlcLine.cs where a test can reach it. --ohlc-n is the longest
+                       of the four figures anywhere in THIS panel and --ohlc-chg-n the longest
+                       change, in characters, so every value sits in a fixed field and sweeping the
+                       crosshair across an hour that went from 0.00001 to 0.00002 does not move the
+                       four keys around. Counted per panel and not per page: two venues quoting
+                       different assets print figures of different lengths, and a slot sized to the
+                       longest on the page would leave a hole in every other panel. *@
+                    var priceDecimals = Format.Decimals(r.PriceStep, fallback: 4);
+                    var ohlc = OhlcLine.Build(series, priceDecimals);
+
                     <section class="a-chart-panel">
                         <header class="a-chart-head">
                             <h2 class="a-chart-title">
@@ -227,16 +253,35 @@
                                 <span class="a-chart-symbol">@r.Symbol</span>
                             </h2>
                             <span class="a-chart-range">
-                                @Format.Num(series.Low, Format.Decimals(r.PriceStep, fallback: 4)) –
-                                @Format.Num(series.High, Format.Decimals(r.PriceStep, fallback: 4)) @r.QuoteAsset@(gaps > 0 ? $" · {gaps} of {series.Windows.Count} hours have no bar" : "")@(series.Partial > 0 ? $" · {series.Partial} partly covered" : "")
+                                @Format.Num(series.Low, priceDecimals) –
+                                @Format.Num(series.High, priceDecimals) @r.QuoteAsset@(gaps > 0 ? $" · {gaps} of {series.Windows.Count} hours have no bar" : "")@(series.Partial > 0 ? $" · {series.Partial} partly covered" : "")
                             </span>
                         </header>
+                        @* Four figures, their hour, and the move across that hour.
+
+                           THE CHANGE NAMES ITS BASE, in words, and that is not decoration. The four
+                           terminals this line is copied from print a bare "+8.18%" and rely on the
+                           reader knowing which convention they picked — close against this bar's
+                           open, against the previous close, against the session — and they get away
+                           with it because a colour and a lifetime of habit come with it. A
+                           percentage with no stated base is the one shape of claim this whole
+                           surface exists not to make, so the base is on the line beside it. The
+                           label is a constant and the value is in a counted slot, so the only thing
+                           that ever changes here is the figure. *@
+                        <div class="a-ohlc" style="--ohlc-n:@ohlc.FigureGlyphs;--ohlc-chg-n:@ohlc.ChangeGlyphs" data-ohlc>
+                            <span class="a-ohlc-when" data-ohlc-when>@ohlc.When</span>
+                            <span class="a-ohlc-part"><b class="a-ohlc-k">O</b><span class="a-ohlc-v" data-ohlc-o>@ohlc.Open</span></span>
+                            <span class="a-ohlc-part"><b class="a-ohlc-k">H</b><span class="a-ohlc-v" data-ohlc-h>@ohlc.High</span></span>
+                            <span class="a-ohlc-part"><b class="a-ohlc-k">L</b><span class="a-ohlc-v" data-ohlc-l>@ohlc.Low</span></span>
+                            <span class="a-ohlc-part"><b class="a-ohlc-k">C</b><span class="a-ohlc-v" data-ohlc-c>@ohlc.Close</span></span>
+                            <span class="a-ohlc-part"><b class="a-ohlc-k">@OhlcLine.ChangeLabel</b><span class="a-ohlc-chg" data-ohlc-chg>@ohlc.Change</span></span>
+                        </div>
                         <div class="a-chart-body">
                             <div class="a-chart"
                                  data-candles="@json"
                                  data-scale-lo="@scale.Lo.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                                  data-scale-hi="@scale.Hi.ToString(System.Globalization.CultureInfo.InvariantCulture)"
-                                 data-decimals="@Format.Decimals(r.PriceStep, fallback: 4)"></div>
+                                 data-decimals="@priceDecimals"></div>
                         </div>
                     </section>
                 }
@@ -257,9 +302,9 @@
         }
     </section>
     @* The paragraph that used to close this page — rows are not differenced, candles share their
-       axes, hollow above the open — is not gone: it is two headed entries in the reading section
-       below, THE ROWS and CANDLES. Two blocks of running prose stacked above the footer were the
-       same wall the table's own note was, one section further down. *@
+       axes, what the bodies mean — is not gone: it is three headed entries in the reading section
+       below, THE ROWS, CANDLES and O H L C. Two blocks of running prose stacked above the footer
+       were the same wall the table's own note was, one section further down. *@
 </main>
 
 @*
@@ -300,11 +345,14 @@
 
         <div class="a-reading-grid">
             <div class="a-term">
-                <span class="a-term-name">12 s ago</span>
+                <span class="a-term-name">12s ago</span>
                 <span class="a-term-body">
                     The age of the call that wrote the figure, counted from the instant that call
                     landed. The figure is at full strength when it lands and fades across that
-                    call's own window; each cell names its own window in its hover.
+                    call's own window; each cell names its own window in its hover. Every age on this
+                    page is written in the same three-character field — <b>12s</b>, <b>77s</b>,
+                    <b>9m</b>, <b>4h</b>, <b>3d</b> — so that a count running under an open tab
+                    changes what it says without changing how much room it takes.
                 </span>
             </div>
 
@@ -319,8 +367,8 @@
                 <span class="a-term-body">
                     That call is past its window, so the fade has run out — a second over and a week
                     over are drawn at the same strength. The count itself does not stop: the age is
-                    still spelled out to the second and the figure still takes its rank, until the
-                    call goes <b>degraded</b>.
+                    still counted and the figure still takes its rank, until the call goes
+                    <b>degraded</b>.
                 </span>
             </div>
 
@@ -329,15 +377,18 @@
                    here. A number in this sentence would be a fourth copy of a constant the server,
                    the client and the tests already share, and this repository still carries the
                    test file named after the last time one of those copies drifted. *@
-                <span class="a-term-name">99+ s · degraded</span>
+                <span class="a-term-name">9m · degraded</span>
                 <span class="a-term-body">
-                    <b>99+ s</b> is the count still running, in a slot that does not widen to say how
-                    far past a hundred it has gone. <b>degraded</b> replaces the count once the call
-                    is @Freshness.DegradedWindows times its own window behind, where it has stopped
-                    meaning anything; the feed is behind, not missing. A degraded figure takes no
-                    rank and no bar: it sets no column maximum, wins nothing and loses nothing, and
-                    when the call under a mark goes degraded while this page is open the column
-                    drops both its marks and its bars rather than leave half a comparison standing.
+                    <b>9m</b> is the count still running, past a hundred seconds and therefore stated
+                    in minutes rather than in three digits — the field is three characters wide and
+                    the unit moves rather than the width. It is rounded UP, so an age here is never
+                    smaller than the age it stands for. <b>degraded</b> replaces the count once the
+                    call is @Freshness.DegradedWindows times its own window behind, where it has
+                    stopped meaning anything; the feed is behind, not missing. A degraded figure
+                    takes no rank and no bar: it sets no column maximum, wins nothing and loses
+                    nothing, and when the call under a mark goes degraded while this page is open the
+                    column drops both its marks and its bars rather than leave half a comparison
+                    standing.
                 </span>
             </div>
 
@@ -454,14 +505,37 @@
             </div>
 
             <div class="a-term">
+                @* THIS ENTRY DESCRIBED A CANDLE THE PAGE HAD STOPPED DRAWING. It read "Hollow above
+                   the open, filled below: direction is not a result and takes no money colour here"
+                   — which was true until RULE-CHANGES entry 10 filled both bodies, and stayed on
+                   the page for two commits afterwards. The glossary is the one place a reader goes
+                   when the picture is ambiguous, so a glossary describing a different picture is
+                   worse than no entry at all. DesignSystemTests now fails the build if the fill and
+                   this sentence disagree again. *@
                 <span class="a-term-name">Candles</span>
                 <span class="a-term-body">
                     Hourly, 24 h back, price only. One price scale per quote asset, and one time
-                    axis across every panel — pan or zoom any one of them and the rest follow.
-                    Hollow above the open, filled below: direction is not a result and takes no
-                    money colour here. Stack them in one column with the control above them to
-                    compare two venues by eye — the shared scale is what makes that reading valid,
-                    and it is only legible when the same price sits at the same height.
+                    axis across every panel — pan or zoom any one of them and the rest follow. Both
+                    bodies are filled, up in one ink and down in the other: a candle is a shape with
+                    its own vocabulary, and it is the only place on this page where a colour means
+                    direction. Stack them in one column with the control above them to compare two
+                    venues by eye — the shared scale is what makes that reading valid, and it is
+                    only legible when the same price sits at the same height.
+                </span>
+            </div>
+
+            <div class="a-term">
+                <span class="a-term-name">O H L C</span>
+                <span class="a-term-body">
+                    The line above each panel: what that hour opened at, its high, its low and what
+                    it closed at, with the hour it covers on the left — <b>03:00 UTC</b> is the bar
+                    from 03:00 to 04:00. <b>Close vs open</b> is the move across that same bar and
+                    nothing else: not against the hour before it, not against the day. Point at any
+                    panel and <b>every</b> panel reports that hour, because the time axes are tied
+                    and reading one venue's 03:00 against another's last close is the comparison
+                    this page refuses to make. An hour a venue has no bar for reads as dashes there
+                    while the others still state theirs. With no pointer — or no scripts, or on
+                    paper — each line rests on that venue's last closed hour.
                 </span>
             </div>
 
@@ -492,7 +566,7 @@
     @if (drawable.Count > 0)
     {
         <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
-        <script src="~/studio-candles.js?v=3"></script>
+        <script src="~/studio-candles.js?v=5"></script>
     }
 
     @* 4 KB, on the pair page only, and it opens nothing until the button is pressed. *@

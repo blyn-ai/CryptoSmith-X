@@ -495,6 +495,83 @@ public sealed class DesignSystemTests
     }
 
     /// <summary>
+    /// THE OHLC LINE RESERVES EVERY FIELD FROM A COUNT, and the count comes from the panel's own
+    /// bars.
+    ///
+    /// This is phase zero's rule arriving on a new surface. An OHLC readout is four figures and a
+    /// percentage side by side, all six of them rewritten as the pointer sweeps — the single most
+    /// likely place on this page to reintroduce the defect the venue cell had, where a value that
+    /// gains a character moves everything to its right. The four figure slots and the change slot
+    /// are therefore widths in CHARACTERS, handed down per panel by <c>OhlcLine.Build</c>.
+    ///
+    /// A literal would pass a rendering and fail on data: the change slot WAS <c>9ch</c>, which is
+    /// a guess at a maximum ("sign, three digits, point, two decimals, per-cent") and is one short
+    /// of <c>+1,204.55%</c>. So this asserts the shape rather than a number — a width that mentions
+    /// no custom property is a width somebody decided on their own.
+    /// </summary>
+    [Fact]
+    public void Every_field_in_the_ohlc_line_is_a_slot_counted_from_the_data()
+    {
+        var css = Source("studio.css");
+        var view = Source("Pair.cshtml");
+
+        // The four figures and the change: each width is computed from a count the server hands
+        // down, not from a constant somebody was confident about.
+        Assert.Matches(@"width:\s*calc\([^;]*var\(--ohlc-n", Block(css, ".a-ohlc-v"));
+        Assert.Matches(@"width:\s*calc\([^;]*var\(--ohlc-chg-n", Block(css, ".a-ohlc-chg"));
+
+        // Both counts are actually emitted. A slot whose custom property nothing sets falls back to
+        // one character and clips every figure on the page.
+        Assert.Contains("--ohlc-n:@ohlc.FigureGlyphs", view, StringComparison.Ordinal);
+        Assert.Contains("--ohlc-chg-n:@ohlc.ChangeGlyphs", view, StringComparison.Ordinal);
+
+        // The hour is the one field whose string is a constant length, so its slot is exact — and it
+        // is written in --age-ch, because letter-spacing is added after every character and `ch`
+        // does not include it. `9ch` here would clip by nine tracking steps.
+        Assert.Matches(@"width:\s*calc\(9 \* var\(--age-ch\)\)", Block(css, ".a-ohlc-when"));
+
+        // The label beside the change is three words in a line of one-character keys, and a flex
+        // item wraps its own text. Without this the panel changes height when the columns control
+        // narrows it, which is the defect one door along.
+        Assert.Matches(@"white-space:\s*nowrap", Block(css, ".a-ohlc-k"));
+    }
+
+    /// <summary>
+    /// The glossary describes the candle this page actually draws.
+    ///
+    /// Found in the tree, two commits after the fact: the CANDLES entry still read "Hollow above the
+    /// open, filled below" while <c>studio-candles.js</c> had been filling both bodies since
+    /// RULE-CHANGES entry 10. The code changed and the prose that explains the code did not, which
+    /// is worse here than an unexplained picture — the glossary is where a reader goes when the
+    /// picture is ambiguous, and it was answering about a different picture.
+    ///
+    /// Two directions, because the exception is allowed to be reversed and the entry has to follow
+    /// it either way.
+    /// </summary>
+    [Fact]
+    public void The_glossary_describes_the_candle_the_page_draws()
+    {
+        var js = Source("studio-candles.js");
+        var view = Source("Pair.cshtml");
+
+        // Comments stripped — or the entry's own note about what it used to say would satisfy the
+        // test it exists to explain — and wrapped to one line, because the sentence is broken across
+        // three in the view and a reader does not see the line breaks.
+        var prose = Regex.Replace(
+            Regex.Replace(view, @"@\*.*?\*@", " ", RegexOptions.Singleline), @"\s+", " ");
+        var filled = js.Contains("upColor: v('--candle-up')", StringComparison.Ordinal);
+
+        Assert.Equal(filled, prose.Contains("Both bodies are filled", StringComparison.Ordinal));
+
+        // And the sentence that was left behind cannot come back while the bodies are filled. Stated
+        // one-directionally on purpose: the entry is not obliged to use those five words if the
+        // exception is ever reversed, only forbidden to use them while it is in force.
+        Assert.False(filled && prose.Contains("Hollow above the open", StringComparison.Ordinal),
+            "The candles glossary entry describes a hollow candle while studio-candles.js fills both "
+            + "bodies. The picture changed (RULE-CHANGES entry 10) and the prose explaining it did not.");
+    }
+
+    /// <summary>
     /// Every versioned script tag carries a version the file's own content has earned.
     ///
     /// This exists because the candle fill shipped and did not arrive: the container held the new
@@ -510,8 +587,8 @@ public sealed class DesignSystemTests
     /// that was missing; it does not convert it into an impossibility.
     /// </summary>
     [Theory]
-    [InlineData("studio-ages.js", 3)]
-    [InlineData("studio-candles.js", 3)]
+    [InlineData("studio-ages.js", 4)]
+    [InlineData("studio-candles.js", 5)]
     [InlineData("studio-live.js", 1)]
     public void A_script_tag_carries_the_version_its_file_has_earned(string file, int expected)
     {
