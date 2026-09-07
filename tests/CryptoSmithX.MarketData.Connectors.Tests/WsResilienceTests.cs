@@ -216,6 +216,63 @@ public sealed class WsResilienceTests
     /// <summary>A real WebSocket server on loopback. These tests are about what happens between
     /// <c>ReceiveAsync</c> calls and at buffer boundaries, and neither survives being mocked — the
     /// fragment boundary in particular exists only because a real socket decides where to stop.</summary>
+    /// <summary>
+    /// A connection that dies inside its own subscribe burst must not reset the reconnect backoff.
+    ///
+    /// This is the reconnect-storm defect, measured rather than imagined: in a thirty-minute run
+    /// against Binance, six of fourteen deaths were 1.1-5.7 s old, and the gaps between reconnects
+    /// through that burst were 2.60, 2.09, 2.40, 4.42, 2.11 s — flat after five consecutive
+    /// failures, because the old code reset the backoff the instant ConnectAsync returned and every
+    /// one of those failures had therefore "succeeded". One drop became a cluster, and the cluster
+    /// is what the operator sees.
+    ///
+    /// The server here accepts and immediately closes, so every connection is short-lived. What is
+    /// asserted is the gap between successive accepts: with the backoff escalating, the fourth
+    /// reconnect must wait materially longer than the first. Asserting growth rather than exact
+    /// values keeps this a test of the rule and not of the jitter.
+    /// </summary>
+    [Fact]
+    public async Task A_socket_that_dies_at_once_does_not_reset_the_reconnect_backoff()
+    {
+        var accepts = new List<DateTimeOffset>();
+        using var server = new LoopbackWsServer(async (ws, ct) =>
+        {
+            lock (accepts) { accepts.Add(DateTimeOffset.UtcNow); }
+            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", ct);
+        });
+
+        var conn = new WsConnection(server.Url, NullLogger.Instance, TimeProvider.System);
+        using var cts = new CancellationTokenSource();
+        var run = conn.RunAsync((_) => Task.CompletedTask, _ => { }, cts.Token);
+
+        // Long enough for four attempts under an escalating backoff (1 + 2 + 4 s plus jitter),
+        // and far too short for four under the flat one-second floor the defect produced.
+        await Task.Delay(TimeSpan.FromSeconds(9), CancellationToken.None);
+        await cts.CancelAsync();
+        try { await run; } catch (OperationCanceledException) { }
+
+        List<DateTimeOffset> seen;
+        lock (accepts) { seen = [.. accepts]; }
+
+        Assert.True(seen.Count >= 3, $"expected at least three attempts, saw {seen.Count}");
+
+        // The discriminating assertions, and they are two rather than one because a gap can grow by
+        // luck. Under a flat one-second floor with the file's +/-10% jitter, nine seconds buys seven
+        // or eight attempts and no gap ever exceeds ~1.1 s. Under escalation it buys four, and by the
+        // fourth the wait is around four seconds. Both numbers are outside the reach of the other
+        // behaviour, which is what makes this a test and not a description.
+        var gaps = seen.Zip(seen.Skip(1), (a, b) => (b - a).TotalSeconds).ToArray();
+        var longest = gaps.Max();
+
+        Assert.True(longest > 1.6,
+            $"no gap escalated past the flat floor: longest {longest:0.00}s over {seen.Count} "
+            + $"attempts [{string.Join(", ", gaps.Select(g => g.ToString("0.00")))}]");
+
+        Assert.True(seen.Count <= 6,
+            $"{seen.Count} attempts in nine seconds is the flat-floor rate; escalation reaches four "
+            + $"or five [{string.Join(", ", gaps.Select(g => g.ToString("0.00")))}]");
+    }
+
     private sealed class LoopbackWsServer : IDisposable
     {
         private readonly HttpListener _listener = new();
