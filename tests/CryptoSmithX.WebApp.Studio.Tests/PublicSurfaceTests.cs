@@ -217,6 +217,20 @@ public sealed class PublicSurfaceTests
     }
 
     [Fact]
+    public void The_old_pair_address_redirects_to_the_address_we_mean()
+    {
+        // RedirectToAction resolves against the default route, which is registered first, and sends
+        // the reader to /studio/Pairs/Asset?baseFamily=PEPE. That address works, which is what makes
+        // it dangerous: it lands in history, in logs and in whatever anyone copies out of the bar.
+        // Shipped once already — the redirect went out resolving exactly that way.
+        var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", "PairsController.cs"));
+
+        Assert.Contains("RedirectToRoute(\"asset\"", source, StringComparison.Ordinal);
+        // The CALL, not the word: the comment beside it names the trap on purpose.
+        Assert.DoesNotContain("return RedirectToAction", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_page_links_to_the_live_stream_by_the_address_we_mean()
     {
         // Url.Action resolves to /Pairs/Live?baseFamily=… because the default route is registered

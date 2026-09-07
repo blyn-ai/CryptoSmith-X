@@ -128,7 +128,12 @@ public sealed class PairsController : Controller
             return NotFound();
         }
 
-        return RedirectToAction(nameof(Asset), new { baseFamily });
+        // BY ROUTE NAME, never RedirectToAction. The default route is registered first, so
+        // RedirectToAction resolves this to /studio/Pairs/Asset?baseFamily=PEPE — an address that
+        // works and that nobody should ever be sent to, least of all by a redirect that then sits
+        // in the reader's history and in every log. The same trap is already documented on the live
+        // stream's link; this is the second place it bites.
+        return RedirectToRoute("asset", new { baseFamily });
     }
 
     /// <summary>

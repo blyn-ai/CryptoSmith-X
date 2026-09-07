@@ -30,6 +30,8 @@
   <ItemGroup>
     <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Program.cs"
              Link="surface\Program.cs" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Controllers\PairsController.cs"
+             Link="surface\PairsController.cs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\Pairs\Pair.cshtml"
              Link="surface\Pair.cshtml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\Pairs\Index.cshtml"
