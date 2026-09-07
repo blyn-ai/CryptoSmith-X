@@ -217,6 +217,21 @@ public sealed class PublicSurfaceTests
     }
 
     [Fact]
+    public void The_two_segment_pair_route_is_registered_last()
+    {
+        // It matches ANY two segments, so every other two-segment address has to be registered above
+        // it. /studio/live/PEPE is two segments: with the pair route first, the live stream was read
+        // as the pair "live / PEPE" and answered 302 to /studio/live. The page rendered, the Live
+        // button did nothing, and only a manual refresh moved a figure — shipped exactly that way.
+        var program = Code("Program.cs");
+
+        Assert.True(
+            program.IndexOf("\"asset-live\"", StringComparison.Ordinal)
+                < program.IndexOf("\"pair\",", StringComparison.Ordinal),
+            "the live route must be registered above the two-segment pair route");
+    }
+
+    [Fact]
     public void The_old_pair_address_redirects_to_the_address_we_mean()
     {
         // RedirectToAction resolves against the default route, which is registered first, and sends

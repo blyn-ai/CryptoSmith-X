@@ -213,28 +213,24 @@ app.MapControllerRoute(
     @"{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
     new { controller = "Pairs", action = "Asset" });
 
-// The address the site published before the pages were merged, /studio/PEPE/USD, kept working as a
-// redirect to the asset page. Below the asset route, and it must stay below: a two-segment pattern
-// registered above a one-segment one is harmless, but the reverse of the default-route rule above
-// applies to every future addition here.
-app.MapControllerRoute(
-    "pair",
-    @"{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}/{quoteFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
-    new { controller = "Pairs", action = "Pair" });
-
-// The live stream for one pair: /studio/live/BTC/USD, the same page addressed as an event stream.
-//
-// Three segments, so it cannot collide with the two-segment pair route above in either direction —
-// and a literal first segment beats a parameter in endpoint routing anyway. The constraints are the
-// pair route's, character for character, and for the same reason: an anonymous caller must not be
-// able to turn an arbitrary string into a database lookup. Here it matters more, not less, because
-// what this endpoint hands out is a connection held open rather than a page and a goodbye — and for
-// exactly that reason the rule is enforced in the action as well (PairAddress), because this action
-// is reachable as /studio/Pairs/Live?baseFamily=… too, where no constraint applies. Verified against
-// the running app: that address returned 200 and an open event stream on any string at all.
+// The live stream for one asset: /studio/live/PEPE. ABOVE the two-segment route below, and that
+// is load-bearing rather than tidy. "live/PEPE" is two segments, so the pair route reads it as the
+// pair "live / PEPE" and answers 302 to /studio/live — which is exactly what shipped in 886859a:
+// the page rendered, its Live button did nothing, and only a manual refresh moved a figure. It did
+// not collide before because the live address used to be three segments and the pair route two.
+// A route that also matches has to sit below the one that must win.
 app.MapControllerRoute(
     "asset-live",
     @"live/{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
     new { controller = "Pairs", action = "Live" });
 
-await app.RunAsync();
+
+// The address the site published before the pages were merged, /studio/PEPE/USD, kept working as a
+// redirect to the asset page. LAST of the four, and it has to be: this template matches any two
+// segments at all, so anything else addressed with two segments must be registered above it or it
+// will be read as a pair and redirected away. The live stream above is the case that proved it.
+app.MapControllerRoute(
+    "pair",
+    @"{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}/{quoteFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
+    new { controller = "Pairs", action = "Pair" });
+
