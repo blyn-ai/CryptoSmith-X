@@ -182,8 +182,8 @@ public static class DashboardStore
         """
         select e.code as "Code", e.name as "Name", e.status as "Status",
                (select count(*)::int from exchange_instrument i where i.segment_code = e.code and i.status = 'trading') as "TradingInstruments",
-               (select count(*)::int from exchange_instrument i where i.segment_code = e.code and i.collect) as "CollectedInstruments",
                (select count(*)::int from exchange_instrument i where i.segment_code = e.code) as "KnownInstruments",
+               (select count(*)::int from exchange_instrument i where i.segment_code = e.code and i.collect) as "CollectedInstruments",
                (select extract(epoch from now() - min(l.received_at))::double precision
                   from market_snapshot_latest l join exchange_instrument i on i.id = l.exchange_instrument_id
                  where i.segment_code = e.code and i.status = 'trading') as "WorstAgeSeconds",
