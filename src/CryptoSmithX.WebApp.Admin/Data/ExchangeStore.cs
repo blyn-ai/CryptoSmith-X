@@ -27,6 +27,8 @@ public static class ExchangeStore
                      where i.segment_code = e.code and i.status = 'trading')          as "TradingInstruments",
                    (select count(*)::int from exchange_instrument i
                      where i.segment_code = e.code)                                   as "KnownInstruments",
+                   (select count(*)::int from exchange_instrument i
+                     where i.segment_code = e.code and i.collect)                     as "CollectedInstruments",
                    (select max(s.consecutive_failures) from collector_status s
                      where s.segment_code = e.code)                                   as "MaxFailures",
                    (select avg(s.avg_duration_ms) from collector_status s
@@ -58,6 +60,8 @@ public static class ExchangeStore
                      where i.segment_code = e.code and i.status = 'trading') as "TradingInstruments",
                    (select count(*)::int from exchange_instrument i
                      where i.segment_code = e.code)                          as "KnownInstruments",
+                   (select count(*)::int from exchange_instrument i
+                     where i.segment_code = e.code and i.collect)            as "CollectedInstruments",
                    null::int                                                  as "MaxFailures",
                    null::double precision                                     as "AvgDurationMs",
                    null::double precision                                     as "DiscoveryAgeSeconds"

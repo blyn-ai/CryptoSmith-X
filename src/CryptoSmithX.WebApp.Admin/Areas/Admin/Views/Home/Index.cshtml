@@ -42,7 +42,7 @@
                     <span class="tag @TagCls(e.Status)">@e.Status</span>
                     <span class="cell"><span class="dot @Dot(e.Health) @(e.Health == "ok" ? "fresh" : "")"></span><a class="name" href="/Admin/Exchanges/Details/@e.Code">@e.Name</a><span class="code">@e.Code</span></span>
                     <span class="sev @Sev(e.Health)">@SevText(e.Health)</span>
-                    <span class="num">@(e.Status == "enabled" ? $"{e.TradingInstruments} / {e.KnownInstruments}" : "—")</span>
+                    <span class="num">@(e.Status == "enabled" ? $"{e.KnownInstruments} / {e.TradingInstruments} / {e.CollectedInstruments}" : "—")</span>
                     <span class="num @(e.Health == "failing" ? "fail" : e.Health == "degraded" ? "warn" : "muted")">@(e.Status == "enabled" ? Format.Age(e.WorstAgeSeconds) : "—")</span>
                     @if (pts.Length > 0)
                     {

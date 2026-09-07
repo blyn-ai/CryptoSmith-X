@@ -29,7 +29,7 @@
             <span class="ex-title"><span class="dot @Dot(h) lg @(h == "ok" ? "fresh" : "")"></span><span class="n">@e.Name</span><span class="tag">@e.Kind</span><span class="tag enabled">enabled</span><span class="sev @Dot(h)">@(h == "ok" ? "ok" : h)</span></span>
             <span class="ex-meta">@e.ExchangeCode / @e.Code@(string.IsNullOrEmpty(e.Description) ? "" : " · " + e.Description)</span>
         </span>
-        <span class="ex-stat"><i>Instruments</i><b>@e.TradingInstruments / @e.KnownInstruments</b></span>
+        <span class="ex-stat" title="Listed by the venue / tradable on the venue / collected by us"><i>Listed / trading / ours</i><b>@e.KnownInstruments / @e.TradingInstruments / @e.CollectedInstruments</b></span>
         <span class="ex-stat"><i>Avg ms</i><b>@Format.Num(e.AvgDurationMs, 0)</b></span>
         <span class="ex-stat"><i>Discovery</i><b class="@(h == "failing" ? "" : "")" style="@(h == "failing" ? "color:var(--gold-300)" : h == "degraded" ? "color:var(--gold-400)" : "")">@Format.Age(e.DiscoveryAgeSeconds)</b></span>
     </a>

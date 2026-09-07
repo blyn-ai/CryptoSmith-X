@@ -52,6 +52,11 @@ public sealed record ExchangeListItem(
     string Kind,
     int TradingInstruments,
     int KnownInstruments,
+    /// <summary>How many of them WE collect — <c>exchange_instrument.collect</c>, our decision, not
+    /// the venue's. Since 0029 a listing arrives switched off and waits for one, so a venue can list
+    /// a thousand tradable instruments while we take twenty-five. Without this number the page shows
+    /// the venue's size and reads as ours.</summary>
+    int CollectedInstruments,
     int? MaxFailures,
     double? AvgDurationMs,
     double? DiscoveryAgeSeconds);
@@ -571,7 +576,7 @@ public sealed record SiblingListing(int Id, string SegmentCode, string Symbol);
 // ── Admin dashboard ───────────────────────────────────────────────────────
 public sealed record DashExchange(
     string Code, string Name, string Status, string Health,
-    int TradingInstruments, int KnownInstruments, double? WorstAgeSeconds,
+    int TradingInstruments, int KnownInstruments, int CollectedInstruments, double? WorstAgeSeconds,
     IReadOnlyList<double> Spark);
 
 public sealed record DashCollector(

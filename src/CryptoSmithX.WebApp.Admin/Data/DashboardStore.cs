@@ -51,7 +51,7 @@ public static class DashboardStore
             var health = HealthOf(e, collectors, wsStaleAfter);
             sparkByExchange.TryGetValue(e.Code, out var sp);
             return new DashExchange(e.Code, e.Name, e.Status, health,
-                e.TradingInstruments, e.KnownInstruments, e.WorstAgeSeconds,
+                e.TradingInstruments, e.KnownInstruments, e.CollectedInstruments, e.WorstAgeSeconds,
                 e.Status == "enabled" ? (sp ?? []) : []);
         }).ToList();
 
@@ -182,6 +182,7 @@ public static class DashboardStore
         """
         select e.code as "Code", e.name as "Name", e.status as "Status",
                (select count(*)::int from exchange_instrument i where i.segment_code = e.code and i.status = 'trading') as "TradingInstruments",
+               (select count(*)::int from exchange_instrument i where i.segment_code = e.code and i.collect) as "CollectedInstruments",
                (select count(*)::int from exchange_instrument i where i.segment_code = e.code) as "KnownInstruments",
                (select extract(epoch from now() - min(l.received_at))::double precision
                   from market_snapshot_latest l join exchange_instrument i on i.id = l.exchange_instrument_id
@@ -268,7 +269,7 @@ public static class DashboardStore
          order by ex.code, buckets.b
         """;
 
-    private sealed record ExRow(string Code, string Name, string Status, int TradingInstruments, int KnownInstruments, double? WorstAgeSeconds, int? PollSeconds);
+    private sealed record ExRow(string Code, string Name, string Status, int TradingInstruments, int KnownInstruments, int CollectedInstruments, double? WorstAgeSeconds, int? PollSeconds);
     private sealed record ColRow(string SegmentCode, string Collector, double? LastSuccessAgeSeconds, int ConsecutiveFailures, int? AvgDurationMs, string? LastError);
     private sealed record BotRow(int Id, string TenantCode, string BotInstanceId, double? LastHeartbeatAgeSeconds);
     private sealed record EvRow(DateTime Utc, string Type, string TenantCode, int BotId, string BotInstanceId);

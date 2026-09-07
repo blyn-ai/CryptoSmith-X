@@ -11,7 +11,7 @@
     @if (e.Status == "enabled")
     {
         <span class="ex-stat"><i>Collecting</i><b>@Model.Feeds.Count(f => f.Mode != "disabled" && f.WeImplement == true) of @Model.Feeds.Count feeds</b></span>
-        <span class="ex-stat"><i>Trading</i><b>@e.TradingInstruments / @e.KnownInstruments</b></span>
+        <span class="ex-stat" title="Listed by the venue / tradable on the venue / collected by us"><i>Listed / trading / ours</i><b>@e.KnownInstruments / @e.TradingInstruments / @e.CollectedInstruments</b></span>
         <span class="ex-stat"><i>Avg response</i><b>@(avg == 0 ? "—" : Format.Num(avg, 0) + " ms")</b></span>
         <span class="ex-stat"><i>Last discovery</i><b style="@(health != "ok" ? "color:var(--csx-gold-ink)" : "")">@Format.Age(discovery?.LastSuccessAgeSeconds)</b></span>
         <span class="ex-stat"><i>Failures</i><b style="@(maxFails > 0 ? "color:var(--gold-300)" : "")">@maxFails</b></span>
