@@ -1,0 +1,260 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "CryptoSmith X — multi-venue perpetual market data";
+}
+@*
+    The storefront: the site's front door, served by Studio at "/".
+
+    The markup below came out of a design compiler and was translated once — {{ }} bindings kept,
+    <sc-for>/<sc-if> turned into <template data-for>/<template data-if>, the camel attributes made
+    real. wwwroot/storefront.js fills it. The two <style> blocks the export carried live in
+    wwwroot/storefront.css instead, so their at-rules never need Razor escaping and a re-export can
+    overwrite that file without touching this one.
+
+    The theme starts on PAPER. The export defaulted to ink; day is the default here.
+*@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@ViewData["Title"]</title>
+<meta name="description" content="Perpetual-market data from four venues, stored as it was seen: every value with its source and time, gaps kept as gaps.">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="~/storefront.css" asp-append-version="true">
+<style>
+/* The prototype preview, lifted from the admin landing so both doors frame a prototype the same
+   way: inside a browser frame that says whose page it is and that its numbers are invented, rather
+   than replacing the site with something that looks like the site. */
+.pv{position:fixed;inset:0;z-index:90;display:none;padding:clamp(12px,3.2vw,44px)}
+.pv[data-open]{display:block}
+.pv__veil{position:absolute;inset:0;background:rgba(10,10,14,.72);backdrop-filter:blur(2px)}
+.pv__win{position:relative;height:100%;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.45)}
+.pv__bar{flex:none;display:flex;align-items:center;gap:10px;padding:9px 10px 9px 14px;background:#14141a}
+.pv__name{font:600 12px/1 ui-monospace,monospace;color:#fff;text-transform:uppercase;letter-spacing:.08em}
+.pv__url{flex:1;min-width:0;display:block;padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.55);font:12px/1 ui-monospace,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv__act{flex:none;border:0;cursor:pointer;border-radius:7px;padding:6px 11px;background:rgba(255,255,255,.1);color:#fff;font:600 11px/1 ui-monospace,monospace;text-transform:uppercase;letter-spacing:.06em;text-decoration:none}
+.pv__act:hover{background:rgba(255,255,255,.18)}
+.pv__frame{flex:1;width:100%;border:0;background:#fff}
+.pv__note{flex:none;margin:0;padding:7px 14px;background:#14141a;color:rgba(255,255,255,.45);font:11px/1.4 ui-monospace,monospace}
+body[data-pv-open]{overflow:hidden}
+</style>
+</head>
+<body style="margin:0">
+
+<div id="storefront" data-theme="" style="min-height:100vh;display:flex;flex-direction:column;background:var(--surface-page);background-image:var(--dot-pattern);background-size:var(--dot-size) var(--dot-size);font-family:var(--font-body);font-size:var(--fs-body);line-height:var(--lh-body);color:var(--text-body)">
+
+<div style="height:2px;background:var(--brand);flex:none"></div>
+
+<div style="flex:1;width:100%;max-width:1440px;margin:0 auto;padding:26px 26px 60px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px">
+
+<div style="display:flex;flex-wrap:wrap;align-items:stretch;background:var(--surface-card);border:1px solid var(--border-card)">
+
+<section style="flex:1 1 100%;min-width:0;padding:26px 34px 34px;display:flex;flex-direction:column;gap:22px">
+
+<header style="display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+<span style="display:block;flex:none;padding:1px;background:var(--action-primary);clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px)">
+<span style="display:block;padding:9px 9px;background:var(--action-primary);clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)">
+<span style="display:block;width:34px;height:17px;overflow:hidden"><img src="98ba713e-501b-42de-b240-a6e45743a745" alt="CryptoSmith X" width="34" height="34" style="display:block;width:34px;height:34px;margin:-8.5px 0"></span>
+</span>
+</span>
+<div style="display:inline-flex;flex-direction:column;align-items:stretch;width:fit-content;gap:5px;min-width:0">
+<span style="font-family:var(--font-display);font-size:26px;line-height:1;letter-spacing:.04em;text-transform:uppercase;color:var(--text-heading)">CryptoSmith X</span>
+<span style="display:block;width:100%;font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-badge);text-transform:uppercase;color:var(--text-muted);text-align:justify;text-align-last:justify">Multi-venue · market data</span>
+</div>
+<span style="margin-left:auto;display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+<a href="mailto:hello@@blynai.eu" style="display:inline-flex;align-items:center;height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body);transition:color 120ms linear,border-color 120ms linear" style-hover="color:var(--accent);border-color:var(--border-strong)">Request access</a>
+<a href="/admin" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;height:var(--control-h);padding:0 12px;background:var(--brand);border:1px solid var(--brand-deep);font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:#1E1408;transition:background 120ms linear" style-hover="background:transparent">Studio</a>
+<a href="/studio" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body);transition:color 120ms linear,border-color 120ms linear" style-hover="color:var(--accent);border-color:var(--border-strong)">Arena</a>
+<span style="display:inline-flex;align-items:center;height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body);transition:color 120ms linear,border-color 120ms linear;opacity:.45;cursor:not-allowed" aria-disabled="true" title="Agent is not available yet">Agent</span>
+<button type="button" data-click="flipTheme" style="margin-left:14px;height:var(--control-h);padding:0 12px;background:transparent;border:1px solid var(--border-input);font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body);cursor:pointer;transition:color 120ms linear,border-color 120ms linear" style-hover="color:var(--accent);border-color:var(--border-strong)">{{ themeLabel }}</button>
+</span>
+</div>
+
+
+<nav style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+<span style="font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--brand-text);margin-right:6px">Features preview</span>
+<a href="/feature-demo/pairs-monitor" data-preview="Pairs monitor" style="display:inline-flex;align-items:center;gap:8px;height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);border-bottom-width:1px;font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body);transition:color 120ms linear,border-color 120ms linear" style-hover="color:var(--accent);border-color:var(--border-strong)">Pairs monitor <i style="font-style:normal;color:var(--text-faint)">→</i></a>
+<a href="/feature-demo/strategy-modeler" data-preview="Strategy modeler" style="display:inline-flex;align-items:center;gap:8px;height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);border-bottom-width:1px;font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body);transition:color 120ms linear,border-color 120ms linear" style-hover="color:var(--accent);border-color:var(--border-strong)">Strategy modeler <i style="font-style:normal;color:var(--text-faint)">→</i></a>
+<a href="/feature-demo/config" data-preview="Bot config" style="display:inline-flex;align-items:center;gap:8px;height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);border-bottom-width:1px;font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body);transition:color 120ms linear,border-color 120ms linear" style-hover="color:var(--accent);border-color:var(--border-strong)">Bot config <i style="font-style:normal;color:var(--text-faint)">→</i></a>
+<a href="/feature-demo/agent" data-preview="Agent" style="display:inline-flex;align-items:center;gap:8px;height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);border-bottom-width:1px;font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body);transition:color 120ms linear,border-color 120ms linear" style-hover="color:var(--accent);border-color:var(--border-strong)">Agent <i style="font-style:normal;color:var(--text-faint)">→</i></a>
+<a href="/feature-demo/studio" data-preview="Studio" style="display:inline-flex;align-items:center;gap:8px;height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);border-bottom-width:1px;font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body);transition:color 120ms linear,border-color 120ms linear" style-hover="color:var(--accent);border-color:var(--border-strong)">Studio <i style="font-style:normal;color:var(--text-faint)">→</i></a>
+<a href="/feature-demo/live-bots" data-preview="Live bots" style="display:inline-flex;align-items:center;gap:8px;height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);border-bottom-width:1px;font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body);transition:color 120ms linear,border-color 120ms linear" style-hover="color:var(--accent);border-color:var(--border-strong)">Live bots <i style="font-style:normal;color:var(--text-faint)">→</i></a>
+</nav>
+</header>
+
+<h1 style="margin:0;display:flex;flex-direction:column;align-items:flex-start;width:fit-content;max-width:100%;font-family:var(--font-display);font-size:clamp(30px,4.2vw,50px);font-weight:400;line-height:1.02;letter-spacing:var(--track-h1);text-transform:uppercase;text-wrap:balance">
+<span style="align-self:stretch;color:var(--text-heading)">Every venue tells it differently.</span>
+<span style="align-self:{{ statementAlign }};width:{{ statementWidth }};color:{{ statementInk }};background:{{ statementBg }};padding:{{ statementPad }}">We store it. And replay it.</span>
+</h1>
+
+<div style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0">CryptoSmith X reads the same instrument across {{ venueList }} and stores what it saw. Quotes, spreads, order-book depth, funding, open interest and 1-minute candles — {{ instrumentCount }} instruments, each figure with its source and the time it arrived. Instruments are discovered automatically and keep their dates.</p>
+<a href="/studio" target="_blank" rel="noopener" style="align-self:flex-start;display:inline-flex;align-items:center;gap:12px;padding:.1em .3em .16em;background:var(--brand);border:0;font-family:var(--font-display);font-size:clamp(17px,1.6vw,22px);line-height:1.15;letter-spacing:.02em;text-transform:uppercase;color:#1E1408">Pick a pair and see it for yourself <i style="font-style:normal;font-family:var(--font-mono);font-size:.8em;line-height:1">↗</i></a>
+<p style="margin:0">Price is only the surface, and venues rarely agree beneath it. Depth, funding and open interest can point in different directions on the same instrument at the same moment — but only if each figure carries its own clock. So venues are never averaged into one price, missing observations are never invented, and stale data never looks current: a dash means the field was not measured, not that it is zero.</p>
+<p style="margin:0">We run our own trading on this data — backtest, dry run and live execution on one code path, every decision recorded and replayable. That is how the data gets tested. Trades are next; nothing is backfilled silently.</p>
+<a href="/zurnalas" target="_blank" rel="noopener" style="align-self:flex-start;display:inline-flex;align-items:center;gap:12px;padding:.1em .3em .16em;background:var(--action-primary);border:0;font-family:var(--font-display);font-size:clamp(17px,1.6vw,22px);line-height:1.15;letter-spacing:.02em;text-transform:uppercase;color:#FFF3DE">Live trading results <i style="font-style:normal;font-family:var(--font-mono);font-size:.8em;line-height:1">↗</i></a>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:var(--gap-grid);align-items:start">
+
+<section style="background:var(--surface-card);border:1px solid var(--border-card);display:flex;flex-direction:column">
+<header style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:var(--pad-panel);border-bottom:1px solid var(--border-hairline)">
+<span style="font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow)">Telemetry</span>
+<span style="display:inline-flex;align-items:center;gap:6px;font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:{{ stateInk }}"><i style="display:block;width:var(--dot);height:var(--dot);border-radius:50%;background:{{ stateDot }}"></i>{{ stateLabel }}</span>
+</header>
+<div style="padding:14px 18px 4px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-family:var(--font-mono);font-variant-numeric:tabular-nums">
+<span style="font-size:var(--fs-h2);line-height:1;color:var(--text-data)">{{ decisionsFigure }}</span>
+<span style="font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-faint)">decisions</span>
+<span style="margin-left:auto;display:flex;align-items:baseline;gap:10px;font-size:var(--fs-data);color:var(--text-muted)">
+<span>Pairs <b style="font-weight:var(--fw-medium);color:var(--text-data)">{{ pairsFigure }}</b></span>
+<span style="color:var(--text-faint)">·</span>
+<span>Cycle <b style="font-weight:var(--fw-medium);color:var(--text-data)">{{ cycleFigure }}</b></span>
+</span>
+</div>
+<div style="padding:0 18px 10px">
+<template data-if="hasSpark">
+<svg viewBox="0 0 320 54" width="100%" height="54" preserveAspectRatio="none" style="display:block"><path d="{{ sparkPath }}" fill="none" stroke="var(--spark-ticker-hot)" stroke-width="1.4" vector-effect="non-scaling-stroke"></path></svg>
+</template>
+<template data-if="noSpark">
+<span style="display:flex;align-items:center;height:54px;font-family:var(--font-mono);font-size:var(--fs-meta);color:var(--text-unmeasured)">—</span>
+</template>
+</div>
+<div data-ages="telemetry" style="padding:0 18px 12px;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center">
+<span style="font:var(--fw-regular) var(--fs-age)/1 var(--font-mono);letter-spacing:var(--track-age);color:var(--text-faint)">Dashboard {{ tickerAge }} · counters {{ slowAge }}</span>
+<span style="width:60px;height:var(--bar-h);background:var(--age-scale);position:relative"><i style="position:absolute;top:-2px;height:7px;width:1px;background:var(--text-heading);left:{{ tickerMark }}"></i></span>
+</div>
+<div style="padding:10px 18px;border-top:1px solid var(--border-hairline);display:flex;flex-direction:column;gap:5px;font:var(--fw-regular) var(--fs-data)/1.4 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-muted)">
+<span style="display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px">
+<span style="color:var(--text-faint)">{{ dayOpen }}</span>
+<span style="color:var(--text-faint)">→</span>
+<b style="font-weight:var(--fw-regular);color:var(--text-data)">{{ equity }}</b>
+<span style="font-size:var(--fs-eyebrow);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-faint)">{{ equityUnit }} today · working margin</span>
+<span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+<button type="button" data-click="pickLukas" style="padding:0;background:none;border:0;cursor:pointer;font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:{{ lukasInk }};transition:color 120ms linear">Luko</button>
+<span style="color:var(--text-faint)">·</span>
+<button type="button" data-click="pickDenisas" style="padding:0;background:none;border:0;cursor:pointer;font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:{{ denisasInk }};transition:color 120ms linear">Byko</button>
+</span>
+</span>
+<span style="display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px">
+<span style="display:flex;align-items:baseline;gap:3px"><i style="font-style:normal;color:var(--text-faint)">{{ gapArrow }}</i><b style="font-weight:var(--fw-regular);color:var(--text-data)">{{ gapAbs }}</b></span>
+<span style="color:var(--text-faint)">·</span>
+<span style="display:flex;align-items:baseline;gap:3px"><i style="font-style:normal;color:var(--text-faint)">{{ deltaArrow }}</i><b style="font-weight:var(--fw-regular);color:var(--text-data)">{{ delta }}</b></span>
+<span style="color:var(--text-faint)">·</span>
+<span><b style="font-weight:var(--fw-regular);color:var(--text-data)">{{ closedCount }}</b> closed</span>
+</span>
+<span style="font-size:var(--fs-age);letter-spacing:var(--track-age);color:var(--text-faint)">{{ tenant }} only. Realised {{ realisedArrow }}{{ realisedAbs }} · unrealised {{ unrealisedArrow }}{{ unrealisedAbs }} — {{ dayNote }}</span>
+</div>
+</section>
+
+<section style="background:var(--surface-card);border:1px solid var(--border-card);display:flex;flex-direction:column">
+<header style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:var(--pad-panel);border-bottom:1px solid var(--border-hairline)">
+<span style="display:flex;align-items:baseline;gap:10px"><span style="font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow)">Opened now</span><span style="font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--state-hold-ink)">{{ sampleFlag }}</span></span>
+<span style="font-family:var(--font-mono);font-size:var(--fs-data);font-variant-numeric:tabular-nums;color:var(--text-data)">{{ positionCount }}</span>
+</header>
+<template data-for="positions" data-as="pos">
+<div style="display:grid;grid-template-columns:14px minmax(0,1fr) auto 78px 52px;align-items:center;gap:10px;padding:9px 18px;border-bottom:1px solid var(--border-hairline)">
+<span title="{{ pos.whoTitle }}" style="font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-badge);color:var(--text-faint)">{{ pos.who }}</span>
+<span style="font-family:var(--font-mono);font-size:var(--fs-data);color:var(--text-data);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ pos.pair }}</span>
+<span style="font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted)">{{ pos.side }}</span>
+<span style="display:flex;align-items:baseline;justify-content:flex-end;gap:4px;font-family:var(--font-mono);font-size:var(--fs-data);font-variant-numeric:tabular-nums;color:var(--text-data)"><i style="font-style:normal;color:var(--text-faint)">{{ pos.arrow }}</i>{{ pos.pnl }}</span>
+<span style="font-family:var(--font-mono);font-size:var(--fs-age);letter-spacing:var(--track-age);color:var(--text-faint);text-align:right">{{ pos.held }}</span>
+</div>
+</template>
+<template data-if="noPositions">
+<span style="display:flex;flex-direction:column;gap:5px;padding:14px 18px;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--text-unmeasured)">{{ emptyLine }}<i style="font-style:normal;font-size:var(--fs-age);letter-spacing:var(--track-age);color:var(--text-faint)">{{ emptyNote }}</i></span>
+</template>
+<p style="margin:0;padding:10px 18px;font:var(--fw-regular) var(--fs-age)/1.5 var(--font-mono);letter-spacing:var(--track-age);color:var(--text-faint)">D Byko · L Luko — two instances, same data, different strategies, separate accounts. Unrealised, from the venue; direction is not a result, so LONG and SHORT take no money colour and only the arrow carries the sign.</p>
+</section>
+
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:6px 10px;font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-faint)">
+<span>{{ venueRow }}</span>
+</div>
+
+</section>
+
+
+
+</div>
+
+</div>
+
+<footer style="border-top:1px solid var(--border-hairline);background:var(--surface-card)">
+<div style="width:100%;max-width:1440px;margin:0 auto;padding:18px 26px;box-sizing:border-box;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px 26px">
+<div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+<p style="margin:0;font-size:var(--fs-data);color:var(--text-muted)">MB BlynAI is not a financial institution, an investment manager or a provider of financial services. <a href="#legal">Read more</a></p>
+<span style="font:var(--fw-medium) var(--fs-eyebrow)/1.4 var(--font-mono);letter-spacing:var(--track-badge);text-transform:uppercase;color:var(--text-faint)">Not investment advice · Own funds only · Accounts by invitation only</span>
+</div>
+<span style="font:var(--fw-medium) var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-badge);text-transform:uppercase;color:var(--text-faint)">blynai.eu · © 2026 MB „BlynAI“</span>
+</div>
+</footer>
+
+</div>
+
+<div class="pv" id="pv" role="dialog" aria-modal="true" aria-labelledby="pvName">
+  <div class="pv__veil" data-pv-close></div>
+  <div class="pv__win">
+    <div class="pv__bar">
+      <span class="pv__name" id="pvName">Preview</span>
+      <span class="pv__url" id="pvUrl"></span>
+      <a class="pv__act" id="pvTab" href="#" target="_blank" rel="noopener">Open in new tab</a>
+      <button class="pv__act pv__act--x" type="button" data-pv-close>Close</button>
+    </div>
+    <iframe class="pv__frame" id="pvFrame" title="Prototype preview" src="about:blank"
+            referrerpolicy="no-referrer"></iframe>
+    <p class="pv__note">A prototype, not the product: the numbers in it are invented. Esc closes this.</p>
+  </div>
+</div>
+
+<script src="~/storefront.js" asp-append-version="true"></script>
+<script>
+(function () {
+  'use strict';
+  var pv = document.getElementById('pv');
+  if (!pv || !('addEventListener' in window)) { return; }
+  var name = document.getElementById('pvName'), urlEl = document.getElementById('pvUrl'),
+      tab = document.getElementById('pvTab'), frame = document.getElementById('pvFrame'), opener = null;
+  var closeBtn = pv.querySelector('.pv__act--x');
+
+  function open(href, label, byKeyboard) {
+    opener = document.activeElement;
+    name.textContent = label;
+    urlEl.textContent = location.host + href;
+    tab.href = href;
+    frame.src = href;
+    pv.setAttribute('data-open', '');
+    document.body.setAttribute('data-pv-open', '');
+    // Focus moves only for a reader already on a keyboard - a click carries detail > 0, Enter or
+    // Space carries 0. Grabbing it on touch raises the on-screen keyboard over what just opened.
+    if (byKeyboard) { closeBtn.focus(); }
+  }
+  function close() {
+    pv.removeAttribute('data-open');
+    document.body.removeAttribute('data-pv-open');
+    // Blanked, not merely hidden: a prototype left loaded keeps its timers and polling running
+    // behind the page for as long as the tab is open.
+    frame.src = 'about:blank';
+    if (opener && opener.focus && document.activeElement !== document.body) { opener.focus(); }
+    opener = null;
+  }
+  document.addEventListener('click', function (ev) {
+    var x = ev.target.closest ? ev.target.closest('[data-pv-close]') : null;
+    if (x) { ev.preventDefault(); close(); return; }
+    var link = ev.target.closest ? ev.target.closest('[data-preview]') : null;
+    // Only a plain left-click is intercepted. Ctrl, cmd, shift and the middle button keep meaning
+    // what they mean everywhere else in a browser.
+    if (!link || ev.defaultPrevented || ev.button !== 0
+        || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) { return; }
+    ev.preventDefault();
+    open(link.getAttribute('href'), link.getAttribute('data-preview'), ev.detail === 0);
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && pv.hasAttribute('data-open')) { close(); }
+  });
+})();
+</script>
+</body>
+</html>

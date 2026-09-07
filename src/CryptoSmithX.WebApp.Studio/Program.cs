@@ -138,7 +138,7 @@ app.Use(async (ctx, next) =>
 {
     if (ctx.Request.Path == "/")
     {
-        ctx.Request.Path = "/studio";
+        ctx.Request.Path = "/studio/home";
     }
 
     await next();
