@@ -18,11 +18,12 @@ public sealed class AssetsController : Controller
     public AssetsController(Db db) => _db = db;
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? q, CancellationToken ct)
+    public async Task<IActionResult> Index(string? q, bool auto, CancellationToken ct)
     {
         await using var conn = await _db.OpenAsync(ct);
         ViewData["Search"] = q;
-        return View(await AssetStore.ListAsync(conn, q, ct));
+        ViewData["OnlyAutoCollect"] = auto;
+        return View(await AssetStore.ListAsync(conn, q, auto, ct));
     }
 
     [HttpGet]
@@ -70,6 +71,35 @@ public sealed class AssetsController : Controller
         if (await AssetStore.UpdateAsync(conn, id, name, note, User.Identity?.Name, ct))
         {
             TempData["Saved"] = "Saved.";
+        }
+        else
+        {
+            TempData["Error"] = "Unknown asset.";
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    /// <summary>
+    /// The auto-approve list, edited one asset at a time. Kept apart from <see cref="Save"/> even
+    /// though it writes the same row: the name and the note are labels, this decides whether the
+    /// Hub starts pulling real data on a listing nobody has looked at, and a switch that does that
+    /// should not ride along inside a form whose Save button says it is saving a name.
+    ///
+    /// The message says what the switch does not do, because that is the surprising half — see
+    /// DiscoveryCollector.DecideCollectOnInsert for why the flag is a stamp taken at arrival rather
+    /// than a rule re-applied every pass.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveAutoCollect(string id, bool autoCollect, CancellationToken ct)
+    {
+        await using var conn = await _db.OpenAsync(ct);
+        if (await AssetStore.SaveAutoCollectAsync(conn, id, autoCollect, User.Identity?.Name, ct))
+        {
+            TempData["Saved"] = autoCollect
+                ? $"{id} is on the auto-approve list. Listings of it that arrive from now on are collected without asking; the ones already waiting are unchanged."
+                : $"{id} is off the auto-approve list. New listings of it will wait for a decision; nothing already collecting has stopped.";
         }
         else
         {

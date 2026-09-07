@@ -145,7 +145,12 @@
         <div class="tr" style="@MeasCols@(observed ? "" : ";opacity:.6")">
             <span class="mono">@v.SegmentCode</span>
             <span class="cell"><a class="name mono" href="/Admin/Instruments/Details/@v.InstrumentId">@v.Symbol</a><span class="code">@v.ExchangeCode</span></span>
-            <span><span class="tag @(observed && v.Collect ? "enabled" : "")">@(observed ? (v.Collect ? "observed" : "not collected") : "no observation")</span></span>
+            @* Three words where there used to be two. "not collected" used to cover both a listing
+               an operator switched off and one nobody has looked at; since 0029 those are different
+               situations and this page speaks the same vocabulary as the rest of the console. No
+               switch here on purpose — this page is a reading of the market at an instant and owns
+               nothing; the decision is made on the instrument, where it is stamped. *@
+            <span><span class="tag @(!observed ? "" : v.Collect ? "enabled" : v.State == CollectState.New ? "gold" : "")">@(observed ? (v.State switch { CollectState.On => "observed", CollectState.New => "new", _ => "not collected" }) : "no observation")</span></span>
             <span class="num muted" style="justify-self:end" title="@Format.Utc(v.ReceivedAt)">@Lag(v.PriceLagSeconds)</span>
             <span class="num" style="justify-self:end">@N(v.LastPrice, 4)</span>
             <span class="num" style="justify-self:end">@N(v.SpreadBps, 3)</span>

@@ -16,9 +16,42 @@ public static class InstrumentStore
     /// <summary>The timeframes the detail chart offers, in minutes (1m/5m/15m/1h/4h).</summary>
     public static readonly IReadOnlyList<int> Timeframes = [1, 5, 15, 60, 240];
 
+    /// <summary>
+    /// The NEW state as SQL: a listing that arrived and that nobody has ruled on. The other copy of
+    /// this rule is <see cref="Models.CollectGate"/>, which the views use; this one exists because a
+    /// WHERE clause and a COUNT cannot call into C#. Both are asserted against each other in
+    /// CollectGateStateTests, and a third copy is a defect.
+    ///
+    /// Prefixed <c>i.</c> because every query here aliases the table that way, and reads with the
+    /// partial index 0029 puts behind exactly this predicate.
+    /// </summary>
+    /// DELISTED ROWS ARE NOT WAITING FOR A DECISION. A listing that arrived, was never ruled on, and
+    /// was then dropped by the venue would otherwise sit in this queue for ever, and the only way to
+    /// clear it would be to rule on something that no longer trades — a decision with no subject.
+    /// The predicate is `status &lt;&gt; 'delisted'` rather than `= 'trading'` on purpose: halted and
+    /// post_only listings come back, and a queue that hides them would quietly lose them.
+    internal const string UndecidedSql =
+        "i.collect = false and i.collect_changed_at is null and i.status &lt;&gt; 'delisted'";
+
+    /// <summary>
+    /// The collect filter as a SQL fragment. A whitelist, like the sort above it and for the same
+    /// reason — nothing the operator types reaches the query text. An unrecognised value filters
+    /// nothing rather than erroring: a hand-edited URL should show the unfiltered list, which is
+    /// what the page shows with no filter at all.
+    /// </summary>
+    internal static string? CollectWhere(string? filter) => filter switch
+    {
+        "new" => UndecidedSql,
+        "on" => "i.collect",
+        // Decided off, NOT merely "not collecting" — the whole point of the three states is that
+        // `not collect` is now two different situations and this filter must pick one of them.
+        "off" => "i.collect = false and i.collect_changed_at is not null",
+        _ => null,
+    };
+
     public static async Task<InstrumentPage> ListAsync(
         DbConnection conn, string? segment, string? status, bool onlyTrading, string? search,
-        string sort, int page, int pageSize, CancellationToken ct)
+        string? collectFilter, string sort, int page, int pageSize, CancellationToken ct)
     {
         var where = new StringBuilder("where 1 = 1");
         var p = new DynamicParameters();
@@ -45,6 +78,11 @@ public static class InstrumentStore
             p.Add("like", "%" + search.Trim() + "%");
         }
 
+        if (CollectWhere(collectFilter) is { } collectClause)
+        {
+            where.Append(" and ").Append(collectClause);
+        }
+
         // Whitelisted sort — never interpolate a user string into ORDER BY.
         var orderBy = sort switch
         {
@@ -69,6 +107,8 @@ public static class InstrumentStore
                     i.quote_asset     as "QuoteAsset",
                     i.status          as "Status",
                     i.collect         as "Collect",
+                    i.collect_changed_at as "CollectChangedAt",
+                    extract(epoch from now() - i.first_seen_at)::double precision as "FirstSeenAgeSeconds",
                     l.last_price      as "LastPrice",
                     l.funding_rate    as "FundingRate",
                     l.open_interest * l.mark_price as "OpenInterestNotional",
@@ -84,7 +124,16 @@ public static class InstrumentStore
         var segments = (await conn.QueryAsync<string>(new CommandDefinition(
             "select code from segment order by code", cancellationToken: ct))).ToList();
 
-        return new InstrumentPage(items, total, page, pageSize, segments, segment, status, onlyTrading, search, sort);
+        // The whole queue, not the queue within the current filters. This number is the page's
+        // answer to "what arrived while I was away", and it has to keep saying so while the
+        // operator is looking at one segment or one search — otherwise the banner would vanish the
+        // moment they filtered, which is exactly when they are least likely to notice it went.
+        var undecided = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+            $"select count(*) from exchange_instrument i where {UndecidedSql}", cancellationToken: ct));
+
+        return new InstrumentPage(
+            items, total, page, pageSize, segments, segment, status, onlyTrading, search, sort,
+            collectFilter, undecided);
     }
 
     public static async Task<InstrumentDetails?> GetAsync(DbConnection conn, int id, int timeframe, CancellationToken ct)

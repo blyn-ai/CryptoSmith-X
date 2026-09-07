@@ -221,8 +221,10 @@ public sealed record DatasetVenueRow(string DatasetCode, string SegmentCode, str
 public sealed record AssetListItem(
     string Code,
     string? Name,
+    bool AutoCollect,                 // 0029: new listings of this base asset pass the gate unasked
     int ListingCount,
     string? ListingsSummary,          // "kraken-futures 1 · fake 1"
+    int UndecidedListings,            // of those listings, how many are still waiting for a human
     double? OpenInterestNotional,     // sum over listings of open_interest * mark
     double? WorstSnapshotAgeSeconds); // oldest snapshot among the listings
 
@@ -233,12 +235,16 @@ public sealed record AssetListing(
     string Symbol,
     string Status,
     bool Collect,
+    DateTime? CollectChangedAt,
     double? LastPrice,
     double? FundingRate,
     double? OpenInterestNotional,
     double? SpreadBps,
     double? Depth25Notional,          // bid + ask within 25 bps
-    double? SnapshotAgeSeconds);
+    double? SnapshotAgeSeconds)
+{
+    public CollectState State => CollectGate.State(Collect, CollectChangedAt);
+}
 
 /// <summary>
 /// One venue's snapshot measurements for this asset at the requested instant. Every value carries
@@ -254,6 +260,7 @@ public sealed record AssetVenueMeasurement(
     string Symbol,
     string Status,
     bool Collect,
+    DateTime? CollectChangedAt,
     DateTime? ReceivedAt,
     double? PriceLagSeconds,
     double? LastPrice,
@@ -265,7 +272,10 @@ public sealed record AssetVenueMeasurement(
     double? FundingRate,
     double? Depth25Notional,
     DateTime? DepthAt,
-    double? DepthLagSeconds);
+    double? DepthLagSeconds)
+{
+    public CollectState State => CollectGate.State(Collect, CollectChangedAt);
+}
 
 /// <summary>
 /// One venue's bar covering the requested instant. This is the only measurement in the system taken
@@ -402,11 +412,17 @@ public sealed record AssetDetails(
     string Code,
     string? Name,
     string? Note,
+    bool AutoCollect,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     string? UpdatedBy,
     IReadOnlyList<AssetListing> Listings,
-    IReadOnlyList<AssetAliasRow> Aliases);
+    IReadOnlyList<AssetAliasRow> Aliases)
+{
+    /// <summary>Listings of this asset that arrived and are still waiting for a human. The number
+    /// the auto-collect switch does NOT act on — see the panel note on the detail page.</summary>
+    public int UndecidedListings => Listings.Count(l => l.State == CollectState.New);
+}
 
 // ── Asset families (display-only folding, 0024) ───────────────────────────
 
@@ -447,10 +463,15 @@ public sealed record InstrumentListItem(
     string QuoteAsset,
     string Status,
     bool Collect,
+    DateTime? CollectChangedAt,
+    double? FirstSeenAgeSeconds,      // how long ago WE first saw it; the useful clock on a NEW row
     double? LastPrice,
     double? FundingRate,
     double? OpenInterestNotional,
-    double? SnapshotAgeSeconds);
+    double? SnapshotAgeSeconds)
+{
+    public CollectState State => CollectGate.State(Collect, CollectChangedAt);
+}
 
 /// <summary>One page of the instrument list plus the filter/sort state, so the view can build links.</summary>
 public sealed record InstrumentPage(
@@ -463,7 +484,9 @@ public sealed record InstrumentPage(
     string? Status,
     bool OnlyTrading,
     string? Search,
-    string Sort)
+    string Sort,
+    string? CollectFilter,
+    int UndecidedTotal)
 {
     public int From => Total == 0 ? 0 : ((Page - 1) * PageSize) + 1;
     public int To => Math.Min(Page * PageSize, Total);
@@ -537,7 +560,10 @@ public sealed record InstrumentDetails(
     IReadOnlyList<MetricPoint> Metrics,
     IReadOnlyList<FundingRow> Funding,
     CoverageView Coverage,
-    IReadOnlyList<SiblingListing> Siblings);
+    IReadOnlyList<SiblingListing> Siblings)
+{
+    public CollectState State => CollectGate.State(Collect, CollectChangedAt);
+}
 
 /// <summary>Another venue's listing of the same canonical asset — the hop between exchanges.</summary>
 public sealed record SiblingListing(int Id, string SegmentCode, string Symbol);

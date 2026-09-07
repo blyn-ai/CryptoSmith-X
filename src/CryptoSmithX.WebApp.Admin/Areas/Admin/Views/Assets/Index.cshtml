@@ -2,35 +2,67 @@
 @{
     ViewData["Title"] = "Assets";
     var q = ViewData["Search"] as string;
+    var onlyAuto = ViewData["OnlyAutoCollect"] is true;
     string Dot(double? age) => age is null ? "none" : age > 180 ? "fail" : age > 60 ? "warn" : "ok";
-    const string Cols = "grid-template-columns:minmax(0,1.1fr) minmax(0,1.4fr) minmax(0,2fr) minmax(0,1fr) minmax(0,0.9fr)";
+    const string Cols = "grid-template-columns:minmax(0,1.1fr) minmax(0,1.2fr) 90px minmax(0,1.8fr) minmax(0,1fr) minmax(0,0.9fr)";
+    var autoCount = Model.Count(a => a.AutoCollect);
+    var waiting = Model.Sum(a => a.UndecidedListings);
 }
 
 <div class="page-head">
     <div class="t"><p class="eyebrow">Admin · operations</p><h1>Assets</h1></div>
-    <p class="page-note">Canonical assets across every exchange. One row per canon; open it to compare its listings.</p>
+    <p class="page-note">Canonical assets across every exchange. One row per canon; open it to compare its listings. Auto-collect is the gate list: a new listing of one of these assets starts collecting without being asked about.</p>
 </div>
 
-<form method="get" action="/Admin/Assets" class="field" style="max-width:340px;margin-bottom:16px">
-    <label for="q">Search</label>
-    <input id="q" name="q" type="text" value="@q" placeholder="code or name" spellcheck="false">
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-error">@err</div>
+}
+@if (TempData["Saved"] is string saved)
+{
+    <div class="alert alert-ok">@saved</div>
+}
+
+<form method="get" action="/Admin/Assets" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
+    <div class="field" style="max-width:340px;flex:1;min-width:180px">
+        <label for="q">Search</label>
+        <input id="q" name="q" type="text" value="@q" placeholder="code or name" spellcheck="false">
+    </div>
+    @* Same chip idiom as "only trading" on the instruments page. *@
+    <label class="chip @(onlyAuto ? "is-on" : "")" style="height:38px;display:flex;align-items:center">
+        <input type="checkbox" name="auto" value="true" checked="@onlyAuto" style="position:absolute;opacity:0;width:0;height:0">only auto-collect
+    </label>
+    <button class="btn" type="submit">Apply</button>
 </form>
 
 <div class="panel scroll">
-    <div class="th" style="@Cols"><span>Asset</span><span>Name</span><span>Listings</span><span>Open interest</span><span style="justify-self:end">Worst snapshot</span></div>
+    <div class="th" style="@Cols"><span>Asset</span><span>Name</span><span>Auto-collect</span><span>Listings</span><span>Open interest</span><span style="justify-self:end">Worst snapshot</span></div>
     @if (Model.Count == 0)
     {
-        <div class="empty"><h3>No assets</h3><p>@(string.IsNullOrEmpty(q) ? "Nothing has been discovered yet." : "No asset matches that search.")</p></div>
+        <div class="empty"><h3>No assets</h3><p>@(onlyAuto ? "No asset is on the auto-approve list. Every new listing waits for a decision." : string.IsNullOrEmpty(q) ? "Nothing has been discovered yet." : "No asset matches that search.")</p></div>
     }
     @foreach (var a in Model)
     {
         <a class="tr" style="@Cols" href="/Admin/Assets/Details/@a.Code">
             <span class="cell"><span class="name mono">@a.Code</span></span>
             <span class="muted">@(string.IsNullOrEmpty(a.Name) ? Format.Dash : a.Name)</span>
-            <span class="code">@(a.ListingCount == 0 ? "no listings" : a.ListingsSummary)</span>
+            <span>@if (a.AutoCollect) { <span class="sev ok">auto</span> } else { <span class="sev none">@Format.Dash</span> }</span>
+            @* The waiting count rides in the listings cell rather than in a column of its own: it
+               is zero for almost every asset, and a column that is empty 99 rows out of 100 costs
+               width on every row to say nothing. *@
+            <span class="code">
+                @(a.ListingCount == 0 ? "no listings" : a.ListingsSummary)
+                @if (a.UndecidedListings > 0)
+                {
+                    <span class="tag gold" style="margin-left:6px">@a.UndecidedListings waiting</span>
+                }
+            </span>
             <span class="num">@Format.Num(a.OpenInterestNotional, 0)</span>
             <span class="num" style="justify-self:end;display:flex;align-items:center;gap:8px;justify-content:flex-end"><span class="dot @Dot(a.WorstSnapshotAgeSeconds) @(Dot(a.WorstSnapshotAgeSeconds) == "ok" ? "fresh" : "")"></span>@Format.Age(a.WorstSnapshotAgeSeconds)</span>
         </a>
     }
 </div>
+@* Counted over the rows shown, not the whole table — a filtered page saying something about
+   assets it is not showing would be worse than saying nothing. *@
+<p class="panel-note">@autoCount of the @Model.Count @(Model.Count == 1 ? "asset" : "assets") shown @(autoCount == 1 ? "is" : "are") auto-collected@(waiting > 0 ? $"; {waiting} of their listings are still waiting for a decision" : "").</p>
 <p class="panel-note">Open interest is summed as notional (open interest × mark) across listings. Worst snapshot is the oldest among them.</p>

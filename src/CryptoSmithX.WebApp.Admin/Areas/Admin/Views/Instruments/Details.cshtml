@@ -27,9 +27,13 @@
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <h1 class="mono">@Model.Symbol</h1>
             <span class="tag @StatusTag(Model.Status)">@Model.Status</span>
-            @if (!Model.Collect)
+            @if (Model.State == CollectState.New)
             {
-                <span class="tag gold">collect off</span>
+                <span class="tag gold">new · awaiting a decision</span>
+            }
+            else if (Model.State == CollectState.Off)
+            {
+                <span class="tag">collect off</span>
             }
         </div>
         <p class="page-note" style="margin-top:6px">
@@ -173,12 +177,26 @@
                 @Html.AntiForgeryToken()
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
                     <button class="sw" role="switch" aria-checked="@(Model.Collect ? "true" : "false")" type="submit" name="collect" value="@(Model.Collect ? "false" : "true")"><i></i></button>
-                    <span class="sev @(Model.Collect ? "ok" : "")">@(Model.Collect ? "collecting" : "not collecting")</span>
+                    <span class="sev @(Model.Collect ? "ok" : "")">@(Model.State switch { CollectState.On => "collecting", CollectState.New => "awaiting a decision", _ => "not collecting" })</span>
                 </div>
                 <div class="field"><label for="note">Note</label><input id="note" name="note" type="text" value="@Model.CollectNote" placeholder="why on/off"></div>
                 <button class="btn btn-sm" type="submit" name="collect" value="@(Model.Collect ? "true" : "false")" style="margin-top:8px">Save note</button>
             </form>
-            @if (!Model.Collect)
+            @* Two different situations, and until 0029 this panel could only tell one of them. A row
+               nobody has ruled on used to render as "Collection disabled · No reason given · by —",
+               which reads as a decision with the reason lost. It is the opposite: no decision has
+               been made, and either switch position below is the first one. *@
+            @if (Model.State == CollectState.New)
+            {
+                <div class="err" style="margin-top:14px">
+                    <b>Awaiting a decision</b>
+                    <div>
+                        <span class="t">This listing arrived and nobody has ruled on it: <a href="/Admin/Assets/Details/@Model.BaseAsset">@Model.BaseAsset</a> was not auto-approved when it appeared, and adding an asset to that list later does not reach back to listings already waiting. Flip the switch to start collecting, or leave it off and save a note to record a deliberate no.</span>
+                        <span class="m">first seen @Format.Utc(Model.FirstSeenAt)</span>
+                    </div>
+                </div>
+            }
+            else if (Model.State == CollectState.Off)
             {
                 <div class="err" style="margin-top:14px">
                     <b>Collection disabled</b>

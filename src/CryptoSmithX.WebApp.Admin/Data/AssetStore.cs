@@ -13,19 +13,30 @@ namespace CryptoSmithX.WebApp.Admin.Data;
 /// </summary>
 public static class AssetStore
 {
-    public static async Task<IReadOnlyList<AssetListItem>> ListAsync(DbConnection conn, string? search, CancellationToken ct)
+    public static async Task<IReadOnlyList<AssetListItem>> ListAsync(
+        DbConnection conn, string? search, bool onlyAutoCollect, CancellationToken ct)
     {
         var like = "%" + (search ?? "").Trim() + "%";
         return (await conn.QueryAsync<AssetListItem>(new CommandDefinition(
-            """
+            $"""
             select a.code as "Code",
                    a.name as "Name",
+                   a.auto_collect as "AutoCollect",
                    (select count(*)::int from exchange_instrument i where i.base_asset = a.code) as "ListingCount",
                    (select string_agg(x.segment_code || ' ' || x.n, ' · ' order by x.segment_code)
                       from (select i.segment_code, count(*)::int as n
                               from exchange_instrument i
                              where i.base_asset = a.code
                              group by i.segment_code) x) as "ListingsSummary",
+                   -- The same NEW predicate the instruments page filters on, spelled here against
+                   -- this asset's listings: the number the auto-collect switch does NOT act on.
+                   --
+                   -- Column ORDER matters and is not cosmetic: Dapper materialises a positional
+                   -- record by matching a constructor to the shape of the result set, so a column
+                   -- added in the wrong place is a runtime error at the first page load and nothing
+                   -- at compile time. Keep this list in the order AssetListItem declares.
+                   (select count(*)::int from exchange_instrument i
+                     where i.base_asset = a.code and {InstrumentStore.UndecidedSql}) as "UndecidedListings",
                    (select sum(l.open_interest * l.mark_price)
                       from exchange_instrument i
                       join market_snapshot_latest l on l.exchange_instrument_id = i.id
@@ -35,10 +46,11 @@ public static class AssetStore
                       join market_snapshot_latest l on l.exchange_instrument_id = i.id
                      where i.base_asset = a.code) as "WorstSnapshotAgeSeconds"
               from asset a
-             where @search = '' or a.code ilike @like or coalesce(a.name, '') ilike @like
+             where (@search = '' or a.code ilike @like or coalesce(a.name, '') ilike @like)
+               and (not @onlyAutoCollect or a.auto_collect)
              order by a.code
             """,
-            new { search = (search ?? "").Trim(), like },
+            new { search = (search ?? "").Trim(), like, onlyAutoCollect },
             cancellationToken: ct))).ToList();
     }
 
@@ -76,6 +88,7 @@ public static class AssetStore
                    i.exchange_symbol                                         as "Symbol",
                    i.status                                                  as "Status",
                    i.collect                                                 as "Collect",
+                   i.collect_changed_at                                      as "CollectChangedAt",
                    s.received_at                                             as "ReceivedAt",
                    extract(epoch from (@at - s.received_at))::double precision       as "PriceLagSeconds",
                    s.last_price                                              as "LastPrice",
@@ -177,9 +190,9 @@ public static class AssetStore
 
     public static async Task<AssetDetails?> GetAsync(DbConnection conn, string code, CancellationToken ct)
     {
-        var head = await conn.QuerySingleOrDefaultAsync<(string Code, string? Name, string? Note, DateTime CreatedAt, DateTime? UpdatedAt, string? UpdatedBy)>(
+        var head = await conn.QuerySingleOrDefaultAsync<(string Code, string? Name, string? Note, bool AutoCollect, DateTime CreatedAt, DateTime? UpdatedAt, string? UpdatedBy)>(
             new CommandDefinition(
-                "select code, name, note, created_at, updated_at, updated_by from asset where code = @code",
+                "select code, name, note, auto_collect, created_at, updated_at, updated_by from asset where code = @code",
                 new { code },
                 cancellationToken: ct));
         if (head.Code is null)
@@ -194,6 +207,7 @@ public static class AssetStore
                    i.exchange_symbol as "Symbol",
                    i.status          as "Status",
                    i.collect         as "Collect",
+                   i.collect_changed_at as "CollectChangedAt",
                    l.last_price      as "LastPrice",
                    l.funding_rate    as "FundingRate",
                    l.open_interest * l.mark_price as "OpenInterestNotional",
@@ -225,7 +239,8 @@ public static class AssetStore
             cancellationToken: ct))).ToList();
 
         return new AssetDetails(
-            head.Code, head.Name, head.Note, head.CreatedAt, head.UpdatedAt, head.UpdatedBy, listings, aliases);
+            head.Code, head.Name, head.Note, head.AutoCollect,
+            head.CreatedAt, head.UpdatedAt, head.UpdatedBy, listings, aliases);
     }
 
     public static async Task<bool> UpdateAsync(
@@ -239,6 +254,34 @@ public static class AssetStore
              where code = @code
             """,
             new { code, name, note, updatedBy },
+            cancellationToken: ct));
+        return rows == 1;
+    }
+
+    /// <summary>
+    /// Puts this base asset on the auto-approve list, or takes it off. Returns false if the asset
+    /// does not exist — same shape as <see cref="UpdateAsync"/>, whose audit columns this shares:
+    /// 0029 put the flag on the asset row precisely so it could be edited and stamped like the name
+    /// and the note, rather than growing a third audit pair for a neighbouring column.
+    ///
+    /// It writes one column and one asset. It deliberately does NOT touch
+    /// <c>exchange_instrument.collect</c>: the flag is read by discovery at the moment a listing
+    /// first arrives, so switching it on cannot start collection on listings already waiting, and
+    /// switching it off cannot stop collection on anything. Both of those are the per-instrument
+    /// toggle's job, which records who decided. A write here that fanned out to instruments would
+    /// turn one checkbox into an unbounded, unaudited change across every venue at once.
+    /// </summary>
+    public static async Task<bool> SaveAutoCollectAsync(
+        DbConnection conn, string code, bool autoCollect, string? updatedBy, CancellationToken ct)
+    {
+        var rows = await conn.ExecuteAsync(new CommandDefinition(
+            """
+            update asset
+               set auto_collect = @autoCollect,
+                   updated_at = now(), updated_by = @updatedBy
+             where code = @code
+            """,
+            new { code, autoCollect, updatedBy },
             cancellationToken: ct));
         return rows == 1;
     }

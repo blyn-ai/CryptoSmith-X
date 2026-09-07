@@ -3,7 +3,8 @@
     ViewData["Title"] = "Instruments";
     string Dot(double? age) => age is null ? "none" : age > 180 ? "fail" : age > 60 ? "warn" : "ok";
     string StatusTag(string s) => s == "trading" ? "enabled" : s is "halted" or "delisted" ? "" : "maintenance";
-    const string Cols = "grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 80px 80px 70px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 90px";
+    // Collect widened from 70px: the cell now carries "new · 6 h" as well as "on"/"off".
+    const string Cols = "grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 80px 80px 110px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 90px";
 
     // Build a query string from the current filter state, overriding sort/page as asked.
     string Link(string? sort = null, int? page = null)
@@ -13,6 +14,7 @@
         if (!string.IsNullOrEmpty(Model.Status)) { parts.Add("status=" + Uri.EscapeDataString(Model.Status)); }
         if (Model.OnlyTrading) { parts.Add("onlyTrading=true"); }
         if (!string.IsNullOrEmpty(Model.Search)) { parts.Add("q=" + Uri.EscapeDataString(Model.Search)); }
+        if (!string.IsNullOrEmpty(Model.CollectFilter)) { parts.Add("collect=" + Uri.EscapeDataString(Model.CollectFilter)); }
         parts.Add("sort=" + (sort ?? Model.Sort));
         parts.Add("page=" + (page ?? Model.Page));
         return "/Admin/Instruments?" + string.Join("&", parts);
@@ -22,12 +24,34 @@
         Model.Sort == key ? $"<a href=\"{Link(sort: key, page: 1)}\" style=\"color:var(--gold-300)\">{label} ↓</a>" : $"<a href=\"{Link(sort: key, page: 1)}\">{label}</a>";
 
     var statuses = new[] { "trading", "post_only", "reduce_only", "halted", "delisted" };
+
+    // The gate filter, in the page's own <select> idiom. "new" is not a fourth kind of collect flag
+    // — it is `collect = false and collect_changed_at is null`, a row nobody has ruled on. The store
+    // owns that definition; the view only names the options.
+    var collectFilters = new (string Value, string Label)[]
+    {
+        ("new", "new — waiting"),
+        ("on", "collecting"),
+        ("off", "switched off"),
+    };
 }
 
 <div class="page-head">
     <div class="t"><p class="eyebrow">Admin · operations</p><h1>Instruments</h1></div>
-    <p class="page-note">Every listing on every exchange. Status is observed; collect is ours.</p>
+    <p class="page-note">Every listing on every exchange. Status is observed; collect is ours — on, off, or not yet decided.</p>
 </div>
+
+@* The queue, counted across the whole table rather than within the current filters: it answers
+   "what arrived while I was away", and that question does not change because someone is looking at
+   one segment. Shown only when there is something waiting — a permanent "0 waiting" banner is a
+   thing operators stop reading, and then miss on the day it says 40. *@
+@if (Model.UndecidedTotal > 0)
+{
+    <div class="alert alert-error" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+        <span><b>@Model.UndecidedTotal</b> new @(Model.UndecidedTotal == 1 ? "listing has" : "listings have") arrived and @(Model.UndecidedTotal == 1 ? "is" : "are") waiting for a decision. Nothing is being collected for @(Model.UndecidedTotal == 1 ? "it" : "them").</span>
+        <a class="linkbtn" href="/Admin/Instruments?collect=new&amp;sort=symbol&amp;page=1">Review them →</a>
+    </div>
+}
 
 <form method="get" action="/Admin/Instruments" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
     <div class="field" style="width:170px">
@@ -50,6 +74,16 @@
             }
         </select>
     </div>
+    <div class="field" style="width:160px">
+        <label for="collect">Collect</label>
+        <select id="collect" name="collect">
+            <option value="">all</option>
+            @foreach (var (value, label) in collectFilters)
+            {
+                <option value="@value" selected="@(value == Model.CollectFilter)">@label</option>
+            }
+        </select>
+    </div>
     <label class="chip @(Model.OnlyTrading ? "is-on" : "")" style="height:38px;display:flex;align-items:center">
         <input type="checkbox" name="onlyTrading" value="true" checked="@Model.OnlyTrading" style="position:absolute;opacity:0;width:0;height:0">only trading
     </label>
@@ -64,16 +98,38 @@
     <div class="th" style="@Cols"><span>Symbol</span><span>Exchange</span><span>Pair</span><span>Status</span><span>Collect</span><span>Price</span><span>@Html.Raw(SortHead("oi", "Open interest"))</span><span>@Html.Raw(SortHead("funding", "Funding"))</span><span style="justify-self:end">@Html.Raw(SortHead("age", "Snapshot"))</span></div>
     @if (Model.Items.Count == 0)
     {
-        <div class="empty"><h3>No instruments</h3><p>No instrument matches these filters.</p></div>
+        <div class="empty">
+            <h3>No instruments</h3>
+            <p>@(Model.CollectFilter == "new" ? "Nothing is waiting for a decision. Every listing here has been ruled on, by an operator or by the auto-approve list." : "No instrument matches these filters.")</p>
+        </div>
     }
     @foreach (var i in Model.Items)
     {
-        <div class="tr has-stretch" style="@Cols@(i.Collect ? "" : ";opacity:.55")">
+        @* Dimming says "settled, look elsewhere", so only a row somebody DECIDED to switch off is
+           dimmed. A NEW row is not collecting either, but it is the one row on the page that wants
+           attention — dimming it would hide exactly what this change exists to surface. *@
+        <div class="tr has-stretch" style="@Cols@(i.State == CollectState.Off ? ";opacity:.55" : "")">
             <span class="cell"><a class="name mono stretch" href="/Admin/Instruments/Details/@i.Id">@i.Symbol</a></span>
             <span class="mono muted">@i.SegmentCode</span>
             <a class="code lift" href="/Admin/Assets/Details/@i.BaseAsset" title="@i.BaseAsset across all exchanges">@i.BaseAsset/@i.QuoteAsset</a>
             <span><span class="tag @StatusTag(i.Status)">@i.Status</span></span>
-            <span><span class="@(i.Collect ? "sev ok" : "tag")">@(i.Collect ? "on" : "off")</span></span>
+            @* Three states, three labels, and the age only where it means something: on a NEW row
+               "seen 6 h ago" is how long we have been ignoring it. On a decided row the interesting
+               clock is collect_changed_at, which the detail page shows with the name beside it. *@
+            <span>
+                @switch (i.State)
+                {
+                    case CollectState.On:
+                        <span class="sev ok">on</span>
+                        break;
+                    case CollectState.New:
+                        <span class="tag gold" title="Arrived @Format.Age(i.FirstSeenAgeSeconds) ago; nobody has decided">new · @Format.Age(i.FirstSeenAgeSeconds)</span>
+                        break;
+                    default:
+                        <span class="tag">off</span>
+                        break;
+                }
+            </span>
             <span class="num">@Format.Num(i.LastPrice, 2)</span>
             <span class="num">@Format.Num(i.OpenInterestNotional, 0)</span>
             <span class="num">@Format.Num(i.FundingRate, 6)</span>

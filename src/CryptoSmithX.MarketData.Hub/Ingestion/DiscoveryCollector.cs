@@ -11,9 +11,71 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 /// used to live inside each adapter: the venue's raw base string is mapped against the
 /// <c>asset_alias</c> table, unknown assets are auto-registered, and the alias multiplier folds
 /// into the instrument's own.
+/// <para>
+/// Since 0029 it also stands at the collect gate: a listing seen for the first time arrives
+/// switched OFF unless its base asset is auto-approved (<c>asset.auto_collect</c>). It writes
+/// <c>collect</c> on the insert path only — see <see cref="DecideCollectOnInsert"/> and the comment
+/// at the foot of <see cref="UpsertInstrumentSql"/> for why the update path must never touch it.
+/// </para>
 /// </summary>
 public sealed class DiscoveryCollector
 {
+    // The base assets whose new listings pass the gate without a human (0029 asset.auto_collect).
+    // Read once per pass, in the pass's own transaction, like the alias table above it: a listing
+    // and the flag that decides it are then read from one consistent view of the database.
+    internal const string AutoCollectAssetsSql = "select code from asset where auto_collect";
+
+    // The listing upsert. Held as a const for the same reason as SnapshotCollector's target query:
+    // the collect column's PRESENCE in the insert list and its ABSENCE from the update list are the
+    // whole gate, and a test can only guard what it can read.
+    internal const string UpsertInstrumentSql =
+        """
+        insert into exchange_instrument (
+            segment_code, exchange_symbol, base_asset, base_asset_raw,
+            quote_asset, quote_asset_raw, contract_multiplier,
+            price_step, qty_step, min_qty, min_notional, funding_interval_hours,
+            listed_at, status, status_changed_at, first_seen_at, last_seen_at, raw_json, updated_at,
+            collect)
+        values (
+            @SegmentCode, @ExchangeSymbol, @BaseAsset, @BaseAssetRaw,
+            @QuoteAsset, @QuoteAssetRaw, @ContractMultiplier,
+            @PriceStep, @QtyStep, @MinQty, @MinNotional, @FundingIntervalHours,
+            @ListedAt, @Status, @Now, @Now, @Now, @RawJson::jsonb, @Now,
+            @Collect)
+        on conflict (segment_code, exchange_symbol) do update set
+            -- canon and multiplier are re-applied so a discovery pass repairs them after an
+            -- admin edits an alias; base_asset_raw is what the venue actually sent.
+            base_asset             = excluded.base_asset,
+            base_asset_raw         = excluded.base_asset_raw,
+            quote_asset            = excluded.quote_asset,
+            quote_asset_raw        = excluded.quote_asset_raw,
+            contract_multiplier    = excluded.contract_multiplier,
+            price_step             = excluded.price_step,
+            qty_step               = excluded.qty_step,
+            min_qty                = excluded.min_qty,
+            min_notional           = excluded.min_notional,
+            funding_interval_hours = excluded.funding_interval_hours,
+            listed_at              = excluded.listed_at,
+            status                 = excluded.status,
+            -- only a real change moves the clock
+            status_changed_at      = case when exchange_instrument.status is distinct from excluded.status
+                                          then excluded.status_changed_at
+                                          else exchange_instrument.status_changed_at end,
+            last_seen_at           = excluded.last_seen_at,
+            raw_json               = excluded.raw_json,
+            updated_at             = excluded.updated_at
+            -- collect is ABSENT from this list ON PURPOSE, and must stay absent. It used to be
+            -- absent by omission, which is a property nobody can see and the next reader will
+            -- "fix" for consistency with the insert list three lines up. What that edit would do:
+            -- every discovery pass, every few minutes, would stamp the auto-approve answer back
+            -- over the operator's. The 1864 instruments an admin has just switched off would come
+            -- back on for the 25 approved assets and be re-written off for the rest, and the
+            -- toggle in the admin UI would appear to do nothing at all — a change reverted by a
+            -- background loop, with the audit columns still swearing a human made the last one.
+            -- collect is OUR decision; discovery reports the VENUE's. It writes the venue's
+            -- columns and stays off ours. See DecideCollectOnInsert for the other half.
+        """;
+
     private readonly IExchangeMarketData _adapter;
     private readonly DbSettings _settings;
     private readonly Db _db;
@@ -67,6 +129,16 @@ public sealed class DiscoveryCollector
             target[alias] = new AliasHit(assetCode, multiplier);
         }
 
+        // Ordinal, not case-insensitive, and that is the deliberate choice: asset.code is a text
+        // primary key, so 'BTC' and 'btc' are two different rows and base_asset's FK points at
+        // exactly one of them. Matching loosely here would let the flag set on 'BTC' approve a
+        // listing whose FK resolves to some other row — the flag would govern a row it is not on.
+        var autoCollectAssets = (await conn.QueryAsync<string>(new CommandDefinition(
+                AutoCollectAssetsSql,
+                transaction: tx,
+                cancellationToken: ct)))
+            .ToHashSet(StringComparer.Ordinal);
+
         // Resolve every raw base to its canon + effective multiplier before touching the table.
         var resolved = kept
             .Select(i =>
@@ -89,40 +161,7 @@ public sealed class DiscoveryCollector
         foreach (var (i, canon, multiplier) in resolved)
         {
             await conn.ExecuteAsync(new CommandDefinition(
-                """
-                insert into exchange_instrument (
-                    segment_code, exchange_symbol, base_asset, base_asset_raw,
-                    quote_asset, quote_asset_raw, contract_multiplier,
-                    price_step, qty_step, min_qty, min_notional, funding_interval_hours,
-                    listed_at, status, status_changed_at, first_seen_at, last_seen_at, raw_json, updated_at)
-                values (
-                    @SegmentCode, @ExchangeSymbol, @BaseAsset, @BaseAssetRaw,
-                    @QuoteAsset, @QuoteAssetRaw, @ContractMultiplier,
-                    @PriceStep, @QtyStep, @MinQty, @MinNotional, @FundingIntervalHours,
-                    @ListedAt, @Status, @Now, @Now, @Now, @RawJson::jsonb, @Now)
-                on conflict (segment_code, exchange_symbol) do update set
-                    -- canon and multiplier are re-applied so a discovery pass repairs them after an
-                    -- admin edits an alias; base_asset_raw is what the venue actually sent.
-                    base_asset             = excluded.base_asset,
-                    base_asset_raw         = excluded.base_asset_raw,
-                    quote_asset            = excluded.quote_asset,
-                    quote_asset_raw        = excluded.quote_asset_raw,
-                    contract_multiplier    = excluded.contract_multiplier,
-                    price_step             = excluded.price_step,
-                    qty_step               = excluded.qty_step,
-                    min_qty                = excluded.min_qty,
-                    min_notional           = excluded.min_notional,
-                    funding_interval_hours = excluded.funding_interval_hours,
-                    listed_at              = excluded.listed_at,
-                    status                 = excluded.status,
-                    -- only a real change moves the clock
-                    status_changed_at      = case when exchange_instrument.status is distinct from excluded.status
-                                                  then excluded.status_changed_at
-                                                  else exchange_instrument.status_changed_at end,
-                    last_seen_at           = excluded.last_seen_at,
-                    raw_json               = excluded.raw_json,
-                    updated_at             = excluded.updated_at
-                """,
+                UpsertInstrumentSql,
                 new
                 {
                     SegmentCode = _adapter.SegmentCode,
@@ -142,6 +181,7 @@ public sealed class DiscoveryCollector
                     Status = i.Status.ToDb(),
                     Now = now,
                     i.RawJson,
+                    Collect = DecideCollectOnInsert(canon, autoCollectAssets),
                 },
                 tx,
                 cancellationToken: ct));
@@ -168,4 +208,48 @@ public sealed class DiscoveryCollector
         await tx.CommitAsync(ct);
         return kept.Count;
     }
+
+    /// <summary>
+    /// The value <c>collect</c> takes when a listing is seen for the FIRST time. Pure so the gate
+    /// can be driven without a database; the SQL above decides only WHERE it applies (insert, never
+    /// update).
+    /// </summary>
+    /// <remarks>
+    /// This is a stamp taken at arrival, not a standing rule re-applied every pass — and that is a
+    /// position, not an accident.
+    /// <para>
+    /// It means an asset added to the auto-approve list LATER does not reach back and switch on the
+    /// listings already sitting undecided. Add ONDO today and tomorrow's ONDO listing arrives
+    /// collected; the twelve ONDO listings already waiting stay waiting until someone approves
+    /// them, which the admin's per-instrument toggle already does and records.
+    /// </para>
+    /// <para>
+    /// REJECTED: re-evaluating undecided rows (<c>collect_changed_at is null</c>) on every pass, so
+    /// the list reads as a live rule. It is genuinely the friendlier story — the list would then
+    /// mean one thing at all times, "these assets are collected", with no "you ticked it too late"
+    /// surprise and no way for the flag and the book to disagree. Three costs sank it. First, it
+    /// writes <c>collect</c> with nobody's name on it: the audit columns exist to say who decided,
+    /// and a background loop flipping rows on leaves them null, so the row would then be collected
+    /// AND still read as NEW. Second, the blast radius of a checkbox becomes unbounded and
+    /// invisible — ticking one asset starts real collection on every undecided listing of it across
+    /// every venue at once, with no count shown and no confirmation, and unticking it silently
+    /// stops collection on rows that were being collected. Third, NEW stops being a state and
+    /// becomes a race: a row reads NEW on Monday and collected on Tuesday with nothing in the row
+    /// explaining the change. The stamp keeps <c>collect</c> meaning exactly one thing — somebody
+    /// or some rule decided this, once, at a moment we can name.
+    /// </para>
+    /// <para>
+    /// A RE-LISTING takes the update path, so none of this applies to it. Delisting never deletes
+    /// the row: the sweep below only sets <c>status = 'delisted'</c>, so an instrument that goes
+    /// away and comes back hits <c>on conflict do update</c> and keeps whatever <c>collect</c> it
+    /// had — collected stays collected and resumes on its own, an operator's off stays off, and one
+    /// that was never decided is still NEW rather than sneaking through the gate on its return.
+    /// That is wanted. A delisting is the venue's statement about the venue, not ours about us, and
+    /// it is inferred from ABSENCE over several passes — a flaky endpoint can produce one. Letting
+    /// a return re-run the gate would mean venue flakiness could quietly re-approve an instrument
+    /// an admin had switched off, or demand a human re-approve BTC after a maintenance window.
+    /// </para>
+    /// </remarks>
+    internal static bool DecideCollectOnInsert(string canon, IReadOnlySet<string> autoCollectAssets) =>
+        autoCollectAssets.Contains(canon);
 }

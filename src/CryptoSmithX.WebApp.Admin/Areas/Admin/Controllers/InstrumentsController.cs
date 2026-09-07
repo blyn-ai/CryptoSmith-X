@@ -20,13 +20,20 @@ public sealed class InstrumentsController : Controller
 
     public InstrumentsController(Db db) => _db = db;
 
+    /// <summary>
+    /// The list. <paramref name="collect"/> is the 0029 gate filter — "new" is the queue of
+    /// listings that arrived and that nobody has ruled on yet. It is validated inside the store
+    /// against a whitelist, like <paramref name="sort"/>, so an unknown value shows the whole list
+    /// rather than erroring.
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> Index(
-        string? segment, string? status, bool onlyTrading, string? q, string? sort, int page, CancellationToken ct)
+        string? segment, string? status, bool onlyTrading, string? q, string? collect, string? sort, int page,
+        CancellationToken ct)
     {
         await using var conn = await _db.OpenAsync(ct);
         var model = await InstrumentStore.ListAsync(
-            conn, segment, status, onlyTrading, q, sort ?? "symbol", Math.Max(1, page), PageSize, ct);
+            conn, segment, status, onlyTrading, q, collect, sort ?? "symbol", Math.Max(1, page), PageSize, ct);
         return View(model);
     }
 

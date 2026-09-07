@@ -37,6 +37,31 @@
     <p class="panel-note">Registered @Format.Utc(Model.CreatedAt)@(Model.UpdatedBy is null ? "" : $" · last edited by {Model.UpdatedBy} {Format.Utc(Model.UpdatedAt)}")</p>
 </div>
 
+@* Its own panel and its own form, not a third field in the canon form above. Name and note are
+   labels; this one decides whether the Hub starts pulling real data on listings nobody has looked
+   at, and it should not ride along under a button that says it is saving a name. Same switch
+   mechanics as the instrument's collect toggle: the switch posts the opposite value, so a click is
+   the whole interaction. *@
+<div class="panel" style="padding:18px;margin-bottom:var(--gap-card)">
+    <h2 style="margin-bottom:5px">Auto-collect</h2>
+    <p style="margin:0 0 14px;font:400 12px/1.5 var(--font-body);color:var(--text-muted)">Whether a <em>newly discovered</em> listing of @Model.Code starts collecting without being asked about. Everything else arrives switched off and waits on the <a href="/Admin/Instruments?collect=new">new listings queue</a>.</p>
+    <form method="post" action="/Admin/Assets/SaveAutoCollect/@Model.Code">
+        @Html.AntiForgeryToken()
+        <div style="display:flex;align-items:center;gap:12px">
+            <button class="sw" role="switch" aria-checked="@(Model.AutoCollect ? "true" : "false")" type="submit" name="autoCollect" value="@(Model.AutoCollect ? "false" : "true")"><i></i></button>
+            <span class="sev @(Model.AutoCollect ? "ok" : "")">@(Model.AutoCollect ? "auto-approved" : "not auto-approved")</span>
+        </div>
+    </form>
+    <p class="panel-note">The flag is read at the moment a listing first appears, so this switch changes nothing that already exists. Turning it on does not start collecting the @Model.UndecidedListings listing(s) of @Model.Code already waiting, and turning it off does not stop any of the @Model.Listings.Count(l => l.Collect) already being collected — both of those are per-instrument decisions, made on the instrument page, which records who made them.</p>
+    @if (Model.AutoCollect && Model.UndecidedListings > 0)
+    {
+        @* Deliberately not deep-linked with q=@Model.Code: that search matches the venue's SYMBOL,
+           and BTC would drag in WBTC. The count below is this asset's; the link is the whole queue,
+           and the listings table on this page is the exact list. *@
+        <p class="panel-note">@Model.UndecidedListings listing(s) of @Model.Code arrived before this was switched on and are still waiting — they are marked <span class="tag gold">new</span> in the table below, or approve them from the <a href="/Admin/Instruments?collect=new">queue</a>.</p>
+    }
+</div>
+
 <div class="panel" style="margin-bottom:var(--gap-card)">
     <div class="panel-h"><h2>Listings</h2><span class="meta">@Model.Listings.Count across exchanges</span></div>
     <div class="scroll">
@@ -47,11 +72,26 @@
         }
         @foreach (var l in Model.Listings)
         {
-            <a class="tr" style="@Cols@(l.Collect ? "" : ";opacity:.55")" href="/Admin/Instruments/Details/@l.InstrumentId">
+            @* Only a decided "off" is dimmed; a NEW listing is the row that wants the operator's
+               eye, so it keeps full contrast. Same rule as the instruments list. *@
+            <a class="tr" style="@Cols@(l.State == CollectState.Off ? ";opacity:.55" : "")" href="/Admin/Instruments/Details/@l.InstrumentId">
                 <span class="mono">@l.SegmentCode</span>
                 <span class="cell"><span class="name mono">@l.Symbol</span></span>
                 <span><span class="tag @StatusTag(l.Status)">@l.Status</span></span>
-                <span><span class="@(l.Collect ? "sev ok" : "tag")">@(l.Collect ? "on" : "off")</span></span>
+                <span>
+                    @switch (l.State)
+                    {
+                        case CollectState.On:
+                            <span class="sev ok">on</span>
+                            break;
+                        case CollectState.New:
+                            <span class="tag gold">new</span>
+                            break;
+                        default:
+                            <span class="tag">off</span>
+                            break;
+                    }
+                </span>
                 <span class="num">@Format.Num(l.LastPrice, 2)</span>
                 <span class="num">@Format.Num(l.FundingRate, 6)</span>
                 <span class="num">@Format.Num(l.OpenInterestNotional, 0)</span>
