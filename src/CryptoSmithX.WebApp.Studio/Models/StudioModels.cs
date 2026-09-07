@@ -57,7 +57,11 @@ public sealed record PairVenueRow(
     double ContractMultiplier,
     double PriceStep,
     double QtyStep,
-    short FundingIntervalHours,
+    /// <summary>Hours between funding payments, or NULL where the venue never told us. Migration
+    /// 0028 made the column nullable precisely so absence could travel; reading it as a
+    /// non-nullable short would turn a null into a zero and the page would print a rate normalised
+    /// by nothing.</summary>
+    short? FundingIntervalHours,
     string Status,
     DateTime StatusChangedAt,
     DateTime FirstSeenAt,

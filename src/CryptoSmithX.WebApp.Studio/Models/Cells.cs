@@ -464,8 +464,13 @@ public static class RowCells
         // The interval and the normalised figure, together, in the slot the mark would occupy.
         // Three decimals rather than the rate's four: this is a derived number and printing it to
         // the same precision as the venue's own would dress a division up as a measurement.
-        var note = r.FundingRatePerDay is { } perDay && r.FundingIntervalHours > 0
-            ? r.FundingIntervalHours.ToString(CultureInfo.InvariantCulture) + "H\u00b7"
+        // No interval, no note. The per-day figure IS the rate divided by the interval, so without
+        // one there is nothing to divide by and nothing honest to print — and the interval is the
+        // half of this cell that makes the other half readable at all. `FundingIntervalHours` is
+        // null wherever the venue never stated it (migration 0028); before that it arrived as an
+        // invented eight and this line dressed a guess as a period.
+        var note = r.FundingRatePerDay is { } perDay && r.FundingIntervalHours is { } iv && iv > 0
+            ? iv.ToString(CultureInfo.InvariantCulture) + "H\u00b7"
               + Format.SignedPercent(perDay, 3) + "/DAY"
             : null;
 
@@ -479,8 +484,10 @@ public static class RowCells
             Format.Age(age, window), Freshness.PastWindow(age, window), age is null,
             CallTone.Ticker,
             Title("Funding", CallTone.Ticker, r.ReceivedAt, window)
-                + " · paid every " + r.FundingIntervalHours.ToString(CultureInfo.InvariantCulture)
-                + " h · not ranked: direction depends on the reader's side and the interval differs "
+                + (r.FundingIntervalHours is { } h
+                    ? " · paid every " + h.ToString(CultureInfo.InvariantCulture) + " h"
+                    : " · payment interval not stated by the venue")
+                + " · not ranked: direction depends on the reader's side and the interval differs "
                 + "between instruments on one venue",
             age, window, Ms(r.ReceivedAt), RankGroup: null);
     }

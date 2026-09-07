@@ -24,7 +24,7 @@ internal static class Rows
         double? depthBid25 = null,
         double? depthAsk25 = null,
         double? funding = null,
-        short fundingHours = 8) =>
+        short? fundingHours = 8) =>
         new(
             InstrumentId: id,
             SegmentCode: segment,

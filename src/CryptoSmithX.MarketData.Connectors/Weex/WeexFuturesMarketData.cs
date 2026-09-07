@@ -85,9 +85,14 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
 
             // Funding interval varies per symbol (60/240/480 min observed) — unlike Kraken there is
             // no single constant, so it comes from the same batched call GetTickersAsync also merges.
-            var intervalHours = fundingBySymbol.TryGetValue(c.Symbol, out var f) && f.CollectCycle > 0
+            // NULL, not eight, when the funding call missed this symbol. Eight was WEEX's most common
+            // cycle and nothing else — a guess about a call that did not answer, written into a column
+            // that could not say "not measured". It made 541 of 1,028 instruments indistinguishable
+            // from the ones the venue really does pay eight-hourly. Migration 0028 gave the column a
+            // null, so absence can now travel as absence.
+            short? intervalHours = fundingBySymbol.TryGetValue(c.Symbol, out var f) && f.CollectCycle > 0
                 ? (short)Math.Max(1, f.CollectCycle / 60)
-                : (short)8;   // WEEX's most common cycle, used only if the funding call missed this symbol
+                : null;
 
             list.Add(new Instrument(
                 ExchangeSymbol: c.Symbol,

@@ -26,7 +26,11 @@ public sealed record Instrument(
     decimal QtyStep,
     decimal MinQty,
     decimal? MinNotional,
-    short FundingIntervalHours,
+    /// <summary>Hours between funding payments, as the venue states them. NULL means NOT MEASURED —
+    /// the adapter did not get an interval and does not put a plausible number where the venue put
+    /// nothing. A rate without its period is a claim without a unit, so a consumer holding null here
+    /// prints a dash rather than normalising.</summary>
+    short? FundingIntervalHours,
     DateTimeOffset? ListedAt,
     InstrumentStatus Status,
     string RawJson);

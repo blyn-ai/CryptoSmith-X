@@ -204,6 +204,27 @@ public sealed class VerdictScopeTests
         Assert.Equal(0.0024, hourly.FundingRatePerDay!.Value, 10);
     }
 
+    /// <summary>
+    /// With no interval there is no per-day figure, because there is nothing to divide by.
+    ///
+    /// Migration 0028 made <c>funding_interval_hours</c> nullable so a venue that never stated the
+    /// interval stops being written down as eight-hourly. This is the reading half of that change:
+    /// a rate whose period is unknown must not be normalised, because the normalisation IS the
+    /// division by the period. Before it, a null read as a zero-or-eight and the page printed a
+    /// per-day figure derived from a number nobody measured.
+    ///
+    /// The rate itself survives — it is a real observation and the venue did state it. Only the
+    /// derived figure and the interval note go.
+    /// </summary>
+    [Fact]
+    public void A_rate_whose_interval_the_venue_never_stated_is_not_normalised()
+    {
+        var unstated = Rows.Venue(3, funding: 0.0001, fundingHours: null);
+
+        Assert.Null(unstated.FundingRatePerDay);
+        Assert.Equal(0.0001, unstated.FundingRate);
+    }
+
     // ── Degraded rows do not take part in a verdict ─────────────────────────────────────────────
     // A verdict is a claim about the market NOW. `degraded` is this page's own word for a figure
     // that has stopped meaning anything, printed in its own notebar, so an acid-green BEST wash on

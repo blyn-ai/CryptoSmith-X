@@ -310,4 +310,29 @@ public sealed class WeexFuturesMarketDataTests
             return false;
         }
     }
+
+    /// <summary>
+    /// A symbol the funding call did not answer for gets NULL, not eight.
+    ///
+    /// `cmt_usdcusdt` is in the captured contracts response and absent from the captured funding
+    /// response — the real shape of the miss, not a constructed one. The old code wrote 8 there
+    /// because the column could not hold "not measured", and the comment beside it said what it was
+    /// doing: "WEEX's most common cycle, used only if the funding call missed this symbol". That is
+    /// a guess about a call that did not answer, and it made 541 of 1,028 live instruments
+    /// indistinguishable from the ones the venue really does pay eight-hourly.
+    ///
+    /// The contrast is the point of this test, so both halves are asserted together: a symbol the
+    /// venue DID answer for still carries its real interval.
+    /// </summary>
+    [Fact]
+    public async Task A_symbol_the_funding_call_missed_carries_no_interval_rather_than_a_likely_one()
+    {
+        var instruments = await Adapter().GetInstrumentsAsync(CancellationToken.None);
+
+        var missed = Assert.Single(instruments, i => i.ExchangeSymbol == "cmt_usdcusdt");
+        Assert.Null(missed.FundingIntervalHours);
+
+        var answered = Assert.Single(instruments, i => i.ExchangeSymbol == "cmt_btcusdt");
+        Assert.Equal((short)8, answered.FundingIntervalHours);   // collectCycle = 480 min
+    }
 }
