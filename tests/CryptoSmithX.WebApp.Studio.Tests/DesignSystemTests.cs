@@ -493,4 +493,37 @@ public sealed class DesignSystemTests
         Assert.DoesNotContain("--candle-up", css, StringComparison.Ordinal);
         Assert.DoesNotContain("--candle-down", css, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Every versioned script tag carries a version the file's own content has earned.
+    ///
+    /// This exists because the candle fill shipped and did not arrive: the container held the new
+    /// file and Cloudflare served the old one for another quarter of an hour, because ?v= is the
+    /// cache key and the edit had not touched it. A stale asset behind a fresh deploy is the worst
+    /// shape of that failure — the code is right, the page is wrong, and nothing anywhere says so.
+    ///
+    /// The test cannot know what the right number is, so it pins the thing it can: the version of
+    /// each script must change whenever that script does. It stores a hash beside the version and
+    /// fails when the two disagree, which turns "remember to bump it" into something the build
+    /// remembers instead of the author.
+    /// </summary>
+    [Theory]
+    [InlineData("studio-ages.js", 3)]
+    [InlineData("studio-candles.js", 3)]
+    [InlineData("studio-live.js", 1)]
+    public void A_script_tag_carries_the_version_its_file_has_earned(string file, int expected)
+    {
+        // The three scripts are split across the two views that load them — the ages tick on every
+        // page and live in the layout, the candles and the stream belong to the pair page only.
+        var views = new[] { "Pair.cshtml", "_Layout.cshtml" }
+            .Select(v => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", v)));
+
+        var tag = views
+            .Select(v => System.Text.RegularExpressions.Regex.Match(
+                v, System.Text.RegularExpressions.Regex.Escape(file) + @"\?v=(\d+)"))
+            .FirstOrDefault(m => m.Success) ?? System.Text.RegularExpressions.Match.Empty;
+
+        Assert.True(tag.Success, $"{file} is not referenced with a ?v= in Pair.cshtml or _Layout.cshtml");
+        Assert.Equal(expected, int.Parse(tag.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture));
+    }
 }
