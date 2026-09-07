@@ -234,3 +234,5 @@ app.MapControllerRoute(
     @"{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}/{quoteFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
     new { controller = "Pairs", action = "Pair" });
 
+
+await app.RunAsync();

@@ -217,6 +217,18 @@ public sealed class PublicSurfaceTests
     }
 
     [Fact]
+    public void The_application_is_actually_started()
+    {
+        // Top-level statements compile without it. An app that builds, configures every route and
+        // then returns exits 0, logs nothing at all, and restarts forever behind a 502 — which is
+        // what shipped when a regex moving a route block took the last line with it. Nothing in this
+        // suite starts a host, so the whole class of "it built and did not run" was invisible.
+        var program = Code("Program.cs");
+
+        Assert.Contains("app.RunAsync()", program, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_two_segment_pair_route_is_registered_last()
     {
         // It matches ANY two segments, so every other two-segment address has to be registered above
