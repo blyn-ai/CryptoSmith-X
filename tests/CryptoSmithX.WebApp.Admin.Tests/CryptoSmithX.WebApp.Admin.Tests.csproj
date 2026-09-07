@@ -11,4 +11,12 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CryptoSmithX.WebApp.Admin\CryptoSmithX.WebApp.Admin.csproj" />
   </ItemGroup>
+  <!-- The public landing page, copied beside the test binary because its CONTENT is what is under
+       test rather than a behaviour a call can reach. Same convention as the Studio suite: copied by
+       the csproj rather than located by walking up from the working directory, so the assertion
+       fails on the page changing and never on where the tests were run from. -->
+  <ItemGroup>
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Admin\Views\Home\Index.cshtml"
+             Link="surface\Landing.cshtml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
