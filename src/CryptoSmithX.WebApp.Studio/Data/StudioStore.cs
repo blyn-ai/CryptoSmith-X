@@ -152,6 +152,9 @@ public static class StudioStore
                -- be claiming Kraken quotes in USDT.
                i.base_asset                     as "BaseAsset",
                i.quote_asset                    as "QuoteAsset",
+               -- LEFT JOIN + coalesce: an asset with no membership row is its own family, so an
+               -- empty registry ranks exactly as the quote code did and claims nothing new.
+               coalesce(qm.family_code, i.quote_asset) as "QuoteFamily",
                i.contract_multiplier::double precision as "ContractMultiplier",
                i.price_step::double precision   as "PriceStep",
                i.qty_step::double precision     as "QtyStep",
@@ -187,6 +190,7 @@ public static class StudioStore
           -- LEFT: an instrument discovery has listed but no collector has yet observed belongs on
           -- the page saying so. An inner join would delete it, and a deleted row is a claim that the
           -- venue does not list the pair.
+          left join asset_family_member qm on qm.asset_code = i.quote_asset
           left join market_snapshot_latest s on s.exchange_instrument_id = i.id
          where i.base_asset in (select asset_code from base_codes)
            and i.collect
@@ -194,11 +198,20 @@ public static class StudioStore
            and i.status <> 'delisted'
            and sg.status = 'enabled'
            and x.code <> 'fake'
-         -- Venue first, then the busiest book inside it. Grouping by venue is what keeps a
-         -- venue's several listings together — Binance quotes PEPE in both USDT and USDC, and two
-         -- rows for one venue is the correct answer, not a duplicate. Turnover orders them within
-         -- the venue so the book that actually trades leads, and the symbol only breaks ties.
-         order by x.name, s.turnover_24h desc nulls last, i.quote_asset, i.exchange_symbol
+         -- QUOTE first, and that is a reversal of the venue-first order this shipped with.
+         --
+         -- Ranking is per quote family, so ordering by it makes each ranked set a contiguous run of
+         -- rows. That is what stops two BEST chips on one page from reading as a contradiction: they
+         -- sit in different blocks, visibly, without sub-headings splitting the table into sections
+         -- and without the quote being promoted back into a structural role.
+         --
+         -- Family before the quote code so USD, USDT and USDC stay adjacent whatever the registry
+         -- calls them, then turnover so the book that actually trades leads inside a quote, then the
+         -- venue and the symbol as stable tie-breaks. A venue's two listings no longer sit side by
+         -- side, which was the earlier rule's whole point — they are told apart by the venue cell
+         -- carrying its quote, which is what that cell was for.
+         order by coalesce(qm.family_code, i.quote_asset), i.quote_asset,
+                  s.turnover_24h desc nulls last, x.name, i.exchange_symbol
         """;
 
     /// <summary>

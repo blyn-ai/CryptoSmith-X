@@ -24,7 +24,10 @@ internal static class Rows
         double? depthBid25 = null,
         double? depthAsk25 = null,
         double? funding = null,
-        short? fundingHours = 8) =>
+        short? fundingHours = 8,
+        // Defaults to the quote itself — the absent-registry-row reading, which is what every test
+        // written before families existed assumed and still means.
+        string? quoteFamily = null) =>
         new(
             InstrumentId: id,
             SegmentCode: segment,
@@ -34,6 +37,7 @@ internal static class Rows
             Symbol: $"SYM{id}",
             BaseAsset: "BTC",
             QuoteAsset: quote,
+            QuoteFamily: quoteFamily ?? quote,
             ContractMultiplier: multiplier,
             PriceStep: 0.1,
             QtyStep: 0.001,

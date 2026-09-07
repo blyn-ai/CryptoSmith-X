@@ -426,14 +426,21 @@
                    prevent, made by the entry. *@
                 <span class="a-term-name">Best / worst</span>
                 <span class="a-term-body">
-                    The two ends of one column across the venues compared here: the highest bid, the
-                    lowest ask, the largest turnover or depth — and the other end of each. Everything
-                    between the ends carries no mark. Which rows are compared is decided per column,
-                    not per page: anything priced in the quote currency ranks only against rows
-                    quoting in the same asset, because a figure in USD and a figure in USDT are two
-                    claims and a page holding two quotes holds two comparisons — while the two sizes
-                    and open interest are in base units through the venue's own contract multiplier,
-                    which makes them one measurement, so they rank across every row on the page.
+                    The two ends of one column across the venues compared here: the largest turnover
+                    or depth, the biggest book — and the other end of each. Everything between the
+                    ends carries no mark. <b>Bid and ask carry no rank at all.</b> Venues quote
+                    within a few basis points of each other and the best bid changes hands every
+                    second, so a mark there would point at noise and at the figure on this page that
+                    answers the least; what the ranks are for is where the book is deep and where the
+                    spread is narrow. Which rows are compared is decided per column, not per page:
+                    anything priced in the quote currency ranks only against rows quoting in the same
+                    FAMILY — USD, USDT and USDC are one, by a registry an operator edits and never by
+                    matching names — because those currencies move within basis points of each other
+                    while the depth they measure differs between venues by multiples; a quote outside
+                    the family is a different claim and is not ranked against it. The two sizes and
+                    open interest are in base units through the venue's own contract multiplier,
+                    which makes them one measurement, so they rank across every row on the page. A
+                    chip names the family it won in whenever the page holds more than one.
                 </span>
             </div>
 

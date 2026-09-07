@@ -92,9 +92,8 @@ public sealed class ColumnScales
 
         foreach (var spec in Specs)
         {
-            var groups = Verdicts.Scope(spec.Column) == VerdictScope.PerQuoteAsset
-                ? rows.GroupBy(r => r.Row.QuoteAsset, StringComparer.Ordinal)
-                : rows.GroupBy(_ => "", StringComparer.Ordinal);
+            var scope = Verdicts.Scope(spec.Column);
+            var groups = rows.GroupBy(r => Verdicts.GroupKey(r.Row, scope), StringComparer.Ordinal);
 
             foreach (var group in groups)
             {

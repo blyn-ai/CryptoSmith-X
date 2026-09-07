@@ -120,10 +120,15 @@ public sealed class PublicQueryTests
     {
         // The heading folds; the row never does. A row printing the folded quote would be claiming
         // Kraken quotes in USDT.
+        //
+        // The family now travels BESIDE it, in its own column, because ranking a notional needs to
+        // know which currencies are comparable. It is never printed as a figure's unit, and this
+        // test guards exactly that boundary: both columns present, the venue's own spelling
+        // unqualified.
         var selectList = StudioStore.PairVenuesSql[..StudioStore.PairVenuesSql.IndexOf("from exchange_instrument", StringComparison.Ordinal)];
         Assert.Matches("i\\.base_asset\\s+as \"BaseAsset\"", selectList);
         Assert.Matches("i\\.quote_asset\\s+as \"QuoteAsset\"", selectList);
-        Assert.DoesNotContain("coalesce", selectList, StringComparison.Ordinal);
+        Assert.Matches("coalesce\\(qm\\.family_code, i\\.quote_asset\\) as \"QuoteFamily\"", selectList);
     }
 
     [Fact]

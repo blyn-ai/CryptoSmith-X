@@ -29,21 +29,21 @@ public sealed class VerdictScopeTests
     }
 
     [Fact]
-    public void Inside_one_quote_asset_both_ends_are_marked()
+    public void Inside_one_quote_family_both_ends_are_marked()
     {
         var rows = new[]
         {
-            Rows.Venue(1, quote: "USDT", bid: 100_000),
-            Rows.Venue(2, quote: "USDT", bid: 99_900),
-            Rows.Venue(3, quote: "USD", bid: 99_500)
+            Rows.Venue(1, quote: "USDT", turnover: 100_000),
+            Rows.Venue(2, quote: "USDT", turnover: 99_900),
+            Rows.Venue(3, quote: "USD", turnover: 99_500)
         };
 
         var v = Verdicts.Compute(Rows.Live(rows));
-        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Bid));
-        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Bid));
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Turnover24h));
+        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Turnover24h));
         // The lone USD row has nothing to be ranked against and stays unmarked, rather than being
         // called the best USD bid on the strength of being the only one.
-        Assert.Equal(Verdict.None, v.Of(3, PairColumn.Bid));
+        Assert.Equal(Verdict.None, v.Of(3, PairColumn.Turnover24h));
     }
 
     [Fact]
@@ -51,14 +51,14 @@ public sealed class VerdictScopeTests
     {
         var rows = new[]
         {
-            Rows.Venue(1, bid: 100_000, ask: 100_010),
-            Rows.Venue(2, bid: 99_900, ask: 100_050)
+            Rows.Venue(1, bid: 100_000, ask: 100_010, turnover: 500),
+            Rows.Venue(2, bid: 99_900, ask: 100_050, turnover: 100)
         };
 
         var v = Verdicts.Compute(Rows.Live(rows));
-        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Bid));   // highest bid
-        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Ask));   // lowest ask
-        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Ask));
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Turnover24h));  // most traded, high wins
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.SpreadBps));    // narrowest, low wins
+        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.SpreadBps));
     }
 
     [Fact]
@@ -165,15 +165,15 @@ public sealed class VerdictScopeTests
     {
         var rows = new[]
         {
-            Rows.Venue(1, bid: 100_000),
-            Rows.Venue(2, bid: 100_000),
-            Rows.Venue(3, bid: 99_000)
+            Rows.Venue(1, turnover: 100_000),
+            Rows.Venue(2, turnover: 100_000),
+            Rows.Venue(3, turnover: 99_000)
         };
 
         var v = Verdicts.Compute(Rows.Live(rows));
-        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Bid));
-        Assert.Equal(Verdict.Best, v.Of(2, PairColumn.Bid));
-        Assert.Equal(Verdict.Worst, v.Of(3, PairColumn.Bid));
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Turnover24h));
+        Assert.Equal(Verdict.Best, v.Of(2, PairColumn.Turnover24h));
+        Assert.Equal(Verdict.Worst, v.Of(3, PairColumn.Turnover24h));
     }
 
     [Fact]
@@ -235,16 +235,16 @@ public sealed class VerdictScopeTests
     {
         // Kraken frozen three days ago on a plausible last quote, the other two live. Before this
         // was fixed the frozen row took BEST on the bid it has not been able to update since.
-        var live = new[] { Rows.At(Rows.Venue(1, bid: 100_000)), Rows.At(Rows.Venue(2, bid: 99_900)) };
-        var frozen = Rows.At(Rows.Venue(3, bid: 200_000), price: TimeSpan.FromDays(3).TotalSeconds);
+        var live = new[] { Rows.At(Rows.Venue(1, turnover: 100_000)), Rows.At(Rows.Venue(2, turnover: 99_900)) };
+        var frozen = Rows.At(Rows.Venue(3, turnover: 200_000), price: TimeSpan.FromDays(3).TotalSeconds);
 
         var v = Verdicts.Compute([..live, frozen]);
 
-        Assert.Equal(Verdict.None, v.Of(3, PairColumn.Bid));
+        Assert.Equal(Verdict.None, v.Of(3, PairColumn.Turnover24h));
         // And the ranking among the living is exactly what it would be if the dead row were not
         // there at all — it does not quietly demote the others by existing.
-        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Bid));
-        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Bid));
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Turnover24h));
+        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Turnover24h));
     }
 
     [Fact]
@@ -262,21 +262,21 @@ public sealed class VerdictScopeTests
     }
 
     [Fact]
-    public void Degraded_is_decided_per_call_so_a_dead_depth_sweep_leaves_a_live_bid_alone()
+    public void Degraded_is_decided_per_call_so_a_dead_depth_sweep_leaves_a_live_ticker_alone()
     {
         // Three calls, three clocks — the house rule this whole surface is built on. A venue whose
         // depth sweep died yesterday still has a two-second bid, and that bid is still a fact about
         // the market now.
         var rows = new[]
         {
-            Rows.At(Rows.Venue(1, bid: 100_000, depthBid25: 900, depthAsk25: 900),
+            Rows.At(Rows.Venue(1, turnover: 100_000, depthBid25: 900, depthAsk25: 900),
                 depth: TimeSpan.FromDays(1).TotalSeconds),
-            Rows.At(Rows.Venue(2, bid: 99_900, depthBid25: 100, depthAsk25: 100))
+            Rows.At(Rows.Venue(2, turnover: 99_900, depthBid25: 100, depthAsk25: 100))
         };
 
         var v = Verdicts.Compute(rows);
-        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Bid));
-        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Bid));
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Turnover24h));
+        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Turnover24h));
         // The depth column loses its only other candidate with row 1, so it goes unmarked.
         Assert.Equal(Verdict.None, v.Of(1, PairColumn.Depth25));
         Assert.Equal(Verdict.None, v.Of(2, PairColumn.Depth25));
@@ -310,13 +310,13 @@ public sealed class VerdictScopeTests
         // takes 361 s — the exact over-correction the freshness model exists to avoid.
         var rows = new[]
         {
-            Rows.At(Rows.Venue(1, bid: 100_000), price: Rows.Window * 3),
-            Rows.At(Rows.Venue(2, bid: 99_900), price: Rows.Window * 3)
+            Rows.At(Rows.Venue(1, turnover: 100_000), price: Rows.Window * 3),
+            Rows.At(Rows.Venue(2, turnover: 99_900), price: Rows.Window * 3)
         };
 
         var v = Verdicts.Compute(rows);
-        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Bid));
-        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Bid));
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Turnover24h));
+        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Turnover24h));
     }
 
     [Fact]
@@ -326,13 +326,13 @@ public sealed class VerdictScopeTests
         // on that basis would be the page inventing the window it exists to report.
         var rows = new[]
         {
-            Rows.At(Rows.Venue(1, bid: 100_000), price: TimeSpan.FromDays(3).TotalSeconds, window: null),
-            Rows.At(Rows.Venue(2, bid: 99_900), price: TimeSpan.FromDays(3).TotalSeconds, window: null)
+            Rows.At(Rows.Venue(1, turnover: 100_000), price: TimeSpan.FromDays(3).TotalSeconds, window: null),
+            Rows.At(Rows.Venue(2, turnover: 99_900), price: TimeSpan.FromDays(3).TotalSeconds, window: null)
         };
 
         var v = Verdicts.Compute(rows);
-        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Bid));
-        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Bid));
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Turnover24h));
+        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Turnover24h));
     }
 
     // ── The tie guard compares what the reader sees ─────────────────────────────────────────────
@@ -365,15 +365,15 @@ public sealed class VerdictScopeTests
         // cells wore the acid wash and the other wore nothing.
         var rows = new[]
         {
-            Rows.At(Rows.Venue(1, bid: 99_999.04)),
-            Rows.At(Rows.Venue(2, bid: 99_998.96)),
-            Rows.At(Rows.Venue(3, bid: 99_000))
+            Rows.At(Rows.Venue(1, turnover: 100_000.4)),
+            Rows.At(Rows.Venue(2, turnover: 100_000.3)),
+            Rows.At(Rows.Venue(3, turnover: 99_000))
         };
 
         var v = Verdicts.Compute(rows);
-        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Bid));
-        Assert.Equal(Verdict.Best, v.Of(2, PairColumn.Bid));
-        Assert.Equal(Verdict.Worst, v.Of(3, PairColumn.Bid));
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Turnover24h));
+        Assert.Equal(Verdict.Best, v.Of(2, PairColumn.Turnover24h));
+        Assert.Equal(Verdict.Worst, v.Of(3, PairColumn.Turnover24h));
     }
 
     [Fact]
@@ -419,13 +419,13 @@ public sealed class VerdictScopeTests
         // The guard is not a licence to stop ranking. One printed step apart is a real difference.
         var rows = new[]
         {
-            Rows.At(Rows.Venue(1, bid: 99_999.1)),
-            Rows.At(Rows.Venue(2, bid: 99_999.0))
+            Rows.At(Rows.Venue(1, turnover: 100_000.6)),
+            Rows.At(Rows.Venue(2, turnover: 100_000.4))
         };
 
         var v = Verdicts.Compute(rows);
-        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Bid));
-        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Bid));
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Turnover24h));
+        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.Turnover24h));
     }
 
     [Fact]
@@ -547,7 +547,9 @@ public sealed class VerdictScopeTests
         var usdt = Rows.Venue(2, quote: "USDT");
 
         // Per quote asset: two rows quoting differently are two claims, never one.
-        Assert.NotEqual(Verdicts.RankGroup(usd, PairColumn.Bid), Verdicts.RankGroup(usdt, PairColumn.Bid));
+        Assert.NotEqual(
+            Verdicts.RankGroup(usd, PairColumn.Turnover24h),
+            Verdicts.RankGroup(usdt, PairColumn.Turnover24h));
 
         // Whole pair: the quote is not in the key at all, because it is not in the comparison.
         Assert.Equal(
@@ -556,7 +558,12 @@ public sealed class VerdictScopeTests
 
         // And two columns are never one claim, however they are scoped.
         Assert.NotEqual(
-            Verdicts.RankGroup(usd, PairColumn.Bid), Verdicts.RankGroup(usd, PairColumn.Ask));
+            Verdicts.RankGroup(usd, PairColumn.Turnover24h),
+            Verdicts.RankGroup(usd, PairColumn.Depth25));
+        // An unranked column has no group at all rather than an empty one: there is
+        // nothing to join rows by when nothing is being claimed.
+        Assert.Null(Verdicts.RankGroup(usd, PairColumn.Bid));
+        Assert.Null(Verdicts.RankGroup(usd, PairColumn.Ask));
     }
 
     [Fact]
@@ -701,9 +708,12 @@ public sealed class VerdictScopeTests
 
         var v = Verdicts.Compute(rows);
 
-        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Bid));
         Assert.Equal(Verdict.Best, v.Of(1, PairColumn.BidSize));
         Assert.Equal(Verdict.None, v.Of(1, PairColumn.SpreadBps));
+        // And the price carries no rank on any row, crossed or not. A different reason
+        // from the spread's, and the two must not be read as one.
+        Assert.Equal(Verdict.None, v.Of(1, PairColumn.Bid));
+        Assert.Equal(Verdict.None, v.Of(2, PairColumn.Bid));
     }
 
     [Fact]
@@ -760,36 +770,39 @@ public sealed class VerdictScopeTests
     {
         var reading = Prose("Pair.cshtml");
 
-        // THE RULE WAS NOT MOVED, IT WAS REWRITTEN, AND THE REWRITE WAS FALSE. The notebar sentence
-        // this replaced carried a qualifier — "for anything priced in the quote currency" — and was
-        // printed only on a page that actually held two quotes. The entry that replaced it dropped
-        // both, enumerated "the highest bid, the lowest ask, the largest size, turnover, open
-        // interest or depth" and then said flatly "They rank only rows quoting in the same asset",
-        // which is wrong for three of the columns it names: bid size, ask size and open interest
-        // are WholePair. A reader following it read an acid BEST on open interest as "largest USDT
-        // book" when it means "largest book on the page" — the exact scope error the entry exists
-        // to prevent, committed by the entry.
+        // THE RULE WAS NOT MOVED, IT WAS REWRITTEN, AND THE REWRITE WAS FALSE — twice now, which is
+        // why this test reads the prose against the specs instead of against itself. The first
+        // version said flatly "They rank only rows quoting in the same asset", which was wrong for
+        // the three WholePair columns it named. The entry has since changed again: bid and ask are
+        // not ranked at all, and what is quote-scoped ranks per FAMILY rather than per code.
         Assert.DoesNotContain(
             "They rank only rows quoting in the same asset", reading, StringComparison.Ordinal);
 
-        Assert.Contains(
-            "anything priced in the quote currency ranks only against rows quoting in the same asset",
-            reading, StringComparison.Ordinal);
-        Assert.Contains(
-            "the two sizes and open interest are in base units through the venue's own contract"
-            + " multiplier, which makes them one measurement, so they rank across every row on the"
-            + " page", reading, StringComparison.Ordinal);
+        // The price ranks are gone, and the entry has to say so rather than fall silent — a reader
+        // who remembers the acid chip on the bid needs to be told it left, not left to wonder.
+        Assert.Contains("Bid and ask carry no rank at all", reading, StringComparison.Ordinal);
 
-        // And the sentence is checked against the specs rather than against itself. These are the
-        // two lists the prose above is written from; a column moving between them makes this test
-        // fail beside the sentence that would have started lying.
-        foreach (var perQuote in new[]
+        Assert.Contains(
+            "anything priced in the quote currency ranks only against rows quoting in the same",
+            reading, StringComparison.Ordinal);
+        Assert.Contains("FAMILY", reading, StringComparison.Ordinal);
+        Assert.Contains(
+            "which makes them one measurement, so they rank across every row on the page",
+            reading, StringComparison.Ordinal);
+
+        // Checked against the specs, not against itself: a column moving between these lists makes
+        // this test fail beside the sentence that would have started lying.
+        foreach (var unranked in new[] { PairColumn.Bid, PairColumn.Ask })
         {
-            PairColumn.Bid, PairColumn.Ask, PairColumn.Turnover24h,
-            PairColumn.Depth10, PairColumn.Depth25, PairColumn.Depth50
+            Assert.Equal(VerdictScope.Unranked, Verdicts.Scope(unranked));
+        }
+
+        foreach (var perFamily in new[]
+        {
+            PairColumn.Turnover24h, PairColumn.Depth10, PairColumn.Depth25, PairColumn.Depth50
         })
         {
-            Assert.Equal(VerdictScope.PerQuoteAsset, Verdicts.Scope(perQuote));
+            Assert.Equal(VerdictScope.PerQuoteFamily, Verdicts.Scope(perFamily));
         }
 
         foreach (var wholePair in new[]
@@ -800,8 +813,7 @@ public sealed class VerdictScopeTests
             Assert.Equal(VerdictScope.WholePair, Verdicts.Scope(wholePair));
         }
 
-        // The spread is the fourth WholePair column and it is ranked under the spread column's own
-        // words, so its scope is stated in that entry rather than in this one.
+        // The spread is ranked under the spread column's own words, so its scope is stated there.
         Assert.Contains(
             "A spread in bps carries no currency, so this column compares every row on the page",
             reading, StringComparison.Ordinal);

@@ -54,6 +54,12 @@ public sealed record PairVenueRow(
     string Symbol,
     string BaseAsset,
     string QuoteAsset,
+    /// <summary>The quote's family — USD for USD, USDT and USDC once the registry says so, and the
+    /// quote's own code where it says nothing. Read from the registry rather than matched on the
+    /// name, and used for one thing only: deciding which rows a notional may be ranked against.
+    /// The row still PRINTS <see cref="QuoteAsset"/> everywhere; the family never appears as a
+    /// figure's unit.</summary>
+    string QuoteFamily,
     double ContractMultiplier,
     double PriceStep,
     double QtyStep,

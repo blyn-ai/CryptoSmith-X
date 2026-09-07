@@ -44,10 +44,36 @@ public enum VerdictScope
     PerQuoteAsset,
 
     /// <summary>
+    /// Rows whose quote belongs to the same FAMILY — USD, USDT and USDC are one, by the registry
+    /// and not by string matching.
+    ///
+    /// This is the honest way to rank a notional across a page that now holds every quote at once.
+    /// The assumption it rests on is stated rather than assumed: within a family the currencies move
+    /// inside a few basis points, while the quantity being ranked — how much sits within 25 bps of
+    /// mid — differs between venues by multiples. Ranking those against each other loses fractions
+    /// of a percent and answers the question the reader came with. Ranking them across a family that
+    /// does NOT hold (a coin-margined book quoted in BTC) would lose everything, which is why the
+    /// grouping is a registry someone edits and not a guess about names.
+    ///
+    /// With an empty registry every asset is its own family, so this degrades exactly to
+    /// <see cref="PerQuoteAsset"/> and nothing is claimed that was not claimed before.
+    /// </summary>
+    PerQuoteFamily,
+
+    /// <summary>
     /// Every row on the page. Only quantities with no currency in them qualify: the spread in basis
     /// points, sizes and open interest carried through contract_multiplier into base-asset units.
     /// </summary>
-    WholePair
+    WholePair,
+
+    /// <summary>
+    /// Not ranked, in any scope. Bid and ask live here: venues quote within a few basis points of
+    /// each other and the best bid changes hands every second, so a chip on it marks noise and
+    /// invites the reader to compare the one number on the page that carries the least information.
+    /// Funding is unranked too and always has been, for a different reason — which direction is good
+    /// depends on which side you are on.
+    /// </summary>
+    Unranked
 }
 
 public enum Verdict
@@ -159,23 +185,30 @@ public static class Verdicts
 
     private static readonly Spec[] Specs =
     [
-        // Prices and everything else denominated in the quote asset: same-quote rows only.
-        new(PairColumn.Bid, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Price,
+        // Bid and ask are NOT ranked. Venues quote within a few basis points and the best bid moves
+        // every second, so the chip marked noise — and it drew the eye to the one figure on the page
+        // that answers the least. What the reader came for is where the book is deep and where the
+        // spread is narrow, and both of those are ranked below.
+        new(PairColumn.Bid, VerdictScope.Unranked, HighIsBest: true, Call.Price,
             r => Shown(r.BidPrice, Format.PriceDecimals(r))),
-        new(PairColumn.Ask, VerdictScope.PerQuoteAsset, HighIsBest: false, Call.Price,
+        new(PairColumn.Ask, VerdictScope.Unranked, HighIsBest: false, Call.Price,
             r => Shown(r.AskPrice, Format.PriceDecimals(r))),
-        new(PairColumn.Turnover24h, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Price,
+
+        // A notional in the quote asset, so it ranks inside the quote's family — same argument as
+        // the depth bands below, and it would be incoherent for turnover to rank by a narrower rule
+        // than the depth sitting four columns to its right.
+        new(PairColumn.Turnover24h, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Price,
             r => Shown(r.Turnover24h, 0)),
 
         // Depth bands are notional sums in the quote asset (0001 on depth_bid_10bps), so they carry
-        // the currency with them and rank inside it. Each SIDE is rounded before the sum, because
+        // the currency with them and rank inside its FAMILY. Each SIDE is rounded before the sum, because
         // each side is a printed number: two rows showing the same two figures must sum to the same
         // total, and rounding the sum instead could separate them by one unit the reader cannot see.
-        new(PairColumn.Depth10, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Depth,
+        new(PairColumn.Depth10, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Depth,
             r => ShownDepth(r.DepthBid10, r.DepthAsk10)),
-        new(PairColumn.Depth25, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Depth,
+        new(PairColumn.Depth25, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Depth,
             r => ShownDepth(r.DepthBid25, r.DepthAsk25)),
-        new(PairColumn.Depth50, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Depth,
+        new(PairColumn.Depth50, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Depth,
             r => ShownDepth(r.DepthBid50, r.DepthAsk50)),
 
         // Quote-free, so the whole page competes. Three decimals, which is what the cell prints.
@@ -276,10 +309,23 @@ public static class Verdicts
     /// competes — so a scope changed above changes the grouping the client uses in the same edit.
     /// A hand-written key in the view is the version of this that drifts.
     /// </summary>
-    public static string RankGroup(PairVenueRow row, PairColumn column) =>
-        Scope(column) == VerdictScope.PerQuoteAsset
-            ? column + ":" + row.QuoteAsset
-            : column + ":";
+    public static string? RankGroup(PairVenueRow row, PairColumn column)
+    {
+        var scope = Scope(column);
+        return scope == VerdictScope.Unranked ? null : column + ":" + GroupKey(row, scope);
+    }
+
+    /// <summary>
+    /// The set a row competes in, for one scope. The single place that answers it: the chips and the
+    /// bars both group by this, and two copies of the rule would eventually put a chip and a bar on
+    /// one cell describing two different comparisons.
+    /// </summary>
+    public static string GroupKey(PairVenueRow row, VerdictScope scope) => scope switch
+    {
+        VerdictScope.PerQuoteAsset => row.QuoteAsset,
+        VerdictScope.PerQuoteFamily => row.QuoteFamily,
+        _ => ""
+    };
 
     public static VerdictTable Compute(IReadOnlyList<VenueRowModel> rows)
     {
@@ -294,11 +340,12 @@ public static class Verdicts
 
         foreach (var spec in Specs)
         {
-            var groups = spec.Scope == VerdictScope.PerQuoteAsset
-                ? rows.GroupBy(r => r.Row.QuoteAsset, StringComparer.Ordinal)
-                : rows.GroupBy(_ => "", StringComparer.Ordinal);
+            if (spec.Scope == VerdictScope.Unranked)
+            {
+                continue;
+            }
 
-            foreach (var group in groups)
+            foreach (var group in rows.GroupBy(r => GroupKey(r.Row, spec.Scope), StringComparer.Ordinal))
             {
                 MarkOne(marks, spec, group);
             }
