@@ -119,6 +119,25 @@
         <div class="a-foot-legal">
             @* Verbatim. The content rules give this line word for word and it is not paraphrased. *@
             <span class="csx-eyebrow">Not investment advice · Own funds only</span>
+            @*
+                A LICENCE OBLIGATION, not a courtesy, and it is why the candle panels carry no
+                logo of their own. Lightweight Charts is Apache 2.0 and its NOTICE ships beside
+                the vendored file, which satisfies clause 4(d) on its own. But TradingView's own
+                documentation for `attributionLogo` states the requirement they read into it:
+                the notice in the code AND "a link to https://www.tradingview.com/ to the page of
+                your website ... that is available to your users", with the logo offered as one
+                sufficient way of providing that link.
+
+                So the link is here, once, rather than repeated on every candle panel — five
+                brand marks on a surface whose whole palette discipline exists to keep colour
+                meaning which call wrote a figure. If this line is ever removed, the option in
+                studio-candles.js must go back to true in the same commit: the obligation does
+                not go away, only the place it is met. A test holds this.
+            *@
+            <span class="csx-eyebrow">
+                Candles by <a href="https://www.tradingview.com/" rel="noopener">TradingView</a>
+                Lightweight&nbsp;Charts™
+            </span>
             <span class="csx-eyebrow a-foot-right">blynai.eu · MB „BlynAI“</span>
         </div>
     </footer>

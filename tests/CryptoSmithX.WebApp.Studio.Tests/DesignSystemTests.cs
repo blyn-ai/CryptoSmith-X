@@ -502,10 +502,12 @@ public sealed class DesignSystemTests
     /// cache key and the edit had not touched it. A stale asset behind a fresh deploy is the worst
     /// shape of that failure — the code is right, the page is wrong, and nothing anywhere says so.
     ///
-    /// The test cannot know what the right number is, so it pins the thing it can: the version of
-    /// each script must change whenever that script does. It stores a hash beside the version and
-    /// fails when the two disagree, which turns "remember to bump it" into something the build
-    /// remembers instead of the author.
+    /// What this actually does is smaller than it sounds, and saying so is the point: it pins the
+    /// expected version as a literal here. It does not watch the file's content, so it cannot tell
+    /// you that a script changed and its version did not. What it does give is a second place that
+    /// must be edited — a bump is now two lines in two files, and the second one is a test whose
+    /// failure names the file. That converts a silent omission into a red build, which is the part
+    /// that was missing; it does not convert it into an impossibility.
     /// </summary>
     [Theory]
     [InlineData("studio-ages.js", 3)]
@@ -525,5 +527,39 @@ public sealed class DesignSystemTests
 
         Assert.True(tag.Success, $"{file} is not referenced with a ?v= in Pair.cshtml or _Layout.cshtml");
         Assert.Equal(expected, int.Parse(tag.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// The TradingView attribution is present, one way or the other. This is a LICENCE test, not a
+    /// design test, and it is the only one in this file that guards an obligation to someone else.
+    ///
+    /// Lightweight Charts is Apache 2.0. Shipping LICENSE and NOTICE beside the vendored file meets
+    /// clause 4(d) by itself. TradingView's own documentation for `attributionLogo` states what
+    /// they read the licence to require: the notice in the code AND a link to tradingview.com on
+    /// the page available to users — with the logo offered as one sufficient way of providing it.
+    ///
+    /// So there are exactly two compliant states, and this asserts their disjunction rather than
+    /// either one: the chart draws the logo, or the page carries the link. It fails only in the
+    /// state that is a breach — neither. That shape matters, because the obvious version of this
+    /// test would pin the footer text and then quietly forbid the simpler fix.
+    /// </summary>
+    [Fact]
+    public void The_TradingView_attribution_is_on_the_page_one_way_or_the_other()
+    {
+        var js = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", "studio-candles.js"));
+        var layout = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", "_Layout.cshtml"));
+
+        var logoDrawn = !js.Contains("attributionLogo: false", StringComparison.Ordinal);
+
+        // The link, not merely the word: an unlinked mention is not what the requirement asks for.
+        // Comments are stripped first, or the paragraph explaining the obligation would satisfy it.
+        var markup = System.Text.RegularExpressions.Regex.Replace(layout, @"@\*.*?\*@", string.Empty,
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+        var linkOnPage = markup.Contains("href=\"https://www.tradingview.com/\"", StringComparison.Ordinal);
+
+        Assert.True(logoDrawn || linkOnPage,
+            "Neither the chart's attribution logo nor a tradingview.com link on the page: "
+            + "that is a licence breach. Turn attributionLogo back on in studio-candles.js, "
+            + "or restore the attribution line in the footer of _Layout.cshtml.");
     }
 }

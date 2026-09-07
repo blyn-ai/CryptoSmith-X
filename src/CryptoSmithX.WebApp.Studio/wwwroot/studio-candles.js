@@ -42,6 +42,11 @@
       textColor: v('--text-faint'),
       fontFamily: v('--font-mono'),
       fontSize: 10,
+      // Off HERE because the attribution is met ONCE in the footer — see _Layout.cshtml, where
+      // the link and the reasoning live. This is not "we removed the logo"; it is "the licence
+      // asks for a link on the page, and the page has one". Turning this back on is fine and
+      // costs nothing but five brand marks; removing the footer line without turning this on is
+      // a licence breach, and DesignSystemTests fails the build if that happens.
       attributionLogo: false,
     },
     grid: { vertLines: { color: v('--border-hairline') }, horzLines: { color: v('--border-hairline') } },
