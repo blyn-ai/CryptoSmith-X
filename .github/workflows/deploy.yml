@@ -88,7 +88,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: converge the stack
         run: |
-          install -d -m 755 /opt/cryptosmithx/webapp-admin-keys
+          install -d -m 755 /opt/cryptosmithx/webapp-keys
           cp deploy/docker-compose.vm.yml /opt/cryptosmithx/docker-compose.yml
           cd /opt/cryptosmithx
           docker compose pull --quiet
