@@ -113,6 +113,23 @@ public sealed class FreshnessTests
     }
 
     [Fact]
+    public void A_perfectly_synchronised_segment_does_not_mark_itself_late_between_two_polls()
+    {
+        // Production, every segment: the 95th-percentile pass is 0.0-0.8 s, because one ticker call
+        // returns every instrument at once and they all carry the same instant. That made the
+        // window equal the bare 10 s cadence, and a ten-second call leaves its freshest row ageing
+        // from zero to ten by construction — so the page marked its own healthy data △ while the
+        // reader looked at it. Nine seconds is normal; twenty-one has missed a poll.
+        var tight = new SegmentFreshness("hyperliquid", 10, 60, null,
+            PricePassSeconds: 0, OpenInterestPassSeconds: 0, DepthPassSeconds: 0);
+
+        var price = tight.Windows.PriceSeconds;
+        Assert.False(Freshness.PastWindow(9, price), "one cadence of age is what polling every ten seconds looks like");
+        Assert.False(Freshness.PastWindow(13, price), $"thirteen seconds is not a missed poll, window was {price}");
+        Assert.True(Freshness.PastWindow(21, price), "past two cadences a poll really has been missed");
+    }
+
+    [Fact]
     public void Kraken_at_thirty_nine_seconds_is_not_stale_when_the_segment_measures_that_wide()
     {
         // The incident, on the public page this time. received_at on Kraken is the venue's own
@@ -138,12 +155,19 @@ public sealed class FreshnessTests
     }
 
     [Fact]
-    public void A_segment_with_no_measured_pass_is_judged_by_its_cadence_alone()
+    public void A_segment_with_no_measured_pass_is_judged_by_its_cadence_and_nothing_invented()
     {
-        // Nothing observed yet is not a reason to widen anything.
+        // Nothing observed yet is not a reason to widen anything BEYOND the cadence floor — and the
+        // floor is not a widening, it is the range a poll of that cadence produces on its own. What
+        // this test guards is that an unmeasured segment gets no guessed pass on top: two cadences,
+        // exactly, the same as a segment measured at a pass of zero.
         var fresh = new SegmentFreshness("binance-usdm", 10, 60, null, null, null, null).Windows;
-        Assert.Equal(10, fresh.PriceSeconds);
-        Assert.Equal(60, fresh.DepthSeconds);
+        var measuredAtZero = new SegmentFreshness("binance-usdm", 10, 60, null, 0, 0, 0).Windows;
+
+        Assert.Equal(20, fresh.PriceSeconds);
+        Assert.Equal(120, fresh.DepthSeconds);
+        Assert.Equal(measuredAtZero.PriceSeconds, fresh.PriceSeconds);
+        Assert.Equal(measuredAtZero.DepthSeconds, fresh.DepthSeconds);
     }
 
     [Fact]
@@ -151,11 +175,14 @@ public sealed class FreshnessTests
     {
         // 0014 disables the open_interest dataset everywhere with the note that it is carried inline
         // in the snapshot ticker. When a venue does run it separately, its own cadence takes over.
+        // Asserted against the snapshot window rather than a literal: what this test is about is
+        // WHICH clock open interest borrows, not what that clock's arithmetic currently comes to.
         var inline = new SegmentFreshness("weex-futures", 10, 60, null, 0, 0, 0).Windows;
-        Assert.Equal(10, inline.OpenInterestSeconds);
+        Assert.Equal(inline.PriceSeconds, inline.OpenInterestSeconds);
 
         var separate = new SegmentFreshness("binance-usdm", 10, 60, 60, 0, 0, 0).Windows;
-        Assert.Equal(60, separate.OpenInterestSeconds);
+        Assert.NotEqual(separate.PriceSeconds, separate.OpenInterestSeconds);
+        Assert.Equal(separate.DepthSeconds, separate.OpenInterestSeconds);
     }
 
     [Fact]

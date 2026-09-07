@@ -249,7 +249,20 @@ public sealed record SegmentFreshness(
             return null;
         }
 
+        // The floor is one whole cadence, and it is not slack. A call that runs every ten seconds
+        // leaves its freshest row ageing from zero to ten before the next one lands: that range IS
+        // healthy operation, not lateness. A window of exactly one cadence is therefore crossed by
+        // a collector doing precisely what it was configured to do, roughly half the time — and on
+        // a page whose ages count forward from the render, it is crossed by the reader simply
+        // looking at it for three seconds. Measured on production: every segment reports a
+        // 95th-percentile pass of 0.0-0.8 s, so every ticker window was 10-10.8 s and the whole
+        // page filled with △ while it sat open.
+        //
+        // Only past TWO cadences has a poll actually been missed, and that is the first moment the
+        // page is entitled to say so. This is the same mistake as the flat 30 s that made Kraken
+        // read degraded at 39 s, mirrored: that one judged a WIDE pass against a literal, this one
+        // judged a TIGHT one against no headroom at all.
         var pass = Math.Max(passSeconds ?? 0, 0);
-        return cadence + Math.Min(pass, cadence * PassCapWindows);
+        return cadence + Math.Min(Math.Max(pass, cadence), cadence * PassCapWindows);
     }
 }
