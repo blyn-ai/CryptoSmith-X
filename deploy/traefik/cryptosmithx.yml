@@ -96,6 +96,18 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # The front door. Path(`/`) is the ROOT AND NOTHING ELSE — PathPrefix(`/`) would match every
+    # address on the host and swallow the admin console whole. Studio, not the admin application:
+    # a visitor arriving at the bare name should land on the product, and /admin is where the
+    # console lives.
+    csx-prod-root:
+      rule: Host(`cryptosmithx.blynai.eu`) && Path(`/`)
+      priority: 100
+      entryPoints: [websecure]
+      service: csx-prod-studio
+      tls:
+        certResolver: letsencrypt
+
     csx-prod-admin:
       rule: Host(`cryptosmithx.blynai.eu`)
       priority: 10
@@ -117,6 +129,14 @@ http:
     # ── тест, локально ────────────────────────────────────────────────────────────
     csx-test-studio:
       rule: Host(`cryptosmithx-test.blynai.eu`) && PathPrefix(`/studio`)
+      priority: 100
+      entryPoints: [websecure]
+      service: csx-test-studio
+      tls:
+        certResolver: letsencrypt
+
+    csx-test-root:
+      rule: Host(`cryptosmithx-test.blynai.eu`) && Path(`/`)
       priority: 100
       entryPoints: [websecure]
       service: csx-test-studio

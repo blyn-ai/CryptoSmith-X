@@ -125,6 +125,25 @@ await Migrator.VerifyAsync(app.Services.GetRequiredService<Db>(), CancellationTo
 //
 // Before UseForwardedHeaders and everything else: routing, static files and link generation all
 // read PathBase, so anything registered above this line would see the unstripped path.
+// The site's front door is Studio, not the admin console, so traefik sends a bare "/" here. It
+// arrives with no prefix at all, and that is the problem this line solves: UsePathBase below only
+// strips "/studio", so a root request would reach routing with PathBase EMPTY — the page would
+// render and then every link on it would come out as "/BTC" instead of "/studio/BTC", which traefik
+// hands to the admin application. A page that renders and links nowhere is worse than one that does
+// not render.
+//
+// Rewritten BEFORE UsePathBase, so the request becomes indistinguishable from any other and PathBase
+// ends up "/studio" exactly as it does everywhere else. One place still strips the prefix.
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Request.Path == "/")
+    {
+        ctx.Request.Path = "/studio";
+    }
+
+    await next();
+});
+
 app.UsePathBase("/studio");
 
 app.UseForwardedHeaders();
