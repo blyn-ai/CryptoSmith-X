@@ -467,4 +467,30 @@ public sealed class DesignSystemTests
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", tree, file));
 
     private static string StripComments(string css) => Regex.Replace(css, @"/\*.*?\*/", " ", RegexOptions.Singleline);
+
+    /// <summary>
+    /// The one exception to rule 5, pinned at both ends: candle bodies ARE filled, and nothing
+    /// else on the surface borrows that.
+    ///
+    /// It is pinned because it is an exception, and an exception with no boundary becomes a rule
+    /// by drift. The readme states it, RULE-CHANGES entry 10 argues it, and this is what stops
+    /// the next person from reading "direction may be a fill" and applying it to a bar, a chip or
+    /// a sparkline — none of which are shapes with their own vocabulary, and all of which sit in
+    /// a column beside an age.
+    /// </summary>
+    [Fact]
+    public void Candle_bodies_are_filled_and_that_exception_stays_inside_the_candles()
+    {
+        var js = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", "studio-candles.js"));
+
+        Assert.Contains("upColor: v('--candle-up')", js, StringComparison.Ordinal);
+        Assert.Contains("downColor: v('--candle-down')", js, StringComparison.Ordinal);
+        Assert.DoesNotContain("upColor: 'rgba(0,0,0,0)'", js, StringComparison.Ordinal);
+
+        // The candle inks belong to the candles. If either turns up in the stylesheet, something
+        // outside a chart has started saying direction with a fill.
+        var css = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", "studio.css"));
+        Assert.DoesNotContain("--candle-up", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("--candle-down", css, StringComparison.Ordinal);
+    }
 }

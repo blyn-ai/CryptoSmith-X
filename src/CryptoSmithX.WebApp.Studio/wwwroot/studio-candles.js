@@ -58,9 +58,16 @@
   });
 
   const candleOptions = () => ({
-    // Transparent up body, coloured border and wick: the shape says the direction, the colour says
-    // only which of the two candle inks it is.
-    upColor: 'rgba(0,0,0,0)',
+    // BOTH BODIES ARE FILLED. This is the one place on the surface where a body is painted
+    // solid to say direction, and it is an exception taken deliberately rather than a rule
+    // being satisfied — see readme rule 5 and RULE-CHANGES entry 10.
+    //
+    // The hollow-above-open form it replaces was correct about the principle and wrong about
+    // the object. A candle is not a figure in a column: it has no age line, no mark slot, no
+    // neighbour to be ranked against. Its two inks are a shape's own vocabulary, read the way
+    // every candle chart in the world is read, and asking the reader to decode a house
+    // convention there buys nothing the palette needed protecting from.
+    upColor: v('--candle-up'),
     downColor: v('--candle-down'),
     borderUpColor: v('--candle-up'),
     borderDownColor: v('--candle-down'),

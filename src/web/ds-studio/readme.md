@@ -49,6 +49,13 @@ casino.
 5. **Green and bronze are not money colours here.** This surface states no P&L, so nothing
    on it means profit or loss. Green means the open-interest call. That is the whole meaning.
 
+   **One exception, and it is candles.** A candle body is filled — up in `--candle-up`, down
+   in `--candle-down` — and there the two inks do say direction. The exception is narrow on
+   purpose: a candle is a shape with its own vocabulary, read the same way on every chart
+   anyone has ever seen, and it carries no age line, no mark slot and no rank. A figure in a
+   column has all three, so the rule holds there unchanged. Nothing else on the surface may
+   borrow this.
+
 6. **Acid green is a fill and it stays rare.** Three places on a whole page: the rule above
    the header, the BEST chip's wash, the brand mark. At 1.6:1 on apricot it can never be
    text, and a page that is acid everywhere has no loud note left.
