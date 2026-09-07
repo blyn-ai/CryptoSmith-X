@@ -207,8 +207,8 @@ d -iname '*agent*'` → nothing in both). The only artefact is a UI mock,
 (`select count(*) from bot` → 0; `bot_event` 0; `bot_policy` 0).
 
 **A19 — Studio.** Exists and is deployed, contrary to the brief's expectation. 202 files,
-**4,771 lines of C#** under `src/CryptoSmithX.Studio/`; container `cryptosmithx-studio` is
-`Up`, image `ghcr.io/blyn-ai/cryptosmithx-studio:latest` created 2026-09-06T18:43:35Z; the
+**4,771 lines of C#** under `src/CryptoSmithX.WebApp.Studio/`; container `cryptosmithx-webapp-studio` is
+`Up`, image `ghcr.io/blyn-ai/cryptosmithx-webapp-studio:latest` created 2026-09-06T18:43:35Z; the
 traefik router was committed as `64901c3`. It owns no tables — it reads the market-data
 schema. The public-site design document `plans/studio-public-site.md` (started 2026-09-06)
 opens with "Ничего не реализовано", which describes the redesign, not the running service.

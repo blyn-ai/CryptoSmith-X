@@ -102,7 +102,7 @@ services:
   # Compose ordering already gates the start on the migrator, and the app refuses to serve on a
   # schema that is behind.
   studio:
-    container_name: cryptosmithx-studio
+    container_name: cryptosmithx-webapp-studio
     build:
       context: ..
       dockerfile: deploy/Dockerfile

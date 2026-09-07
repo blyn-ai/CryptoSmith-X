@@ -9,19 +9,19 @@ COPY src/CryptoSmithX.MarketData.Connectors/CryptoSmithX.MarketData.Connectors.c
 COPY src/CryptoSmithX.MarketData.Hub/CryptoSmithX.MarketData.Hub.csproj         src/CryptoSmithX.MarketData.Hub/
 COPY src/CryptoSmithX.MarketData.Api/CryptoSmithX.MarketData.Api.csproj         src/CryptoSmithX.MarketData.Api/
 COPY src/CryptoSmithX.WebApp.Admin/CryptoSmithX.WebApp.Admin.csproj                         src/CryptoSmithX.WebApp.Admin/
-COPY src/CryptoSmithX.Studio/CryptoSmithX.Studio.csproj                           src/CryptoSmithX.Studio/
+COPY src/CryptoSmithX.WebApp.Studio/CryptoSmithX.WebApp.Studio.csproj                           src/CryptoSmithX.WebApp.Studio/
 RUN dotnet restore src/CryptoSmithX.Database/CryptoSmithX.Database.csproj \
  && dotnet restore src/CryptoSmithX.MarketData.Hub/CryptoSmithX.MarketData.Hub.csproj \
  && dotnet restore src/CryptoSmithX.MarketData.Api/CryptoSmithX.MarketData.Api.csproj \
  && dotnet restore src/CryptoSmithX.WebApp.Admin/CryptoSmithX.WebApp.Admin.csproj \
- && dotnet restore src/CryptoSmithX.Studio/CryptoSmithX.Studio.csproj
+ && dotnet restore src/CryptoSmithX.WebApp.Studio/CryptoSmithX.WebApp.Studio.csproj
 
 COPY src/ src/
 RUN dotnet publish src/CryptoSmithX.Database/CryptoSmithX.Database.csproj         -c Release -o /app/migrator --no-restore \
  && dotnet publish src/CryptoSmithX.MarketData.Hub/CryptoSmithX.MarketData.Hub.csproj -c Release -o /app/hub --no-restore \
  && dotnet publish src/CryptoSmithX.MarketData.Api/CryptoSmithX.MarketData.Api.csproj -c Release -o /app/api --no-restore \
  && dotnet publish src/CryptoSmithX.WebApp.Admin/CryptoSmithX.WebApp.Admin.csproj             -c Release -o /app/webapp-admin --no-restore \
- && dotnet publish src/CryptoSmithX.Studio/CryptoSmithX.Studio.csproj               -c Release -o /app/studio --no-restore
+ && dotnet publish src/CryptoSmithX.WebApp.Studio/CryptoSmithX.WebApp.Studio.csproj               -c Release -o /app/studio --no-restore
 
 # The migrator applies the schema and exits — the runtime image is enough, no ASP.NET.
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS migrator
@@ -61,9 +61,9 @@ ENTRYPOINT ["dotnet", "CryptoSmithX.WebApp.Admin.dll"]
 # radii. It takes no SOURCE_COMMIT: the webapp-admin bakes the commit in to print a version
 # badge for the people who operate it, and Studio has no such badge — a build argument
 # whose value nothing reads is a thing that drifts unnoticed.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS studio
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS webapp-studio
 WORKDIR /app
 COPY --from=build /app/studio ./
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
-ENTRYPOINT ["dotnet", "CryptoSmithX.Studio.dll"]
+ENTRYPOINT ["dotnet", "CryptoSmithX.WebApp.Studio.dll"]

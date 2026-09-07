@@ -280,7 +280,7 @@ const marks = await fetch('/marks/index.json').then(r => r.json());
 **Отдавать файлы наружу.** `marks/` лежит в корне репозитория, а не внутри веб-проекта, —
 это общий ресурс, а не деталь одной страницы. Приложению Studio нужно подмонтировать его
 статикой по пути `/marks` (`UseStaticFiles` с `PhysicalFileProvider`, либо копирование при
-сборке). Этой правки здесь нет: она внутри `src/CryptoSmithX.Studio/`.
+сборке). Этой правки здесь нет: она внутри `src/CryptoSmithX.WebApp.Studio/`.
 
 ---
 

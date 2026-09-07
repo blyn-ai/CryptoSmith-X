@@ -74,8 +74,8 @@ services:
   # Studio — the public showcase at /studio, in its own container for the same reason it is
   # one everywhere else: the anonymous internet and the admin console fail differently.
   studio:
-    container_name: cryptosmithx-studio
-    image: ghcr.io/blyn-ai/cryptosmithx-studio:latest
+    container_name: cryptosmithx-webapp-studio
+    image: ghcr.io/blyn-ai/cryptosmithx-webapp-studio:latest
     depends_on:
       database-migrator:
         condition: service_completed_successfully

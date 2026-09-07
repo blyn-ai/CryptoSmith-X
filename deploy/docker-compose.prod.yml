@@ -76,8 +76,8 @@ services:
   # the webapp-admin: the anonymous internet and the admin console have different availability
   # needs and different blast radii when one of them has a bad afternoon.
   studio:
-    container_name: cryptosmithx-studio
-    image: ghcr.io/blyn-ai/cryptosmithx-studio:latest
+    container_name: cryptosmithx-webapp-studio
+    image: ghcr.io/blyn-ai/cryptosmithx-webapp-studio:latest
     depends_on:
       database-migrator:
         condition: service_completed_successfully

@@ -96,7 +96,7 @@ BOOK IS NINETY SECONDS OLD.»** Главный факт страницы — н�
 | адрес Studio | `cryptosmithx.blynai.eu/studio` |
 | адрес админки | `cryptosmithx.blynai.eu/admin` — **уже так**, менять нечего |
 | логин | остаётся на корне, ведёт на `/admin` — **уже так** |
-| архитектура | `CryptoSmithX.Studio`, отдельный проект и контейнер, **напрямую в базу** |
+| архитектура | `CryptoSmithX.WebApp.Studio`, отдельный проект и контейнер, **напрямую в базу** |
 | переименование `WebApp.Admin` | отложено; `WebApp.Admin` без уточнения = админка |
 | судьба моков | переехали под `/feature-demo/<имя>`, ничего не потеряно |
 
@@ -152,11 +152,11 @@ Studio — **публичный** сайт, и это другой класс р
 `/exchanges`, `/instruments`, `/snapshot`, `/candles`. Это контракт для машин.
 
 Варианты:
-- **A.** `CryptoSmithX.Studio` (сайт) + новые эндпоинты в существующем
+- **A.** `CryptoSmithX.WebApp.Studio` (сайт) + новые эндпоинты в существующем
   `MarketData.Api`. Меньше движущихся частей.
-- **B.** `CryptoSmithX.Studio.Web` + `CryptoSmithX.Studio.Api` — свой read-model
+- **B.** `CryptoSmithX.WebApp.Studio.Web` + `CryptoSmithX.WebApp.Studio.Api` — свой read-model
   под форму страницы, публичный контракт `/v1` не мутнеет.
-- **C.** Один `CryptoSmithX.Studio`, рендерит на сервере и ходит в базу напрямую
+- **C.** Один `CryptoSmithX.WebApp.Studio`, рендерит на сервере и ходит в базу напрямую
   через реплику только на чтение.
 
 Напряжение простое: `/v1` — контракт для машин, его форма не должна ползти под

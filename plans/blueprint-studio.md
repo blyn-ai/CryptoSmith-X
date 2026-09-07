@@ -32,7 +32,7 @@
 
 ## 2. Проект и деплой
 
-- `src/CryptoSmithX.Studio` — новый проект, csproj копией `CryptoSmithX.WebApp.Admin.csproj`
+- `src/CryptoSmithX.WebApp.Studio` — новый проект, csproj копией `CryptoSmithX.WebApp.Admin.csproj`
   (`Directory.Build.props` сам даёт net10.0 / Nullable / TreatWarningsAsErrors).
 - Отдельный контейнер, отдельный сервис в compose, traefik по префиксу пути.
 - `UsePathBase("/studio")` в приложении и **без** `StripPrefix` в traefik: два
@@ -210,7 +210,7 @@ degraded» под работающим ровно так, как мы его н�
 1. Миграция 0024: семейство + индекс `exchange_instrument_pair`. Отдельно, первой,
    потому что от неё зависят и Studio, и админка.
 2. Правка членства семейства в админке — рядом с `asset_alias`.
-3. Проект `CryptoSmithX.Studio`: csproj, Program.cs, `studio_reader`, compose,
+3. Проект `CryptoSmithX.WebApp.Studio`: csproj, Program.cs, `studio_reader`, compose,
    traefik, удаление редиректа `/studio` из WebApp.Admin.
 4. Слой данных: пять запросов, окна свежести из каскада, кэш.
 5. Razor и CSS по csx-studio: список пар, страница пары, свечи.
