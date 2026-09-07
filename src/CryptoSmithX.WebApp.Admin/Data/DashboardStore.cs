@@ -184,9 +184,19 @@ public static class DashboardStore
                (select count(*)::int from exchange_instrument i where i.segment_code = e.code and i.status = 'trading') as "TradingInstruments",
                (select count(*)::int from exchange_instrument i where i.segment_code = e.code) as "KnownInstruments",
                (select count(*)::int from exchange_instrument i where i.segment_code = e.code and i.collect) as "CollectedInstruments",
+               -- i.collect, not i.status: this asks how stale the data WE are responsible for is,
+               -- and since 0029 those are different sets. status is the venue's statement about its
+               -- own listings; collect is the operator's decision about which of them we fetch.
+               -- Measured on test the moment the gate was applied: hyperliquid's freshest-to-oldest
+               -- span over the venue's 177 trading instruments was 9.0 h and over our 25 it was
+               -- 11 s, so the console called a venue eleven seconds behind "degraded" on the age of
+               -- rows it had been told to stop refreshing. Kraken showed the same error inverted --
+               -- 0.0 h and therefore OK, while five instruments we DO collect had been frozen for
+               -- 4.4 days, because the venue no longer lists them as trading and the filter hid
+               -- exactly the rows worth alarming about.
                (select extract(epoch from now() - min(l.received_at))::double precision
                   from market_snapshot_latest l join exchange_instrument i on i.id = l.exchange_instrument_id
-                 where i.segment_code = e.code and i.status = 'trading') as "WorstAgeSeconds",
+                 where i.segment_code = e.code and i.collect) as "WorstAgeSeconds",
                (select coalesce(sd.interval_s, d.default_interval_s)
                   from segment_dataset sd join dataset d on d.code = sd.dataset_code
                  where sd.segment_code = e.code and sd.dataset_code = 'snapshot') as "PollSeconds"

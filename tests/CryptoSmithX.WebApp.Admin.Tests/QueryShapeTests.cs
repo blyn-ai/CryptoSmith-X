@@ -69,6 +69,35 @@ public sealed class QueryShapeTests
             + $"  query : {string.Join(", ", aliases)}");
     }
 
+    /// <summary>
+    /// Health answers "how stale is the data WE are responsible for". Since 0029 that is not the
+    /// same set as the venue's own listings, and scoping it by <c>status = 'trading'</c> was wrong
+    /// in both directions at once: hyperliquid read degraded at a measured 9.0 h while the
+    /// instruments we actually collect were 11 s behind, and kraken read OK at 0.0 h while five
+    /// instruments we DO collect had been frozen 4.4 days, hidden because the venue had stopped
+    /// calling them trading.
+    ///
+    /// Asserted on the SQL rather than through a database because that is where the decision lives.
+    /// The counts beside it are still allowed to speak for the venue — the column is labelled as the
+    /// venue's — so this names the one subquery instead of banning the phrase from the file.
+    /// </summary>
+    [Fact]
+    public void The_worst_age_behind_the_health_rule_is_scoped_to_what_we_collect()
+    {
+        var sql = (string)SqlFields().Single(f => f.Name == "ExSql").GetRawConstantValue()!;
+        var lines = sql.Split('\n');
+
+        var subquery = lines
+            .Select((text, index) => (text, index))
+            .First(l => l.text.Contains("\"WorstAgeSeconds\"", StringComparison.Ordinal));
+
+        // The subquery spans the three lines ending at the alias.
+        var body = string.Join(" ", lines[(subquery.index - 2)..(subquery.index + 1)]);
+
+        Assert.Contains("i.collect", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("i.status", body, StringComparison.Ordinal);
+    }
+
     private static IEnumerable<FieldInfo> SqlFields() =>
         typeof(DashboardStore).Assembly.GetTypes()
             .Where(t => t.Namespace == "CryptoSmithX.WebApp.Admin.Data")

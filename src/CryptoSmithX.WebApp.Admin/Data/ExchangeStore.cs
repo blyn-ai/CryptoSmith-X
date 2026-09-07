@@ -94,7 +94,10 @@ public static class ExchangeStore
             new { code },
             cancellationToken: ct))).ToList();
 
-        // Stalest trading instruments — the oldest snapshots, which is where a failing feed shows.
+        // The stalest of OUR instruments — the oldest snapshots, which is where a failing feed shows.
+        // Filtered by collect rather than by the venue's status for the same reason as the health
+        // rule above it: a listing we switched off is not stale, it is off, and a listing we collect
+        // is worth alarming about whether or not the venue still calls it trading.
         var stalest = (await conn.QueryAsync<StaleInstrument>(new CommandDefinition(
             """
             select i.id as "Id",
@@ -102,7 +105,7 @@ public static class ExchangeStore
                    extract(epoch from now() - l.received_at)::double precision as "AgeSeconds"
               from exchange_instrument i
               join market_snapshot_latest l on l.exchange_instrument_id = i.id
-             where i.segment_code = @code and i.status = 'trading'
+             where i.segment_code = @code and i.collect
              order by l.received_at asc limit 6
             """,
             new { code },
