@@ -16,6 +16,8 @@
        the csproj rather than located by walking up from the working directory, so the assertion
        fails on the page changing and never on where the tests were run from. -->
   <ItemGroup>
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Admin\Program.cs"
+             Link="surface\Program.cs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Admin\Views\Home\Index.cshtml"
              Link="surface\Landing.cshtml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

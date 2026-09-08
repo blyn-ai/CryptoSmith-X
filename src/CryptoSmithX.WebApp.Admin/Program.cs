@@ -50,9 +50,15 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveNotifier>());
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(o =>
     {
-        o.LoginPath = "/";
+        // NOT "/". The public root belongs to Studio's storefront now — traefik sends it there —
+        // so a login redirect to "/" landed the reader on a marketing page with no form on it and
+        // no way back in. The console was locked out on both domains and answered 200 the whole
+        // time, which is why nothing noticed.
+        //
+        // Under /admin, because that prefix already reaches this application and nothing else does.
+        o.LoginPath = "/admin/login";
         o.LogoutPath = "/auth/logout";
-        o.AccessDeniedPath = "/";
+        o.AccessDeniedPath = "/admin/login";
         o.ExpireTimeSpan = TimeSpan.FromDays(7);
         o.SlidingExpiration = true;
     });
@@ -162,6 +168,12 @@ app.MapGet("/not-found", async (HttpContext ctx, IWebHostEnvironment env) =>
     ctx.Response.Headers["X-Robots-Tag"] = "noindex";
     await ctx.Response.SendFileAsync(Path.Combine(env.WebRootPath, "ui-mocks", "404.html"));
 });
+
+// ABOVE the area route, and it has to be: "admin" is an area name, so {area:exists} would read
+// /admin/login as area=admin, controller=login and answer 404 for the one page a locked-out
+// operator needs. The sign-in form lives on this application's own root view, which is no longer
+// publicly routed; this is the address that reaches it.
+app.MapControllerRoute("admin-login", "admin/login", new { controller = "Home", action = "Index" });
 
 app.MapControllerRoute("areas", "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");

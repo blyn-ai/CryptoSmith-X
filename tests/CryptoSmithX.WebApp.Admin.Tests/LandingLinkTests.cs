@@ -30,6 +30,27 @@ public sealed class LandingLinkTests
     ];
 
     [Fact]
+    public void The_sign_in_page_is_reachable_from_outside()
+    {
+        // LoginPath used to be "/", which stopped working the moment traefik gave the public root to
+        // Studio's storefront: /admin redirected to /?ReturnUrl=/admin, the reader got a marketing
+        // page with no form on it, and the console was locked out on both domains — answering 200
+        // the entire time, which is why nothing caught it.
+        //
+        // The path must sit under /admin, because that is the only prefix that still reaches this
+        // application, and its route must be registered above the area route, because "admin" is an
+        // area name and {area:exists} would read /admin/login as a controller called "login".
+        var program = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", "Program.cs"));
+
+        Assert.DoesNotContain("o.LoginPath = \"/\";", program, StringComparison.Ordinal);
+        Assert.Contains("o.LoginPath = \"/admin/login\";", program, StringComparison.Ordinal);
+        Assert.True(
+            program.IndexOf("\"admin-login\"", StringComparison.Ordinal)
+                < program.IndexOf("\"areas\"", StringComparison.Ordinal),
+            "the login route must be registered above the area route");
+    }
+
+    [Fact]
     public void The_landing_page_links_to_no_surface_that_was_renamed_away()
     {
         var page = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", "Landing.cshtml"));
