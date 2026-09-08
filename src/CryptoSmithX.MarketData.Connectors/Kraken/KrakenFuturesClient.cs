@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using CryptoSmithX.MarketData.Connectors.Pacing;
 
 namespace CryptoSmithX.MarketData.Connectors.Kraken;
 
@@ -37,7 +38,7 @@ public sealed class KrakenFuturesClient
     internal async Task<IReadOnlyList<KrakenInstrument>> GetInstrumentsAsync(CancellationToken ct)
     {
         using var response = await _http.GetAsync($"{_baseUrl}/derivatives/api/v3/instruments", ct);
-        response.EnsureSuccessStatusCode();
+        response.EnsureVenueSuccess();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
@@ -73,8 +74,23 @@ public sealed class KrakenFuturesClient
     private async Task<T> GetAsync<T>(string url, CancellationToken ct)
     {
         using var response = await _http.GetAsync(url, ct);
-        response.EnsureSuccessStatusCode();
-        var value = await response.Content.ReadFromJsonAsync<T>(Json, ct);
+        response.EnsureVenueSuccess();
+
+        // Read the body once, as text, because on this venue the status line is not the whole answer.
+        // Kraken Futures publishes NO limit for public endpoints — the rate-limit guide says only
+        // that public calls have no cost, which is not the same as no ceiling — but both endpoints
+        // we call list `apiLimitExceeded` among their errors, and it arrives as an error IN THE BODY
+        // of an HTTP 200. Keyed off the status alone, as this method was, a throttled Kraken looked
+        // like a symbol with no data: the venue gate was never penalised, the collector never
+        // failed, and the pass silently returned nothing. This is the only venue of the four that
+        // needs the check, and it is cheap — the token appears nowhere else in these payloads.
+        var body = await response.Content.ReadAsStringAsync(ct);
+        if (body.Contains("apiLimitExceeded", StringComparison.Ordinal))
+        {
+            throw new VenueRateLimitedException($"Kraken answered apiLimitExceeded for {url}", null);
+        }
+
+        var value = JsonSerializer.Deserialize<T>(body, Json);
         return value ?? throw new InvalidOperationException($"Kraken returned an empty body for {url}");
     }
 }

@@ -26,12 +26,6 @@ public sealed class HyperliquidBookFeed : IHyperliquidLiveFeed
     // migration header, which is where that disagreement is recorded and acted on.
     private static readonly TimeSpan SymbolRefreshInterval = TimeSpan.FromMinutes(10);
 
-    /// <summary>How often a pass may START. Much shorter than the open-interest feeds' minute: this
-    /// one carries the live book — bid, ask and depth — for a venue with no batched form of it, so
-    /// its consumer wants the newest sample, not merely one inside <see cref="MaxAge"/>. Ten seconds
-    /// over 25 coins is a small share of the budget and still roughly ten times fresher than the old
-    /// 800 ms trickle managed across the venue's whole universe.</summary>
-    private static readonly TimeSpan PassInterval = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(5);
 
     private readonly HyperliquidClient _client;
@@ -86,7 +80,7 @@ public sealed class HyperliquidBookFeed : IHyperliquidLiveFeed
     }
 
     private Task RunAsync(CancellationToken ct) => SymbolCycle.RunAsync(
-        "Hyperliquid.Book", _symbolsAsync, SymbolRefreshInterval, PassInterval, _gate,
+        "Hyperliquid.Book", _symbolsAsync, SymbolRefreshInterval, _gate,
         async (symbol, workCt) =>
         {
             HlL2Book book;

@@ -1,4 +1,3 @@
-using System.Net;
 using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Connectors.Market;
 using CryptoSmithX.MarketData.Connectors.Pacing;
@@ -63,68 +62,81 @@ public sealed class FundingCollector
             new { code = _adapter.SegmentCode },
             cancellationToken: ct))).ToList();
 
-        var written = 0;
-
-        // One venue symbol whose endpoint is broken (WEEX serves 400 for a live market's
-        // candles) must not starve every symbol after it. Per-symbol isolation: remember the
-        // failure, keep walking; only an all-symbols failure fails the pass — that is an
-        // outage, not a pothole.
-        var failed = 0;
-        Exception? lastError = null;
-        foreach (var (id, symbol, latest) in targets)
+        if (targets.Count == 0)
         {
-            ct.ThrowIfCancellationRequested();
-            try
-            {
-
-            // From the newest stored payment (nothing before it can be missing), bounded so a first
-            // run cannot ask a venue for years of history.
-            var from = latest ?? floor;
-            if (from < floor)
-            {
-                from = floor;
-            }
-
-            IReadOnlyList<FundingRate> rates;
-            using (await _gate.AcquireAsync(ct).ConfigureAwait(false))
-            {
-                rates = await _adapter.GetFundingHistoryAsync(symbol, from, now, ct);
-            }
-
-            foreach (var rate in rates)
-            {
-                written += await conn.ExecuteAsync(new CommandDefinition(
-                    """
-                    insert into funding_rate_history (exchange_instrument_id, funding_time, rate)
-                    values (@Id, @FundingTime, @Rate)
-                    on conflict (exchange_instrument_id, funding_time) do nothing
-                    """,
-                    new { Id = id, rate.FundingTime, rate.Rate },
-                    cancellationToken: ct));
-            }
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                // A venue that pushed us away holds back every caller on this IP, not just this
-                // collector: that is what the venue-wide gate is for. Per-symbol isolation stays —
-                // one broken symbol still does not starve the rest — but a 429 now paces everyone.
-                if (ex is HttpRequestException { StatusCode: HttpStatusCode.TooManyRequests })
-                {
-                    _gate.Penalize();
-                }
-
-                failed++;
-                lastError = ex;
-            }
+            return 0;
         }
 
-        if (failed > 0 && written == 0 && lastError is not null)
+        // One connection for the pass, as in DepthCollector: the writes are milliseconds against a
+        // network call of hundreds, so a single write lane behind the fetches costs nothing and keeps
+        // this loop's footprint on the pool at exactly one connection. Opening a connection per
+        // worker would trade a venue-bound pass for a pool-bound one.
+        using var writeLane = new SemaphoreSlim(1, 1);
+
+        // One venue symbol whose endpoint is broken (WEEX serves 400 for a live market's candles)
+        // must not starve every symbol after it. Per-symbol isolation, unchanged by the move to a
+        // parallel walk: remember the failure, keep going; only an all-symbols failure fails the
+        // pass — that is an outage, not a pothole.
+        var result = await Sweep.RunAsync(
+            targets,
+            _gate.MaxConcurrentRequests,
+            async (target, workCt) =>
+            {
+                var (id, symbol, latest) = target;
+
+                // From the newest stored payment (nothing before it can be missing), bounded so a
+                // first run cannot ask a venue for years of history.
+                var from = latest ?? floor;
+                if (from < floor)
+                {
+                    from = floor;
+                }
+
+                IReadOnlyList<FundingRate> rates;
+                using (await _gate.AcquireAsync(workCt).ConfigureAwait(false))
+                {
+                    rates = await _adapter.GetFundingHistoryAsync(symbol, from, now, workCt);
+                }
+
+                if (rates.Count == 0)
+                {
+                    return 0;
+                }
+
+                await writeLane.WaitAsync(workCt).ConfigureAwait(false);
+                try
+                {
+                    var stored = 0;
+                    foreach (var rate in rates)
+                    {
+                        stored += await conn.ExecuteAsync(new CommandDefinition(
+                            """
+                            insert into funding_rate_history (exchange_instrument_id, funding_time, rate)
+                            values (@Id, @FundingTime, @Rate)
+                            on conflict (exchange_instrument_id, funding_time) do nothing
+                            """,
+                            new { Id = id, rate.FundingTime, rate.Rate },
+                            cancellationToken: workCt));
+                    }
+
+                    return stored;
+                }
+                finally
+                {
+                    writeLane.Release();
+                }
+            },
+            // A venue that pushed us away holds back every caller on this IP, not just this
+            // collector: that is what the venue-wide gate is for.
+            ex => VenuePenalty.Apply(_gate, ex),
+            SweepFailure.Isolate,
+            ct).ConfigureAwait(false);
+
+        var written = result.Written;
+
+        if (result.Failed > 0 && written == 0 && result.LastError is not null)
         {
-            throw new InvalidOperationException($"every symbol failed; last: {lastError.Message}", lastError);
+            throw new InvalidOperationException($"every symbol failed; last: {result.LastError.Message}", result.LastError);
         }
 
         return written;

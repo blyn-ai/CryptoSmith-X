@@ -397,14 +397,14 @@ public sealed class ExchangeWorker : BackgroundService
         await conn.ExecuteAsync(new CommandDefinition(
             """
             insert into collector_run (
-                segment_code, collector, started_at, duration_ms, ok, error, items, transport)
+                segment_code, collector, started_at, duration_ms, ok, error, items, transport, http_status)
             values (@SegmentCode, @Collector, @AttemptAt, @DurationMs, @Success, @Error,
-                    @InstrumentsExpected, @Transport)
+                    @InstrumentsExpected, @Transport, @HttpStatus)
             """,
             new
             {
                 a.SegmentCode, a.Collector, a.AttemptAt, a.DurationMs, a.Success, a.Error,
-                a.InstrumentsExpected, a.Transport,
+                a.InstrumentsExpected, a.Transport, a.HttpStatus,
             },
             cancellationToken: ct));
 
@@ -528,6 +528,31 @@ public sealed class ExchangeWorker : BackgroundService
             new { segmentCode, datasetCode, key, old, newValue }, cancellationToken: ct));
     }
 
+    /// <summary>
+    /// What a connector's background feed should sample: the instruments WE collect on this segment,
+    /// not the instruments the venue happens to list. The two had drifted a long way apart — Binance
+    /// lists 566 perpetuals against our 44, WEEX ~990 against 25, Hyperliquid 178 against 25 — so
+    /// most of every feed pass was spent on symbols nothing reads, at the direct expense of the ones
+    /// that do. Same predicate the collectors use, and re-read on the feed's own refresh interval, so
+    /// switching an instrument on in the console reaches the feeds without a restart.
+    /// </summary>
+    private Func<CancellationToken, Task<string[]>> CollectedSymbols(string segmentCode) => async ct =>
+    {
+        await using var conn = await _db.OpenAsync(ct);
+        var rows = await conn.QueryAsync<string>(new CommandDefinition(
+            """
+            select exchange_symbol
+              from exchange_instrument
+             where segment_code = @segmentCode
+               and collect = true
+               and status = 'trading'
+             order by exchange_symbol
+            """,
+            new { segmentCode }, cancellationToken: ct));
+
+        return rows.ToArray();
+    };
+
     private IExchangeMarketData Build(ExchangeConfig config, VenueGate gate, CancellationToken ct) => config.Adapter switch
     {
         "fake" => new FakeExchangeMarketData(),
@@ -575,7 +600,7 @@ public sealed class ExchangeWorker : BackgroundService
         var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
         var client = new WeexFuturesClient(baseUrl);
 
-        var openInterest = new WeexOpenInterestFeed(client, gate, _loggers, _clock);
+        var openInterest = new WeexOpenInterestFeed(client, gate, CollectedSymbols(config.Code), _loggers, _clock);
         openInterest.Start(ct);
 
         WeexWsFeed? ws = null;
@@ -599,7 +624,7 @@ public sealed class ExchangeWorker : BackgroundService
         var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
         var client = new HyperliquidClient(baseUrl);
 
-        var restFeed = new HyperliquidBookFeed(client, gate, _loggers, _clock);
+        var restFeed = new HyperliquidBookFeed(client, gate, CollectedSymbols(config.Code), _loggers, _clock);
         restFeed.Start(ct);
 
         HyperliquidWsFeed? ws = null;
@@ -633,7 +658,7 @@ public sealed class ExchangeWorker : BackgroundService
         var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
         var client = new BinanceUsdmClient(baseUrl);
 
-        var openInterest = new BinanceOpenInterestFeed(client, gate, _loggers, _clock);
+        var openInterest = new BinanceOpenInterestFeed(client, gate, CollectedSymbols(config.Code), _loggers, _clock);
         openInterest.Start(ct);
 
         BinanceWsFeed? ws = null;

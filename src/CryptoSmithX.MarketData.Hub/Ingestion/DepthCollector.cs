@@ -1,5 +1,3 @@
-using System.Net;
-using System.Runtime.ExceptionServices;
 using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Connectors.Market;
 using CryptoSmithX.MarketData.Connectors.Pacing;
@@ -60,7 +58,7 @@ public sealed class DepthCollector
     /// exception is re-thrown once the other workers have stopped, the loop records ok=false and
     /// <c>ExchangeWorker.RecordGapAsync</c> opens a <c>collector_gap</c>. That contract is the point
     /// — a pass with a hole in it reported as a success is a lie about what we observed — so the
-    /// catch inside <see cref="SweepAsync{T}"/> records and re-throws; it never swallows.
+    /// catch inside <see cref="Sweep.RunAsync{T}"/> records and re-throws; it never swallows.
     /// </summary>
     public async Task<int> RunAsync(CancellationToken ct)
     {
@@ -81,7 +79,7 @@ public sealed class DepthCollector
         // footprint on the pool at exactly one connection.
         using var writeLane = new SemaphoreSlim(1, 1);
 
-        return await SweepAsync(
+        var result = await Sweep.RunAsync(
             targets,
             _gate.MaxConcurrentRequests,
             async (target, workCt) =>
@@ -117,88 +115,15 @@ public sealed class DepthCollector
             {
                 // A venue that pushed us away holds back every caller on this IP, not just this
                 // collector: that is what a venue-wide gate is for.
-                if (ex is HttpRequestException { StatusCode: HttpStatusCode.TooManyRequests })
-                {
-                    _gate.Penalize();
-                }
+                VenuePenalty.Apply(_gate, ex);
             },
+            // A pass with a hole in it must arrive as a thrown exception, never as a smaller
+            // "successful" count: CollectorLoop would report ok=true and RecordGapAsync would never
+            // open a collector_gap for an outage nobody saw.
+            SweepFailure.FailFast,
             ct).ConfigureAwait(false);
-    }
 
-    /// <summary>
-    /// Runs <paramref name="workAsync"/> across <paramref name="items"/> with up to
-    /// <paramref name="maxConcurrent"/> in flight, cancelling the rest of the herd as soon as one
-    /// throws and re-throwing that failure — captured, not swallowed — once every worker has
-    /// stopped. This is the whole fail-fast contract <see cref="RunAsync"/> depends on: a pass with
-    /// a hole in it must come back as a thrown exception, never as a smaller "successful" count, or
-    /// <c>CollectorLoop</c> reports ok=true and <c>ExchangeWorker.RecordGapAsync</c> never opens a
-    /// <c>collector_gap</c> for an outage nobody saw.
-    ///
-    /// Generic over <typeparamref name="T"/>, and taking the failure hook as a delegate, purely so
-    /// this contract can be pinned by a test that does not require Postgres — see
-    /// <c>DepthCollectorSweepTests</c>. <see cref="RunAsync"/> is exactly this loop wired to venue
-    /// leases and the database.
-    /// </summary>
-    internal static async Task<int> SweepAsync<T>(
-        IReadOnlyList<T> items,
-        int maxConcurrent,
-        Func<T, CancellationToken, Task<int>> workAsync,
-        Action<Exception> onItemFailed,
-        CancellationToken ct)
-    {
-        // Cancels the remaining work as soon as one item fails — the pass is already doomed, and
-        // continuing would spend venue budget on a result nobody will record.
-        using var failFast = CancellationTokenSource.CreateLinkedTokenSource(ct);
-
-        var next = -1;
-        var written = 0;
-        ExceptionDispatchInfo? failure = null;
-        var failureLock = new object();
-
-        async Task WorkAsync()
-        {
-            while (true)
-            {
-                var index = Interlocked.Increment(ref next);
-                if (index >= items.Count || failFast.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                try
-                {
-                    Interlocked.Add(ref written, await workAsync(items[index], failFast.Token).ConfigureAwait(false));
-                }
-                catch (Exception ex)
-                {
-                    // Recorded, not swallowed: below, once every worker has stopped, this is
-                    // re-thrown rather than folded into the returned count. The first failure wins
-                    // — it is the one that cancelled the others, so the siblings' cancellations
-                    // cannot displace the real cause.
-                    lock (failureLock)
-                    {
-                        failure ??= ExceptionDispatchInfo.Capture(ex);
-                    }
-
-                    onItemFailed(ex);
-
-                    await failFast.CancelAsync().ConfigureAwait(false);
-                    return;
-                }
-            }
-        }
-
-        var workers = new Task[Math.Min(maxConcurrent, items.Count)];
-        for (var i = 0; i < workers.Length; i++)
-        {
-            workers[i] = WorkAsync();
-        }
-
-        await Task.WhenAll(workers).ConfigureAwait(false);
-
-        failure?.Throw();
-        ct.ThrowIfCancellationRequested();
-        return written;
+        return result.Written;
     }
 
     /// <summary>Update only the depth columns; the row itself is owned by the snapshot writer, and

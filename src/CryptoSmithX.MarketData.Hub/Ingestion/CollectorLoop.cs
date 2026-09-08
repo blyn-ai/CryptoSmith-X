@@ -14,7 +14,13 @@ public sealed record CollectorAttempt(
     // failure modes, and until now they looked identical in the console. Every loop that writes
     // a run is REST today; the WS feeds do not report runs at all yet, which is itself something
     // the health page should eventually say out loud.
-    string Transport = "rest");
+    string Transport = "rest",
+    // The venue's own verdict on the pass, when it gave one. 0017 added collector_run.http_status
+    // and nothing ever wrote it: a 429 arrived as a per-symbol exception, was folded into the error
+    // text, and the column stayed null — so "was this venue rate-limiting us?" could only be
+    // answered by reading strings. Null means the pass failed for a reason that was not an HTTP
+    // status, or did not fail at all.
+    int? HttpStatus = null);
 
 /// <summary>
 /// The only loop runner in the service. Every collector is this class with a different body, so
@@ -110,7 +116,7 @@ public sealed class CollectorLoop
                 ConsecutiveFailures++;
                 attempt = new CollectorAttempt(
                     _segmentCode, _collector, attemptAt, false, Describe(ex), ConsecutiveFailures, null,
-                    ElapsedMs(startedTicks));
+                    ElapsedMs(startedTicks), HttpStatus: StatusOf(ex));
                 // Level by persistence, not by the exception. A venue rate-limiting one pass is
                 // noise — Hyperliquid alone produced 68 of these in six hours and none of them
                 // needed a person. A collector that has missed every attempt since the last two
@@ -158,6 +164,24 @@ public sealed class CollectorLoop
     /// <summary>±10%, so a hundred instruments do not all wake in the same millisecond.</summary>
     private static TimeSpan Jitter(TimeSpan delay) =>
         delay * (0.9 + (Random.Shared.NextDouble() * 0.2));
+
+    /// <summary>
+    /// The HTTP status behind a failed pass, if there was one. Walks the chain because the
+    /// isolating collectors wrap the last per-symbol failure in an InvalidOperationException when
+    /// every symbol failed — the 429 is real, it is just one level down.
+    /// </summary>
+    private static int? StatusOf(Exception? ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+        {
+            if (e is HttpRequestException { StatusCode: { } status })
+            {
+                return (int)status;
+            }
+        }
+
+        return null;
+    }
 
     private static string Describe(Exception ex)
     {

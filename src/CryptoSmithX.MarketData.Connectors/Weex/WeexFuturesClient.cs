@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using CryptoSmithX.MarketData.Connectors.Pacing;
 
 namespace CryptoSmithX.MarketData.Connectors.Weex;
 
@@ -66,7 +67,7 @@ public sealed class WeexFuturesClient
     private async Task<T> GetAsync<T>(string url, CancellationToken ct)
     {
         using var response = await _http.GetAsync(url, ct);
-        response.EnsureSuccessStatusCode();
+        response.EnsureVenueSuccess();
         var value = await response.Content.ReadFromJsonAsync<T>(Json, ct);
         return value ?? throw new InvalidOperationException($"WEEX returned an empty body for {url}");
     }

@@ -1,4 +1,3 @@
-using System.Net;
 using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Connectors.Market;
 using CryptoSmithX.MarketData.Connectors.Pacing;
@@ -65,86 +64,93 @@ public sealed class CandleCollector
             new { code = _adapter.SegmentCode },
             cancellationToken: ct))).ToList();
 
-        var written = 0;
-
-        // One venue symbol whose endpoint is broken (WEEX serves 400 for a live market's
-        // candles) must not starve every symbol after it. Per-symbol isolation: remember the
-        // failure, keep walking; only an all-symbols failure fails the pass — that is an
-        // outage, not a pothole.
-        var failed = 0;
-        Exception? lastError = null;
-        foreach (var (id, symbol, latest) in targets)
+        if (targets.Count == 0)
         {
-            ct.ThrowIfCancellationRequested();
-            try
-            {
-
-            // Re-ask for the newest stored minute as well: a venue that back-fills a late bar
-            // then has a chance to correct it, and the rollup repairs the parents from there.
-            var from = latest is null ? floor : latest.Value;
-            if (from < floor)
-            {
-                from = floor;
-            }
-
-            IReadOnlyList<Candle> candles;
-            using (await _gate.AcquireAsync(ct).ConfigureAwait(false))
-            {
-                candles = await _adapter.GetCandles1mAsync(symbol, from, now, ct);
-            }
-
-            if (candles.Count == 0)
-            {
-                continue;
-            }
-
-            await using var tx = await conn.BeginTransactionAsync(ct);
-            foreach (var c in candles)
-            {
-                await conn.ExecuteAsync(new CommandDefinition(
-                    """
-                    insert into market_candle (
-                        exchange_instrument_id, timeframe, open_time,
-                        open, high, low, close, volume, trade_count, bar_count, updated_at)
-                    values (@Id, 1, @OpenTime, @Open, @High, @Low, @Close, @Volume, @TradeCount, 1, now())
-                    on conflict (exchange_instrument_id, timeframe, open_time) do update set
-                        open        = excluded.open,
-                        high        = excluded.high,
-                        low         = excluded.low,
-                        close       = excluded.close,
-                        volume      = excluded.volume,
-                        trade_count = excluded.trade_count,
-                        updated_at  = now()
-                    """,
-                    new { Id = id, c.OpenTime, c.Open, c.High, c.Low, c.Close, c.Volume, c.TradeCount },
-                    tx, cancellationToken: ct));
-                written++;
-            }
-
-            await tx.CommitAsync(ct);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                // A venue that pushed us away holds back every caller on this IP, not just this
-                // collector: that is what the venue-wide gate is for. Per-symbol isolation stays —
-                // one broken symbol still does not starve the rest — but a 429 now paces everyone.
-                if (ex is HttpRequestException { StatusCode: HttpStatusCode.TooManyRequests })
-                {
-                    _gate.Penalize();
-                }
-
-                failed++;
-                lastError = ex;
-            }
+            return 0;
         }
 
-        if (failed > 0 && written == 0 && lastError is not null)
+        // One connection for the pass, as in DepthCollector, and every write — including the
+        // per-symbol transaction below — behind one lane. The transaction is why the lane must wrap
+        // the whole write and not just each statement: two workers interleaving BEGIN/COMMIT on one
+        // Npgsql connection is not a slow pass, it is a broken one.
+        using var writeLane = new SemaphoreSlim(1, 1);
+
+        // One venue symbol whose endpoint is broken (WEEX serves 400 for a live market's candles)
+        // must not starve every symbol after it. Per-symbol isolation, unchanged by the move to a
+        // parallel walk: remember the failure, keep going; only an all-symbols failure fails the
+        // pass — that is an outage, not a pothole.
+        var result = await Sweep.RunAsync(
+            targets,
+            _gate.MaxConcurrentRequests,
+            async (target, workCt) =>
+            {
+                var (id, symbol, latest) = target;
+
+                // Re-ask for the newest stored minute as well: a venue that back-fills a late bar
+                // then has a chance to correct it, and the rollup repairs the parents from there.
+                var from = latest is null ? floor : latest.Value;
+                if (from < floor)
+                {
+                    from = floor;
+                }
+
+                IReadOnlyList<Candle> candles;
+                using (await _gate.AcquireAsync(workCt).ConfigureAwait(false))
+                {
+                    candles = await _adapter.GetCandles1mAsync(symbol, from, now, workCt);
+                }
+
+                if (candles.Count == 0)
+                {
+                    return 0;
+                }
+
+                await writeLane.WaitAsync(workCt).ConfigureAwait(false);
+                try
+                {
+                    var stored = 0;
+                    await using var tx = await conn.BeginTransactionAsync(workCt);
+                    foreach (var c in candles)
+                    {
+                        await conn.ExecuteAsync(new CommandDefinition(
+                            """
+                            insert into market_candle (
+                                exchange_instrument_id, timeframe, open_time,
+                                open, high, low, close, volume, trade_count, bar_count, updated_at)
+                            values (@Id, 1, @OpenTime, @Open, @High, @Low, @Close, @Volume, @TradeCount, 1, now())
+                            on conflict (exchange_instrument_id, timeframe, open_time) do update set
+                                open        = excluded.open,
+                                high        = excluded.high,
+                                low         = excluded.low,
+                                close       = excluded.close,
+                                volume      = excluded.volume,
+                                trade_count = excluded.trade_count,
+                                updated_at  = now()
+                            """,
+                            new { Id = id, c.OpenTime, c.Open, c.High, c.Low, c.Close, c.Volume, c.TradeCount },
+                            tx, cancellationToken: workCt));
+                        stored++;
+                    }
+
+                    await tx.CommitAsync(workCt);
+                    return stored;
+                }
+                finally
+                {
+                    writeLane.Release();
+                }
+            },
+            // A venue that pushed us away holds back every caller on this IP, not just this
+            // collector: that is what the venue-wide gate is for.
+            ex => VenuePenalty.Apply(_gate, ex),
+            SweepFailure.Isolate,
+            ct).ConfigureAwait(false);
+
+        var written = result.Written;
+
+        if (result.Failed > 0 && written == 0 && result.LastError is not null)
         {
-            throw new InvalidOperationException($"every symbol failed; last: {lastError.Message}", lastError);
+            throw new InvalidOperationException($"every symbol failed; last: {result.LastError.Message}", result.LastError);
         }
 
         return written;

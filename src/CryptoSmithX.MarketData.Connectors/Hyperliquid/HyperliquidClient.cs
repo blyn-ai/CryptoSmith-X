@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using CryptoSmithX.MarketData.Connectors.Pacing;
 
 namespace CryptoSmithX.MarketData.Connectors.Hyperliquid;
 
@@ -74,7 +75,7 @@ public sealed class HyperliquidClient
     private async Task<T> PostAsync<T>(object body, CancellationToken ct, JsonSerializerOptions? readOptions = null)
     {
         using var response = await _http.PostAsJsonAsync(_infoUrl, body, Json, ct);
-        response.EnsureSuccessStatusCode();
+        response.EnsureVenueSuccess();
         var value = await response.Content.ReadFromJsonAsync<T>(readOptions ?? Json, ct);
         return value ?? throw new InvalidOperationException($"Hyperliquid returned an empty body for {body}");
     }

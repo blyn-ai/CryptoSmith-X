@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
+using CryptoSmithX.MarketData.Connectors.Pacing;
 
 namespace CryptoSmithX.MarketData.Connectors.Binance;
 
@@ -99,7 +100,7 @@ public sealed class BinanceUsdmClient
     internal async Task<IReadOnlyList<BinanceSymbol>> GetSymbolsAsync(CancellationToken ct)
     {
         using var response = await _http.GetAsync($"{_baseUrl}/fapi/v1/exchangeInfo", ct);
-        response.EnsureSuccessStatusCode();
+        response.EnsureVenueSuccess();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
@@ -164,7 +165,7 @@ public sealed class BinanceUsdmClient
     private async Task<T> GetAsync<T>(string url, CancellationToken ct)
     {
         using var response = await _http.GetAsync(url, ct);
-        response.EnsureSuccessStatusCode();
+        response.EnsureVenueSuccess();
         var value = await response.Content.ReadFromJsonAsync<T>(BinanceJson.Options, ct);
         return value ?? throw new InvalidOperationException($"Binance returned an empty body for {url}");
     }

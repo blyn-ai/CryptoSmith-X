@@ -23,10 +23,6 @@ public sealed class WeexOpenInterestFeed : IWeexOpenInterestFeed
     // see SymbolCycle for what that trades away.
     private static readonly TimeSpan SymbolRefreshInterval = TimeSpan.FromMinutes(10);
 
-    /// <summary>How often a pass may START — ten times more often than <see cref="MaxAge"/> requires.
-    /// This venue is the one that proved the point: with no cadence its 25 symbols came back sampled
-    /// 34 s apart and the oldest reached 879 s against a 600 s threshold.</summary>
-    private static readonly TimeSpan PassInterval = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(10);
 
     private readonly WeexFuturesClient _client;
@@ -74,7 +70,7 @@ public sealed class WeexOpenInterestFeed : IWeexOpenInterestFeed
     }
 
     private Task RunAsync(CancellationToken ct) => SymbolCycle.RunAsync(
-        "Weex.OpenInterest", _symbolsAsync, SymbolRefreshInterval, PassInterval, _gate,
+        "Weex.OpenInterest", _symbolsAsync, SymbolRefreshInterval, _gate,
         async (symbol, workCt) =>
         {
             // Through the venue ceiling, so these calls are counted against the same budget as the

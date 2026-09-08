@@ -28,12 +28,6 @@ public sealed class BinanceOpenInterestFeed : IBinanceOpenInterestFeed
 {
     private static readonly TimeSpan SymbolRefreshInterval = TimeSpan.FromMinutes(10);
 
-    /// <summary>How often a pass may START. A sample here is allowed to be <see cref="MaxAge"/> old,
-    /// so once a minute is already fifteen times more often than the consumer needs; the pass itself
-    /// takes about a second for the symbols we collect. See <see cref="SymbolCycle"/> for what
-    /// running with no cadence at all cost when it was measured.</summary>
-    private static readonly TimeSpan PassInterval = TimeSpan.FromMinutes(1);
-
     /// <summary>How old a sample may be and still be served. Deliberately several times the cycle
     /// length: the threshold's job is to notice that the cycle has STOPPED, not to police the normal
     /// lag of a cycle that is running. A tighter number would omit every symbol the cycle happens to
@@ -86,7 +80,7 @@ public sealed class BinanceOpenInterestFeed : IBinanceOpenInterestFeed
     }
 
     private Task RunAsync(CancellationToken ct) => SymbolCycle.RunAsync(
-        "Binance.OpenInterest", _symbolsAsync, SymbolRefreshInterval, PassInterval, _gate,
+        "Binance.OpenInterest", _symbolsAsync, SymbolRefreshInterval, _gate,
         async (symbol, workCt) =>
         {
             // Through the venue ceiling, so these calls are counted against the same budget as
