@@ -326,11 +326,11 @@
                                 }
                                 @if (c.Verdict == Verdict.Best)
                                 {
-                                    <span class="a-tag a-tag--best" title="@RankTitle(rankScope)">Best@rankSuffix</span>
+                                    <span class="a-tag a-tag--best" title="@RankTitle(rankScope)">Best@(rankSuffix)</span>
                                 }
                                 else if (c.Verdict == Verdict.Worst)
                                 {
-                                    <span class="a-tag a-tag--worst" title="@RankTitle(worstScope)">Worst@rankSuffix</span>
+                                    <span class="a-tag a-tag--worst" title="@RankTitle(worstScope)">Worst@(rankSuffix)</span>
                                 }
                                 @if (c.Note is not null)
                                 {

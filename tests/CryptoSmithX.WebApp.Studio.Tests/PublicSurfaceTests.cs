@@ -217,6 +217,20 @@ public sealed class PublicSurfaceTests
     }
 
     [Fact]
+    public void A_chip_interpolates_its_suffix_rather_than_printing_an_email_address()
+    {
+        // Razor treats "@" between two word characters as an email address and emits it verbatim.
+        // "Best@rankSuffix" therefore rendered as the literal text BEST@RANKSUFFIX on every ranked
+        // cell — it compiled, it passed every test, and it was visible from across the room.
+        // Parenthesised it is unambiguously an expression.
+        var table = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", "_PairTable.cshtml"));
+
+        Assert.DoesNotContain("Best@rankSuffix", table, StringComparison.Ordinal);
+        Assert.DoesNotContain("Worst@rankSuffix", table, StringComparison.Ordinal);
+        Assert.Contains("Best@(rankSuffix)", table, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_application_is_actually_started()
     {
         // Top-level statements compile without it. An app that builds, configures every route and
