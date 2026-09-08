@@ -233,8 +233,10 @@ http:
           - url: http://10.11.12.28:7779
     csx-test-api:
       loadBalancer:
+        # 7780 on the test host, not 8080: that address was already held there by an unrelated
+        # container. See the ports comment on the api service in docker-compose.prod.yml.
         servers:
-          - url: http://10.8.0.1:8080
+          - url: http://10.8.0.1:7780
     csx-test-studio:
       loadBalancer:
         servers:

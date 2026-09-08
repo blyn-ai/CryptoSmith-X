@@ -70,7 +70,16 @@ services:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
       Sentry__Dsn: ${SENTRY_DSN:-}
     ports:
-      - "10.8.0.1:8080:8080"
+      # 7780, NOT 8080, and only on this host: 10.8.0.1:8080 was already taken here by an
+      # unrelated container (freq-research) two weeks before this service existed. The port was
+      # copied from the production compose, where 8080 is free, and never checked against this
+      # machine — so docker could not program the binding, created the container with NO network
+      # at all, and it restarted 433 times resolving `postgres` against nothing. A published port
+      # that collides does not fail loudly; it fails as a DNS error inside the container.
+      #
+      # Production keeps 8080 (different host, nothing else on it). Traefik's csx-test-api points
+      # here and the two have to move together.
+      - "10.8.0.1:7780:8080"
     restart: unless-stopped
 
   webapp-admin:
