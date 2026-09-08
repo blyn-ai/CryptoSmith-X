@@ -560,10 +560,9 @@ public sealed class VerdictScopeTests
         Assert.NotEqual(
             Verdicts.RankGroup(usd, PairColumn.Turnover24h),
             Verdicts.RankGroup(usd, PairColumn.Depth25));
-        // An unranked column has no group at all rather than an empty one: there is
-        // nothing to join rows by when nothing is being claimed.
-        Assert.Null(Verdicts.RankGroup(usd, PairColumn.Bid));
-        Assert.Null(Verdicts.RankGroup(usd, PairColumn.Ask));
+        // Price is quote-scoped like every other figure denominated in the quote.
+        Assert.NotEqual(
+            Verdicts.RankGroup(usd, PairColumn.Bid), Verdicts.RankGroup(usdt, PairColumn.Bid));
     }
 
     [Fact]
@@ -710,10 +709,9 @@ public sealed class VerdictScopeTests
 
         Assert.Equal(Verdict.Best, v.Of(1, PairColumn.BidSize));
         Assert.Equal(Verdict.None, v.Of(1, PairColumn.SpreadBps));
-        // And the price carries no rank on any row, crossed or not. A different reason
-        // from the spread's, and the two must not be read as one.
-        Assert.Equal(Verdict.None, v.Of(1, PairColumn.Bid));
-        Assert.Equal(Verdict.None, v.Of(2, PairColumn.Bid));
+        // The crossed row keeps every other rank it earned, including the price one: it is out of
+        // the SPREAD comparison, not out of the table.
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.Bid));
     }
 
     [Fact]
@@ -778,10 +776,6 @@ public sealed class VerdictScopeTests
         Assert.DoesNotContain(
             "They rank only rows quoting in the same asset", reading, StringComparison.Ordinal);
 
-        // The price ranks are gone, and the entry has to say so rather than fall silent — a reader
-        // who remembers the acid chip on the bid needs to be told it left, not left to wonder.
-        Assert.Contains("Bid and ask carry no rank at all", reading, StringComparison.Ordinal);
-
         Assert.Contains(
             "anything priced in the quote currency ranks only against rows quoting in the same",
             reading, StringComparison.Ordinal);
@@ -792,14 +786,10 @@ public sealed class VerdictScopeTests
 
         // Checked against the specs, not against itself: a column moving between these lists makes
         // this test fail beside the sentence that would have started lying.
-        foreach (var unranked in new[] { PairColumn.Bid, PairColumn.Ask })
-        {
-            Assert.Equal(VerdictScope.Unranked, Verdicts.Scope(unranked));
-        }
-
         foreach (var perFamily in new[]
         {
-            PairColumn.Turnover24h, PairColumn.Depth10, PairColumn.Depth25, PairColumn.Depth50
+            PairColumn.Bid, PairColumn.Ask, PairColumn.Turnover24h,
+            PairColumn.Depth10, PairColumn.Depth25, PairColumn.Depth50
         })
         {
             Assert.Equal(VerdictScope.PerQuoteFamily, Verdicts.Scope(perFamily));
