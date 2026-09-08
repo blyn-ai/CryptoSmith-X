@@ -1,0 +1,236 @@
+erDiagram
+    exchange ||--o{ segment : has
+    segment ||--o{ exchange_instrument : lists
+    segment ||--o{ segment_dataset : policy
+    dataset ||--o{ segment_dataset : policy
+    segment_dataset ||--o{ collector_run : runs
+    collector_run ||--o{ collector_gap : reports
+    collector_run |o..o{ coverage : reports
+    dataset ||--o{ coverage : feed
+    exchange_instrument ||--o{ instrument_spec : "SCD2 versions"
+    exchange_instrument ||--o| market_snapshot_latest : "mutable upsert"
+    exchange_instrument ||--o{ market_snapshot : observes
+    exchange_instrument ||--o{ market_candle : observes
+    exchange_instrument ||--o{ market_candle_derived : derives
+    market_candle ||..o{ market_candle_derived : rollup
+    exchange_instrument ||--o{ market_price_candle : observes
+    exchange_instrument ||--o{ book_topn : observes
+    exchange_instrument ||--o{ trade : observes
+    exchange_instrument ||--o{ liquidation : observes
+    exchange_instrument ||--o{ funding_rate_history : observes
+    exchange_instrument ||--o{ open_interest_history : observes
+    exchange_instrument ||--o{ liquidation_volume_history : observes
+    exchange_instrument |o..o{ collector_gap : "per-instrument gap"
+    exchange_instrument ||--o{ coverage : covered
+
+    exchange {
+        text code PK
+    }
+    segment {
+        text code PK
+        text exchange_code FK
+    }
+    dataset {
+        text code PK
+        text default_mode
+    }
+    segment_dataset {
+        text segment_code PK, FK
+        text dataset_code PK, FK
+        text mode
+        int interval_s
+        text transport
+    }
+    collector_run {
+        bigint id PK
+        text segment_code FK
+        text dataset_code FK
+        timestamptz started_at
+        timestamptz finished_at
+        text transport
+        int http_status
+    }
+    collector_gap {
+        bigint id PK
+        bigint run_id FK
+        bigint exchange_instrument_id FK "NULL = whole channel"
+        timestamptz gap_from
+        timestamptz gap_to "NULL = open"
+        text cause
+    }
+    coverage {
+        bigint id PK
+        bigint exchange_instrument_id FK
+        text feed FK "dataset code"
+        timestamptz range_from
+        timestamptz range_to "actually covered"
+        int returned
+        timestamptz requested_at
+        text reason "NULL = complete"
+        bigint run_id FK "optional"
+    }
+    exchange_instrument {
+        bigint id PK
+        text segment_code FK
+        text symbol UK "unique per segment"
+        text base
+        text quote
+        text contract_form "linear or inverse"
+        text contract_type "perpetual or future"
+        timestamptz expires_at "NULL = perpetual"
+        text qty_unit "base or contract"
+        timestamptz first_seen_at
+    }
+    instrument_spec {
+        bigint exchange_instrument_id PK, FK
+        timestamptz valid_from PK
+        timestamptz valid_to "NULL = current"
+        timestamptz last_seen_at
+        timestamptz venue_effective_at "manual, NULL = unknown"
+        text status
+        text status_raw
+        numeric price_tick
+        numeric qty_step
+        numeric min_qty
+        numeric multiplier "NULL when qty_unit = base"
+        interval funding_interval
+        text funding_interval_source "venue, measured, assumed"
+        text spec_hash
+        jsonb raw_json
+    }
+    market_snapshot_latest {
+        bigint exchange_instrument_id PK, FK
+        timestamptz received_at
+        text same_columns "as market_snapshot, UPSERT, never research"
+    }
+    market_snapshot {
+        bigint exchange_instrument_id PK, FK
+        timestamptz received_at PK "ticker clock"
+        timestamptz venue_ts
+        numeric last
+        timestamptz last_trade_at
+        numeric bid
+        numeric ask
+        numeric bid_size
+        numeric ask_size
+        numeric mark
+        numeric index
+        numeric funding_rate
+        numeric funding_rate_predicted
+        timestamptz next_funding_at
+        numeric volume_24h_base
+        numeric volume_24h_quote
+        timestamptz open_interest_at "oi clock"
+        numeric open_interest
+        timestamptz depth_at "book clock"
+        numeric depth_ref
+        numeric depth_10_25_50_bid_ask "6 columns, quote"
+        numeric book_reach_bid "bps"
+        numeric book_reach_ask "bps"
+    }
+    market_candle {
+        bigint exchange_instrument_id PK, FK
+        timestamptz open_time PK
+        timestamptz received_at
+        timestamptz known_from "NULL = received_at"
+        text source "live or backfill"
+        numeric open
+        numeric high
+        numeric low
+        numeric close
+        numeric volume_base
+        numeric volume_quote
+        int trade_count
+    }
+    market_candle_derived {
+        bigint exchange_instrument_id PK, FK
+        smallint timeframe PK
+        timestamptz open_time PK
+        numeric open
+        numeric high
+        numeric low
+        numeric close
+        numeric volume_base
+        numeric volume_quote
+        int trade_count
+        smallint minutes_known
+    }
+    market_price_candle {
+        bigint exchange_instrument_id PK, FK
+        text series PK "mark or index"
+        smallint timeframe PK
+        timestamptz open_time PK
+        numeric open
+        numeric high
+        numeric low
+        numeric close
+        timestamptz received_at
+        timestamptz known_from
+        text source
+    }
+    book_topn {
+        bigint exchange_instrument_id PK, FK
+        timestamptz observed_at PK "venue clock"
+        bigint seq PK
+        timestamptz received_at
+        bool is_snapshot
+        smallint levels
+        numeric_arr bid_px
+        numeric_arr bid_qty
+        numeric_arr ask_px
+        numeric_arr ask_qty
+        int_arr bid_n "NULL if venue lacks"
+        int_arr ask_n
+    }
+    trade {
+        bigint exchange_instrument_id PK, FK
+        timestamptz event_time PK "venue clock"
+        text venue_uid PK
+        bigint seq
+        timestamptz received_at
+        timestamptz known_from
+        text source "ws, rest_recent, backfill"
+        numeric price
+        numeric qty
+        text taker_side "buy or sell"
+        text trade_type "NULL = unknown, not fill"
+    }
+    liquidation {
+        bigint exchange_instrument_id PK, FK
+        timestamptz venue_time PK
+        text side PK
+        numeric price PK
+        numeric qty
+        timestamptz received_at
+    }
+    funding_rate_history {
+        bigint exchange_instrument_id PK, FK
+        timestamptz funding_time PK
+        numeric funding_rate
+        interval funding_interval "delta to previous"
+        timestamptz received_at
+        timestamptz known_from
+        text source
+    }
+    open_interest_history {
+        bigint exchange_instrument_id PK, FK
+        int interval_s PK
+        timestamptz bucket_time PK
+        numeric oi_open
+        numeric oi_high
+        numeric oi_low
+        numeric oi_close
+        numeric oi_quote
+        timestamptz received_at
+        timestamptz known_from
+        text source
+    }
+    liquidation_volume_history {
+        bigint exchange_instrument_id PK, FK
+        int interval_s PK
+        timestamptz bucket_time PK
+        numeric volume
+        timestamptz received_at
+        timestamptz known_from
+        text source
+    }
