@@ -71,9 +71,9 @@ public sealed class HomeController : Controller
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         // Back to the root — which for this application is the sign-in page, because the sign-in
-        // page IS the home page. Signing out onto the site's storefront instead would be a
-        // one-way door: the storefront's Agent button is disabled, so there would be no link
-        // back in from where it left you.
+        // page IS the home page. Not the site's storefront: signing out and signing back in is
+        // one action interrupted, and it should end where it can be resumed rather than two
+        // clicks away from it.
         return RedirectToAction(nameof(Index));
     }
 }
