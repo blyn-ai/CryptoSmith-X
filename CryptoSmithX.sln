@@ -27,6 +27,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.WebApp.Studio"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.WebApp.Studio.Tests", "tests\CryptoSmithX.WebApp.Studio.Tests\CryptoSmithX.WebApp.Studio.Tests.csproj", "{7C2A1E5B-3D64-4F98-9A0C-51B7E4D8C620}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoSmithX.WebApp.Agent", "src\CryptoSmithX.WebApp.Agent\CryptoSmithX.WebApp.Agent.csproj", "{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -157,6 +159,18 @@ Global
 		{7C2A1E5B-3D64-4F98-9A0C-51B7E4D8C620}.Release|x64.Build.0 = Release|Any CPU
 		{7C2A1E5B-3D64-4F98-9A0C-51B7E4D8C620}.Release|x86.ActiveCfg = Release|Any CPU
 		{7C2A1E5B-3D64-4F98-9A0C-51B7E4D8C620}.Release|x86.Build.0 = Release|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Debug|x64.Build.0 = Debug|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Debug|x86.Build.0 = Debug|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Release|x64.ActiveCfg = Release|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Release|x64.Build.0 = Release|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Release|x86.ActiveCfg = Release|Any CPU
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -172,5 +186,6 @@ Global
 		{40924494-25B6-4A2A-BEDF-1F5C9BE9FF65} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{4FEE7AE4-0F39-4127-BBF7-E6509E409052} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{7C2A1E5B-3D64-4F98-9A0C-51B7E4D8C620} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{2F6E1E09-B903-4E0B-AED3-46BC2D3359F6} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

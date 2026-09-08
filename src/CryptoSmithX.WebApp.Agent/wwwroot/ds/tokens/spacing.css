@@ -1,0 +1,28 @@
+/* CSX Bot — spacing, density, layout. Square geometry, compact rows: the owner looks at
+   this ten times a day, so the whole answer fits on one card. */
+:root{
+--space-1:4px; /* @kind spacing */--space-2:6px; /* @kind spacing */--space-3:9px; /* @kind spacing */
+--space-4:12px; /* @kind spacing */--space-5:14px; /* @kind spacing */--space-6:18px; /* @kind spacing */
+--space-7:22px; /* @kind spacing */--space-8:28px; /* @kind spacing */--space-9:34px; /* @kind spacing */
+--space-10:44px; /* @kind spacing */--space-11:56px; /* @kind spacing */--space-12:72px; /* @kind spacing */
+
+/* ── density ── */
+--row-h:32px; /* @kind spacing */
+--pad-row:7px 12px; /* @kind spacing */
+--pad-panel:12px; /* @kind spacing */
+--pad-panel-head:9px 12px; /* @kind spacing */
+--pad-cell-x:12px; /* @kind spacing */
+--gap-block:10px; /* @kind spacing */--gap-grid:10px; /* @kind spacing */
+--gap-stack:12px; /* @kind spacing */--gap-inline:9px; /* @kind spacing */--gap-inline-xs:6px; /* @kind spacing */
+
+/* ── controls ── */
+--control-h:34px; /* @kind spacing */--control-h-sm:26px; /* @kind spacing */--tap-min:44px; /* @kind spacing */
+--pad-button:0 14px; /* @kind spacing */--pad-button-sm:0 10px; /* @kind spacing */
+--pad-input:8px 10px; /* @kind spacing */
+--dot:7px; /* @kind spacing */--dot-lg:9px; /* @kind spacing */--mark-size:13px; /* @kind spacing */
+
+/* ── layout ── */
+--card-max:1040px; /* @kind spacing */
+--band-w:3px; /* @kind spacing */
+--curve-h:104px; /* @kind spacing */
+}

@@ -121,6 +121,22 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # The agent — the bot owner's own surface, in its own container on 7779. Same priority as
+    # studio and api: all three beat the bare Host() of the admin console, and their prefixes do
+    # not overlap each other. No stripPrefix, for the reason stated at the top of this file: the
+    # application starts with UsePathBase("/agent") and expects the prefix on the way in.
+    #
+    # This address used to reach the admin console, which redirected it to a static mock at
+    # /feature-demo/agent. It no longer does, and the mock keeps its own address — the same move
+    # /studio made when Studio became real.
+    csx-prod-agent:
+      rule: Host(`cryptosmithx.blynai.eu`) && PathPrefix(`/agent`)
+      priority: 100
+      entryPoints: [websecure]
+      service: csx-prod-agent
+      tls:
+        certResolver: letsencrypt
+
     csx-prod-admin:
       rule: Host(`cryptosmithx.blynai.eu`)
       priority: 10
@@ -182,6 +198,14 @@ http:
       tls:
         certResolver: letsencrypt
 
+    csx-test-agent:
+      rule: Host(`cryptosmithx-test.blynai.eu`) && PathPrefix(`/agent`)
+      priority: 100
+      entryPoints: [websecure]
+      service: csx-test-agent
+      tls:
+        certResolver: letsencrypt
+
     csx-test-admin:
       rule: Host(`cryptosmithx-test.blynai.eu`)
       priority: 10
@@ -203,6 +227,10 @@ http:
       loadBalancer:
         servers:
           - url: http://10.11.12.28:8080
+    csx-prod-agent:
+      loadBalancer:
+        servers:
+          - url: http://10.11.12.28:7779
     csx-test-api:
       loadBalancer:
         servers:
@@ -215,6 +243,10 @@ http:
       loadBalancer:
         servers:
           - url: http://10.8.0.1:7777
+    csx-test-agent:
+      loadBalancer:
+        servers:
+          - url: http://10.8.0.1:7779
 
   middlewares:
     # /api is the address a person types; /v1 is the address a program calls. The API application

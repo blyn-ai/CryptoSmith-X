@@ -1,0 +1,71 @@
+@{
+    ViewData["Title"] = "Trading parameters";
+    ViewData["PageClass"] = "p-params";
+}
+
+<header class="head">
+<span class="brand">
+<svg aria-hidden="true" viewBox="4.6 12.43 30.8 15.14" width="26" height="13" fill="none">
+<path d="M20 23.54 L15.97 27.57 L12.43 24.03 L16.46 20 L12.43 15.97 L15.97 12.43 L20 16.46 L24.03 12.43 L27.57 15.97 L23.54 20 L27.57 24.03 L24.03 27.57 Z" fill="currentColor"></path>
+<circle cx="6.6" cy="20" r="2" fill="currentColor" opacity=".55"></circle>
+<circle cx="33.4" cy="20" r="2" fill="currentColor" opacity=".55"></circle>
+</svg>
+<span class="wordmark">CryptoSmith X</span>
+</span>
+<span class="account">
+<span class="who">@User.Identity?.Name</span>
+@* A post, not a link. Signing out changes state, and a GET that changes state is one link
+   prefetch away from signing people out for them. *@
+<form method="post" asp-controller="Home" asp-action="Logout">
+<button type="submit" class="logout">Sign out</button>
+</form>
+</span>
+</header>
+
+<main>
+<section class="panel">
+<div class="panel-head">
+<span class="eyebrow">Trading limits</span>
+<span id="status" data-state="saved">Saved</span>
+</div>
+
+@* Bound to nothing, by instruction. The values below are the design's own; Save moves the word
+   above and touches no bot and no row. When the source is settled it goes here — and until it
+   is, nothing on this screen can break anything behind it. *@
+<form id="limits" method="dialog">
+<label class="field">
+<span class="label">Position margin</span>
+<span class="affix">
+<input type="number" name="position_margin_usd" inputmode="decimal" min="0" step="1" value="250">
+<span class="unit">USD</span>
+</span>
+</label>
+
+<label class="field">
+<span class="label">Leverage</span>
+<span class="affix">
+<input type="number" name="leverage" inputmode="numeric" min="1" step="1" value="5">
+<span class="unit">x</span>
+</span>
+</label>
+
+<label class="field">
+<span class="label">Maximum open positions</span>
+<input type="number" name="max_open_positions" inputmode="numeric" min="0" step="1" value="6">
+</label>
+
+<label class="field">
+<span class="label">Maximum positions per group</span>
+<input type="number" name="max_open_positions_per_group" inputmode="numeric" min="0" step="1" value="2">
+</label>
+
+<button type="submit" class="save">Save</button>
+</form>
+</section>
+
+<p class="compliance">Not investment advice · Own funds only</p>
+</main>
+
+@section Scripts {
+<script src="~/parameters.js"></script>
+}

@@ -1,4 +1,4 @@
-# One build stage publishes all five deployables; five final stages pick one each.
+# One build stage publishes all six deployables; six final stages pick one each.
 # Build context is the repository root (the WebApp.Admin links src/web/ds, so it must be reachable).
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
@@ -10,18 +10,21 @@ COPY src/CryptoSmithX.MarketData.Hub/CryptoSmithX.MarketData.Hub.csproj         
 COPY src/CryptoSmithX.MarketData.Api/CryptoSmithX.MarketData.Api.csproj         src/CryptoSmithX.MarketData.Api/
 COPY src/CryptoSmithX.WebApp.Admin/CryptoSmithX.WebApp.Admin.csproj                         src/CryptoSmithX.WebApp.Admin/
 COPY src/CryptoSmithX.WebApp.Studio/CryptoSmithX.WebApp.Studio.csproj                           src/CryptoSmithX.WebApp.Studio/
+COPY src/CryptoSmithX.WebApp.Agent/CryptoSmithX.WebApp.Agent.csproj                             src/CryptoSmithX.WebApp.Agent/
 RUN dotnet restore src/CryptoSmithX.Database/CryptoSmithX.Database.csproj \
  && dotnet restore src/CryptoSmithX.MarketData.Hub/CryptoSmithX.MarketData.Hub.csproj \
  && dotnet restore src/CryptoSmithX.MarketData.Api/CryptoSmithX.MarketData.Api.csproj \
  && dotnet restore src/CryptoSmithX.WebApp.Admin/CryptoSmithX.WebApp.Admin.csproj \
- && dotnet restore src/CryptoSmithX.WebApp.Studio/CryptoSmithX.WebApp.Studio.csproj
+ && dotnet restore src/CryptoSmithX.WebApp.Studio/CryptoSmithX.WebApp.Studio.csproj \
+ && dotnet restore src/CryptoSmithX.WebApp.Agent/CryptoSmithX.WebApp.Agent.csproj
 
 COPY src/ src/
 RUN dotnet publish src/CryptoSmithX.Database/CryptoSmithX.Database.csproj         -c Release -o /app/migrator --no-restore \
  && dotnet publish src/CryptoSmithX.MarketData.Hub/CryptoSmithX.MarketData.Hub.csproj -c Release -o /app/hub --no-restore \
  && dotnet publish src/CryptoSmithX.MarketData.Api/CryptoSmithX.MarketData.Api.csproj -c Release -o /app/api --no-restore \
  && dotnet publish src/CryptoSmithX.WebApp.Admin/CryptoSmithX.WebApp.Admin.csproj             -c Release -o /app/webapp-admin --no-restore \
- && dotnet publish src/CryptoSmithX.WebApp.Studio/CryptoSmithX.WebApp.Studio.csproj               -c Release -o /app/studio --no-restore
+ && dotnet publish src/CryptoSmithX.WebApp.Studio/CryptoSmithX.WebApp.Studio.csproj               -c Release -o /app/studio --no-restore \
+ && dotnet publish src/CryptoSmithX.WebApp.Agent/CryptoSmithX.WebApp.Agent.csproj                 -c Release -o /app/agent --no-restore
 
 # The migrator applies the schema and exits — the runtime image is enough, no ASP.NET.
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS migrator
@@ -67,3 +70,14 @@ COPY --from=build /app/studio ./
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "CryptoSmithX.WebApp.Studio.dll"]
+
+# The agent — the bot owner's own surface at /agent, behind a sign-in. Its own container for the
+# same reason Studio has one: it is reached by different people, for a different purpose, and an
+# afternoon of trouble on one should not be an afternoon of trouble on the other. No SOURCE_COMMIT,
+# because it prints no version badge and a build argument nothing reads drifts unnoticed.
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS webapp-agent
+WORKDIR /app
+COPY --from=build /app/agent ./
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "CryptoSmithX.WebApp.Agent.dll"]

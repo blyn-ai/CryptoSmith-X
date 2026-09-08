@@ -106,3 +106,31 @@ services:
       # someone reorders middleware.
       - "10.11.12.28:7778:8080"
     restart: unless-stopped
+
+  # The agent — the bot owner's own surface at /agent, behind a sign-in against webapp_user.
+  #
+  # *db here, unlike studio: the one table this reads is webapp_user, which studio_reader is not
+  # granted, so the reader role would fail on the only query the application makes. It is not a
+  # public surface — everything past the sign-in form requires a cookie.
+  #
+  # ONE trading bot serves both contours — the same address as on the test host, by instruction:
+  # there is one bot, and a production page and a test page that talked to different ones would
+  # not be testing anything.
+  agent:
+    container_name: cryptosmithx-webapp-agent
+    image: ghcr.io/blyn-ai/cryptosmithx-webapp-agent:latest
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      <<: *db
+      TradingBot__BaseUrl: ${TRADING_BOT_BASE_URL:-https://blynai.meetluko.eu}
+      ASPNETCORE_ENVIRONMENT: Production
+      Sentry__Dsn: ${SENTRY_DSN:-}
+      DataProtection__KeysDirectory: /keys
+    volumes:
+      - /opt/cryptosmithx/agent-keys:/keys
+    ports:
+      # Same rule as every other service on this host: the tunnel address, never the LAN.
+      - "10.11.12.28:7779:8080"
+    restart: unless-stopped

@@ -1,0 +1,119 @@
+/* csx-agent — page layout. Tokens, faces and element defaults are ds/styles.css and are not
+   repeated here; this file is only the two screens the application has.
+
+   Both screens arrived as standalone static exports with the whole token set inlined in each.
+   That copy is dropped on the way in: two files defining --brand drift, and the first thing to
+   drift is a colour nobody notices. What is left is scoped per page — .p-login and .p-params —
+   because the two exports both style .head, .eyebrow, .label, form and input, and mean
+   different things by them. Unscoped, whichever loaded second would win on both screens. */
+
+/* ── the sheet both screens rest on ── */
+body{min-height:100vh;display:flex;flex-direction:column;
+  background-image:var(--dot-pattern);background-size:var(--dot-size) var(--dot-size)}
+
+/* ══ sign-in ══ */
+.p-login .rule{height:2px;background:var(--brand);flex:none}
+.p-login .stage{flex:1;width:100%;max-width:1440px;margin:0 auto;padding:26px 26px 60px;display:flex;align-items:center;justify-content:center}
+.p-login .sheet{width:100%;max-width:568px;background:var(--surface-card);border:1px solid var(--border-card)}
+
+.p-login .head{display:flex;align-items:center;justify-content:flex-end;padding:22px 26px;border-bottom:1px solid var(--border-hairline)}
+.p-login .lockup{display:flex;align-items:center;gap:16px}
+.p-login .plate{flex:none;width:96px;height:62px;background:var(--brand);display:flex;align-items:center;justify-content:center;
+  clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)}
+.p-login .plate svg{display:block;color:var(--text-heading)}
+.p-login .words{display:flex;flex-direction:column;align-items:stretch;width:fit-content;gap:7px;min-width:0}
+.p-login .wordmark{font-family:var(--font-display);font-size:46px;line-height:.84;letter-spacing:.015em;text-transform:uppercase;color:var(--text-heading);white-space:nowrap}
+.p-login .subline{width:100%;display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;font-weight:var(--fw-medium);line-height:1;text-transform:uppercase;color:var(--text-muted)}
+.p-login .subline i{font-style:normal}
+.p-login .subline i.sp{width:.4em}
+
+.p-login .body{padding:24px 26px 22px;display:flex;flex-direction:column;gap:18px}
+.p-login .eyebrow{font-family:var(--font-mono);font-size:var(--fs-micro);font-weight:var(--fw-medium);line-height:1.2;letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--eyebrow)}
+.p-login .statement{font-family:var(--font-display);font-size:21px;line-height:1.15;letter-spacing:.01em;text-transform:uppercase;color:var(--text-heading)}
+.p-login .hair{height:1px;background:var(--border-hairline)}
+
+.p-login form{display:flex;flex-direction:column;gap:14px}
+.p-login label.field{display:flex;flex-direction:column;gap:6px}
+.p-login .label{font-family:var(--font-mono);font-size:var(--fs-micro);font-weight:var(--fw-medium);line-height:1;letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted)}
+.p-login .labelrow{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.p-login input{height:40px;padding:var(--pad-input);background:var(--surface-sunken);border:1px solid var(--border-input);border-radius:var(--radius-control);
+  font-family:var(--font-mono);font-size:var(--fs-meta);color:var(--text-data);transition:var(--transition-color)}
+.p-login input:focus{border-color:var(--border-strong);outline:none}
+.p-login .reveal{background:transparent;border:0;padding:0;cursor:pointer;font-family:var(--font-mono);font-size:11px;font-weight:var(--fw-regular);line-height:1;letter-spacing:.02em;text-transform:lowercase;color:var(--text-faint);text-decoration:underline;text-underline-offset:3px;transition:var(--transition-color)}
+.p-login .reveal:hover{color:var(--brand-text)}
+
+/* A border means STATE or CONTROL, and a refused sign-in is a state. The kit frames it with
+   the amber it reserves for held-back risk rather than with the loss red: a wrong password is
+   not money lost, and red on this surface means one thing only. */
+.p-login .refused{display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--tint-hold);border:1px solid var(--border-hold);
+  font-family:var(--font-mono);font-size:var(--fs-data);line-height:1.3;letter-spacing:.04em;text-transform:uppercase;color:var(--state-hold-ink)}
+
+.p-login .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:2px}
+.p-login .remember{display:inline-flex;align-items:center;gap:9px;background:transparent;border:0;padding:0;cursor:pointer;color:var(--text-body)}
+.p-login .remember input{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.p-login .box{flex:none;width:18px;height:18px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--border-input);
+  font-family:var(--font-mono);font-size:11px;line-height:1;color:var(--text-on-action);transition:var(--transition-color)}
+.p-login .remember input:checked + .box{background:var(--brand);border-color:var(--brand)}
+.p-login .remember input:checked + .box::before{content:"\2713"}
+.p-login .remember input:focus-visible + .box{outline:var(--focus-ring);outline-offset:2px}
+.p-login .mono-ui{font-family:var(--font-mono);font-size:var(--fs-data);line-height:1;letter-spacing:.04em;text-transform:uppercase}
+
+.p-login .submit{height:44px;width:100%;background:var(--action-primary);border:1px solid var(--action-primary);border-radius:var(--radius-control);cursor:pointer;
+  font-family:var(--font-display);font-size:17px;font-weight:var(--fw-regular);line-height:1;letter-spacing:.12em;text-transform:uppercase;color:var(--text-on-action);transition:var(--transition-color)}
+.p-login .submit:hover{background:var(--brand-deep);border-color:var(--brand-deep)}
+
+.p-login .or{display:flex;align-items:center;gap:12px}
+.p-login .or span.line{flex:1;height:1px;background:var(--border-hairline)}
+.p-login .or span.word{font-family:var(--font-mono);font-size:var(--fs-micro);font-weight:var(--fw-medium);line-height:1;letter-spacing:.2em;color:var(--text-faint)}
+.p-login .socials{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+/* Disabled, not absent. None of the five is wired to anything, and a button that silently does
+   nothing is worse than one that says it cannot: accounts here are made by invitation, in the
+   database, by hand. They stay on the page because the layout is the owner's, not mine. */
+.p-login .socials button{height:46px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--border-input);border-radius:var(--radius-control);color:var(--text-body);transition:var(--transition-color)}
+.p-login .socials button[disabled]{cursor:not-allowed;color:var(--text-faint);border-color:var(--border-hairline);opacity:.55}
+.p-login .socials svg{display:block;width:19px;height:19px;fill:currentColor}
+
+.p-login .note{text-align:center;font-size:var(--fs-meta);color:var(--text-muted)}
+.p-login .note a{text-decoration:underline;text-underline-offset:3px}
+.p-login .foot{padding:12px 26px;background:var(--surface-sunken);border-top:1px solid var(--border-hairline)}
+.p-login .foot p{text-align:center;font-family:var(--font-mono);font-size:var(--fs-micro);line-height:1.4;letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-muted)}
+
+/* ══ trading parameters ══ */
+.p-params .head{flex:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--surface-card);border-bottom:2px solid var(--brand)}
+.p-params .brand{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.p-params .brand svg{display:block;flex:none;color:var(--brand-text)}
+.p-params .wordmark{font-family:var(--font-display);font-size:15px;line-height:1;letter-spacing:.06em;text-transform:uppercase;color:var(--brand-text);white-space:nowrap}
+.p-params .account{margin-left:auto;display:inline-flex;align-items:center;gap:8px;min-width:0}
+.p-params .who{font-family:var(--font-mono);font-size:var(--fs-data);line-height:1;color:var(--text-data);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:34vw}
+.p-params .logout{flex:none;display:inline-flex;align-items:center;justify-content:center;height:var(--control-h);padding:var(--pad-button-sm);
+  background:transparent;border:1px solid var(--border-input);border-radius:var(--radius-control);cursor:pointer;
+  font-family:var(--font-mono);font-size:12px;font-weight:500;line-height:1;letter-spacing:var(--track-label);text-transform:uppercase;
+  color:var(--text-heading);transition:var(--transition-color)}
+.p-params .logout:hover{border-color:var(--border-strong);color:var(--brand-text)}
+
+.p-params main{flex:1;width:100%;max-width:560px;margin:0 auto;padding:14px 14px 40px;display:flex;flex-direction:column;gap:12px}
+.p-params .panel{background:var(--surface-card);border:1px solid var(--border-card)}
+.p-params .panel-head{padding:var(--pad-panel-head);background:var(--surface-sunken);border-bottom:1px solid var(--border-hairline);
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.p-params .eyebrow{font-family:var(--font-mono);font-size:var(--fs-micro);font-weight:500;line-height:1.2;letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--eyebrow)}
+.p-params #status{font-family:var(--font-mono);font-size:var(--fs-micro);line-height:1.2;letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-muted)}
+.p-params #status[data-state="dirty"]{color:var(--state-hold-ink)}
+.p-params #status[data-state="saving"]{color:var(--brand-text)}
+
+.p-params form{padding:14px 12px;display:flex;flex-direction:column;gap:14px}
+.p-params label.field{display:flex;flex-direction:column;gap:6px}
+.p-params .label{font-family:var(--font-mono);font-size:var(--fs-micro);font-weight:500;line-height:1.2;letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted)}
+.p-params .affix{display:flex;align-items:stretch;border:1px solid var(--border-input);background:var(--surface-sunken)}
+.p-params .affix input{flex:1;min-width:0;border:0;background:transparent}
+.p-params .affix .unit{flex:none;display:inline-flex;align-items:center;padding:0 10px;border-left:1px solid var(--border-hairline);
+  font-family:var(--font-mono);font-size:12px;line-height:1;letter-spacing:.06em;color:var(--text-faint)}
+.p-params input[type="number"]{height:var(--tap-min);padding:0 10px;background:var(--surface-sunken);border:1px solid var(--border-input);border-radius:var(--radius-control);
+  outline:none;font-family:var(--font-mono);font-size:16px;font-variant-numeric:tabular-nums;color:var(--text-data);transition:var(--transition-color)}
+.p-params input[type="number"]:focus{border-color:var(--border-strong)}
+.p-params .affix:focus-within{border-color:var(--border-strong)}
+.p-params .affix input:focus{border-color:transparent}
+
+.p-params .save{height:var(--tap-min);width:100%;margin-top:2px;background:var(--action-primary);border:1px solid var(--action-primary);border-radius:var(--radius-control);cursor:pointer;
+  font-family:var(--font-display);font-size:16px;line-height:1;letter-spacing:.12em;text-transform:uppercase;color:var(--text-on-action);transition:var(--transition-color)}
+.p-params .save:hover{background:var(--brand-deep);border-color:var(--brand-deep)}
+.p-params .compliance{font-family:var(--font-mono);font-size:var(--fs-micro);line-height:1.4;letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-muted);text-align:center}

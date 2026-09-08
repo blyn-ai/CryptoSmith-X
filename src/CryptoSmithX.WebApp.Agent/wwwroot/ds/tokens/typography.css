@@ -1,0 +1,33 @@
+/* CSX Bot — type. Three faces, three jobs:
+   Anton = display (wordmark, panel titles, the statement line) — condensed caps.
+   Space Grotesk = the little running prose the product allows.
+   DM Mono = every number, label, state word and categorical value. Tabular, always. */
+:root{
+--font-display:'Anton','Arial Narrow','Helvetica Neue',sans-serif;
+--font-body:'Space Grotesk','Helvetica Neue',Arial,sans-serif;
+--font-mono:'DM Mono',ui-monospace,Menlo,monospace;
+--font-heading:var(--font-display);
+
+/* ── sizes ── */
+--fs-micro:10px; /* @kind font */--fs-eyebrow:11px; /* @kind font */--fs-caption:12px; /* @kind font */
+--fs-data:12px; /* @kind font */--fs-meta:13px; /* @kind font */--fs-body:14px; /* @kind font */
+--fs-ui:14px; /* @kind font */--fs-h3:18px; /* @kind font */--fs-h2:21px; /* @kind font */
+--fs-stat:20px; /* @kind font */--fs-h1:32px; /* @kind font */--fs-money:76px; /* @kind font */
+
+/* ── weights ── */
+--fw-light:300; /* @kind font */--fw-regular:400; /* @kind font */--fw-medium:500; /* @kind font */
+--fw-semibold:600; /* @kind font */--fw-bold:700; /* @kind font */
+
+/* ── line heights ── */
+--lh-flat:1; /* @kind font */--lh-h1:1.1; /* @kind font */--lh-h2:1.2; /* @kind font */
+--lh-body:1.55; /* @kind font */--lh-mono:1.7; /* @kind font */
+
+/* ── tracking. Categorical labels sit at .17em: that spacing is what makes an unframed
+      label read as a label rather than as stray text. ── */
+--track-h1:.005em; /* @kind font */--track-h2:.01em; /* @kind font */--track-money:0em; /* @kind font */
+--track-eyebrow:.18em; /* @kind font */--track-nav:.14em; /* @kind font */
+--track-badge:.14em; /* @kind font */--track-label:.17em; /* @kind font */--track-num:0em; /* @kind font */
+
+/* ── measures ── */
+--measure-note:52ch; /* @kind spacing */--measure-body:64ch; /* @kind spacing */
+}

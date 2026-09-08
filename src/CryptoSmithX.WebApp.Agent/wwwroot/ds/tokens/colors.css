@@ -1,0 +1,87 @@
+/* CSX Bot — colour.
+
+   Paper is the native theme (:root); Ink is [data-theme="night"]. Both are the same token
+   set at different luminance — a theme flip changes brightness, never identity.
+
+   Colour means exactly one thing each, and it stays rare:
+
+     brand (magenta)  CryptoSmith / system / active state
+     green            positive P&L        ONLY
+     red              negative P&L        ONLY
+     blue             LONG / BUY    \ the operation layer: the product's only two
+     coral            SHORT / SELL  /  operation colours, kept OUT of the money palette
+     amber            warning / risk / entries paused
+     neutral          data — the vast majority of every screen
+
+   Every text role clears 4.5:1 against the surface it sits on. Where a hue is used as a
+   FILL and as TEXT, the two are separate rungs (--brand vs --brand-text): a saturated
+   fill is not legible as 9 px type. */
+:root{
+/* ── surfaces (Paper) ── */
+--surface-page:#F3F1EB;--surface-card:#FAF9F5;--surface-band:#FAF9F5;--surface-sunken:#EDEAE2;
+--surface-overlay:rgba(21,21,20,.42);
+
+/* ── text ── */
+--text-heading:#151514;--text-body:#3A3833;--text-muted:#5E5B55;--text-faint:#74716B;
+--text-data:#151514;--text-zero:#5E5B55;--text-unmeasured:#74716B;--eyebrow:#66635B;
+--text-on-action:#FAF9F5;
+
+/* ── brand: fill rung and text rung ── */
+--brand:#BE0069;--brand-deep:#A3006F;--brand-text:#BE0069;
+--accent:#BE0069;--action-primary:#BE0069;--action-primary-hover:#151514;
+--link:#BE0069;--link-hover:#151514;
+
+/* ── money: green = profit, red = loss, nothing else ── */
+--money-up:#2E7D0E;--money-down:#B3323C;--money-up-ink:#2E7D0E;--money-down-ink:#A32B35;
+--money-flat:#5E5B55;--band-up:#2E7D0E;--band-down:#A32B35;
+--tint-up:rgba(46,125,14,.09);--tint-down:rgba(163,43,53,.08);
+--border-up:#2E7D0E;--border-down:#A32B35;
+
+/* ── operation: direction, never a result ── */
+--long:#0B5FA5;--short:#A94A12;
+
+/* ── bot state ── */
+--state-running:#BE0069;--state-stale:#7E5B0E;--state-blackout:#7E5B0E;
+--state-stopped:#9A968E;--state-hold-ink:#7E5B0E;
+--tint-hold:rgba(126,91,14,.10);--border-hold:#7E5B0E;
+
+/* ── borders. A border means STATE or CONTROL; categorical labels wear none. ── */
+--border-hairline:#DAD6CC;--border-card:#CAC6BC;--border-strong:#BE0069;--border-input:#BDB8AD;
+--chip-border:transparent;
+--tint-neutral:rgba(21,21,20,.05);--tint-brand:rgba(190,0,105,.07);
+
+/* ── the sheet: a 4 px raster under the card, never through a panel ── */
+--dot-pattern:radial-gradient(rgba(21,21,20,.075) 1px,transparent 1px); /* @kind color */
+--dot-size:4px; /* @kind spacing */
+}
+
+[data-theme="night"]{
+--surface-page:#0D0D0C;--surface-card:#131311;--surface-raised:#191816;--surface-band:#131311;
+--surface-sunken:#0A0A09;--surface-overlay:rgba(0,0,0,.6);
+
+--text-heading:#F1EEE8;--text-body:#D6D2CA;--text-muted:#A29E96;--text-faint:#8C887F;
+--text-data:#F1EEE8;--text-zero:#A29E96;--text-unmeasured:#8C887F;--eyebrow:#A29E96;
+--text-on-action:#0D0D0C;
+
+--brand:#E00087;--brand-deep:#A3006F;--brand-text:#FF3D9E;
+--accent:#FF3D9E;--action-primary:#E00087;--action-primary-hover:#F1EEE8;
+--link:#FF3D9E;--link-hover:#F1EEE8;
+
+--money-up:#8BD450;--money-down:#F05B68;--money-up-ink:#8BD450;--money-down-ink:#F05B68;
+--money-flat:#A29E96;--band-up:#8BD450;--band-down:#F05B68;
+--tint-up:rgba(139,212,80,.10);--tint-down:rgba(240,91,104,.10);
+--border-up:#8BD450;--border-down:#F05B68;
+
+--long:#58BCE8;--short:#FF8A5B;
+
+--state-running:#E00087;--state-stale:#D8A843;--state-blackout:#D8A843;
+--state-stopped:#3A3833;--state-hold-ink:#D8A843;
+--tint-hold:rgba(216,168,67,.11);--border-hold:#D8A843;
+
+--border-hairline:#2A2823;--border-card:#35322D;--border-strong:#E00087;--border-input:#45413A;
+--chip-border:transparent;
+--tint-neutral:rgba(241,238,232,.05);--tint-brand:rgba(224,0,135,.10);
+
+--dot-pattern:radial-gradient(rgba(241,238,232,.06) 1px,transparent 1px); /* @kind color */
+--dot-size:4px; /* @kind spacing */
+}

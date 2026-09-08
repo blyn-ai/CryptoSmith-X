@@ -1,0 +1,21 @@
+@*
+    Paper is the native theme; Ink would be data-theme="night" on <html>. There is no switch on
+    either screen yet because neither of the two designs has one — the kit's ThemeSwitch belongs to
+    the dashboard, and adding a control the design does not show is how a system starts drifting
+    from it.
+*@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@ViewData["Title"] · CryptoSmith X</title>
+    <link rel="icon" href="~/ds/mark.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="~/ds/styles.css">
+    <link rel="stylesheet" href="~/agent.css">
+</head>
+<body class="@ViewData["PageClass"]">
+@RenderBody()
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

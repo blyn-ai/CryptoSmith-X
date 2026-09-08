@@ -1,0 +1,19 @@
+/* csx-agent — the single entry point consumers link. @import lines only.
+
+   Exported from the kit at https://claude.ai/design/p/09723807-3aef-4a1f-bcc0-776104eb608c,
+   unpacked from the two bundles the owner supplied and split into the six files by the
+   export's own section headers, so a re-export lands in the same places.
+
+   reference.html beside this file IS that kit — the rules, the swatches and every component
+   rendered. dashboard-preview.html is the screen it was drawn for. Both are self-contained
+   and open with no build; they are the argument for anything questioned here.
+
+   The kit's fonts header says Anton and DM Mono were still on a CDN. Not any more: all
+   eleven faces came inline in the bundle, they are in fonts/ and the @font-face urls point
+   at them. */
+@import "tokens/fonts.css";
+@import "tokens/colors.css";
+@import "tokens/typography.css";
+@import "tokens/spacing.css";
+@import "tokens/effects.css";
+@import "tokens/base.css";

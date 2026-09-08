@@ -125,7 +125,11 @@ app.MapGet("/zurnalas", (IWebHostEnvironment env) =>
 foreach (var (name, page, redirectFromRoot) in new[]
          {
              ("config", "config.html", true),
-             ("agent", "agent.html", true),
+             // false, for the same reason as /studio below it: /agent now belongs to the real
+             // agent application, a different container behind the same traefik, so this one must
+             // stop answering there. /feature-demo/agent is the mock's permanent address and keeps
+             // working. The redirect that stood here was a 302 and nobody's browser is holding it.
+             ("agent", "agent.html", false),
              // The redirect that used to stand here was always temporary, and the 302 was chosen
              // for this day: a 301 would have pinned every visitor who once opened the mock to the
              // mock forever, out of their own cache, where no deploy could reach them. Nobody's

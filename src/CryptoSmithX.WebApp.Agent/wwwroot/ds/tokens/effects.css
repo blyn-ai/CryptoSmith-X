@@ -1,0 +1,20 @@
+/* CSX Bot — radii, borders, shadows, motion.
+   Zero radius everywhere; no shadow, no glow, no glass, no gradient. The colour should
+   look printed by a terminal, not lit. */
+:root{
+--radius-xs:0px;--radius-sm:0px;--radius-md:0px;--radius-lg:0px;--radius-circle:50%;
+--radius-panel:0px;--radius-control:0px;
+
+--hairline:1px solid var(--border-hairline); /* @kind other */
+--panel-border:1px solid var(--border-card); /* @kind other */
+--rule-h:2px; /* @kind spacing */
+
+--shadow-none:none; /* @kind shadow */--shadow-panel:none; /* @kind shadow */--shadow-modal:none; /* @kind shadow */
+
+--focus-ring:2px solid var(--brand); /* @kind other */
+
+/* ── motion: colour transitions only; nothing moves for decoration ── */
+--dur-fast:120ms; /* @kind other */--dur:180ms; /* @kind other */--dur-slow:280ms; /* @kind other */
+--ease:linear; /* @kind other */
+--transition-color:color var(--dur-fast) var(--ease),background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease); /* @kind other */
+}

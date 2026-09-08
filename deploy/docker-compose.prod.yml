@@ -147,3 +147,38 @@ services:
       # only.
       - "10.8.0.1:7778:8080"
     restart: unless-stopped
+
+  # The agent — the bot owner's own surface at /agent, behind a sign-in against webapp_user.
+  #
+  # Its connection string is the marketdata one, NOT studio_reader: the only table it reads is
+  # webapp_user, which the reader role created by 0025 is not granted, so a sign-in against that
+  # role would fail on the one query the application makes. Written out inline like every other
+  # service here — this file has no YAML anchors, and the day one was pasted in from vm.yml the
+  # whole stack stopped parsing.
+  #
+  # ONE trading bot serves both contours, which is the owner's instruction and not an oversight:
+  # there is one bot, and a test copy of a page about it that talked to a different bot would be
+  # showing figures nobody trades on. The address is public and unauthenticated today; it is a
+  # setting rather than a literal so that stops being true without a rebuild.
+  agent:
+    container_name: cryptosmithx-webapp-agent
+    image: ghcr.io/blyn-ai/cryptosmithx-webapp-agent:latest
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
+      TradingBot__BaseUrl: ${TRADING_BOT_BASE_URL:-https://blynai.meetluko.eu}
+      ASPNETCORE_ENVIRONMENT: Production
+      Sentry__Dsn: ${SENTRY_DSN:-}
+      DataProtection__KeysDirectory: /keys
+    volumes:
+      # Its own key directory, not the admin console's: the two apps set different
+      # SetApplicationName values, so a shared ring would hold two key sets for no reason and
+      # tie one app's redeploy to the other's sessions.
+      - /opt/cryptosmithx/agent-keys:/keys
+    ports:
+      # VPN fallback entrance, as for its neighbours; the public entrance is traefik on
+      # /agent, forwarded unstripped — the app strips it itself with UsePathBase.
+      - "10.8.0.1:7779:8080"
+    restart: unless-stopped
