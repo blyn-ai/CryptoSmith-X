@@ -63,7 +63,11 @@ services:
       database-migrator:
         condition: service_completed_successfully
     environment:
-      <<: *db
+      # Written out rather than shared through a YAML anchor: this file has no anchors and every
+      # service states its own connection string. The block was lifted from docker-compose.vm.yml,
+      # which does use one — and the paste took `<<: *db` with it, so the whole file stopped parsing
+      # and every converge on the test host died with "unknown anchor 'db'".
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
       Sentry__Dsn: ${SENTRY_DSN:-}
     ports:
       - "10.8.0.1:8080:8080"
