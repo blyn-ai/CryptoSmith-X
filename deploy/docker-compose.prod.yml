@@ -34,7 +34,14 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
+      # Command Timeout — только у мигратора, и только он его и заслуживает. Npgsql по
+      # умолчанию рвёт команду через 30 с; для запроса приложения это правильно, для DDL —
+      # нет. 0035 упала на этом 2026-09-08: ALTER на market_candle (15.5 млн строк) ждал
+      # блокировку, пока старый hub дописывал свечи, и клиент убил её раньше, чем Postgres
+      # успел что-либо сказать — в логе осталось только «Exception while reading from
+      # stream». Само ожидание ограничено изнутри миграции (SET LOCAL lock_timeout),
+      # поэтому 180 с здесь — не «ждать вечно», а «дать серверу договорить».
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD};Command Timeout=180
     restart: "no"
 
   hub:

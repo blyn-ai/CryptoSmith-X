@@ -23,7 +23,15 @@ services:
   database-migrator:
     container_name: cryptosmithx-db-migrator
     image: ghcr.io/blyn-ai/cryptosmithx-migrator:latest
-    environment: *db
+    environment:
+      # Не *db, в отличие от всех остальных: мигратору — и только ему — нужен больший
+      # Command Timeout. Npgsql рвёт команду через 30 с, и 0035 на этом упала на TEST
+      # 2026-09-08 (ALTER ждал блокировку market_candle, пока старый hub дописывал свечи;
+      # клиент убил команду раньше, чем сервер успел объяснить). Ожидание ограничено
+      # изнутри самой миграции через SET LOCAL lock_timeout, так что эти 180 с — запас на
+      # ответ сервера, а не разрешение висеть бесконечно. Строка подключения по-прежнему
+      # приходит из .env целиком; здесь к ней только дописывается ключ.
+      ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:?есть в /opt/cryptosmithx/.env};Command Timeout=180
     restart: "no"
 
   hub:
