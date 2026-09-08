@@ -74,6 +74,22 @@ builder.Services.AddHttpClient("trading-bot", (sp, http) =>
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(o =>
     {
+        // ITS OWN NAME, and this is not cosmetic — it is the difference between the console
+        // working and an endless bounce with no error on it.
+        //
+        // The admin console serves the same host and issues the framework's default
+        // `.AspNetCore.Cookies` at path "/". This application's cookie sits at "/agent", because
+        // that is its PathBase. Both paths match a request to /agent/anything, so the browser
+        // sends BOTH, and the handler reads Request.Cookies[name] — the FIRST of the two. That is
+        // the console's, encrypted under a different application name and a different key ring, so
+        // it fails to decrypt, the request is anonymous, and the visitor is challenged back to a
+        // form they just filled in correctly. No wrong-password message, because the password was
+        // right. Only people who had signed into /admin in the same browser could see it.
+        //
+        // Renaming the console's cookie instead would sign out everyone already holding one, and
+        // this application is the newcomer, so it takes the new name.
+        o.Cookie.Name = ".CryptoSmithX.Agent";
+
         // Relative to PathBase, which the framework prepends when it redirects — so this is
         // "/agent" as seen from outside. The sign-in form IS this application's home page, so an
         // unauthenticated request for the parameters page comes back to it rather than to some
