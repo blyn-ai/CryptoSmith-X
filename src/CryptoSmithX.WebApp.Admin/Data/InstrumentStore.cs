@@ -31,7 +31,7 @@ public static class InstrumentStore
     /// The predicate is `status &lt;&gt; 'delisted'` rather than `= 'trading'` on purpose: halted and
     /// post_only listings come back, and a queue that hides them would quietly lose them.
     internal const string UndecidedSql =
-        "i.collect = false and i.collect_changed_at is null and i.status &lt;&gt; 'delisted'";
+        "i.collect = false and i.collect_changed_at is null and i.status <> 'delisted'";
 
     /// <summary>
     /// The collect filter as a SQL fragment. A whitelist, like the sort above it and for the same

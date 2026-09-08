@@ -58,6 +58,23 @@ public sealed class CollectGateStateTests
         Assert.DoesNotContain("is not null", InstrumentStore.UndecidedSql);
     }
 
+    /// <summary>
+    /// Happened once: the doc comment above <see cref="InstrumentStore.UndecidedSql"/> spells the
+    /// delisted exclusion as <c>&amp;lt;&amp;gt;</c> because a bare <c>&lt;&gt;</c> there would parse
+    /// as an XML tag — correct escaping for a doc comment. The escaped form leaked into the actual
+    /// string constant below it, where it is not HTML and Postgres has no idea what to do with an
+    /// ampersand: every query built from this constant failed with `column "lt" does not exist` on
+    /// every /Admin/Instruments load, filtered or not. The two string-content assertions above would
+    /// not have caught it — neither touches this half of the predicate.
+    /// </summary>
+    [Fact]
+    public void The_delisted_exclusion_is_real_sql_not_the_doc_comments_html_escaping()
+    {
+        Assert.Contains("status <> 'delisted'", InstrumentStore.UndecidedSql);
+        Assert.DoesNotContain("&lt;", InstrumentStore.UndecidedSql);
+        Assert.DoesNotContain("&gt;", InstrumentStore.UndecidedSql);
+    }
+
     [Fact]
     public void The_new_filter_is_the_undecided_predicate_itself()
     {
