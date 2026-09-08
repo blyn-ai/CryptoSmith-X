@@ -108,6 +108,19 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Arena is what the pair comparison was called before it became Studio. The name is still in
+    # circulation — in the storefront's own header, in links people saved — so the address answers
+    # instead of 404ing, and answers by pointing at the one canonical place rather than serving a
+    # second copy of the same application under a second name.
+    csx-prod-arena:
+      rule: Host(`cryptosmithx.blynai.eu`) && PathPrefix(`/arena`)
+      priority: 100
+      middlewares: [arena-to-studio]
+      entryPoints: [websecure]
+      service: csx-prod-studio
+      tls:
+        certResolver: letsencrypt
+
     csx-prod-admin:
       rule: Host(`cryptosmithx.blynai.eu`)
       priority: 10
@@ -156,6 +169,19 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Arena is what the pair comparison was called before it became Studio. The name is still in
+    # circulation — in the storefront's own header, in links people saved — so the address answers
+    # instead of 404ing, and answers by pointing at the one canonical place rather than serving a
+    # second copy of the same application under a second name.
+    csx-test-arena:
+      rule: Host(`cryptosmithx-test.blynai.eu`) && PathPrefix(`/arena`)
+      priority: 100
+      middlewares: [arena-to-studio]
+      entryPoints: [websecure]
+      service: csx-test-studio
+      tls:
+        certResolver: letsencrypt
+
     csx-test-admin:
       rule: Host(`cryptosmithx-test.blynai.eu`)
       priority: 10
@@ -197,6 +223,14 @@ http:
     #
     # Exact path only. A prefix rule would swallow /api/anything and redirect a caller who typed a
     # real path into the reference page, which is a worse failure than a 404 because it answers 200.
+    # /arena/BTC keeps its tail: the old address and the new one differ only in the first segment,
+    # so a saved link to a pair still lands on that pair.
+    arena-to-studio:
+      redirectRegex:
+        regex: "^https://([^/]+)/arena(/.*)?$"
+        replacement: "https://${1}/studio${2}"
+        permanent: false
+
     api-front-door:
       redirectRegex:
         regex: "^https://([^/]+)/api/?$"
