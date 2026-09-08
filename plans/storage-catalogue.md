@@ -1,10 +1,12 @@
 # Каталог хранения и сверка со схемой
 
 Первая часть — целевой каталог: что хранить, где, откуда приходит, в какой единице.
-Вторая — что из этого база умеет **сегодня** (схема версии 0029, снята с живой базы
-через `information_schema`, не по памяти).
+Вторая — что из этого база умеет **сегодня**: схема версии **0034**, снята через
+`information_schema` с базы, на которую накатаны все пять миграций фазы «только база»
+(0030–0034, коммит 519f646), не по памяти и не по тексту миграций.
 
-Дата сверки: 2026-09-08.
+Дата сверки: 2026-09-08, вечер. Первая редакция этого файла (dec87dd) сверяла с 0029 и
+устарела в момент записи: 0030–0034 уже лежали в main. Ниже — правильная.
 
 ---
 
@@ -110,104 +112,64 @@
 
 ---
 
-## 2. Сверка со схемой 0029
+## 2. Сверка со схемой 0034
 
-Коротко: из тринадцати целевых таблиц **пять есть в каком-то виде, восемь отсутствуют
-целиком**. Из того, что есть, ни одна таблица не совпадает с каталогом полностью.
+Коротко: из тринадцати целевых таблиц **двенадцать есть, одной нет**. Восемь из
+двенадцати совпадают с каталогом полностью или с точностью до имён. Все новые таблицы
+**пусты и писателя не имеют** — фаза 0030–0034 была «только база», это её условие, а не
+дыра; соответствующие датасеты стоят в `dataset` как `disabled`.
 
-### 2.1 Сквозные расхождения — важнее любой отдельной колонки
+### 2.1 Что закрыла фаза 0030–0034
 
-1. **PIT и происхождение отсутствуют везде.** Ни в одной таблице нет ни `known_from`, ни
-   `source` (live / backfill / ws / rest_recent). База не отличает строку, полученную в
-   момент события, от строки, дозаполненной задним числом. Это то, о чём говорит
-   `collection-policy.md` §8: ось D нигде не записана.
-2. **«NULL = не отдаёт» невозможен.** В `market_snapshot` двенадцать колонок с
-   `NOT NULL` там, где каталог требует NULL: `last_price`, `bid/ask`, `bid_size/ask_size`,
-   `mark`, `index`, `funding_rate`, `turnover_24h`, `open_interest`, `open_interest_at`.
-   Площадка, которая чего-то не отдаёт (HL — `last`; Kraken — объём в quote), вынуждает
-   писать подставное значение. Правило дизайн-системы «— значит не измерено, а не ноль»
-   из этой таблицы вывести нельзя.
-3. **Единицы не записаны.** Каталог различает price / qty / quote / rate / bps; в базе всё
-   рыночное — `double precision` без указания единицы, спека — `numeric`. `market_candle.volume`
-   вообще без единицы в имени: base или quote — по договорённости в коде. Точность
-   `double` для цен и объёмов — отдельное решение, принятое раньше; каталог его не
-   пересматривает, но фиксирует, что тик цены (`price_step numeric`) и сама цена
-   (`double`) живут в разных типах.
-4. **`received_at` есть только у snapshot.** У свечей — `updated_at` (это не то же:
-   перезапись при повторной загрузке двигает его), у фандинга нет ничего.
-5. **Enum'ов в Postgres нет — везде `text` + CHECK.** Это не расхождение, а стиль; но
-   списки значений в CHECK расходятся с каталогом (см. status и gap.cause ниже).
+| Проблема из первой редакции | Состояние в 0034 |
+| --- | --- |
+| «NULL = не отдаёт» невозможен: 11 × NOT NULL в snapshot | **снято** (0030). Все одиннадцать полей тикера nullable; NOT NULL остался только на `received_at` |
+| у snapshot нет `venue_ts`, `last_trade_at`, `funding_rate_predicted`, `next_funding_at`, `volume_24h_base`, `depth_ref`, `book_reach_*` | **все восемь добавлены** (0030), с комментариями, что каждое значит |
+| спека без версий | **`instrument_spec`** (0031): `valid_from` NN, `valid_to`, `last_seen_at` ≥ `valid_from`, `venue_effective_at`, `spec_hash` NN, `raw_json`, `written_by`; CHECK на интервал |
+| `funding_interval_source` нет | **есть** на обеих таблицах, `venue / measured / assumed` |
+| PIT и источник нигде | **есть** на `trade`, `market_price_candle`, `funding_rate_history`, `open_interest_history`, `liquidation_volume_history`: `received_at`, `known_from`, `source` с CHECK по значениям каталога |
+| `market_price_candle`, `book_topn`, `trade`, `open_interest_history`, `liquidation_volume_history` — нет | **созданы** (0032), первые три партиционированы помесячно; массивы книги с CHECK на равенство длин и `≤ levels` |
+| `coverage` нет | **есть** (0033): `range_from < range_to`, `returned ≥ 0`, `reason` ровно из списка каталога, ссылка на `run_id` |
+| единица объёма ликвидаций «в описании площадки» | лучше каталога: **`volume_unit` на строке** |
+| событийные данные как double | **новое соглашение о типах** (0032): сделка, уровень книги, бакет биржи — `numeric`; наши агрегаты (snapshot, candle) остаются `double precision` |
 
-### 2.2 По таблицам
+### 2.2 Что осталось — и ни одно из этих мест в миграциях не упомянуто, то есть это не
+перенос с причиной, а пропуск
 
-**instrument → `exchange_instrument`.** Есть: `exchange_symbol`, `base_asset`/`quote_asset`
-(+ `_raw`), `first_seen_at`. Нет: `contract_form` (linear/inverse), `contract_type`
-(perpetual/future — есть только `segment.kind` на уровне площадки, не инструмента),
-`expires_at`, `qty_unit`. Без `qty_unit` при `contract_multiplier NOT NULL CHECK > 0`
-множитель 1 неотличим от «количество в base».
+**instrument → `exchange_instrument`.** По-прежнему нет `contract_form` (linear/inverse),
+`contract_type` (perpetual/future — есть только `segment.kind`), `expires_at`, `qty_unit`.
+Без `qty_unit` правило каталога «multiplier NULL при qty_unit = base» невыразимо:
+`contract_multiplier NOT NULL CHECK > 0` и на инструменте, и на `instrument_spec` —
+множитель 1 неотличим от «количество в base». Это единственное расхождение,
+которое **сквозное**: `open_interest`, `trade.qty`, `book_topn.*_qty`, `oi_*` — всё «raw в
+qty_unit инструмента», и единицы у этих строк нет, пока нет `qty_unit`.
 
-**instrument_spec → нет.** Спека лежит плоско на `exchange_instrument` и перезаписывается
-на месте: `price_step`, `qty_step`, `min_qty`, `contract_multiplier`, `funding_interval_hours`,
-`status`, `raw_json`. Нет версий (`valid_from/valid_to`), нет `venue_effective_at`,
-`status_raw`, `spec_hash`, `funding_interval_source`. `funding_interval_hours smallint`
-не выразит период короче часа. Статус: у нас `trading / post_only / reduce_only / halted /
-delisted`; в каталоге `active / halted / post_only / delisting / delisted / unknown` — нет
-`delisting` и `unknown`, есть лишний `reduce_only`. Единственная история — `status_changed_at`
-и `last_seen_at`, то есть меняющийся тик цены прошлого не хранит.
+**instrument_spec.** Нет `status_raw`. Словарь статуса — прежний `trading / post_only /
+reduce_only / halted / delisted` против `active / halted / post_only / delisting / delisted /
+unknown`: нет `delisting` и `unknown`. `funding_interval_hours smallint` вместо `interval`
+— короче часа не выразить. Датасет `spec_versions` заведён, писателя нет.
 
-**snapshot → `market_snapshot`.** Есть: `received_at`, `last/bid/ask/bid_size/ask_size/
-mark/index/funding_rate`, `turnover_24h` (= volume_24h_quote), `open_interest(_at)`,
-`depth_at`, шесть полос 10/25/50. Нет: `venue_ts`, `last_trade_at`, `funding_rate_predicted`,
-`next_funding_at`, `volume_24h_base`, `depth_ref`, `book_reach_bid/ask`. Без `depth_ref`
-полоса не воспроизводима; без `book_reach` пустая полоса неотличима от книги, которая
-кончилась раньше полосы. Плюс NOT NULL из п. 2.1.
+**candle → `market_candle`.** **Не тронута.** Единственная историческая таблица без
+`received_at`, `known_from`, `source` — 0033 дал провенанс фандингу, OI и ликвидациям, но
+минутные свечи обошёл. `volume` без единицы в имени, `volume_quote` нет. Именно эта
+таблица — основа rollup и Studio, и именно она не умеет отличить live от backfill.
 
-**candle, candle_derived → `market_candle`** (одна таблица, `timeframe` 1 и >1, помесячные
-партиции). Есть: `open_time`, OHLC, `volume` (единица не названа), `trade_count`,
-`bar_count` = minutes_known с CHECK `≤ timeframe` — это совпадает с каталогом. Нет:
-`received_at`, `known_from`, `source`, `volume_quote`.
+**liquidation (событийная) → нет.** 0032 создал историю ликвидаций по бакетам
+(`liquidation_volume_history`), но не поток отдельных ликвидаций (`venue_time`, `side`,
+`price`, `qty`) для площадок с собственным каналом — Binance `forceOrder`. Kraken размечает
+их в `trade.trade_type`, и это покрыто; Binance — нет.
 
-**market_price_candle (mark/index) → нет.**
+**gap → `collector_gap`.** Как раньше: по смыслу совпадает, имена причин свои
+(`rate_limited` ≈ throttled, `collector_down` ≈ process_down, `error` +
+`exchange_maintenance` ≈ venue_error, лишний `timeout`).
 
-**book_topn → нет.** Датасет `book` не зарегистрирован даже в `dataset`.
+**Провенанс снапшота.** Каталог его не требует, но после 0030 `market_snapshot` — единственная
+таблица, где `received_at` есть, а `source` нет; пока snapshot пишется только вживую, это
+не расхождение.
 
-**trade → нет.** Датасет `trades` зарегистрирован (`disabled`), таблицы нет.
+### 2.3 Итог одной строкой
 
-**liquidation → нет.** Датасет `liquidations` зарегистрирован (`disabled`), таблицы нет.
-
-**funding → `funding_rate_history`.** Три колонки: `exchange_instrument_id`, `funding_time`,
-`rate`. Нет `funding_interval` на строке — период приходится выводить из соседних строк,
-что каталог прямо запрещает. Нет `received_at`, `known_from`, `source`.
-
-**open_interest_history → нет.** Датасет `open_interest` зарегистрирован (`disabled`).
-OI сегодня живёт только внутри snapshot (наша сетка, наш час) и в
-`market_metric_hour.open_interest_last` (наш собственный часовой rollup) — сетки биржи и
-OHLC по OI нет нигде.
-
-**liquidation_volume_history → нет.**
-
-**coverage → нет.** `collector_run` пишет прогон (`started_at`, `items`, `ok`, `error`,
-`http_status`, `request_weight`, `transport`), но не покрытый диапазон: нет
-`range_from/range_to`, `returned`, `reason` (`limit_hit` / `beyond_history`). Ответить
-«за какой период у нас есть история и где она кончилась потому, что биржа больше не даёт»
-база не может.
-
-**gap → `collector_gap`.** Совпадает по смыслу: `collector` (= feed, свободный текст),
-`exchange_instrument_id` NULL = весь канал, `gap_start/gap_end` с открытым концом, `cause`.
-Списки причин разные по именам, семантика покрыта: `rate_limited` ≈ throttled,
-`error` + `exchange_maintenance` ≈ venue_error, `collector_down` ≈ process_down; лишний
-`timeout`. Единственная таблица, которую можно считать готовой с точностью до переименований.
-
-### 2.3 Что есть в базе и чего нет в каталоге
-
-`market_metric_hour` (наш часовой rollup OI / фандинга / спреда / глубины с `expected_count`
-и `gap_seconds`), `market_snapshot_latest`, `min_notional`, `listed_at`, `collect*` на
-инструменте, весь блок `collector_run` / `collector_status`. Всё это операционное или
-производное; каталог про сырьё, и противоречия тут нет.
-
-### 2.4 Итог одной строкой
-
-Готова одна таблица из тринадцати (gap). Четыре существуют, но без PIT, без источника,
-без единиц и с NOT NULL там, где нужен NULL. Восемь надо создавать с нуля — и три из
-них (trades, liquidations, open_interest) уже числятся в `dataset` как выключенные
-датасеты, у которых нет места, куда писать.
+Двенадцать таблиц из тринадцати есть, восемь — точно по каталогу. Остались: `qty_unit` с
+тремя соседями на инструменте (сквозная единица количества), `status_raw` и словарь
+статуса, провенанс и `volume_quote` у минутных свечей, событийная `liquidation`. Ни одна
+новая таблица ещё не пишется — это следующая фаза, и она кодовая.
