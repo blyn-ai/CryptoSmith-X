@@ -49,6 +49,26 @@ services:
       Sentry__Dsn: ${SENTRY_DSN:-}
     restart: unless-stopped
 
+  # The read-only /v1 surface, so the test contour answers the same four public addresses the
+  # production one does. It was absent here while vm.yml had it, which meant /api on the test domain
+  # had nowhere local to go and the only honest alternatives were a 404 or pointing the test site at
+  # production's data — a test address serving production figures is worse than no test address.
+  #
+  # Published on the WireGuard address like its neighbours: never 0.0.0.0, because docker's published
+  # ports bypass the host firewall.
+  api:
+    container_name: cryptosmithx-marketdata-api
+    image: ghcr.io/blyn-ai/cryptosmithx-api:latest
+    depends_on:
+      database-migrator:
+        condition: service_completed_successfully
+    environment:
+      <<: *db
+      Sentry__Dsn: ${SENTRY_DSN:-}
+    ports:
+      - "10.8.0.1:8080:8080"
+    restart: unless-stopped
+
   webapp-admin:
     container_name: cryptosmithx-webapp-admin
     image: ghcr.io/blyn-ai/cryptosmithx-webapp-admin:latest

@@ -119,7 +119,8 @@ http:
     # API прода: контракт для машин. Тот же приоритет, что у studio, — оба выигрывают
     # у голого Host() админки, и между собой их префиксы не пересекаются.
     csx-prod-api:
-      rule: Host(`cryptosmithx.blynai.eu`) && (PathPrefix(`/v1`) || PathPrefix(`/openapi`) || PathPrefix(`/scalar`))
+      rule: Host(`cryptosmithx.blynai.eu`) && (PathPrefix(`/api`) || PathPrefix(`/v1`) || PathPrefix(`/openapi`) || PathPrefix(`/scalar`))
+      middlewares: [api-front-door]
       priority: 100
       entryPoints: [websecure]
       service: csx-prod-api
@@ -140,6 +141,18 @@ http:
       priority: 100
       entryPoints: [websecure]
       service: csx-test-studio
+      tls:
+        certResolver: letsencrypt
+
+    # The test contour answers the same four public addresses as production, against its OWN
+    # containers. /api pointed at production would put production figures behind a test hostname,
+    # which is a worse answer than none.
+    csx-test-api:
+      rule: Host(`cryptosmithx-test.blynai.eu`) && (PathPrefix(`/api`) || PathPrefix(`/v1`) || PathPrefix(`/openapi`) || PathPrefix(`/scalar`))
+      priority: 100
+      middlewares: [api-front-door]
+      entryPoints: [websecure]
+      service: csx-test-api
       tls:
         certResolver: letsencrypt
 
@@ -164,6 +177,10 @@ http:
       loadBalancer:
         servers:
           - url: http://10.11.12.28:8080
+    csx-test-api:
+      loadBalancer:
+        servers:
+          - url: http://10.8.0.1:8080
     csx-test-studio:
       loadBalancer:
         servers:
@@ -172,3 +189,16 @@ http:
       loadBalancer:
         servers:
           - url: http://10.8.0.1:7777
+
+  middlewares:
+    # /api is the address a person types; /v1 is the address a program calls. The API application
+    # serves the second and a reference page for it, and knows nothing about the first — so the door
+    # is opened here rather than by teaching the app a second name for itself.
+    #
+    # Exact path only. A prefix rule would swallow /api/anything and redirect a caller who typed a
+    # real path into the reference page, which is a worse failure than a 404 because it answers 200.
+    api-front-door:
+      redirectRegex:
+        regex: "^https://([^/]+)/api/?$"
+        replacement: "https://${1}/scalar/v1"
+        permanent: false

@@ -185,13 +185,16 @@ public static class Verdicts
 
     private static readonly Spec[] Specs =
     [
-        // Bid and ask are NOT ranked. Venues quote within a few basis points and the best bid moves
-        // every second, so the chip marked noise — and it drew the eye to the one figure on the page
-        // that answers the least. What the reader came for is where the book is deep and where the
-        // spread is narrow, and both of those are ranked below.
-        new(PairColumn.Bid, VerdictScope.Unranked, HighIsBest: true, Call.Price,
+        // Prices rank again, per quote family like every other figure denominated in the quote.
+        // They were briefly unranked on the argument that venues quote within a few basis points and
+        // the winner changes every second — true, and not the page's call to make. A column the
+        // reader can see is a column the reader may want ranked, and the freshness model already
+        // says how much to trust it: the chip carries the age of the call that wrote it and
+        // withdraws when that call goes degraded. Marking the ends of a narrow spread is not the
+        // same as claiming the spread is wide.
+        new(PairColumn.Bid, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Price,
             r => Shown(r.BidPrice, Format.PriceDecimals(r))),
-        new(PairColumn.Ask, VerdictScope.Unranked, HighIsBest: false, Call.Price,
+        new(PairColumn.Ask, VerdictScope.PerQuoteFamily, HighIsBest: false, Call.Price,
             r => Shown(r.AskPrice, Format.PriceDecimals(r))),
 
         // A notional in the quote asset, so it ranks inside the quote's family — same argument as
