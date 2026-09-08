@@ -11,14 +11,26 @@ namespace CryptoSmithX.MarketData.Connectors.Pacing;
 ///
 /// Two things changed and they are separate.
 ///
-/// The pauses are gone. A feed that wants less of the venue's budget than the ceiling allows was the
-/// right idea expressed as a constant nobody could see, tune, or reconcile with the other callers;
-/// sharing one budget between feeds and loops is a policy question, and it belongs in the exchange
-/// row with the ceiling, not in three private fields. Until that exists the single tempo is
-/// <see cref="VenueGate"/>, which is the thing the venue actually reacts to. THE CONSEQUENCE IS
-/// STATED RATHER THAN HIDDEN: with no pause, a feed re-samples its list as fast as the gate allows —
-/// far more often than the freshness threshold needs — and contends with the collector loops for one
-/// budget. That trade is deliberate and is the first thing to look at if a pass gets slower.
+/// The per-REQUEST pauses are gone, and that is the change: they were what made a pass take minutes,
+/// and a pass is now a bounded parallel sweep at the venue gate's own tempo.
+///
+/// A per-PASS cadence replaces them, and it is not the same mechanism wearing a different hat.
+/// Measured on the test host when this ran with no cadence at all: the three feeds, looping with
+/// nothing to slow them, kept the venue gate's queue permanently full, and since every claim is
+/// placed behind the ones already queued, a feed worker finishing one symbol landed at the back for
+/// the next. WEEX's 25 symbols came back sampled in strict alphabetical order roughly 34 SECONDS
+/// apart — a serial walk far slower than the 150 ms pace that was removed — and the oldest sample
+/// reached 879 s against a 600 s freshness threshold, so open interest started dropping off the page
+/// exactly as the brief predicted it would if a pass grew. The collectors slowed with it: Kraken's
+/// candle pass went from 33 s to 65 s.
+///
+/// So the tempo is now two numbers with two different jobs. WITHIN a pass, the venue gate alone
+/// decides — no feed second-guesses the ceiling. BETWEEN passes, the feed states how often its
+/// consumer actually needs a fresh sample, which for open interest is a small fraction of the
+/// freshness threshold and nowhere near "constantly". Sampling something once a second that is
+/// allowed to be ten minutes old is not diligence; it is spending a budget the collector loops are
+/// queued for. Sharing that budget properly is still policy, and still belongs on the exchange row —
+/// this is the honest floor under it, not a substitute for it.
 ///
 /// The list narrowed. Each feed used to take its symbols from the VENUE's listing — all 566 Binance
 /// perpetuals while 44 are collected, all ~990 WEEX contracts while 25 are — so most of every pass
@@ -36,10 +48,14 @@ public static class SymbolCycle
     /// symbol per pass and must acquire its own <see cref="VenueGate"/> lease around the request; a
     /// symbol that throws is logged and left stale, and a 429 penalises the venue for every caller.
     /// </summary>
+    /// <param name="passInterval">Minimum time between the STARTS of two passes. A pass that takes
+    /// longer than this simply starts the next one immediately; this is a floor on the cadence, not
+    /// a delay added to it.</param>
     public static async Task RunAsync(
         string name,
         Func<CancellationToken, Task<string[]>> symbolsAsync,
         TimeSpan symbolRefreshInterval,
+        TimeSpan passInterval,
         VenueGate gate,
         Func<string, CancellationToken, Task> sampleAsync,
         ILogger log,
@@ -105,12 +121,20 @@ public static class SymbolCycle
                 return;
             }
 
+            var elapsed = clock.GetElapsedTime(startedTicks);
+
             // One line per pass, at Information: before this, how long a pass took was not knowable
             // from outside the process — the only evidence was a sample quietly ageing past its
             // freshness threshold, which reads as the venue's fault.
             log.LogInformation(
                 "{Feed}: pass of {Symbols} symbols in {Seconds:F1} s, {Failed} failed",
-                name, symbols.Length, clock.GetElapsedTime(startedTicks).TotalSeconds, pass.Failed);
+                name, symbols.Length, elapsed.TotalSeconds, pass.Failed);
+
+            var rest = passInterval - elapsed;
+            if (rest > TimeSpan.Zero && !await DelayAsync(rest, clock, ct).ConfigureAwait(false))
+            {
+                return;
+            }
         }
     }
 

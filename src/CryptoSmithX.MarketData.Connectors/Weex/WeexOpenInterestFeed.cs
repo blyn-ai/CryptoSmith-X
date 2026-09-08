@@ -16,19 +16,17 @@ namespace CryptoSmithX.MarketData.Connectors.Weex;
 /// </summary>
 public sealed class WeexOpenInterestFeed : IWeexOpenInterestFeed
 {
-    // This feed's own politeness, on top of the venue ceiling. The two are different things and both
-    // are needed: the VenueGate is the hard ceiling shared with the depth sweep and every other
-    // caller on this IP, while this trickle is how much of that shared budget open interest is
-    // willing to take. ~6-7 req/s over ~1000 symbols is a full pass in ~2.5 min, well inside the
-    // freshness threshold, and leaves the rest of the budget to the loops that need it.
-    //
-    // The 150 ms used to be justified by "WEEX's documented 20 req/s IP budget" — a number with no
-    // vendor source behind it (see the 0021 migration header for where the claim actually came
-    // from). 0021 has since found the real source and put WEEX's true budget on the exchange row
-    // ('documented', ~200 req/s for weight-1 calls); this feed's own 150 ms is our additional
-    // restraint on top of the shared VenueGate ceiling, not a restatement of a vendor number.
-    private static readonly TimeSpan Pace = TimeSpan.FromMilliseconds(150);
+    // No per-request pause any more: the 150 ms that used to live here made a pass over the venue's
+    // ~990 contracts take ~7 minutes against a 10-minute freshness threshold — a margin of 1.4x, so a
+    // pass a third slower would have started dropping open interest off the page and looking like a
+    // venue outage. The list is now the 25 symbols we collect and the only tempo is the venue gate;
+    // see SymbolCycle for what that trades away.
     private static readonly TimeSpan SymbolRefreshInterval = TimeSpan.FromMinutes(10);
+
+    /// <summary>How often a pass may START — ten times more often than <see cref="MaxAge"/> requires.
+    /// This venue is the one that proved the point: with no cadence its 25 symbols came back sampled
+    /// 34 s apart and the oldest reached 879 s against a 600 s threshold.</summary>
+    private static readonly TimeSpan PassInterval = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(10);
 
     private readonly WeexFuturesClient _client;
@@ -37,12 +35,20 @@ public sealed class WeexOpenInterestFeed : IWeexOpenInterestFeed
     private readonly TimeProvider _clock;
     private readonly ILogger _log;
 
-    private volatile string[] _symbols = [];
+    private readonly Func<CancellationToken, Task<string[]>> _symbolsAsync;
 
-    public WeexOpenInterestFeed(WeexFuturesClient client, VenueGate gate, ILoggerFactory loggers, TimeProvider clock)
+    /// <param name="symbolsAsync">What to sample, from OUR database rather than the venue's listing:
+    /// collected and trading. WEEX lists ~990 contracts and we store 25 of them.</param>
+    public WeexOpenInterestFeed(
+        WeexFuturesClient client,
+        VenueGate gate,
+        Func<CancellationToken, Task<string[]>> symbolsAsync,
+        ILoggerFactory loggers,
+        TimeProvider clock)
     {
         _client = client;
         _gate = gate;
+        _symbolsAsync = symbolsAsync;
         _clock = clock;
         _cache = new MarketCache<(double, DateTimeOffset)>(clock);
         _log = loggers.CreateLogger("Weex.OpenInterest");
@@ -67,87 +73,20 @@ public sealed class WeexOpenInterestFeed : IWeexOpenInterestFeed
         return false;
     }
 
-    private async Task RunAsync(CancellationToken ct)
-    {
-        var lastSymbolRefresh = DateTimeOffset.MinValue;
-
-        while (!ct.IsCancellationRequested)
+    private Task RunAsync(CancellationToken ct) => SymbolCycle.RunAsync(
+        "Weex.OpenInterest", _symbolsAsync, SymbolRefreshInterval, PassInterval, _gate,
+        async (symbol, workCt) =>
         {
-            if (_clock.GetUtcNow() - lastSymbolRefresh >= SymbolRefreshInterval)
+            // Through the venue ceiling, so these calls are counted against the same budget as the
+            // depth sweep instead of running beside it unaccounted.
+            WeexOpenInterest oi;
+            using (await _gate.AcquireAsync(workCt))
             {
-                await RefreshSymbolsAsync(ct);
-                lastSymbolRefresh = _clock.GetUtcNow();
+                oi = await _client.GetOpenInterestAsync(symbol, workCt);
             }
 
-            var symbols = _symbols;
-            foreach (var symbol in symbols)
-            {
-                if (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                try
-                {
-                    // Through the venue ceiling, so these calls are counted against the same budget
-                    // as the depth sweep instead of running beside it unaccounted.
-                    WeexOpenInterest oi;
-                    using (await _gate.AcquireAsync(ct))
-                    {
-                        oi = await _client.GetOpenInterestAsync(symbol, ct);
-                    }
-
-                    var value = double.Parse(oi.BaseVolume, System.Globalization.CultureInfo.InvariantCulture);
-                    _cache.Set(symbol, (value, _clock.GetUtcNow()));
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    // One symbol's failure must not stall the whole cycle; it just stays stale a
-                    // little longer and the next pass retries it. A 429 is different in kind: it is
-                    // the venue speaking about the whole IP, so it goes to the gate and slows every
-                    // caller, not only this loop.
-                    if (ex is HttpRequestException { StatusCode: System.Net.HttpStatusCode.TooManyRequests })
-                    {
-                        _gate.Penalize();
-                    }
-
-                    _log.LogDebug(ex, "WEEX open interest fetch failed for {Symbol}", symbol);
-                }
-
-                try
-                {
-                    await Task.Delay(Pace, _clock, ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
-            }
-
-            if (symbols.Length == 0)
-            {
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(10), _clock, ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
-            }
-        }
-    }
-
-    private async Task RefreshSymbolsAsync(CancellationToken ct)
-    {
-        try
-        {
-            var contracts = await _client.GetContractsAsync(ct);
-            _symbols = contracts.Select(c => c.Symbol).OrderBy(s => s, StringComparer.Ordinal).ToArray();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _log.LogWarning(ex, "WEEX open interest feed: refreshing the symbol list failed; keeping the previous set");
-        }
-    }
+            var value = double.Parse(oi.BaseVolume, System.Globalization.CultureInfo.InvariantCulture);
+            _cache.Set(symbol, (value, _clock.GetUtcNow()));
+        },
+        _log, _clock, ct);
 }

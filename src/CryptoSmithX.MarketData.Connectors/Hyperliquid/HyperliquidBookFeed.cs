@@ -17,15 +17,21 @@ namespace CryptoSmithX.MarketData.Connectors.Hyperliquid;
 /// </summary>
 public sealed class HyperliquidBookFeed : IHyperliquidLiveFeed
 {
-    // No documented public rate limit was found during recon, but live verification hit a real 429
-    // once the snapshot loop, both collectors' unpaced per-symbol bursts, and a fast book cycle all
-    // overlapped at startup (see the commit verdict). This feed is the rare-case degraded fallback
-    // once a WS feed is healthy, not the primary path, so it paces gently — a slow, low-priority
-    // trickle rather than competing for the same budget the ticker/candle/funding calls need.
-    // Kept on top of the venue ceiling: the gate says what the venue may be asked for in total, this
-    // says how little of it a degraded fallback should take.
-    private static readonly TimeSpan Pace = TimeSpan.FromMilliseconds(800);
+    // The 800 ms that used to sit here was written when a live 429 appeared with the snapshot loop,
+    // both collectors' unpaced bursts and a fast book cycle all overlapping at startup — the gate
+    // did not exist yet in its current form. It does now, and it is the thing the venue reacts to,
+    // so this feed no longer paces itself on top of it. Measured 2026-09-08: 768 l2Book calls at 32
+    // parallel with no pause, zero refusals. Note the venue documents a WEIGHT budget (1200/min per
+    // IP, l2Book costing 2) that the same measurement exceeded without complaint — see the 0036
+    // migration header, which is where that disagreement is recorded and acted on.
     private static readonly TimeSpan SymbolRefreshInterval = TimeSpan.FromMinutes(10);
+
+    /// <summary>How often a pass may START. Much shorter than the open-interest feeds' minute: this
+    /// one carries the live book — bid, ask and depth — for a venue with no batched form of it, so
+    /// its consumer wants the newest sample, not merely one inside <see cref="MaxAge"/>. Ten seconds
+    /// over 25 coins is a small share of the budget and still roughly ten times fresher than the old
+    /// 800 ms trickle managed across the venue's whole universe.</summary>
+    private static readonly TimeSpan PassInterval = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(5);
 
     private readonly HyperliquidClient _client;
@@ -34,12 +40,20 @@ public sealed class HyperliquidBookFeed : IHyperliquidLiveFeed
     private readonly TimeProvider _clock;
     private readonly ILogger _log;
 
-    private volatile string[] _symbols = [];
+    private readonly Func<CancellationToken, Task<string[]>> _symbolsAsync;
 
-    public HyperliquidBookFeed(HyperliquidClient client, VenueGate gate, ILoggerFactory loggers, TimeProvider clock)
+    /// <param name="symbolsAsync">What to sample, from OUR database rather than the venue's universe:
+    /// collected and trading. Hyperliquid lists 178 coins and we store 25 of them.</param>
+    public HyperliquidBookFeed(
+        HyperliquidClient client,
+        VenueGate gate,
+        Func<CancellationToken, Task<string[]>> symbolsAsync,
+        ILoggerFactory loggers,
+        TimeProvider clock)
     {
         _client = client;
         _gate = gate;
+        _symbolsAsync = symbolsAsync;
         _clock = clock;
         _cache = new MarketCache<(BookTop, Depth?)>(clock);
         _log = loggers.CreateLogger("Hyperliquid.Book");
@@ -71,91 +85,21 @@ public sealed class HyperliquidBookFeed : IHyperliquidLiveFeed
         return false;
     }
 
-    private async Task RunAsync(CancellationToken ct)
-    {
-        var lastSymbolRefresh = DateTimeOffset.MinValue;
-
-        while (!ct.IsCancellationRequested)
+    private Task RunAsync(CancellationToken ct) => SymbolCycle.RunAsync(
+        "Hyperliquid.Book", _symbolsAsync, SymbolRefreshInterval, PassInterval, _gate,
+        async (symbol, workCt) =>
         {
-            if (_clock.GetUtcNow() - lastSymbolRefresh >= SymbolRefreshInterval)
+            HlL2Book book;
+            using (await _gate.AcquireAsync(workCt))
             {
-                await RefreshSymbolsAsync(ct);
-                lastSymbolRefresh = _clock.GetUtcNow();
+                book = await _client.GetL2BookAsync(symbol, workCt);
             }
 
-            var symbols = _symbols;
-            foreach (var symbol in symbols)
+            var (top, depth) = HyperliquidBookMath.Compute(book, _clock.GetUtcNow());
+            if (top is not null)
             {
-                if (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                try
-                {
-                    HlL2Book book;
-                    using (await _gate.AcquireAsync(ct))
-                    {
-                        book = await _client.GetL2BookAsync(symbol, ct);
-                    }
-
-                    var (top, depth) = HyperliquidBookMath.Compute(book, _clock.GetUtcNow());
-                    if (top is not null)
-                    {
-                        _cache.Set(symbol, (top, depth));
-                    }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    // One coin's failure must not stall the whole cycle; it just stays stale a little
-                    // longer and the next pass retries it. The 429 this feed already provoked once at
-                    // startup is the venue talking about the whole IP, so it goes to the gate.
-                    if (ex is HttpRequestException { StatusCode: System.Net.HttpStatusCode.TooManyRequests })
-                    {
-                        _gate.Penalize();
-                    }
-
-                    _log.LogDebug(ex, "Hyperliquid book fetch failed for {Symbol}", symbol);
-                }
-
-                try
-                {
-                    await Task.Delay(Pace, _clock, ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
+                _cache.Set(symbol, (top, depth));
             }
-
-            if (symbols.Length == 0)
-            {
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(10), _clock, ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
-            }
-        }
-    }
-
-    private async Task RefreshSymbolsAsync(CancellationToken ct)
-    {
-        try
-        {
-            var meta = await _client.GetMetaAsync(ct);
-            _symbols = meta.Universe
-                .Where(u => !u.IsDelisted)
-                .Select(u => u.Name)
-                .OrderBy(s => s, StringComparer.Ordinal)
-                .ToArray();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _log.LogWarning(ex, "Hyperliquid book feed: refreshing the symbol list failed; keeping the previous set");
-        }
-    }
+        },
+        _log, _clock, ct);
 }
