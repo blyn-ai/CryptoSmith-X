@@ -124,6 +124,20 @@ services:
         condition: service_completed_successfully
     environment:
       <<: *db
+      # The bot's own database — a DIFFERENT PostgreSQL from the one above, on a DIFFERENT machine.
+      # The bot and its database live on the Contabo host beside the test contour; this host reaches
+      # that one over wg1, where it is 10.11.12.29.
+      #
+      # AS SHIPPED THIS DOES NOT CONNECT, and that is stated rather than hidden: the bot's postgres
+      # publishes on 127.0.0.1:5432 of its own host and on nothing else, so 5432 over the tunnel is
+      # refused. Exposing it on the wg1 address is a change to the BOT's stack — a live trading
+      # system in another repository — and is not something this file may decide.
+      #
+      # Until it is decided, the agent starts, signs people in, and the parameters page says the bot
+      # database cannot be reached. /agent/health names which of the two is down. That is the honest
+      # failure; a form filled from the baseline mirror would look like a working page and would
+      # accept a save that goes nowhere.
+      ConnectionStrings__TradingBotDatabase: ${TRADING_BOT_DATABASE_CONNECTION_STRING:-Host=10.11.12.29;Port=5432;Database=tradingbot;Username=tradingbot;Password=${TRADING_BOT_POSTGRES_PASSWORD:-}}
       TradingBot__BaseUrl: ${TRADING_BOT_BASE_URL:-https://blynai.meetluko.eu}
       ASPNETCORE_ENVIRONMENT: Production
       Sentry__Dsn: ${SENTRY_DSN:-}

@@ -177,10 +177,18 @@ services:
         condition: service_completed_successfully
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
+      # The bot's own database, reached by CONTAINER NAME across the bot stack's network — see the
+      # networks block at the bottom of this file for why there is no other way in. The password is
+      # the bot's, so it lives in /opt/cryptosmithx/.env and never here; required, with no fallback,
+      # because a wrong-but-present credential fails at the first save instead of at start-up.
+      ConnectionStrings__TradingBotDatabase: Host=trading-bot-db;Port=5432;Database=tradingbot;Username=tradingbot;Password=${TRADING_BOT_POSTGRES_PASSWORD:?пароль БД бота, из /opt/trading-bot/.env, положить в /opt/cryptosmithx/.env}
       TradingBot__BaseUrl: ${TRADING_BOT_BASE_URL:-https://blynai.meetluko.eu}
       ASPNETCORE_ENVIRONMENT: Production
       Sentry__Dsn: ${SENTRY_DSN:-}
       DataProtection__KeysDirectory: /keys
+    networks:
+      - default
+      - trading-bot
     volumes:
       # Its own key directory, not the admin console's: the two apps set different
       # SetApplicationName values, so a shared ring would hold two key sets for no reason and
@@ -191,3 +199,17 @@ services:
       # /agent, forwarded unstripped — the app strips it itself with UsePathBase.
       - "10.8.0.1:7779:8080"
     restart: unless-stopped
+
+# The bot's network, joined rather than recreated. Its PostgreSQL publishes on 127.0.0.1:5432 of
+# this host and nothing else, and a container cannot reach the host's loopback — so the only way in
+# without touching the bot's own stack is to stand on its network and address the container by name.
+#
+# THIS COUPLES THE TWO STACKS: `external: true` means docker refuses to bring anything up here if
+# that network is gone. It is the honest shape of the dependency — the parameters page edits the
+# bot's database, so an agent that started cheerfully without a route to it would be a form that
+# saves into nothing. If the bot stack is ever retired, this block and the agent's second network
+# go with it.
+networks:
+  trading-bot:
+    name: trading-bot_default
+    external: true

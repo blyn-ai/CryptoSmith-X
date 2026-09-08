@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "No bot";
+    ViewData["PageClass"] = "p-params";
+}
+
+<header class="head">
+<span class="brand">
+<svg aria-hidden="true" viewBox="4.6 12.43 30.8 15.14" width="26" height="13" fill="none">
+<path d="M20 23.54 L15.97 27.57 L12.43 24.03 L16.46 20 L12.43 15.97 L15.97 12.43 L20 16.46 L24.03 12.43 L27.57 15.97 L23.54 20 L27.57 24.03 L24.03 27.57 Z" fill="currentColor"></path>
+<circle cx="6.6" cy="20" r="2" fill="currentColor" opacity=".55"></circle>
+<circle cx="33.4" cy="20" r="2" fill="currentColor" opacity=".55"></circle>
+</svg>
+<span class="wordmark">CryptoSmith X</span>
+</span>
+<span class="account">
+<span class="who">@User.Identity?.Name</span>
+<form method="post" asp-controller="Home" asp-action="Logout">
+<button type="submit" class="logout">Sign out</button>
+</form>
+</span>
+</header>
+
+<main>
+<section class="panel">
+<div class="panel-head">
+<span class="eyebrow">Trading limits</span>
+</div>
+@* Deliberately not an empty form. A form nobody could save is an invitation to type numbers
+   into nothing, and this account genuinely owns no bot instance rather than owning one with
+   no values. *@
+<p class="note-source" style="margin:14px 12px">This account is not attached to a bot instance, so there is nothing here to set. Ask for one to be assigned.</p>
+</section>
+</main>

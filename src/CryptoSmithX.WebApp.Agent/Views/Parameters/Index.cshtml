@@ -1,6 +1,16 @@
+@using CryptoSmithX.WebApp.Agent.Data
+@model CryptoSmithX.WebApp.Agent.Models.ParametersViewModel
 @{
     ViewData["Title"] = "Trading parameters";
     ViewData["PageClass"] = "p-params";
+
+    string? Err(string key) => Model.Errors.TryGetValue(key, out var m) ? m : null;
+    var source = Model.Source switch
+    {
+        TradeProfileSource.Overrides => "Your values",
+        TradeProfileSource.Partial => "Partly yours",
+        _ => "Bot defaults",
+    };
 }
 
 <header class="head">
@@ -13,7 +23,7 @@
 <span class="wordmark">CryptoSmith X</span>
 </span>
 <span class="account">
-<span class="who">@User.Identity?.Name</span>
+<span class="who">@User.Identity?.Name · @Model.BotInstanceId</span>
 @* A post, not a link. Signing out changes state, and a GET that changes state is one link
    prefetch away from signing people out for them. *@
 <form method="post" asp-controller="Home" asp-action="Logout">
@@ -26,43 +36,108 @@
 <section class="panel">
 <div class="panel-head">
 <span class="eyebrow">Trading limits</span>
-<span id="status" data-state="saved">Saved</span>
+<span id="status" data-state="saved" data-idle="@source">@source</span>
 </div>
 
-@* Bound to nothing, by instruction. The values below are the design's own; Save moves the word
-   above and touches no bot and no row. When the source is settled it goes here — and until it
-   is, nothing on this screen can break anything behind it. *@
-<form id="limits" method="dialog">
-<label class="field">
+@if (Model.JustSaved)
+{
+    @* Says what actually happens next, because "Saved" alone invites the two questions this
+       screen otherwise leaves open: does anything need restarting, and does it touch what is
+       already open. It does not, and it does not. *@
+    <p class="landed" role="status">Saved. Both workers pick it up within about ten seconds — new entries only, open positions unchanged.</p>
+}
+
+@if (Model.Source == TradeProfileSource.Appsettings)
+{
+    @* An empty override table is a normal state, not a failure and not a zero. Saying so is the
+       difference between "the bot runs on its deployed configuration" and "someone set these". *@
+    <p class="note-source">No overrides stored. These are the values this bot was deployed with; the first save makes them yours.</p>
+}
+else if (Model.Source == TradeProfileSource.Partial)
+{
+    <p class="note-source">Some values are yours and some are the bot's deployed defaults — marked below. Saving writes all four.</p>
+}
+
+<form id="limits" method="post" asp-action="Save">
+<label class="field @(Err(TradeProfileKeys.PositionMarginUsd) is null ? null : "bad")">
+<span class="labelrow">
 <span class="label">Position margin</span>
+@if (!Model.IsOverridden(TradeProfileKeys.PositionMarginUsd)) { <span class="from">bot default</span> }
+</span>
 <span class="affix">
-<input type="number" name="position_margin_usd" inputmode="decimal" min="0" step="1" value="250">
+<input type="number" name="positionMarginUsd" inputmode="decimal" min="0.01" step="0.01" required
+       value="@Model.Profile.PositionMarginUsd.ToString(System.Globalization.CultureInfo.InvariantCulture)">
 <span class="unit">USD</span>
 </span>
+<span class="hint">Your own margin on one new trade. Notional = margin × leverage.</span>
+@if (Err(TradeProfileKeys.PositionMarginUsd) is { } e1) { <span class="bad-msg">@e1</span> }
 </label>
 
-<label class="field">
+<label class="field @(Err(TradeProfileKeys.Leverage) is null ? null : "bad")">
+<span class="labelrow">
 <span class="label">Leverage</span>
+@if (!Model.IsOverridden(TradeProfileKeys.Leverage)) { <span class="from">bot default</span> }
+</span>
 <span class="affix">
-<input type="number" name="leverage" inputmode="numeric" min="1" step="1" value="5">
+<input type="number" name="leverage" inputmode="decimal" min="1" max="10" step="0.1" required
+       value="@Model.Profile.Leverage.ToString(System.Globalization.CultureInfo.InvariantCulture)">
 <span class="unit">x</span>
 </span>
+<span class="hint">1 to 10. Applies to new trades only.</span>
+@if (Err(TradeProfileKeys.Leverage) is { } e2) { <span class="bad-msg">@e2</span> }
 </label>
 
-<label class="field">
+<label class="field @(Err(TradeProfileKeys.MaxOpenPositions) is null ? null : "bad")">
+<span class="labelrow">
 <span class="label">Maximum open positions</span>
-<input type="number" name="max_open_positions" inputmode="numeric" min="0" step="1" value="6">
+@if (!Model.IsOverridden(TradeProfileKeys.MaxOpenPositions)) { <span class="from">bot default</span> }
+</span>
+<input type="number" name="maxOpenPositions" inputmode="numeric" min="1" max="20" step="1" required
+       value="@Model.Profile.MaxOpenPositions">
+<span class="hint">1 to 20, across everything at once.</span>
+@if (Err(TradeProfileKeys.MaxOpenPositions) is { } e3) { <span class="bad-msg">@e3</span> }
 </label>
 
-<label class="field">
+<label class="field @(Err(TradeProfileKeys.MaxOpenPositionsPerGroup) is null ? null : "bad")">
+<span class="labelrow">
 <span class="label">Maximum positions per group</span>
-<input type="number" name="max_open_positions_per_group" inputmode="numeric" min="0" step="1" value="2">
+@if (!Model.IsOverridden(TradeProfileKeys.MaxOpenPositionsPerGroup)) { <span class="from">bot default</span> }
+</span>
+<input type="number" name="maxOpenPositionsPerGroup" inputmode="numeric" min="1" max="20" step="1" required
+       value="@Model.Profile.MaxOpenPositionsPerGroup">
+<span class="hint">In one correlation group. Cannot exceed the total above.</span>
+@if (Err(TradeProfileKeys.MaxOpenPositionsPerGroup) is { } e4) { <span class="bad-msg">@e4</span> }
 </label>
 
 <button type="submit" class="save">Save</button>
 </form>
+
+@* The confirmation. A <dialog>, not a window.confirm: this has to show the four numbers that are
+   about to become the bot's, and the browser's own box cannot. Opened by intercepting submit, so
+   with scripting off the form still posts and the server still validates — the dialog is a guard
+   in front of a working form, never the only way through it. *@
+<dialog id="confirm" class="confirm" aria-labelledby="confirm-title">
+<form method="dialog">
+<p class="confirm-eyebrow" id="confirm-title">Save to @Model.BotInstanceId?</p>
+<dl class="confirm-list">
+<div><dt>Position margin</dt><dd data-for="positionMarginUsd"></dd></div>
+<div><dt>Leverage</dt><dd data-for="leverage"></dd></div>
+<div><dt>Maximum open positions</dt><dd data-for="maxOpenPositions"></dd></div>
+<div><dt>Maximum per group</dt><dd data-for="maxOpenPositionsPerGroup"></dd></div>
+</dl>
+<p class="confirm-note">Live for new entries within about ten seconds. Open positions are not changed.</p>
+<div class="confirm-actions">
+<button type="submit" value="cancel" class="confirm-no">Cancel</button>
+<button type="submit" value="save" class="confirm-yes">Yes, save</button>
+</div>
+</form>
+</dialog>
 </section>
 
+@if (Model.LastWritten is { } written)
+{
+    <p class="compliance">Last written @written.ToUniversalTime().ToString("yyyy-MM-dd HH:mm") UTC</p>
+}
 <p class="compliance">Not investment advice · Own funds only</p>
 </main>
 

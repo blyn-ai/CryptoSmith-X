@@ -117,3 +117,36 @@ body{min-height:100vh;display:flex;flex-direction:column;
   font-family:var(--font-display);font-size:16px;line-height:1;letter-spacing:.12em;text-transform:uppercase;color:var(--text-on-action);transition:var(--transition-color)}
 .p-params .save:hover{background:var(--brand-deep);border-color:var(--brand-deep)}
 .p-params .compliance{font-family:var(--font-mono);font-size:var(--fs-micro);line-height:1.4;letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-muted);text-align:center}
+
+/* the parameters screen's own additions: source labels, hints, refusals */
+.p-params .labelrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.p-params .from{font-family:var(--font-mono);font-size:9.5px;font-weight:500;line-height:1;letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-faint);white-space:nowrap}
+.p-params .hint{font-size:var(--fs-meta);line-height:1.35;color:var(--text-muted)}
+/* A border means STATE or CONTROL. A refused field is a state, so it is framed and its message
+   is framed with it; the hint below stays unframed, because a hint is neither. */
+.p-params .field.bad input,
+.p-params .field.bad .affix{border-color:var(--border-down)}
+.p-params .bad-msg{font-family:var(--font-mono);font-size:var(--fs-micro);line-height:1.35;letter-spacing:.04em;text-transform:uppercase;color:var(--money-down-ink)}
+.p-params .note-source{margin:12px 12px 0;padding:9px 10px;background:var(--tint-neutral);font-size:var(--fs-meta);line-height:1.4;color:var(--text-muted)}
+/* The one thing on this screen that IS a system state after a write: amber, the kit's colour for
+   held-back risk, never the money green — nothing here made or lost anything. */
+.p-params .landed{margin:12px 12px 0;padding:9px 10px;background:var(--tint-hold);border:1px solid var(--border-hold);font-family:var(--font-mono);font-size:var(--fs-data);line-height:1.4;letter-spacing:.02em;color:var(--state-hold-ink)}
+
+/* ── the save confirmation ── */
+/* Square, opaque, no shadow: the kit allows none, and a modal that glows would be the only lit
+   thing in the product. The scrim is the kit's own --surface-overlay. */
+.p-params .confirm{width:min(420px,calc(100vw - 28px));padding:0;background:var(--surface-card);border:1px solid var(--border-card);border-radius:var(--radius-control);color:var(--text-body)}
+.p-params .confirm::backdrop{background:var(--surface-overlay)}
+.p-params .confirm form{padding:14px 14px 12px;display:flex;flex-direction:column;gap:12px}
+.p-params .confirm-eyebrow{font-family:var(--font-display);font-size:17px;line-height:1.15;letter-spacing:.02em;text-transform:uppercase;color:var(--text-heading)}
+.p-params .confirm-list{margin:0;display:flex;flex-direction:column;gap:6px}
+.p-params .confirm-list > div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:6px;border-bottom:1px solid var(--border-hairline)}
+.p-params .confirm-list dt{font-family:var(--font-mono);font-size:var(--fs-micro);font-weight:500;line-height:1.2;letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted)}
+.p-params .confirm-list dd{margin:0;font-family:var(--font-mono);font-size:var(--fs-body);line-height:1;font-variant-numeric:tabular-nums;color:var(--text-data)}
+.p-params .confirm-note{font-family:var(--font-mono);font-size:var(--fs-micro);line-height:1.4;letter-spacing:.02em;text-transform:uppercase;color:var(--text-muted)}
+.p-params .confirm-actions{display:flex;gap:8px}
+.p-params .confirm-actions button{flex:1;height:var(--tap-min);border-radius:var(--radius-control);cursor:pointer;font-family:var(--font-mono);font-size:12px;font-weight:500;line-height:1;letter-spacing:var(--track-label);text-transform:uppercase;transition:var(--transition-color)}
+.p-params .confirm-no{background:transparent;border:1px solid var(--border-input);color:var(--text-heading)}
+.p-params .confirm-no:hover{border-color:var(--border-strong);color:var(--brand-text)}
+.p-params .confirm-yes{background:var(--action-primary);border:1px solid var(--action-primary);color:var(--text-on-action);font-family:var(--font-display);font-size:15px;letter-spacing:.12em}
+.p-params .confirm-yes:hover{background:var(--brand-deep);border-color:var(--brand-deep)}

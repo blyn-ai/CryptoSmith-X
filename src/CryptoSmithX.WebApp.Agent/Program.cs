@@ -1,5 +1,6 @@
 using CryptoSmithX.Database;
 using CryptoSmithX.WebApp.Agent;
+using CryptoSmithX.WebApp.Agent.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -43,14 +44,24 @@ builder.Services.AddSingleton(_ => new Db(
     builder.Configuration.GetConnectionString("Database")
     ?? throw new InvalidOperationException("ConnectionStrings:Database is not configured.")));
 
-// The trading bot. ONE bot serves both contours — the same blynai.meetluko.eu, from test and from
-// production — which is the owner's instruction and not an oversight: there is one bot, and a test
-// copy of a page about it that talked to a different bot would be showing figures nobody trades on.
+// The trading bot's OWN database — a second PostgreSQL, not ours, holding the runtime overrides
+// both futures workers re-read about every ten seconds. ONE bot serves both contours, which is the
+// owner's instruction and not an oversight: there is one bot, and a test copy of a page about it
+// that wrote to a different database would be editing a profile nobody trades on.
 //
-// Registered now, called by nothing yet. The parameters page is deliberately bound to no source
-// (that is the owner's "не привязывай, потом объясню"); this client exists so the container's
-// reachability to the bot is a fact the health endpoint can state rather than a guess the first
-// real feature discovers.
+// Its own type rather than a second Db, because a container cannot hold two singletons of one type
+// and because writing our market data into the bot's schema should be a compile error.
+builder.Services.AddSingleton(_ => new BotDb(
+    builder.Configuration.GetConnectionString("TradingBotDatabase")
+    ?? throw new InvalidOperationException("ConnectionStrings:TradingBotDatabase is not configured.")));
+
+// Which account owns which bot instance, and what each instance runs on with no overrides at all.
+builder.Services.Configure<TradingBotOptions>(
+    builder.Configuration.GetSection(TradingBotOptions.SectionName));
+
+// The bot's HTTP API. Read by the health probe only: it is the cheapest question whose answer is
+// "this container can see the bot at all", and it is a different path from the database above —
+// the two fail separately and should be reported separately.
 builder.Services.AddHttpClient("trading-bot", (sp, http) =>
 {
     var baseUrl = sp.GetRequiredService<IConfiguration>()["TradingBot:BaseUrl"]
@@ -121,31 +132,43 @@ app.UseAuthorization();
 // Anonymous on purpose — it is the first thing to ask when the page misbehaves, and needing to sign
 // in to find out why sign-in is broken is a circle. It states reachability and nothing else: no
 // figures, no account, no connection string, nothing a stranger learns from beyond up or down.
-app.MapGet("/health", async (Db db, IHttpClientFactory http, CancellationToken ct) =>
+app.MapGet("/health", async (Db db, BotDb bot, IHttpClientFactory http, CancellationToken ct) =>
 {
-    var database = "ok";
-    try
+    async Task<string> ReachableAsync(Func<CancellationToken, ValueTask<Npgsql.NpgsqlConnection>> open)
     {
-        await using var conn = await db.OpenAsync(ct);
-    }
-    catch (Exception e)
-    {
-        database = "unreachable: " + e.GetType().Name;
+        try
+        {
+            await using var conn = await open(ct);
+            return "ok";
+        }
+        catch (Exception e)
+        {
+            return "unreachable: " + e.GetType().Name;
+        }
     }
 
-    var bot = "ok";
+    var database = await ReachableAsync(db.OpenAsync);
+    // The bot's database is the one this application WRITES to, so it is reported on its own line.
+    // It is a different machine from ours on one of the two contours, and the day the route to it
+    // is gone the parameters page is the only thing that stops working — this says so in one call
+    // instead of leaving it to be discovered by an owner trying to change a margin.
+    var botDatabase = await ReachableAsync(bot.OpenAsync);
+
+    var botApi = "ok";
     try
     {
         using var response = await http.CreateClient("trading-bot").GetAsync("/api/bot-status", ct);
-        bot = response.IsSuccessStatusCode ? "ok" : "http " + (int)response.StatusCode;
+        botApi = response.IsSuccessStatusCode ? "ok" : "http " + (int)response.StatusCode;
     }
     catch (Exception e)
     {
-        bot = "unreachable: " + e.GetType().Name;
+        botApi = "unreachable: " + e.GetType().Name;
     }
 
-    var healthy = database == "ok" && bot == "ok";
-    return Results.Json(new { database, tradingBot = bot }, statusCode: healthy ? 200 : 503);
+    var healthy = database == "ok" && botDatabase == "ok" && botApi == "ok";
+    return Results.Json(
+        new { database, tradingBotDatabase = botDatabase, tradingBotApi = botApi },
+        statusCode: healthy ? 200 : 503);
 });
 
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
