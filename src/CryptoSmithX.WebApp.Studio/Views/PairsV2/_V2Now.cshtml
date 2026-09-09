@@ -33,28 +33,55 @@
                         {
                             var top = Math.Max(bk.BidQty.DefaultIfEmpty(0).Max(), bk.AskQty.DefaultIfEmpty(0).Max());
 
-                            @* ЧЕТЫРНАДЦАТЬ уровней с каждой стороны, по 5px. Двадцать пять по три
-                               пикселя нельзя ни навести, ни разглядеть: уровень в 3px меньше
-                               толщины курсора, и книга из формы превращалась в текстуру. Подпись
-                               говорит, сколько нарисовано из скольких, — молча урезать данные на
-                               витрине нельзя.
+                            @* ПАРНАЯ ЛЕСТНИЦА ОТ СЕРЕДИНЫ, как читают стакан везде: n-й бид против
+                               n-го аска на одной строке, цены в середине, объёмы по краям, бары
+                               растут наружу от центра.
 
-                               У каждого уровня title с точной ценой и размером: форма отвечает на
-                               «где стена», а на «какая» отвечает только число. *@
+                               До этого стороны стояли двумя стопками бар-в-бар и без единого
+                               числа: чтобы узнать, по какой цене стена, приходилось наводить на
+                               уровень по одному. Форму это давало, ответ — нет. Спред теперь
+                               виден сам собой — это просвет между двумя ценами в первой строке. *@
                             var drawn = 14;
-                            var bidShown = Math.Min(Math.Min(bk.BidPx.Length, (int)bk.Levels), drawn);
-                            var askShown = Math.Min(Math.Min(bk.AskPx.Length, (int)bk.Levels), drawn);
+                            var bidShown = Math.Min(bk.BidPx.Length, drawn);
+                            var askShown = Math.Min(bk.AskPx.Length, drawn);
                             var held = Math.Max(bk.BidPx.Length, bk.AskPx.Length);
+                            var px = Format.PriceDecimals(r.Row);
                             <span class="v2-ladder">
-                                @for (var i = bidShown - 1; i >= 0; i--)
+                                <span class="v2-lvl-head">
+                                    <span>size</span><span class="v2-r">bid</span>
+                                    <span>ask</span><span class="v2-r">size</span>
+                                </span>
+                                @for (var i = 0; i < Math.Max(bidShown, askShown); i++)
                                 {
-                                    <i class="v2-lvl v2-lvl--bid" style="width:@Format.BarWidth(bk.BidQty[i], top)"
-                                       title="bid @Format.Num(bk.BidPx[i], 8) × @Format.Num(bk.BidQty[i], 4)"></i>
-                                }
-                                @for (var i = 0; i < askShown; i++)
-                                {
-                                    <i class="v2-lvl v2-lvl--ask" style="width:@Format.BarWidth(bk.AskQty[i], top)"
-                                       title="ask @Format.Num(bk.AskPx[i], 8) × @Format.Num(bk.AskQty[i], 4)"></i>
+                                    <span class="v2-lvl-row">
+                                        @if (i < bidShown)
+                                        {
+                                            <span class="v2-lvl-qty v2-r">@Format.Num(bk.BidQty[i], 0)</span>
+                                            <span class="v2-lvl v2-lvl--bid"
+                                                  title="bid @Format.Num(bk.BidPx[i], px) × @Format.Num(bk.BidQty[i], 4)">
+                                                <i style="width:@Format.BarWidth(bk.BidQty[i], top)"></i>
+                                                <b>@Format.Num(bk.BidPx[i], px)</b>
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="v2-lvl-qty"></span><span class="v2-lvl"></span>
+                                        }
+
+                                        @if (i < askShown)
+                                        {
+                                            <span class="v2-lvl v2-lvl--ask"
+                                                  title="ask @Format.Num(bk.AskPx[i], px) × @Format.Num(bk.AskQty[i], 4)">
+                                                <i style="width:@Format.BarWidth(bk.AskQty[i], top)"></i>
+                                                <b>@Format.Num(bk.AskPx[i], px)</b>
+                                            </span>
+                                            <span class="v2-lvl-qty">@Format.Num(bk.AskQty[i], 0)</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="v2-lvl"></span><span class="v2-lvl-qty"></span>
+                                        }
+                                    </span>
                                 }
                             </span>
                             <span class="v2-book-note">

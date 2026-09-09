@@ -19,10 +19,13 @@ public static class V2Notes
 
         // Считаем, а не заявляем: столько уровней и столько чисел лежит в последнем кадре по
         // этому активу прямо сейчас.
+        // ЧТО ХРАНИМ, названное так же, как это называют карточки. Шапка писала «25 levels a
+        // side», карточка под ней — «14 of 25 drawn»: два счёта одного и того же в одной полосе,
+        // и читатель вправе решить, что один из них неверен.
         var levels = model.Books.Values.Select(b => (int)b.Levels).Max();
         var figures = model.Books.Values.Sum(b => (b.BidPx.Length + b.AskPx.Length) * 2);
 
-        return $"{figures} figures · {levels} levels a side · read as shape: where the wall is, "
-            + "where the hole is, whether the book leans";
+        return $"{figures} figures held · up to {levels} levels a side · price and size at every "
+            + "level, sides paired from the middle: the gap in the first row is the spread";
     }
 }

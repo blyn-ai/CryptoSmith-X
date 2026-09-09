@@ -436,13 +436,36 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-book-plat em{font-style:normal;float:right;font:400 var(--fs-data)/1.2 var(--font-mono);color:var(--text-faint)}
 /* Лестница: уровень — полоса, длина = объём против крупнейшего в этой книге. Биды сверху вниз
    к середине, аски от середины вниз — форма читается, цифры двадцати пяти уровней не читает никто. */
-.v2-ladder{display:flex;flex-direction:column;gap:1px;padding:4px 0}
-/* 5px, а не 3px. Уровень в три пикселя тоньше курсора: его нельзя навести, а значит нельзя и
-   спросить цену — книга оставалась текстурой. Пять читаются и наводятся. */
-.v2-lvl{display:block;height:5px;min-width:1px;transition:background-color 120ms linear}
-.v2-lvl--bid{background:var(--bar-depth-bid)}
-.v2-lvl--ask{background:var(--bar-depth-ask)}
-.v2-lvl:hover{background:var(--accent)}
+/* ── Лестница стакана ────────────────────────────────────────────────────────
+   Читается как стакан на бирже: n-й бид против n-го аска в одной строке, цены в середине,
+   объёмы по краям, бары растут НАРУЖУ от центра. Спред не подписан отдельно — он и есть просвет
+   между двумя ценами в первой строке.
+
+   До этого стороны стояли двумя стопками бар-в-бар и без единого числа: форму это давало,
+   а на «по какой цене стена» приходилось наводить курсор на уровень по одному. */
+.v2-ladder{display:flex;flex-direction:column;gap:1px;font-family:var(--font-mono);
+  font-variant-numeric:tabular-nums;font-size:var(--fs-micro);line-height:1.5}
+.v2-lvl-head,.v2-lvl-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,1fr);
+  gap:2px;align-items:center}
+.v2-lvl-head{font:500 var(--fs-eyebrow)/1.4 var(--font-mono);letter-spacing:var(--track-label);
+  text-transform:uppercase;color:var(--eyebrow);border-bottom:1px solid var(--border-hairline);
+  margin-bottom:2px;padding-bottom:2px}
+.v2-lvl-qty{color:var(--text-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Ячейка цены несёт свой бар фоном: он выходит из середины и растёт наружу, поэтому у бида
+   прижат вправо, у аска влево. Цена стоит поверх — иначе бар пришлось бы читать отдельно от
+   числа, которое он описывает. */
+.v2-lvl{position:relative;display:flex;align-items:center;min-width:0;padding:0 3px}
+.v2-lvl i{position:absolute;top:0;bottom:0;display:block}
+.v2-lvl b{position:relative;font-weight:400;white-space:nowrap}
+.v2-lvl--bid{justify-content:flex-end}
+.v2-lvl--bid i{right:0;background:color-mix(in srgb,var(--candle-up) 22%,transparent)}
+.v2-lvl--bid b{color:var(--candle-up)}
+.v2-lvl--ask{justify-content:flex-start}
+.v2-lvl--ask i{left:0;background:color-mix(in srgb,var(--candle-down) 18%,transparent)}
+.v2-lvl--ask b{color:var(--candle-down)}
+.v2-lvl:hover i{background:var(--tint-brand)}
+
 .v2-book-note{font:400 var(--fs-micro)/1.3 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-faint)}
 
 /* ── полоса 4: лента ────────────────────────────────────────────────────────── */
