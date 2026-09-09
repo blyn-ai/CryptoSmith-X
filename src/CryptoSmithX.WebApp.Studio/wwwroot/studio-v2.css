@@ -247,7 +247,38 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 
    Смысл не в украшении: в таблице пять площадок на 26 полей, и палец, ведущий по строке, —
    единственный способ не потерять, из какой она строки, на девятой колонке. */
+/* ── Колонка под курсором ────────────────────────────────────────────────────
+   ГЛАВНОЕ движение глаза на этой странице: «как эта цифра стоит у семи площадок» читается
+   вертикально, а подсвечивалась строка — то есть ровно поперёк вопроса. Заливка идёт на всю
+   колонку, включая её шапку; строка остаётся подсвеченной тоже, они не мешают друг другу.
+
+   Только цвет и только 120ms: колонка меняется на каждом движении курсора, и любая анимация
+   геометрии здесь была бы таблицей, которая дышит. */
 .v2-row:hover{background:var(--surface-sunken)}
+.v2-cell,.v2-hcell{transition:background-color 120ms linear}
+.v2-cell.is-col,.v2-hcell.is-col{background:color-mix(in srgb,var(--text-data) 8%,transparent);
+  box-shadow:inset 1px 0 0 var(--border-hairline),inset -1px 0 0 var(--border-hairline)}
+
+/* ── Спарклайн в свёрнутой клетке ───────────────────────────────────────────── */
+.v2-spark{display:block;width:100%;height:22px;margin-top:2px;color:var(--spark-ticker)}
+.v2-spark[data-tone="openinterest"]{color:var(--spark-oi)}
+.v2-spark[data-tone="depth"]{color:var(--spark-depth)}
+/* Раскрытая группа отдаёт место полям: две картинки одного числа в одной клетке спорят. */
+.v2-cell:has(.v2-fields:not([hidden])) .v2-spark{display:none}
+
+/* ── Ранг цифры ──────────────────────────────────────────────────────────────
+   Заливка на всю строку поля — подпись и значение вместе, — а не чип рядом: строка из двух
+   элементов, к которой добавили третий, читается как три вещи; помеченная строка читается как
+   та же строка. Ранг не гаснет с возрастом: он посчитан ПОПЕРЁК площадок, и его правда — про
+   сравнение, а не про то, сколько секунд назад пришло это число. */
+.v2-field--best{background:var(--tag-best-bg);box-shadow:0 0 0 2px var(--tag-best-bg)}
+.v2-field--best em,.v2-field--best b{color:var(--tag-best-ink)}
+.v2-field--worst{background:var(--tag-worst-bg);box-shadow:0 0 0 2px var(--tag-worst-bg)}
+.v2-field--worst em,.v2-field--worst b{color:var(--tag-worst-ink)}
+.v2-field--tight{background:var(--tag-best-bg);box-shadow:0 0 0 2px var(--tag-best-bg)}
+.v2-field--tight em,.v2-field--tight b{color:var(--tag-best-ink)}
+.v2-field--wide{background:var(--tag-worst-bg);box-shadow:0 0 0 2px var(--tag-worst-bg)}
+.v2-field--wide em,.v2-field--wide b{color:var(--tag-worst-ink)}
 .v2-fig:hover,
 .v2-field:hover{background:var(--tint-brand,var(--surface-sunken));box-shadow:0 0 0 3px var(--tint-brand,var(--surface-sunken));
   transition:background-color 120ms linear}

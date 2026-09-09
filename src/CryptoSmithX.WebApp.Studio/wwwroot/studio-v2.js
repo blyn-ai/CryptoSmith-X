@@ -190,3 +190,39 @@
     }
   });
 })();
+
+
+/* Колонка под курсором.
+
+   Делегированно на документе, а не на клетках: живой поток заменяет полосу 1 целиком, и
+   обработчики, повешенные на клетки, уехали бы вместе с ними при первой же посылке — молча, и
+   ровно тогда, когда страница стала интереснее всего.
+
+   Клавиатура получает то же самое: :focus-within в стилях сюда не годится, потому что подсветить
+   надо не предка сфокусированного элемента, а СЕСТЁР в других строках. */
+(function () {
+  var current = null;
+
+  function light(key) {
+    if (key === current) { return; }
+    current = key;
+    document.querySelectorAll('.v2-cell.is-col,.v2-hcell.is-col').forEach(function (el) {
+      el.classList.remove('is-col');
+    });
+    if (!key) { return; }
+    document.querySelectorAll('.v2-cell[data-group="' + key + '"],.v2-hcell[data-group="' + key + '"]')
+      .forEach(function (el) { el.classList.add('is-col'); });
+  }
+
+  function keyOf(target) {
+    if (!target || !target.closest) { return null; }
+    var cell = target.closest('.v2-cell[data-group],.v2-hcell[data-group]');
+    return cell ? cell.getAttribute('data-group') : null;
+  }
+
+  // pointerover всплывает и приходит на КАЖДЫЙ элемент, в который вошёл курсор, поэтому гашение
+  // отдельным обработчиком не нужно: ушёл из клетки в подпись или в другую полосу — keyOf вернул
+  // null, и колонка погасла тем же вызовом, которым зажглась.
+  document.addEventListener('pointerover', function (e) { light(keyOf(e.target)); });
+  document.addEventListener('focusin', function (e) { light(keyOf(e.target)); });
+})();

@@ -44,6 +44,11 @@ public static class V2Cells
         V2Field.LiquidationVolume => stress is null ? V2Cell.None : new V2Cell(stress.Volume, Format.Num(stress.Volume, 0), null),
         V2Field.LiquidationUnit => stress is null ? V2Cell.None : Text(stress.Unit),
 
+        // Бид и аск ОТДЕЛЬНЫМИ цифрами, а не только парой под спредом: ранг у них считается по
+        // каждой стороне, и одна площадка бывает лучшей по биду и худшей по аску одновременно —
+        // ровно то, что общая подпись «bid / ask» показать не могла.
+        V2Field.Bid => Fig(r.Row.BidPrice, 6),
+        V2Field.Ask => Fig(r.Row.AskPrice, 6),
         V2Field.Last => Fig(r.Row.LastPrice, 6),
         V2Field.Mark => Fig(r.Row.MarkPrice, 8),
         V2Field.Index => Fig(r.Row.IndexPrice, 8),

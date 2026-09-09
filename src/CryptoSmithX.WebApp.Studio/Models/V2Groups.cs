@@ -17,10 +17,30 @@ namespace CryptoSmithX.WebApp.Studio.Models;
 /// </summary>
 public static class V2Groups
 {
+    /// <summary>
+    /// The hourly history behind a group's HEADLINE figure — the sparkline the collapsed cell
+    /// draws — or an empty list where none is kept.
+    ///
+    /// The collapsed table is the only place on the page that shows direction across every venue at
+    /// once: band 3 answers "how did this one field get here" and can only draw one field at a
+    /// time. Two of the seven keep no history at all (a rolling 24-hour turnover is one number, and
+    /// an age is measured against now), and those keep the log bar alone — rule 11.
+    /// </summary>
+    public static IReadOnlyList<double?> Spark(VenueRowModel r, V2Group g) => g.Key switch
+    {
+        "price" => r.Metrics.Spread,
+        "liquidity" => r.Metrics.Depth25,
+        "positions" => r.Metrics.OpenInterest,
+        "carry" => r.Metrics.Funding,
+        "stress" => r.Liquidations,
+        _ => [],
+    };
+
     public static IReadOnlyList<V2Group> All { get; } =
     [
         new("price", "Price", "quote asset · bid / ask · bps", PairColumn.SpreadBps, CallTone.Ticker,
-            [new("Last", V2Field.Last), new("Mark", V2Field.Mark), new("Index", V2Field.Index),
+            [new("Bid", V2Field.Bid), new("Ask", V2Field.Ask),
+             new("Last", V2Field.Last), new("Mark", V2Field.Mark), new("Index", V2Field.Index),
              new("Spread", V2Field.Spread), new("Venue clock", V2Field.VenueClock),
              new("Last trade", V2Field.LastTrade)])
             { Cut = "price" },
@@ -80,9 +100,46 @@ public sealed record V2Group(
 public sealed record V2FieldRef(string Label, V2Field Field);
 
 /// <summary>Every figure the expanded groups can show. Not every venue answers every one.</summary>
+/// <summary>
+/// Which ranked column a figure IS, or null when it is not one.
+///
+/// Ranks are computed per FIGURE and never per group: one venue can hold the best bid and the worst
+/// ask at the same instant, and a rank stated once for the group would hide exactly that. Fields
+/// with no column here are not unranked by oversight — a venue clock, a contract multiplier and a
+/// funding interval are facts about the venue, not positions in a comparison.
+/// </summary>
+public static class V2Ranks
+{
+    public static PairColumn? ColumnOf(V2Field f) => f switch
+    {
+        V2Field.Bid => PairColumn.Bid,
+        V2Field.Ask => PairColumn.Ask,
+        V2Field.Spread => PairColumn.SpreadBps,
+        V2Field.BidSize => PairColumn.BidSize,
+        V2Field.AskSize => PairColumn.AskSize,
+        V2Field.Depth10 => PairColumn.Depth10,
+        V2Field.Depth25 => PairColumn.Depth25,
+        V2Field.Depth50 => PairColumn.Depth50,
+        V2Field.OpenInterest => PairColumn.OpenInterest,
+        V2Field.Turnover24h => PairColumn.Turnover24h,
+        _ => null,
+    };
+
+    /// <summary>The word the spread column uses for the same two ranks. Every other column says
+    /// BEST and WORST; on a spread "best" is a width, and the reader reads TIGHT faster than they
+    /// translate.</summary>
+    public static string Word(V2Field f, Verdict v) => (f, v) switch
+    {
+        (V2Field.Spread, Verdict.Best) => "tight",
+        (V2Field.Spread, Verdict.Worst) => "wide",
+        (_, Verdict.Best) => "best",
+        _ => "worst",
+    };
+}
+
 public enum V2Field
 {
-    Last, Mark, Index, Spread, VenueClock, LastTrade,
+    Bid, Ask, Last, Mark, Index, Spread, VenueClock, LastTrade,
     BidSize, AskSize, Depth10, Depth25, Depth50, BookReach,
     OpenInterest, Multiplier,
     FundingPerDay, FundingRate, FundingInterval,

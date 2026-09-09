@@ -23,7 +23,7 @@
                    на всю таблицу; здесь раскрытие ещё и по группам, и вешать оба смысла на
                    один клик значило бы, что предсказать, что случится, нельзя. Имя раскрывает
                    группу на месте, каретка уводит полосы 2 и 3 на это поле. *@
-                <span class="v2-hcell" data-tone="@g.Tone.ToString().ToLowerInvariant()">
+                <span class="v2-hcell" data-group="@g.Key" data-tone="@g.Tone.ToString().ToLowerInvariant()">
                     <span class="v2-hrow">
                         <button type="button" class="v2-gtoggle" data-group="@g.Key" aria-expanded="false">@g.Name</button>
                         @if (g.Cut is not null)
@@ -109,11 +109,44 @@
                                 <i style="width:@Format.BarWidth(head.Value, Model.Scales.Of(r.Row.InstrumentId, bc))"></i>
                             </span>
                         }
+
+                        @* Спарклайн — история ТОГО ЖЕ числа, что стоит крупно, за те же двадцать
+                           четыре часа, что рисует полоса 3. Он здесь потому, что свёрнутая
+                           таблица — единственное место на странице, где направление видно у всех
+                           площадок сразу: полоса 3 отвечает на «как пришло вот это одно поле» и
+                           больше одного поля показать не может.
+
+                           У двух групп из семи истории нет вовсе — оборот за скользящие сутки это
+                           одно число, а возраст меряется от «сейчас», — и там остаётся лог-бар
+                           (правило 11). Пустой рамки вместо линии не рисуем. *@
+                        @{ var spark = Format.SparkPath(V2Groups.Spark(r, g), 120, 22); }
+                        @if (spark is not null)
+                        {
+                            <svg class="v2-spark" data-tone="@g.Tone.ToString().ToLowerInvariant()"
+                                 viewBox="0 0 120 22" preserveAspectRatio="none" aria-hidden="true">
+                                <path d="@spark" fill="none" stroke="currentColor" stroke-width="1"
+                                      vector-effect="non-scaling-stroke" />
+                            </svg>
+                        }
+
                         <span class="v2-fields" hidden>
                             @foreach (var f in g.Fields)
                             {
                                 var cell = V2Cells.Field(r, f.Field, stress);
-                                <span class="v2-field">
+
+                                @* РАНГ НА КАЖДОЙ ЦИФРЕ, а не на группе. Verdicts считает его давно
+                                   и по каждой колонке отдельно; до сих пор на второй странице он
+                                   не показывался нигде, то есть «как эта цифра стоит у семи
+                                   площадок» страница считала и молчала.
+
+                                   Заливка ложится на подпись И значение целиком, а не чипом рядом:
+                                   чип — ещё один элемент в строке из двух, а заливка это та же
+                                   строка, только помеченная. Оба конца или ни одного — один BEST
+                                   без WORST не сравнение, а похвала. *@
+                                var column = V2Ranks.ColumnOf(f.Field);
+                                var rank = column is { } rc ? Model.Verdicts.Of(r.Row.InstrumentId, rc) : Verdict.None;
+                                <span class="v2-field @(rank == Verdict.None ? "" : "v2-field--" + V2Ranks.Word(f.Field, rank))"
+                                      title="@(rank == Verdict.None ? null : V2Ranks.Word(f.Field, rank).ToUpperInvariant() + " of the listings this figure can be compared against")">
                                     <em>@f.Label</em><b class="@(cell.Value is null ? "v2-fig--none" : "")">@cell.Text</b>
                                 </span>
                             }
