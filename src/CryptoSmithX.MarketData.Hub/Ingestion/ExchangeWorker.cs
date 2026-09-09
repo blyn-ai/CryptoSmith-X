@@ -608,7 +608,7 @@ public sealed class ExchangeWorker : BackgroundService
         {
             var settings = _settings.Latest;
             ws = new WeexWsFeed(
-                config.WsUrl, client, gate, _loggers, _clock,
+                config.WsUrl, client, gate, CollectedSymbols(config.Code), _loggers, _clock,
                 settings.WsStaleAfter, settings.WsCrosscheckInterval, settings.WsCrosscheckDriftBps);
             ws.Start(ct);
         }

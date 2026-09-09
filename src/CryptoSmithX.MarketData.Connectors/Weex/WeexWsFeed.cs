@@ -59,15 +59,14 @@ public sealed class WeexWsFeed : IWeexLiveFeed
     private const string DepthChannel = "depth200";
     private const int DepthLevels = 200;
 
-    /// <summary>1-minute candles. Subscribed for the same broad symbol set depth already covers
-    /// (every symbol with a real market, not only the ones we <c>collect</c>) — deliberately
-    /// consistent with the precedent depth already set on this socket rather than threading a
-    /// second, narrower symbol source through the feed. The trade-off is a known unknown, not an
-    /// oversight: Fixtures/weex-ws/README.md's own "Not established here" already flags that the
-    /// maximum channel count on one connection was never measured, and doubling to ~2000 channels
-    /// (depth + kline for ~990 live symbols) is untested. The channel itself costs no REST budget —
-    /// unlike a poll, a quiet symbol's kline channel simply never pushes — so the risk is connection
-    /// capacity, not request rate.</summary>
+    /// <summary>1-minute candles. MEASURED on the test host (2026-09-09) that the "known unknown"
+    /// this comment used to flag is real: subscribing kline for the same ~990-symbol set depth
+    /// already covers doubled the channel count on one connection to ~1980, and the socket started
+    /// dropping every 2-6 s — a reconnect loop that also took the working depth subscription down
+    /// with it, since OnOpenAsync resubscribes both together. Kline is subscribed for the narrower
+    /// <c>collect = true</c> set instead (see <see cref="_klineSymbols"/>), the same predicate the
+    /// REST candle collector already uses, and independently of depth's own broad set — the two are
+    /// no longer coupled at the subscription level, only at the connection level.</summary>
     private const string KlineChannel = "kline_1m";
 
     /// <summary>Symbols per SUBSCRIBE frame. The envelope takes an array, but the capture only ever
@@ -91,11 +90,21 @@ public sealed class WeexWsFeed : IWeexLiveFeed
     private readonly int _driftBps;
     private readonly ConcurrentDictionary<string, DateTimeOffset> _lastResync = new(StringComparer.Ordinal);
 
-    /// <summary>Stored (v2) symbols we intend to be subscribed to.</summary>
+    /// <summary>Stored (v2) symbols we intend depth to be subscribed to — every live symbol, the
+    /// broad set that already worked before this phase and is unchanged by it.</summary>
     private volatile string[] _symbols = [];
 
+    /// <summary>Stored (v2) symbols we intend kline to be subscribed to — <c>collect = true</c> only,
+    /// from <see cref="_klineSymbolsAsync"/>. Deliberately a SEPARATE list from <see cref="_symbols"/>:
+    /// see <see cref="KlineChannel"/>'s remarks for the measurement that made this two lists instead
+    /// of one.</summary>
+    private volatile string[] _klineSymbols = [];
+
+    private readonly Func<CancellationToken, Task<string[]>> _klineSymbolsAsync;
+
     /// <summary>Wire (v3) symbol → stored (v2) symbol, replaced wholesale so readers never see a
-    /// half-built map.</summary>
+    /// half-built map. Covers BOTH symbol sets — depth and kline draw from the same venue-wide
+    /// listing, kline is just a filtered view of it.</summary>
     private volatile Dictionary<string, string> _v3ToV2 = new(StringComparer.Ordinal);
 
     private long _nextRequestId;
@@ -103,12 +112,18 @@ public sealed class WeexWsFeed : IWeexLiveFeed
     private int _thinLevelReported;
     private CancellationToken _ct;
 
+    /// <param name="klineSymbolsAsync">What to subscribe kline for — OUR database, collect = true,
+    /// not the venue's full listing depth uses. See <see cref="KlineChannel"/>'s remarks: subscribing
+    /// kline for the same ~990-symbol set as depth measurably broke the connection.</param>
     public WeexWsFeed(
-        string wsUrl, WeexFuturesClient client, VenueGate gate, ILoggerFactory loggers, TimeProvider clock,
+        string wsUrl, WeexFuturesClient client, VenueGate gate,
+        Func<CancellationToken, Task<string[]>> klineSymbolsAsync,
+        ILoggerFactory loggers, TimeProvider clock,
         TimeSpan staleAfter, TimeSpan crosscheckInterval, int driftBps)
     {
         _client = client;
         _gate = gate;
+        _klineSymbolsAsync = klineSymbolsAsync;
         _clock = clock;
         _log = loggers.CreateLogger("Weex.Ws");
         _conn = new WsConnection(wsUrl, loggers.CreateLogger("Weex.Ws.Conn"), clock);
@@ -210,10 +225,12 @@ public sealed class WeexWsFeed : IWeexLiveFeed
         _books.MarkAllDirty();
 
         var symbols = _symbols;
+        var klineSymbols = _klineSymbols;
         _log.LogInformation(
-            "WEEX WS: subscribing {Count} symbols to @{DepthChannel} and @{KlineChannel}",
-            symbols.Length, DepthChannel, KlineChannel);
-        await SubscribeAsync("SUBSCRIBE", symbols, ct);
+            "WEEX WS: subscribing {Count} symbols to @{DepthChannel}, {KlineCount} to @{KlineChannel}",
+            symbols.Length, DepthChannel, klineSymbols.Length, KlineChannel);
+        await SubscribeDepthAsync("SUBSCRIBE", symbols, ct);
+        await SubscribeKlineAsync("SUBSCRIBE", klineSymbols, ct);
     }
 
     private void OnMessage(string text)
@@ -499,10 +516,13 @@ public sealed class WeexWsFeed : IWeexLiveFeed
         }
     }
 
-    /// <summary>Unsubscribe then subscribe one symbol, which is the captured way to get a fresh
-    /// snapshot: the unsubscribe provably stops the stream and the subscribe provably starts it with
-    /// a snapshot. Debounced, because a drifting symbol will keep drifting until the new snapshot
-    /// lands.</summary>
+    /// <summary>Unsubscribe then subscribe one symbol's DEPTH channel only, which is the captured way
+    /// to get a fresh snapshot: the unsubscribe provably stops the stream and the subscribe provably
+    /// starts it with a snapshot. Debounced, because a drifting symbol will keep drifting until the
+    /// new snapshot lands. Depth-only on purpose, not both channels: this fires for any symbol whose
+    /// book drifted, most of which are not in <see cref="_klineSymbols"/> at all — an UNSUBSCRIBE for
+    /// a channel never subscribed is exactly the kind of request Fixtures/weex-ws/README.md warns
+    /// closes the connection after six rejects.</summary>
     private async Task ResyncBookAsync(string symbol)
     {
         var now = _clock.GetUtcNow();
@@ -512,8 +532,8 @@ public sealed class WeexWsFeed : IWeexLiveFeed
         }
 
         _lastResync[symbol] = now;
-        await SubscribeAsync("UNSUBSCRIBE", [symbol], _ct);
-        await SubscribeAsync("SUBSCRIBE", [symbol], _ct);
+        await SubscribeDepthAsync("UNSUBSCRIBE", [symbol], _ct);
+        await SubscribeDepthAsync("SUBSCRIBE", [symbol], _ct);
     }
 
     /// <summary>
@@ -543,6 +563,23 @@ public sealed class WeexWsFeed : IWeexLiveFeed
         _v3ToV2 = map;
         _symbols = next;
 
+        // The kline set is independent of the depth set above — collect = true, from our own
+        // database — and refreshed on the same cadence, not the same call. A failure here is logged
+        // and the previous set kept, same tolerance SymbolCycle already applies elsewhere.
+        var klinePrev = _klineSymbols;
+        string[] klineNext;
+        try
+        {
+            klineNext = await _klineSymbolsAsync(ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log.LogWarning(ex, "WEEX WS: refreshing the kline symbol list failed; keeping the previous set");
+            klineNext = klinePrev;
+        }
+
+        _klineSymbols = klineNext;
+
         var gaps = Interlocked.Exchange(ref _gapsSinceLastReport, 0);
         _log.LogInformation(
             "WEEX WS: {Fresh} of {Total} books fresh, {Gaps} sequence breaks since the last report",
@@ -550,37 +587,54 @@ public sealed class WeexWsFeed : IWeexLiveFeed
 
         if (!_conn.Connected)
         {
-            return;   // OnOpen will subscribe the whole set on connect
+            return;   // OnOpen will subscribe both sets on connect
         }
 
         var added = next.Except(prev, StringComparer.Ordinal).ToArray();
         var removed = prev.Except(next, StringComparer.Ordinal).ToArray();
         if (added.Length > 0)
         {
-            await SubscribeAsync("SUBSCRIBE", added, ct);
+            await SubscribeDepthAsync("SUBSCRIBE", added, ct);
         }
 
         if (removed.Length > 0)
         {
-            await SubscribeAsync("UNSUBSCRIBE", removed, ct);
+            await SubscribeDepthAsync("UNSUBSCRIBE", removed, ct);
             foreach (var symbol in removed)
             {
                 _books.Remove(symbol);
+            }
+        }
+
+        var klineAdded = klineNext.Except(klinePrev, StringComparer.Ordinal).ToArray();
+        var klineRemoved = klinePrev.Except(klineNext, StringComparer.Ordinal).ToArray();
+        if (klineAdded.Length > 0)
+        {
+            await SubscribeKlineAsync("SUBSCRIBE", klineAdded, ct);
+        }
+
+        if (klineRemoved.Length > 0)
+        {
+            await SubscribeKlineAsync("UNSUBSCRIBE", klineRemoved, ct);
+            foreach (var symbol in klineRemoved)
+            {
                 _candles.Remove(symbol);
             }
         }
     }
 
-    /// <summary>Both channels this feed subscribes, per symbol.</summary>
-    private static readonly string[] Channels = [DepthChannel, KlineChannel];
+    private Task SubscribeDepthAsync(string method, IReadOnlyList<string> symbols, CancellationToken ct) =>
+        SubscribeAsync(method, symbols, DepthChannel, ct);
 
-    /// <summary>Binance-shaped envelope: <c>{"method":"SUBSCRIBE","params":["btcusdt@depth200","btcusdt@kline_1m"],"id":N}</c>.
-    /// Both channels for a symbol travel in the same frame, so a resubscribe (depth resync, added
-    /// symbol) always re-seeds candle history alongside the book rather than needing a matching
-    /// second call — one extra <c>klineSnapshot</c> on a depth-only resync is a harmless resend, not
-    /// a second subscription to manage. The id is echoed on the ack; it is monotonic here only so a
-    /// rejected request can be told from its neighbours in a log.</summary>
-    private async Task SubscribeAsync(string method, IReadOnlyList<string> symbols, CancellationToken ct)
+    private Task SubscribeKlineAsync(string method, IReadOnlyList<string> symbols, CancellationToken ct) =>
+        SubscribeAsync(method, symbols, KlineChannel, ct);
+
+    /// <summary>Binance-shaped envelope: <c>{"method":"SUBSCRIBE","params":["btcusdt@depth200"],"id":N}</c>.
+    /// One channel per call — depth and kline are subscribed independently, over different symbol
+    /// sets (see <see cref="KlineChannel"/>'s remarks), so combining them into one frame is no longer
+    /// possible even where the same symbol appears in both. The id is echoed on the ack; it is
+    /// monotonic here only so a rejected request can be told from its neighbours in a log.</summary>
+    private async Task SubscribeAsync(string method, IReadOnlyList<string> symbols, string channel, CancellationToken ct)
     {
         for (var i = 0; i < symbols.Count; i += SubscribeChunk)
         {
@@ -588,16 +642,12 @@ public sealed class WeexWsFeed : IWeexLiveFeed
             var parameters = new StringBuilder();
             foreach (var symbol in chunk)
             {
-                var v3 = WeexMarkets.ToV3Symbol(symbol);
-                foreach (var channel in Channels)
+                if (parameters.Length > 0)
                 {
-                    if (parameters.Length > 0)
-                    {
-                        parameters.Append(',');
-                    }
-
-                    parameters.Append('"').Append(v3).Append('@').Append(channel).Append('"');
+                    parameters.Append(',');
                 }
+
+                parameters.Append('"').Append(WeexMarkets.ToV3Symbol(symbol)).Append('@').Append(channel).Append('"');
             }
 
             if (parameters.Length == 0)
