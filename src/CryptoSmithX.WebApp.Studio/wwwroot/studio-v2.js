@@ -77,9 +77,8 @@
     var rows = Array.prototype.slice.call(grid.querySelectorAll('.v2-row'));
     if (rows.length < 2) { return; }
 
-    var before = rows.slice();
     var asc = ASC[key] === true;
-    rows.sort(function (a, b) {
+    var ranked = rows.slice().sort(function (a, b) {
       var x = parseFloat(a.getAttribute('data-sort-' + key));
       var y = parseFloat(b.getAttribute('data-sort-' + key));
       var xn = isNaN(x), yn = isNaN(y);
@@ -89,14 +88,21 @@
       return asc ? x - y : y - x;
     });
 
-    // НИЧЕГО НЕ ТРОГАЕМ, ЕСЛИ ПОРЯДОК ТОТ ЖЕ. Живой поток заменяет таблицу каждую посылку, и
-    // безусловный appendChild на каждой означал полный пересчёт раскладки раз в секунду — то
-    // самое мигание, из-за которого страницу невозможно читать. Ранг между двумя посылками
-    // меняется редко; сравнение дешевле перестановки.
-    var same = rows.every(function (r, i) { return r === before[i]; });
-    if (same) { return; }
-
-    rows.forEach(function (r) { grid.appendChild(r); });
+    // ПОРЯДОК ЗАДАЁТСЯ СТИЛЕМ, А УЗЛЫ НЕ ДВИГАЮТСЯ. Это не оптимизация, это единственный
+    // способ не подраться с живым потоком: morph в studio-live.js сопоставляет детей ПО
+    // ИНДЕКСУ, и стоило переставить строки через appendChild, как порядок в DOM переставал
+    // совпадать с порядком в приходящем фрагменте — тогда каждая посылка брала первую строку
+    // сервера и переписывала ею первую строку экрана целиком, со всеми клетками, а сортировка
+    // тащила строки обратно. Замерено на живой странице: перекладка каждые 0.3 с, 718 правок
+    // атрибутов и 407 вставок узлов за четырнадцать секунд. Читателю это видно как таблицу,
+    // которая мигает.
+    //
+    // order трогает только раскладку. DOM остаётся в серверном порядке, morph снова патчит
+    // подобное подобным, и переписывать нечего.
+    ranked.forEach(function (r, i) {
+      var want = String(i);
+      if (r.style.order !== want) { r.style.order = want; }
+    });
   }
 
   function show(key, quiet) {

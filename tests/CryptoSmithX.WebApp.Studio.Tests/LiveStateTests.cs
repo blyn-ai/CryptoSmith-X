@@ -66,7 +66,12 @@ public sealed class LiveStateTests
         Assert.True(handler.Success);
         Assert.DoesNotContain("dispatchEvent(new Event('resize'))", handler.Value, StringComparison.Ordinal);
 
-        Assert.Contains("var same = rows.every(", js, StringComparison.Ordinal);
+        // And it reorders by STYLE. studio-live.js matches children by index, so moving a row in
+        // the DOM makes the next push rewrite every row with another venue's data — measured on the
+        // live page as a swap every 0.3 s, 718 attribute writes and 407 node insertions in fourteen
+        // seconds, which is what a reader calls "the table blinks".
+        Assert.Contains("r.style.order = want", js, StringComparison.Ordinal);
+        Assert.DoesNotContain("grid.appendChild(r)", js, StringComparison.Ordinal);
         Assert.Contains("if (!quiet) { window.dispatchEvent(new Event('resize')); }", js, StringComparison.Ordinal);
     }
 }
