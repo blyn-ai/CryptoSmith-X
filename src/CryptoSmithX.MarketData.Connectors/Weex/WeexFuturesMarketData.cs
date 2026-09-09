@@ -20,12 +20,14 @@ namespace CryptoSmithX.MarketData.Connectors.Weex;
 /// is simply omitted from the ticker batch; its snapshot row goes stale honestly rather than being
 /// written with a fabricated value.
 ///
-/// Depth is WS-first with a REST fallback whenever a feed is wired (<see cref="WeexWsFeed"/>); when
-/// the feed is unhealthy the adapter transparently falls back to the per-symbol REST book, so a
-/// dropped socket is a coarser cadence, not an outage. Everything else stays REST: WEEX's socket has
-/// no top-of-book channel at all and carries neither funding nor open interest, so a WS-fed snapshot
-/// would still be the same batched REST calls with an extra clock to reconcile — and the snapshot
-/// path was never the expensive one. The order book was: one call per symbol, 361 s per sweep.
+/// Depth and candles are WS-first with a REST fallback whenever a feed is wired
+/// (<see cref="WeexWsFeed"/>); when the feed is unhealthy, or for candles when the live cache
+/// cannot cover the whole requested range, the adapter transparently falls back to REST, so a
+/// dropped socket is a coarser cadence, not an outage. Snapshot and funding stay REST: WEEX's
+/// socket has no top-of-book channel at all and carries neither funding nor open interest, so a
+/// WS-fed snapshot would still be the same batched REST calls with an extra clock to reconcile —
+/// and the snapshot path was never the expensive one. Depth and candles were: one call per symbol
+/// each, 361 s per depth sweep and 990 requests a minute for candles at REST's own pace.
 /// </summary>
 public sealed class WeexFuturesMarketData : IExchangeMarketData
 {
@@ -51,7 +53,7 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
         new("discovery", "rest"),
         new("snapshot", "rest"),
         new("depth", "rest,ws"),
-        new("candles", "rest"),
+        new("candles", "rest,ws"),
         new("funding", "rest"),
     ];
 
@@ -184,6 +186,14 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
     public async Task<IReadOnlyList<Candle>> GetCandles1mAsync(
         string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
+        // WS first: the whole range from the live @kline_1m cache, or nothing — a partial answer
+        // would look identical to a venue that simply traded flat, so CandleCache refuses it
+        // itself; see IWeexLiveFeed.TryGetCandles1m.
+        if (_ws is not null && _ws.TryGetCandles1m(exchangeSymbol, from, to, out var live))
+        {
+            return live;
+        }
+
         // WEEX has no time-range params on this endpoint, only a row limit; ask for enough to cover
         // the window (capped at the venue's own maximum) and let the caller's [from,to] do the rest.
         var minutes = Math.Clamp((int)Math.Ceiling((to - from).TotalMinutes) + 1, 1, 1000);

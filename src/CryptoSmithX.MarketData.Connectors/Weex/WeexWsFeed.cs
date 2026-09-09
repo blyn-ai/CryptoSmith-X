@@ -59,6 +59,17 @@ public sealed class WeexWsFeed : IWeexLiveFeed
     private const string DepthChannel = "depth200";
     private const int DepthLevels = 200;
 
+    /// <summary>1-minute candles. Subscribed for the same broad symbol set depth already covers
+    /// (every symbol with a real market, not only the ones we <c>collect</c>) — deliberately
+    /// consistent with the precedent depth already set on this socket rather than threading a
+    /// second, narrower symbol source through the feed. The trade-off is a known unknown, not an
+    /// oversight: Fixtures/weex-ws/README.md's own "Not established here" already flags that the
+    /// maximum channel count on one connection was never measured, and doubling to ~2000 channels
+    /// (depth + kline for ~990 live symbols) is untested. The channel itself costs no REST budget —
+    /// unlike a poll, a quiet symbol's kline channel simply never pushes — so the risk is connection
+    /// capacity, not request rate.</summary>
+    private const string KlineChannel = "kline_1m";
+
     /// <summary>Symbols per SUBSCRIBE frame. The envelope takes an array, but the capture only ever
     /// sent one element, so the venue's real ceiling is unknown — and guessing high is expensive
     /// here, since an oversized frame would come back as a reject and rejects are what close the
@@ -72,6 +83,7 @@ public sealed class WeexWsFeed : IWeexLiveFeed
     private readonly WeexFuturesClient _client;
     private readonly VenueGate _gate;
     private readonly WeexBookBuilder _books;
+    private readonly CandleCache _candles = new();
     private readonly TimeProvider _clock;
     private readonly ILogger _log;
     private readonly TimeSpan _staleAfter;
@@ -129,6 +141,26 @@ public sealed class WeexWsFeed : IWeexLiveFeed
     }
 
     /// <summary>
+    /// Candles are gated on connection state only, not on the depth-derived <see cref="Healthy"/>:
+    /// <see cref="CandleCache.TryGetRange"/> already refuses anything less than a fully-covered
+    /// range on its own, which is a stronger per-request guarantee than a feed-wide freshness count
+    /// could add. What connection state alone cannot catch is a stale CURRENTLY-FORMING bar served
+    /// as live across a drop that never triggered a resubscribe — <see cref="OnOpenAsync"/> re-seeds
+    /// every subscribed symbol's candle history on every reconnect, exactly as it does for depth, so
+    /// that case is closed the same way.
+    /// </summary>
+    public bool TryGetCandles1m(string symbol, DateTimeOffset from, DateTimeOffset to, out IReadOnlyList<Candle> candles)
+    {
+        if (!_conn.Connected)
+        {
+            candles = [];
+            return false;
+        }
+
+        return _candles.TryGetRange(symbol, from, to, out candles);
+    }
+
+    /// <summary>
     /// Connected, with at least one clean full-depth book updated inside the staleness window.
     ///
     /// Deliberately weaker than Kraken's "half the symbols fresh", and the difference is a property
@@ -178,7 +210,9 @@ public sealed class WeexWsFeed : IWeexLiveFeed
         _books.MarkAllDirty();
 
         var symbols = _symbols;
-        _log.LogInformation("WEEX WS: subscribing {Count} symbols to @{Channel}", symbols.Length, DepthChannel);
+        _log.LogInformation(
+            "WEEX WS: subscribing {Count} symbols to @{DepthChannel} and @{KlineChannel}",
+            symbols.Length, DepthChannel, KlineChannel);
         await SubscribeAsync("SUBSCRIBE", symbols, ct);
     }
 
@@ -238,8 +272,93 @@ public sealed class WeexWsFeed : IWeexLiveFeed
                 case "depth":
                     HandleDepth(root, isSnapshot: false);
                     break;
+                case "klineSnapshot":
+                    HandleKline(root, isSnapshot: true);
+                    break;
+                case "kline":
+                    HandleKline(root, isSnapshot: false);
+                    break;
             }
         }
+    }
+
+    /// <summary>
+    /// <c>klineSnapshot</c> carries a long history array (301 bars measured — see
+    /// Fixtures/weex-ws/kline-snapshot.json); <c>kline</c> carries exactly one, the currently
+    /// forming bar, repeated on every update. Both wrap their payload in <c>d</c>, same as
+    /// <c>ticker</c>. Field-by-field off the <see cref="JsonElement"/>, not a bound record, for the
+    /// same reason <see cref="HandleDepth"/> is: <c>t</c>/<c>T</c> differ only by case and a
+    /// case-insensitive binder cannot hold both.
+    /// </summary>
+    private void HandleKline(JsonElement root, bool isSnapshot)
+    {
+        if (!root.TryGetProperty("s", out var symbolEl) || symbolEl.GetString() is not { } wireSymbol)
+        {
+            return;
+        }
+
+        // A frame for a symbol we no longer track is dropped, same rule HandleDepth applies.
+        if (!_v3ToV2.TryGetValue(wireSymbol, out var symbol))
+        {
+            return;
+        }
+
+        if (!root.TryGetProperty("d", out var bars) || bars.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        if (isSnapshot)
+        {
+            var history = new List<Candle>(bars.GetArrayLength());
+            foreach (var bar in bars.EnumerateArray())
+            {
+                if (ParseKlineBar(symbol, bar) is { } candle)
+                {
+                    history.Add(candle);
+                }
+            }
+
+            _candles.Seed(symbol, history);
+            return;
+        }
+
+        foreach (var bar in bars.EnumerateArray())
+        {
+            if (ParseKlineBar(symbol, bar) is { } candle)
+            {
+                _candles.Update(symbol, candle);
+            }
+        }
+    }
+
+    /// <summary>One <c>d[]</c> entry: <c>t</c>/<c>T</c> open/close ms (numbers), <c>o</c>/<c>c</c>/
+    /// <c>h</c>/<c>l</c>/<c>v</c> decimal strings, <c>n</c> a trade count. A malformed bar is
+    /// dropped rather than half-applied — same rule <see cref="Levels"/> follows for depth.</summary>
+    private static Candle? ParseKlineBar(string symbol, JsonElement bar)
+    {
+        if (!bar.TryGetProperty("t", out var tEl) || !tEl.TryGetInt64(out var t))
+        {
+            return null;
+        }
+
+        if (!TryParseString(bar, "o", out var open) || !TryParseString(bar, "h", out var high)
+            || !TryParseString(bar, "l", out var low) || !TryParseString(bar, "c", out var close)
+            || !TryParseString(bar, "v", out var volume))
+        {
+            return null;
+        }
+
+        int? tradeCount = bar.TryGetProperty("n", out var nEl) && nEl.TryGetInt32(out var n) ? n : null;
+
+        return new Candle(symbol, DateTimeOffset.FromUnixTimeMilliseconds(t), open, high, low, close, volume, tradeCount);
+    }
+
+    private static bool TryParseString(JsonElement obj, string property, out double value)
+    {
+        value = 0;
+        return obj.TryGetProperty(property, out var el)
+            && double.TryParse(el.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
     /// <summary>
@@ -447,13 +566,20 @@ public sealed class WeexWsFeed : IWeexLiveFeed
             foreach (var symbol in removed)
             {
                 _books.Remove(symbol);
+                _candles.Remove(symbol);
             }
         }
     }
 
-    /// <summary>Binance-shaped envelope: <c>{"method":"SUBSCRIBE","params":["btcusdt@depth200"],"id":N}</c>.
-    /// The id is echoed on the ack; it is monotonic here only so a rejected request can be told from
-    /// its neighbours in a log.</summary>
+    /// <summary>Both channels this feed subscribes, per symbol.</summary>
+    private static readonly string[] Channels = [DepthChannel, KlineChannel];
+
+    /// <summary>Binance-shaped envelope: <c>{"method":"SUBSCRIBE","params":["btcusdt@depth200","btcusdt@kline_1m"],"id":N}</c>.
+    /// Both channels for a symbol travel in the same frame, so a resubscribe (depth resync, added
+    /// symbol) always re-seeds candle history alongside the book rather than needing a matching
+    /// second call — one extra <c>klineSnapshot</c> on a depth-only resync is a harmless resend, not
+    /// a second subscription to manage. The id is echoed on the ack; it is monotonic here only so a
+    /// rejected request can be told from its neighbours in a log.</summary>
     private async Task SubscribeAsync(string method, IReadOnlyList<string> symbols, CancellationToken ct)
     {
         for (var i = 0; i < symbols.Count; i += SubscribeChunk)
@@ -462,12 +588,16 @@ public sealed class WeexWsFeed : IWeexLiveFeed
             var parameters = new StringBuilder();
             foreach (var symbol in chunk)
             {
-                if (parameters.Length > 0)
+                var v3 = WeexMarkets.ToV3Symbol(symbol);
+                foreach (var channel in Channels)
                 {
-                    parameters.Append(',');
-                }
+                    if (parameters.Length > 0)
+                    {
+                        parameters.Append(',');
+                    }
 
-                parameters.Append('"').Append(WeexMarkets.ToV3Symbol(symbol)).Append('@').Append(DepthChannel).Append('"');
+                    parameters.Append('"').Append(v3).Append('@').Append(channel).Append('"');
+                }
             }
 
             if (parameters.Length == 0)

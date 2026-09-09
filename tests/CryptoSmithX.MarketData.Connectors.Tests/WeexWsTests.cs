@@ -320,7 +320,7 @@ public sealed class WeexWsTests
     }
 
     [Fact]
-    public void The_adapter_declares_both_transports_for_depth_and_only_rest_elsewhere()
+    public void The_adapter_declares_both_transports_for_depth_and_candles_and_only_rest_elsewhere()
     {
         // A config fact (ws_url set or not), not a per-request coin flip — so it is declared the same
         // way whether or not a feed happens to be wired into this instance.
@@ -328,9 +328,36 @@ public sealed class WeexWsTests
 
         Assert.Equal("rest,ws", capabilities["depth"]);
         Assert.Equal("rest", capabilities["snapshot"]);
-        Assert.Equal("rest", capabilities["candles"]);
+        Assert.Equal("rest,ws", capabilities["candles"]);
         Assert.Equal("rest", capabilities["funding"]);
         Assert.Equal("rest", capabilities["discovery"]);
+    }
+
+    /// <summary>Mirrors <c>KrakenWsFallbackTests</c>'s ternary: a feed that can cover the whole
+    /// requested range is served straight through, never REST.</summary>
+    [Fact]
+    public async Task Fresh_candle_range_is_served_instead_of_REST()
+    {
+        var wsBar = new Candle("cmt_btcusdt", T0, 1, 1, 1, 1, 1, 1);
+        var ws = new StubLiveFeed { CandlesOk = true, Candles = [wsBar] };
+
+        var candles = await Adapter(ws).GetCandles1mAsync("cmt_btcusdt", T0, T0.AddMinutes(1), CancellationToken.None);
+
+        Assert.Same(wsBar, Assert.Single(candles));
+    }
+
+    /// <summary>A cache that cannot cover the whole range — the common case right after a
+    /// (re)subscribe, or simply no feed at all — falls through to REST wholesale, never a partial
+    /// merge of the two sources.</summary>
+    [Fact]
+    public async Task An_incomplete_candle_range_falls_back_to_REST()
+    {
+        var ws = new StubLiveFeed { CandlesOk = false };
+
+        var candles = await Adapter(ws).GetCandles1mAsync("cmt_btcusdt", T0, T0.AddMinutes(1), CancellationToken.None);
+
+        Assert.Single(candles);
+        Assert.Equal(999, candles[0].Close);   // came from DepthOnlyHandler's REST fixture, not the stub
     }
 
     private static WeexFuturesMarketData Adapter(IWeexLiveFeed? ws) =>
@@ -408,6 +435,15 @@ public sealed class WeexWsTests
             depth = Value!;
             return Fresh;
         }
+
+        public bool CandlesOk { get; init; }
+        public IReadOnlyList<Candle> Candles { get; init; } = [];
+
+        public bool TryGetCandles1m(string symbol, DateTimeOffset from, DateTimeOffset to, out IReadOnlyList<Candle> candles)
+        {
+            candles = Candles;
+            return CandlesOk;
+        }
     }
 
     /// <summary>The snapshot path is not under test here; this only has to be a feed that never
@@ -429,16 +465,29 @@ public sealed class WeexWsTests
         private const string Book =
             """{"bids":[["100.0","2"],["95.0","3"]],"asks":[["101.0","2"],["106.0","3"]]}""";
 
+        // Open time is T0 exactly (2026-09-06 11:00:00Z, 1788692400000 ms) — the one minute
+        // [T0, T0+1m) the candle fallback tests ask for. Close 999 is what proves a returned bar
+        // came from here rather than from a stub.
+        private const string Candles = """[["1788692400000","999","999","999","999","1"]]""";
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
-            if (!request.RequestUri!.AbsolutePath.EndsWith("/capi/v2/market/depth", StringComparison.Ordinal))
+            var path = request.RequestUri!.AbsolutePath;
+            var (body, ok) = path switch
+            {
+                "/capi/v2/market/depth" => (Book, true),
+                "/capi/v2/market/candles" => (Candles, true),
+                _ => ("", false),
+            };
+
+            if (!ok)
             {
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
             }
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(Book, System.Text.Encoding.UTF8, "application/json"),
+                Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
             });
         }
     }
