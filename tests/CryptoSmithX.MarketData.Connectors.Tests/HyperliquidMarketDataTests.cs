@@ -246,5 +246,21 @@ public sealed class HyperliquidMarketDataTests
         public bool TryGetTop(string symbol, out BookTop top) => _tops.TryGetValue(symbol, out top!);
 
         public bool TryGetDepth(string symbol, out Depth depth) => _depths.TryGetValue(symbol, out depth!);
+
+        // Always "not available": this stub exists to prove the book merge logic, and every existing
+        // test that composes a ticker exercises the REST metaAndAssetCtxs fallback deliberately. A
+        // default of true here would silently move those tests onto the WS branch without their own
+        // intent changing to match — see HyperliquidWsFallbackTests for coverage that turns this on.
+        public bool TryGetFreshContexts(out IReadOnlyList<AssetContext> contexts)
+        {
+            contexts = [];
+            return false;
+        }
+
+        public bool TryGetCandles1m(string symbol, DateTimeOffset from, DateTimeOffset to, out IReadOnlyList<Candle> candles)
+        {
+            candles = [];
+            return false;
+        }
     }
 }

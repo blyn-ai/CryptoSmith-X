@@ -1,0 +1,1 @@
+{"channel":"subscriptionResponse","data":{"method":"subscribe","subscription":{"type":"candle","interval":"1m","coin":"BTC"}}}

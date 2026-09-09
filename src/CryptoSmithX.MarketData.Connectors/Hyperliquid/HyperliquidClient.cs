@@ -19,7 +19,10 @@ public sealed class HyperliquidClient
     // (open time) and "T" (close time) both match a property named "t" case-insensitively, and the
     // one that appears later in the JSON silently wins. HlCandle's property names are exact-case
     // single letters, so case-sensitive matching is required here specifically.
-    private static readonly JsonSerializerOptions CandleJson = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = false };
+    // internal, not private: HyperliquidWsFeed's `candle` handler reuses this to deserialise the WS
+    // frame's identically-shaped payload into the same HlCandle record — one field set, one options
+    // instance, rather than a second copy of the t/T case-collision reasoning below.
+    internal static readonly JsonSerializerOptions CandleJson = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = false };
 
     private readonly HttpClient _http;
     private readonly string _infoUrl;

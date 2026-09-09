@@ -10,14 +10,18 @@ namespace CryptoSmithX.MarketData.Connectors.Hyperliquid;
 /// alongside 0006's existing kPEPE alias). Quote is hardcoded "USD": Hyperliquid perps are USD-quoted,
 /// USDC-margined, and the venue's own API never spells out a quote asset field to normalise.
 ///
-/// The API's one real gap: <c>metaAndAssetCtxs</c> batches mark/oracle/funding/OI/volume for every
-/// coin in a single call, but carries no book at all — not even a last-trade price. Bid/ask/size (and
-/// depth) come from <see cref="IHyperliquidLiveFeed"/> instead, which the Hub wires to either the REST
-/// polling baseline (<see cref="HyperliquidBookFeed"/>, always available) or the live socket
-/// (<see cref="HyperliquidWsFeed"/>, preferred when healthy) — see <c>ExchangeWorker.BuildHyperliquid</c>.
-/// A coin missing a fresh book sample is simply omitted from the ticker batch, same as WEEX's open
-/// interest: its snapshot row goes stale honestly rather than being written with a fabricated spread.
-/// No retry/logging/sleeping on the REST path: an error propagates and the collector loop counts it.
+/// The API's one real gap: no single call carries a book at all — not even a last-trade price.
+/// Bid/ask/size and depth always come from <see cref="IHyperliquidLiveFeed"/>, which the Hub wires
+/// to either the REST polling baseline (<see cref="HyperliquidBookFeed"/>, always available) or the
+/// live socket (<see cref="HyperliquidWsFeed"/>, preferred when healthy) — see
+/// <c>ExchangeWorker.BuildHyperliquid</c>. Mark/oracle/funding/OI and candles are WS-first too, once
+/// the socket is healthy: <c>GetTickersAsync</c> prefers the socket's <c>activeAssetCtx</c> cache
+/// over a REST <c>metaAndAssetCtxs</c> call, and <c>GetCandles1mAsync</c> prefers its <c>candle</c>
+/// cache over a REST <c>candleSnapshot</c> call, falling back to REST wholesale when the feed cannot
+/// honestly answer either. A coin missing a fresh sample from any source is simply omitted from the
+/// ticker batch, same as WEEX's open interest: its snapshot row goes stale honestly rather than
+/// being written with a fabricated spread. No retry/logging/sleeping on the REST path: an error
+/// propagates and the collector loop counts it.
 /// </summary>
 public sealed class HyperliquidMarketData : IExchangeMarketData
 {
@@ -52,7 +56,7 @@ public sealed class HyperliquidMarketData : IExchangeMarketData
         new("discovery", "rest"),
         new("snapshot", "rest,ws"),
         new("depth", "rest,ws"),
-        new("candles", "rest"),
+        new("candles", "rest,ws"),
         new("funding", "rest"),
     ];
 
@@ -93,6 +97,41 @@ public sealed class HyperliquidMarketData : IExchangeMarketData
 
     public async Task<IReadOnlyList<Ticker>> GetTickersAsync(CancellationToken ct)
     {
+        // WS first, whole-batch — same ternary Kraken's ticker cache uses: only when the feed as a
+        // whole is healthy, never a partial list stitched from two different instants. The context
+        // cache's own keys already exclude delisted coins (RefreshSymbolsAsync removes them on
+        // unsubscribe), so no REST meta call is needed in this branch at all.
+        if (_wsFeed is not null && _wsFeed.TryGetFreshContexts(out var contexts))
+        {
+            var wsList = new List<Ticker>(contexts.Count);
+            foreach (var c in contexts)
+            {
+                if (!TryGetTop(c.Symbol, out var top))
+                {
+                    continue;   // book not fresh yet for this coin — same honesty rule as REST below
+                }
+
+                wsList.Add(new Ticker(
+                    ExchangeSymbol: c.Symbol,
+                    ReceivedAt: c.At,
+                    LastPrice: c.LastPrice,
+                    BidPrice: top.BidPrice,
+                    AskPrice: top.AskPrice,
+                    BidSize: top.BidSize,
+                    AskSize: top.AskSize,
+                    MarkPrice: c.MarkPrice,
+                    IndexPrice: c.IndexPrice,
+                    FundingRate: c.FundingRate,
+                    Turnover24h: c.Turnover24h,
+                    OpenInterest: c.OpenInterest,
+                    OpenInterestAt: c.At,
+                    Depth: null));
+            }
+
+            return wsList;
+        }
+
+        // Degraded / no WS: the batched REST call, exactly as before.
         var (meta, ctxs) = await _client.GetMetaAndAssetCtxsAsync(ct);
         var now = DateTimeOffset.UtcNow;
 
@@ -146,6 +185,15 @@ public sealed class HyperliquidMarketData : IExchangeMarketData
     public async Task<IReadOnlyList<Candle>> GetCandles1mAsync(
         string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
+        // WS first: the whole range from the live candle cache, or nothing — see
+        // IHyperliquidLiveFeed.TryGetCandles1m for why a partial answer is refused rather than
+        // thinned. Rarely fires here: the venue's candle push seeds no history at all, unlike
+        // WEEX's, so only a request entirely within "since this connection last subscribed" can hit.
+        if (_wsFeed is not null && _wsFeed.TryGetCandles1m(exchangeSymbol, from, to, out var live))
+        {
+            return live;
+        }
+
         var rows = await _client.GetCandles1mAsync(exchangeSymbol, from.ToUnixTimeMilliseconds(), to.ToUnixTimeMilliseconds(), ct);
 
         var list = new List<Candle>(rows.Count);

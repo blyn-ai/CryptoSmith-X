@@ -79,6 +79,25 @@ public sealed class HyperliquidBookFeed : IHyperliquidLiveFeed
         return false;
     }
 
+    /// <summary>This baseline polls the book only — see the class remarks. Context and candles have
+    /// no REST-cycler equivalent here on purpose: <c>GetTickersAsync</c>'s own <c>metaAndAssetCtxs</c>
+    /// call and <c>GetCandles1mAsync</c>'s own <c>candleSnapshot</c> call already are Hyperliquid's
+    /// REST baseline for those two, so a second background poller duplicating them would just be the
+    /// same REST calls spent twice.</summary>
+    public bool TryGetFreshContexts(out IReadOnlyList<AssetContext> contexts)
+    {
+        contexts = [];
+        return false;
+    }
+
+    /// <summary>Same reasoning as <see cref="TryGetFreshContexts"/>: this baseline never polls
+    /// candles, since <c>GetCandles1mAsync</c>'s own REST call is already the baseline for them.</summary>
+    public bool TryGetCandles1m(string symbol, DateTimeOffset from, DateTimeOffset to, out IReadOnlyList<Candle> candles)
+    {
+        candles = [];
+        return false;
+    }
+
     private Task RunAsync(CancellationToken ct) => SymbolCycle.RunAsync(
         "Hyperliquid.Book", _symbolsAsync, SymbolRefreshInterval, _gate,
         async (symbol, workCt) =>
