@@ -125,7 +125,13 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
                 // Kraken serves OI in the same call as the ticker, so it shares its timestamp.
                 OpenInterestAt: at,
                 // The book is a separate per-symbol call; see GetOrderBookAsync and DepthCollector.
-                Depth: null));
+                Depth: null,
+                // `at` (response.ServerTime) is already this venue's own clock, not ours — the same
+                // value ReceivedAt already carries; see that field's comment.
+                VenueTs: at,
+                LastTradeAt: t.LastTime,
+                FundingRatePredicted: t.MarkPrice > 0 ? t.FundingRatePrediction / t.MarkPrice : null,
+                Volume24hBase: t.Vol24h));
         }
 
         return list;

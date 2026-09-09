@@ -23,6 +23,20 @@ internal sealed record KrakenWsTicker
     /// <summary>Fraction of notional per interval — Kraken relativises it on the WS ticker already.</summary>
     [JsonPropertyName("relative_funding_rate")] public double RelativeFundingRate { get; init; }
 
+    /// <summary>Same relativisation as <see cref="RelativeFundingRate"/>, for the FORECAST period
+    /// (0030 funding_rate_predicted) rather than the current one.</summary>
+    [JsonPropertyName("relative_funding_rate_prediction")] public double RelativeFundingRatePrediction { get; init; }
+
+    /// <summary>When the next funding payment settles (0030 next_funding_at), unix milliseconds. Live
+    /// on this WS ticker frame — confirmed in Fixtures/kraken-ws/ticker.json — but absent from the
+    /// REST /tickers response's per-symbol row (checked against Fixtures/kraken/tickers.json, which
+    /// carries fundingRatePrediction but nothing named next_funding_rate_time or similar).</summary>
+    [JsonPropertyName("next_funding_rate_time")] public long NextFundingRateTime { get; init; }
+
+    /// <summary>24h turnover in the base asset, independent of <see cref="VolumeQuote"/> (0030
+    /// volume_24h_base).</summary>
+    public double Volume { get; init; }
+
     /// <summary>Event time, unix milliseconds.</summary>
     public long Time { get; init; }
 }

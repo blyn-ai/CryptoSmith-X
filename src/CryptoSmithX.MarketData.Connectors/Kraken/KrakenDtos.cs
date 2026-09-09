@@ -47,11 +47,26 @@ internal sealed record KrakenTicker
     /// <summary>Absolute rate (quote per contract). The adapter divides by mark to get the fraction.</summary>
     public double FundingRate { get; init; }
 
+    /// <summary>Absolute rate for the FORECAST period, same units as <see cref="FundingRate"/> — no
+    /// separate "relative" field exists on this REST response the way the WS ticker has one, so the
+    /// adapter divides this by mark the same way it already does for <see cref="FundingRate"/>
+    /// (0030 funding_rate_predicted).</summary>
+    public double FundingRatePrediction { get; init; }
+
     /// <summary>Rolling 24 h turnover in the quote asset.</summary>
     public double VolumeQuote { get; init; }
 
+    /// <summary>Rolling 24 h turnover in the base asset, independent of <see cref="VolumeQuote"/>
+    /// (0030 volume_24h_base).</summary>
+    public double Vol24h { get; init; }
+
     /// <summary>Open interest in units of the base asset.</summary>
     public double OpenInterest { get; init; }
+
+    /// <summary>The instant <see cref="Last"/> was observed — distinct from the response envelope's
+    /// own <c>serverTime</c> (0030 last_trade_at). Optional: absent for a symbol the venue has never
+    /// traded.</summary>
+    public DateTimeOffset? LastTime { get; init; }
 }
 
 internal sealed record KrakenCandlesResponse

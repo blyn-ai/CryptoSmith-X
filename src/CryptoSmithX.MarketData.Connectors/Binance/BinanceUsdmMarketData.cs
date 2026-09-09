@@ -181,7 +181,10 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
                     Turnover24h: c.Turnover24h,
                     OpenInterest: wsOi,
                     OpenInterestAt: wsOiAt,
-                    Depth: null));
+                    Depth: null,
+                    VenueTs: c.VenueTs,
+                    NextFundingAt: c.NextFundingAt,
+                    Volume24hBase: c.Volume24hBase));
             }
 
             return wsList;
@@ -252,7 +255,15 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
                 // which is what open_interest_at is for.
                 OpenInterestAt: oiAt,
                 // The book is a separate per-symbol concern; see GetOrderBookAsync and DepthCollector.
-                Depth: null));
+                Depth: null,
+                // premiumIndex is the source of mark/index/funding, so its own clock is the most
+                // representative single "venue time" for this row (0030 venue_ts) — unlike
+                // bookTicker.time, which only moves when the top of book moves and would go stale
+                // on a quiet symbol.
+                VenueTs: DateTimeOffset.FromUnixTimeMilliseconds(premium.Time),
+                NextFundingAt: premium.NextFundingTime > 0
+                    ? DateTimeOffset.FromUnixTimeMilliseconds(premium.NextFundingTime) : null,
+                Volume24hBase: Parse(stat.Volume)));
         }
 
         return list;

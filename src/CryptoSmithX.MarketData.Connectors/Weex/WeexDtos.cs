@@ -33,6 +33,11 @@ internal sealed record WeexTicker
     [JsonPropertyName("volume_24h")] public string Volume24h { get; init; } = "0";
     public string MarkPrice { get; init; } = "0";
     public string IndexPrice { get; init; } = "0";
+    // Venue's own clock for this ticker, ms since epoch — confirmed live in Fixtures/weex/tickers.json
+    // (0030's venue_ts; contradicts 0030's own comment claiming WEEX sends none, see the adapter).
+    public string? Timestamp { get; init; }
+    // 24h turnover in the base asset, independent of Volume24h (quote asset).
+    [JsonPropertyName("base_volume")] public string? BaseVolume { get; init; }
 }
 
 /// <summary>One row of <c>/capi/v3/market/ticker/bookTicker</c> — the only batched source of top-of-

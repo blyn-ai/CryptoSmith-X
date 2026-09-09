@@ -50,8 +50,8 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
 
     private readonly WsConnection _conn;
     private readonly BinanceUsdmClient _client;
-    private readonly MarketCache<(double Last, double Turnover24h)> _ticker;
-    private readonly MarketCache<(double Mark, double Index, double Funding)> _markPrice;
+    private readonly MarketCache<(double Last, double Turnover24h, double? VolumeBase)> _ticker;
+    private readonly MarketCache<(double Mark, double Index, double Funding, DateTimeOffset? VenueTs, DateTimeOffset? NextFundingAt)> _markPrice;
     private readonly CandleCache _candles = new();
     private readonly TimeProvider _clock;
     private readonly ILogger _log;
@@ -69,8 +69,8 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
         _clock = clock;
         _log = loggers.CreateLogger("Binance.Market");
         _conn = new WsConnection(wsUrl, loggers.CreateLogger("Binance.Market.Conn"), clock);
-        _ticker = new MarketCache<(double, double)>(clock);
-        _markPrice = new MarketCache<(double, double, double)>(clock);
+        _ticker = new MarketCache<(double, double, double?)>(clock);
+        _markPrice = new MarketCache<(double, double, double, DateTimeOffset?, DateTimeOffset?)>(clock);
     }
 
     public void Start(CancellationToken ct) => _ = RunAsync(ct);
@@ -104,7 +104,9 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
                 continue;
             }
 
-            list.Add(new BinanceContext(symbol, t.Last, m.Mark, m.Index, m.Funding, t.Turnover24h, now));
+            list.Add(new BinanceContext(
+                symbol, t.Last, m.Mark, m.Index, m.Funding, t.Turnover24h, now,
+                m.VenueTs, m.NextFundingAt, t.VolumeBase));
         }
 
         if (list.Count == 0)
@@ -244,9 +246,10 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
         }
     }
 
-    /// <summary>Each entry is <c>{s,c,q,...}</c> — <c>c</c> last price, <c>q</c> quote-asset volume
-    /// (this dataset's Turnover24h), both decimal strings. Symbols outside our scope (COIN-M,
-    /// USDC-margined — the array mixes them in) are dropped by the known-symbols check.</summary>
+    /// <summary>Each entry is <c>{s,c,q,v,...}</c> — <c>c</c> last price, <c>q</c> quote-asset volume
+    /// (this dataset's Turnover24h), both decimal strings; <c>v</c> base-asset volume, same string
+    /// shape (0030 volume_24h_base). Symbols outside our scope (COIN-M, USDC-margined — the array
+    /// mixes them in) are dropped by the known-symbols check.</summary>
     private void HandleTickerArray(JsonElement data)
     {
         if (data.ValueKind != JsonValueKind.Array)
@@ -268,12 +271,16 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
                 continue;
             }
 
-            _ticker.Set(symbol, (last, turnover));
+            double? volumeBase = TryParseString(entry, "v", out var v) ? v : null;
+
+            _ticker.Set(symbol, (last, turnover, volumeBase));
         }
     }
 
-    /// <summary>Each entry is <c>{s,p,i,r,...}</c> — <c>p</c> mark price, <c>i</c> index price,
-    /// <c>r</c> funding rate, all decimal strings.</summary>
+    /// <summary>Each entry is <c>{s,p,i,r,E,T,...}</c> — <c>p</c> mark price, <c>i</c> index price,
+    /// <c>r</c> funding rate, all decimal strings; <c>E</c> the venue's own event time (0030
+    /// venue_ts) and <c>T</c> next funding settlement (0030 next_funding_at), both epoch ms
+    /// integers.</summary>
     private void HandleMarkPriceArray(JsonElement data)
     {
         if (data.ValueKind != JsonValueKind.Array)
@@ -296,7 +303,12 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
                 continue;
             }
 
-            _markPrice.Set(symbol, (mark, index, funding));
+            var venueTs = entry.TryGetProperty("E", out var eEl) && eEl.TryGetInt64(out var e)
+                ? DateTimeOffset.FromUnixTimeMilliseconds(e) : (DateTimeOffset?)null;
+            var nextFundingAt = entry.TryGetProperty("T", out var tEl) && tEl.TryGetInt64(out var tms)
+                ? DateTimeOffset.FromUnixTimeMilliseconds(tms) : (DateTimeOffset?)null;
+
+            _markPrice.Set(symbol, (mark, index, funding, venueTs, nextFundingAt));
         }
     }
 

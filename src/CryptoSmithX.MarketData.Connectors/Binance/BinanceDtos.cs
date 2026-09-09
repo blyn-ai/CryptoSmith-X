@@ -121,6 +121,8 @@ internal sealed record BinancePremiumIndex
     public string IndexPrice { get; init; } = "0";
     public string LastFundingRate { get; init; } = "0";
     public long Time { get; init; }
+    // When the next funding payment settles (0030 next_funding_at).
+    public long NextFundingTime { get; init; }
 }
 
 /// <summary>One row of <c>/fapi/v1/ticker/24hr</c> with no symbol — the single most expensive call
@@ -132,6 +134,8 @@ internal sealed record BinanceTicker24h
     public string Symbol { get; init; } = "";
     public string LastPrice { get; init; } = "0";
     public string QuoteVolume { get; init; } = "0";
+    // 24h turnover in the base asset, independent of QuoteVolume (0030 volume_24h_base).
+    public string Volume { get; init; } = "0";
 }
 
 /// <summary>Response of <c>/fapi/v1/openInterest?symbol=..</c> (weight 1). There is no batched form:

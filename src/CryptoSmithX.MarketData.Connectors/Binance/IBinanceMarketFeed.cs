@@ -7,6 +7,13 @@ namespace CryptoSmithX.MarketData.Connectors.Binance;
 /// tick on different clocks, so <see cref="At"/> is OUR receive time at the moment both were merged,
 /// not either venue clock — the same reasoning <c>BinanceUsdmMarketData.GetTickersAsync</c>'s REST
 /// path already documents for its own three-source merge.</summary>
+/// <param name="VenueTs">The <c>!markPrice@arr@1s</c> entry's own event time ("E") — unlike
+/// <see cref="At"/> (our merge time), this is the venue's clock, and it is the mark/index/funding
+/// entry's time specifically since that stream is the source for those three fields.</param>
+/// <param name="NextFundingAt">The <c>!markPrice@arr@1s</c> entry's "T" — when the next funding
+/// payment settles.</param>
+/// <param name="Volume24hBase">The <c>!ticker@arr</c> entry's "v" — 24h turnover in the base asset,
+/// independent of <see cref="Turnover24h"/> (quote asset, "q").</param>
 public sealed record BinanceContext(
     string Symbol,
     double LastPrice,
@@ -14,7 +21,10 @@ public sealed record BinanceContext(
     double IndexPrice,
     double FundingRate,
     double Turnover24h,
-    DateTimeOffset At);
+    DateTimeOffset At,
+    DateTimeOffset? VenueTs = null,
+    DateTimeOffset? NextFundingAt = null,
+    double? Volume24hBase = null);
 
 /// <summary>
 /// What the adapter needs from Binance's SECOND socket (<c>/market/stream</c>) — ticker context and

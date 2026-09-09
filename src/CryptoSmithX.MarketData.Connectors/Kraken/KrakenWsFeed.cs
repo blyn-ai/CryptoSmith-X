@@ -188,7 +188,15 @@ public sealed class KrakenWsFeed : IKrakenLiveFeed
             Turnover24h: t.VolumeQuote,
             OpenInterest: t.OpenInterest,
             OpenInterestAt: at,
-            Depth: null));
+            Depth: null,
+            // `at` is already this frame's venue clock (t.Time), so venue_ts is the same value
+            // received_at already carries — not a bug, Kraken is the one venue whose ReceivedAt was
+            // always venue time rather than ours (see the REST path's identical comment).
+            VenueTs: at,
+            FundingRatePredicted: t.RelativeFundingRatePrediction,
+            NextFundingAt: t.NextFundingRateTime > 0
+                ? DateTimeOffset.FromUnixTimeMilliseconds(t.NextFundingRateTime) : null,
+            Volume24hBase: t.Volume));
     }
 
     private void HandleSnapshot(JsonElement root)

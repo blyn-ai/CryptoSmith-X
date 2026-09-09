@@ -108,6 +108,18 @@ public sealed class SnapshotCollector
         var d50b = new List<double?>(tickers.Count);
         var d50a = new List<double?>(tickers.Count);
         var dAt = new List<DateTimeOffset?>(tickers.Count);
+        var venueTs = new List<DateTimeOffset?>(tickers.Count);
+        var lastTradeAt = new List<DateTimeOffset?>(tickers.Count);
+        var fundingPredicted = new List<double?>(tickers.Count);
+        var nextFundingAt = new List<DateTimeOffset?>(tickers.Count);
+        var volume24hBase = new List<double?>(tickers.Count);
+        // Read from the ticker's own Depth, not recomputed here — DepthMath already produced them
+        // (0039 phase 4 item 2). Depth null (not collected this frame) propagates through the
+        // null-conditional as NULL on all three, distinct from a genuinely empty side (0 on
+        // ReachBidBps/ReachAskBps when Depth exists but a side has no levels).
+        var depthRef = new List<double?>(tickers.Count);
+        var reachBid = new List<double?>(tickers.Count);
+        var reachAsk = new List<double?>(tickers.Count);
 
         foreach (var t in tickers)
         {
@@ -150,6 +162,14 @@ public sealed class SnapshotCollector
             d50b.Add(t.Depth?.Bid50Bps);
             d50a.Add(t.Depth?.Ask50Bps);
             dAt.Add(t.Depth?.At);
+            venueTs.Add(t.VenueTs);
+            lastTradeAt.Add(t.LastTradeAt);
+            fundingPredicted.Add(t.FundingRatePredicted);
+            nextFundingAt.Add(t.NextFundingAt);
+            volume24hBase.Add(t.Volume24hBase);
+            depthRef.Add(t.Depth?.Mid);
+            reachBid.Add(t.Depth?.ReachBidBps);
+            reachAsk.Add(t.Depth?.ReachAskBps);
         }
 
         var written = ids_.Count;
@@ -180,6 +200,14 @@ public sealed class SnapshotCollector
                 cmd.Parameters.AddWithValue("d50b", d50b.ToArray());
                 cmd.Parameters.AddWithValue("d50a", d50a.ToArray());
                 cmd.Parameters.AddWithValue("d_at", dAt.ToArray());
+                cmd.Parameters.AddWithValue("venue_ts", venueTs.ToArray());
+                cmd.Parameters.AddWithValue("last_trade_at", lastTradeAt.ToArray());
+                cmd.Parameters.AddWithValue("funding_rate_predicted", fundingPredicted.ToArray());
+                cmd.Parameters.AddWithValue("next_funding_at", nextFundingAt.ToArray());
+                cmd.Parameters.AddWithValue("volume_24h_base", volume24hBase.ToArray());
+                cmd.Parameters.AddWithValue("depth_ref", depthRef.ToArray());
+                cmd.Parameters.AddWithValue("reach_bid", reachBid.ToArray());
+                cmd.Parameters.AddWithValue("reach_ask", reachAsk.ToArray());
             }
 
             // The per-row @HasDepth flag is gone and nothing is lost: it was `t.Depth is not null`,
@@ -193,12 +221,16 @@ public sealed class SnapshotCollector
                     bid_size, ask_size, mark_price, index_price, funding_rate, turnover_24h,
                     open_interest, open_interest_at,
                     depth_bid_10bps, depth_ask_10bps, depth_bid_25bps, depth_ask_25bps,
-                    depth_bid_50bps, depth_ask_50bps, depth_at)
+                    depth_bid_50bps, depth_ask_50bps, depth_at,
+                    venue_ts, last_trade_at, funding_rate_predicted, next_funding_at, volume_24h_base,
+                    depth_ref, book_reach_bid, book_reach_ask)
                 select * from unnest(
                     @ids, @received_at, @last_price, @bid_price, @ask_price,
                     @bid_size, @ask_size, @mark_price, @index_price, @funding_rate, @turnover_24h,
                     @open_interest, @open_interest_at,
-                    @d10b, @d10a, @d25b, @d25a, @d50b, @d50a, @d_at)
+                    @d10b, @d10a, @d25b, @d25a, @d50b, @d50a, @d_at,
+                    @venue_ts, @last_trade_at, @funding_rate_predicted, @next_funding_at, @volume_24h_base,
+                    @depth_ref, @reach_bid, @reach_ask)
                 on conflict (exchange_instrument_id) do update set
                     received_at      = excluded.received_at,
                     last_price       = excluded.last_price,
@@ -220,7 +252,22 @@ public sealed class SnapshotCollector
                     depth_ask_25bps  = case when excluded.depth_at is not null then excluded.depth_ask_25bps else market_snapshot_latest.depth_ask_25bps end,
                     depth_bid_50bps  = case when excluded.depth_at is not null then excluded.depth_bid_50bps else market_snapshot_latest.depth_bid_50bps end,
                     depth_ask_50bps  = case when excluded.depth_at is not null then excluded.depth_ask_50bps else market_snapshot_latest.depth_ask_50bps end,
-                    depth_at         = case when excluded.depth_at is not null then excluded.depth_at else market_snapshot_latest.depth_at end
+                    depth_at         = case when excluded.depth_at is not null then excluded.depth_at else market_snapshot_latest.depth_at end,
+                    -- Same rule as the five depth bands above, extended to the two new depth-derived
+                    -- columns: only overwritten when THIS pass's ticker actually carried a book, so a
+                    -- venue whose depth arrives from a separate out-of-band pass (WEEX, HL) is not
+                    -- reset to NULL on every snapshot pass that ran without it.
+                    depth_ref        = case when excluded.depth_at is not null then excluded.depth_ref else market_snapshot_latest.depth_ref end,
+                    book_reach_bid   = case when excluded.depth_at is not null then excluded.book_reach_bid else market_snapshot_latest.book_reach_bid end,
+                    book_reach_ask   = case when excluded.depth_at is not null then excluded.book_reach_ask else market_snapshot_latest.book_reach_ask end,
+                    -- Straight from this pass's own ticker, unconditionally — these five are never
+                    -- out-of-band; a venue that never carries one always sends NULL for it, and
+                    -- overwriting with NULL is the honest answer for that venue.
+                    venue_ts               = excluded.venue_ts,
+                    last_trade_at          = excluded.last_trade_at,
+                    funding_rate_predicted = excluded.funding_rate_predicted,
+                    next_funding_at        = excluded.next_funding_at,
+                    volume_24h_base        = excluded.volume_24h_base
                 """,
                 conn, tx))
             {
@@ -240,6 +287,12 @@ public sealed class SnapshotCollector
                 // transaction and preserve depth when the ticker has none, so by this point they
                 // hold the freshest measurement whichever loop produced it. depth_at travels with
                 // it — the column exists precisely because depth runs on its own clock.
+                // depth_ref/book_reach_bid/book_reach_ask are read from l (the latest row just
+                // upserted above), not from v (this pass's ticker) — same reasoning as the five
+                // depth bands already here: on WEEX/HL depth arrives from a separate out-of-band
+                // pass, and by this point l holds the freshest measurement whichever loop produced
+                // it. venue_ts/last_trade_at/funding_rate_predicted/next_funding_at/volume_24h_base
+                // are never out-of-band, so those five come straight from v.
                 await using var history = new NpgsqlCommand(
                     """
                     insert into market_snapshot (
@@ -247,22 +300,30 @@ public sealed class SnapshotCollector
                         bid_size, ask_size, mark_price, index_price, funding_rate, turnover_24h,
                         open_interest, open_interest_at,
                         depth_bid_10bps, depth_ask_10bps, depth_bid_25bps, depth_ask_25bps,
-                        depth_bid_50bps, depth_ask_50bps, depth_at)
+                        depth_bid_50bps, depth_ask_50bps, depth_at,
+                        venue_ts, last_trade_at, funding_rate_predicted, next_funding_at, volume_24h_base,
+                        depth_ref, book_reach_bid, book_reach_ask)
                     select
                         v.id, v.received_at, v.last_price, v.bid_price, v.ask_price,
                         v.bid_size, v.ask_size, v.mark_price, v.index_price, v.funding_rate,
                         v.turnover_24h, v.open_interest, v.open_interest_at,
                         l.depth_bid_10bps, l.depth_ask_10bps, l.depth_bid_25bps, l.depth_ask_25bps,
-                        l.depth_bid_50bps, l.depth_ask_50bps, l.depth_at
+                        l.depth_bid_50bps, l.depth_ask_50bps, l.depth_at,
+                        v.venue_ts, v.last_trade_at, v.funding_rate_predicted, v.next_funding_at, v.volume_24h_base,
+                        l.depth_ref, l.book_reach_bid, l.book_reach_ask
                       from unnest(
                             @ids, @received_at, @last_price, @bid_price, @ask_price,
                             @bid_size, @ask_size, @mark_price, @index_price, @funding_rate,
                             @turnover_24h, @open_interest, @open_interest_at,
-                            @d10b, @d10a, @d25b, @d25a, @d50b, @d50a, @d_at)
+                            @d10b, @d10a, @d25b, @d25a, @d50b, @d50a, @d_at,
+                            @venue_ts, @last_trade_at, @funding_rate_predicted, @next_funding_at, @volume_24h_base,
+                            @depth_ref, @reach_bid, @reach_ask)
                             as v(id, received_at, last_price, bid_price, ask_price,
                                  bid_size, ask_size, mark_price, index_price, funding_rate,
                                  turnover_24h, open_interest, open_interest_at,
-                                 d10b, d10a, d25b, d25a, d50b, d50a, d_at)
+                                 d10b, d10a, d25b, d25a, d50b, d50a, d_at,
+                                 venue_ts, last_trade_at, funding_rate_predicted, next_funding_at, volume_24h_base,
+                                 depth_ref, reach_bid, reach_ask)
                       join market_snapshot_latest l on l.exchange_instrument_id = v.id
                     on conflict (exchange_instrument_id, received_at) do nothing
                     """,

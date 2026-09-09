@@ -177,7 +177,9 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
                 // from the background cache rather than this request.
                 OpenInterestAt: oiAt,
                 // The book is a separate per-symbol call; see GetOrderBookAsync and DepthCollector.
-                Depth: null));
+                Depth: null,
+                VenueTs: ParseTimestamp(t.Timestamp),
+                Volume24hBase: t.BaseVolume is { } bv ? Parse(bv) : null));
         }
 
         return list;
@@ -292,6 +294,14 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
     private static bool IsLive(WeexTicker t) => WeexMarkets.IsLive(t);
 
     private static double Parse(string value) => double.Parse(value, CultureInfo.InvariantCulture);
+
+    // "0" and missing both mean "no venue clock for this ticker" — IsLive already keeps dead
+    // symbols out, but a defensive parse costs nothing and a malformed timestamp should not fail
+    // the whole ticker over one column this project already treats as optional (0030).
+    private static DateTimeOffset? ParseTimestamp(string? raw) =>
+        raw is not null && long.TryParse(raw, out var ms) && ms > 0
+            ? DateTimeOffset.FromUnixTimeMilliseconds(ms)
+            : null;
 
     private static string RawJson(WeexContract c) =>
         string.Create(CultureInfo.InvariantCulture,

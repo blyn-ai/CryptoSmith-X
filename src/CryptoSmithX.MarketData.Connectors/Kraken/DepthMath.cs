@@ -52,7 +52,42 @@ public static class DepthMath
             Ask25Bps: BandAsk(asks, mid, 25),
             Bid50Bps: BandBid(bids, mid, 50),
             Ask50Bps: BandAsk(asks, mid, 50),
-            At: at);
+            At: at,
+            Mid: mid,
+            ReachBidBps: ReachBid(bids, mid),
+            ReachAskBps: ReachAsk(asks, mid));
+    }
+
+    /// <summary>bps from <paramref name="mid"/> to the worst (lowest) live bid price, 0 when the
+    /// side has no level with qty &gt; 0 — a measured empty side, not an unmeasured one.</summary>
+    private static double ReachBid(IReadOnlyList<(double Price, double Qty)> levels, double mid)
+    {
+        var worst = double.MaxValue;
+        foreach (var (price, qty) in levels)
+        {
+            if (qty > 0 && price < worst)
+            {
+                worst = price;
+            }
+        }
+
+        return worst == double.MaxValue ? 0 : (mid - worst) / mid * 10_000.0;
+    }
+
+    /// <summary>bps from <paramref name="mid"/> to the worst (highest) live ask price, 0 when the
+    /// side has no level with qty &gt; 0.</summary>
+    private static double ReachAsk(IReadOnlyList<(double Price, double Qty)> levels, double mid)
+    {
+        var worst = double.MinValue;
+        foreach (var (price, qty) in levels)
+        {
+            if (qty > 0 && price > worst)
+            {
+                worst = price;
+            }
+        }
+
+        return worst == double.MinValue ? 0 : (worst - mid) / mid * 10_000.0;
     }
 
     private static double? BandBid(IReadOnlyList<(double Price, double Qty)> levels, double mid, int bps)
