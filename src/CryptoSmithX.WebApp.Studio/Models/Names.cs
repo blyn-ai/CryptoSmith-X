@@ -31,7 +31,7 @@ public static class Names
 
     public static string Dataset(string code) => code switch
     {
-        "snapshot" => "Ticker",
+        "snapshot" => "Snapshot",
         "depth" => "Depth bands",
         "book" => "Level book",
         "candles" => "Candles 1m",
