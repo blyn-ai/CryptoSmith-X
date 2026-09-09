@@ -223,12 +223,16 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    его доле СВОЕГО окна, поэтому «4 с» цены и «4 с» открытого интереса оказываются в разных
    местах полоски. Раньше здесь стояла проза «Price 4s · Depth 2m · OI 3m», в которой это
    различие не выражалось никак. */
-.v2-strip{position:relative;display:block;width:100%;height:var(--bar-h);
-  background:linear-gradient(90deg,var(--money-up,#2F5A00),var(--accent))}
-.v2-strip .a-strip-span{position:absolute;top:0;height:100%;background:var(--tint-neutral)}
-.v2-strip .a-strip-tick{position:absolute;top:-2px;width:1px;height:calc(100% + 4px);
-  background:var(--text-data);transform:translateX(-.5px)}
-.v2-strip .a-strip-tick--spent{background:var(--accent)}
+/* Градиент и его геометрия — ИЗ СИСТЕМЫ: --age-scale и --strip-h те же, что на первой странице.
+   Свой градиент здесь означал бы две шкалы возраста в одном продукте, расходящиеся с первой же
+   правкой палитры. Ширина своя: клетка листинга тут резиновая, а не 134px. */
+.v2-strip{position:relative;display:block;width:100%;height:var(--strip-h);background:var(--age-scale)}
+.v2-strip .a-strip-span{position:absolute;top:1px;height:1px;background:rgba(30,20,8,.8)}
+[data-theme="night"] .v2-strip .a-strip-span{background:rgba(255,223,175,.8)}
+.v2-strip .a-strip-tick{position:absolute;top:-2px;width:1px;height:7px;background:var(--text-heading)}
+/* Метка, съехавшая за край шкалы, рисуется цветом карточки: она стоит на потраченном конце
+   градиента, и чернильная там читалась бы как измерение, а не как край. */
+.v2-strip .a-strip-tick--spent{background:var(--surface-card)}
 .v2-strip-ends{display:flex;justify-content:space-between;gap:var(--space-3);
   font:400 8.5px/1.2 var(--font-mono);letter-spacing:var(--track-age);color:var(--text-faint)}
 .v2-strip-ends .a-tri{font-style:normal;display:inline-block;width:1ch}
