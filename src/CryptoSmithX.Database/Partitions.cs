@@ -4,13 +4,20 @@ using Npgsql;
 namespace CryptoSmithX.Database;
 
 /// <summary>
-/// Month partitions for the two range-partitioned tables. The DDL ships
+/// Month partitions for every range-partitioned table. The DDL ships
 /// <c>create_month_partition</c> and is idempotent, so this is safe to call on every start and
 /// before any write that could land in a month nobody has created yet.
 /// </summary>
 public static class Partitions
 {
-    public static readonly string[] PartitionedTables = ["market_snapshot", "market_candle"];
+    /// <summary>
+    /// Every table partitioned by month. The three from 0032 joined the two originals when their
+    /// collectors were written: a partitioned table with no partition for the row's month does not
+    /// write a row into a default partition, it fails the insert outright, so a table missing from
+    /// this list is a collector that cannot write at all the moment the month turns.
+    /// </summary>
+    public static readonly string[] PartitionedTables =
+        ["market_snapshot", "market_candle", "trade", "book_topn", "market_price_candle"];
 
     public static async Task EnsureAsync(NpgsqlConnection conn, DateTimeOffset anyTimeIn, CancellationToken ct)
     {

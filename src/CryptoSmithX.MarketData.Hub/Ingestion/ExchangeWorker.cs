@@ -33,7 +33,15 @@ public sealed class ExchangeWorker : BackgroundService
     /// <summary>The only datasets that have a real <c>Collector</c> class today. 'rollup' is the
     /// service-wide loop below, not a per-exchange one; trades/open_interest/liquidations have no
     /// implementation yet regardless of what policy says.</summary>
-    internal static readonly string[] KnownCollectorDatasets = ["discovery", "snapshot", "depth", "candles", "funding"];
+    internal static readonly string[] KnownCollectorDatasets =
+    [
+        "discovery", "snapshot", "depth", "candles", "funding",
+        // The 0032 event tables and their loops. spec_versions is absent on purpose: it has no loop
+        // of its own — DiscoveryCollector writes it inside the discovery pass, gated on that
+        // dataset's own mode, because a spec version is a fact about a listing and discovery is
+        // where a listing is read.
+        "trades", "book", "open_interest", "liquidations", "candles_mark", "candles_index",
+    ];
 
     private readonly DbSettings _settings;
     private readonly Db _db;
@@ -295,6 +303,12 @@ public sealed class ExchangeWorker : BackgroundService
         var depth = new DepthCollector(adapter, _db, gate);
         var candles = new CandleCollector(adapter, _settings, _db, _clock, gate);
         var funding = new FundingCollector(adapter, _settings, _db, _clock, gate);
+        var trades = new TradeCollector(adapter, _db, _clock, _loggers.CreateLogger<TradeCollector>());
+        var book = new BookCollector(adapter, _db, _settings, _clock);
+        var openInterest = new OpenInterestHistoryCollector(adapter, _settings, _db, _clock, gate);
+        var liquidations = new LiquidationCollector(adapter, _settings, _db, _clock, gate);
+        var markCandles = new PriceCandleCollector(adapter, _settings, _db, _clock, gate, "mark");
+        var indexCandles = new PriceCandleCollector(adapter, _settings, _db, _clock, gate, "index");
 
         return new Dictionary<string, Func<CancellationToken, Task<int>>>(StringComparer.Ordinal)
         {
@@ -303,6 +317,12 @@ public sealed class ExchangeWorker : BackgroundService
             ["depth"] = depth.RunAsync,
             ["candles"] = candles.RunAsync,
             ["funding"] = funding.RunAsync,
+            ["trades"] = trades.RunAsync,
+            ["book"] = book.RunAsync,
+            ["open_interest"] = openInterest.RunAsync,
+            ["liquidations"] = liquidations.RunAsync,
+            ["candles_mark"] = markCandles.RunAsync,
+            ["candles_index"] = indexCandles.RunAsync,
         };
     }
 

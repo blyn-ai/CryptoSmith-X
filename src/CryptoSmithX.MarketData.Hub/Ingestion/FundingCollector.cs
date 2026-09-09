@@ -58,6 +58,8 @@ public sealed class FundingCollector
 
         await using var conn = await _db.OpenAsync(ct);
 
+        var observed = new System.Collections.Concurrent.ConcurrentBag<(int Id, DateTimeOffset At)>();
+
         var targets = (await conn.QueryAsync<(int Id, string Symbol, short? FundingIntervalHours, DateTimeOffset? Latest)>(new CommandDefinition(
             TargetInstrumentsSql,
             new { code = _adapter.SegmentCode },
@@ -116,6 +118,7 @@ public sealed class FundingCollector
                     var receivedAt = _clock.GetUtcNow();
                     foreach (var rate in rates)
                     {
+                        observed.Add((id, rate.FundingTime));
                         stored += await conn.ExecuteAsync(new CommandDefinition(
                             """
                             insert into funding_rate_history (
@@ -152,6 +155,12 @@ public sealed class FundingCollector
         {
             throw new InvalidOperationException($"every symbol failed; last: {result.LastError.Message}", result.LastError);
         }
+
+        // What each symbol's history request actually returned. Written after the per-row inserts
+        // above, which are already committed individually — this loop has no transaction of its own
+        // to join, so the claim follows the data rather than travelling with it.
+        await Coverage.WriteAsync(
+            conn, null, "funding", now, _clock.GetUtcNow(), observed.ToList(), ct);
 
         return written;
     }

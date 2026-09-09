@@ -137,6 +137,14 @@ public sealed class CandleCollector
             // isolate from.
             await using var tx = await conn.BeginTransactionAsync(ct);
             await WriteCandlesBatchAsync(conn, tx, fetched, _clock, ct);
+
+            // What we asked this venue for and what it actually answered, in the same transaction
+            // as the bars themselves — a coverage claim whose data rolled back would be exactly the
+            // false "we checked, it was empty" the table exists to avoid.
+            await Coverage.WriteAsync(
+                conn, tx, "candles", now, _clock.GetUtcNow(),
+                fetched.Select(f => (f.Id, f.Candle.OpenTime)).ToList(), ct);
+
             await tx.CommitAsync(ct);
         }
 
