@@ -331,8 +331,14 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
 
         int? tradeCount = k.TryGetProperty("n", out var nEl) && nEl.TryGetInt32(out var n) ? n : null;
 
+        // "q": quote asset volume, the same value REST's kline[7] carries (0039) — independent of
+        // "v" (base asset volume, index 5 there). Missing rather than malformed on an older/renamed
+        // field would be a genuine venue change, not something to fail the whole bar over.
+        double? volumeQuote = TryParseString(k, "q", out var vq) ? vq : null;
+
         _candles.Update(symbol, new Candle(
-            symbol, DateTimeOffset.FromUnixTimeMilliseconds(t), open, high, low, close, volume, tradeCount));
+            symbol, DateTimeOffset.FromUnixTimeMilliseconds(t), open, high, low, close, volume, tradeCount,
+            volumeQuote));
     }
 
     private static bool TryParseString(JsonElement obj, string property, out double value)

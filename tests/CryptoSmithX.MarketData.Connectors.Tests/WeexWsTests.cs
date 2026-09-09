@@ -468,7 +468,9 @@ public sealed class WeexWsTests
         // Open time is T0 exactly (2026-09-06 11:00:00Z, 1788692400000 ms) — the one minute
         // [T0, T0+1m) the candle fallback tests ask for. Close 999 is what proves a returned bar
         // came from here rather than from a stub.
-        private const string Candles = """[["1788692400000","999","999","999","999","1"]]""";
+        // [time, open, high, low, close, baseVolume, quoteVolume] — seven elements, matching the
+        // venue's real /capi/v2/market/candles shape (WeexFuturesClient's own doc comment).
+        private const string Candles = """[["1788692400000","999","999","999","999","1","999"]]""";
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {

@@ -162,6 +162,7 @@ public sealed class CandleCollector
         var tradeCount = new int?[fetched.Count];
         var receivedAt = new DateTimeOffset[fetched.Count];
         var source = new string[fetched.Count];
+        var volumeQuote = new double?[fetched.Count];
 
         var receivedNow = clock.GetUtcNow();
         var i = 0;
@@ -177,6 +178,7 @@ public sealed class CandleCollector
             tradeCount[i] = c.TradeCount;
             receivedAt[i] = receivedNow;
             source[i] = src;
+            volumeQuote[i] = c.VolumeQuote;
             i++;
         }
 
@@ -192,21 +194,25 @@ public sealed class CandleCollector
             insert into market_candle (
                 exchange_instrument_id, timeframe, open_time,
                 open, high, low, close, volume, trade_count, bar_count, updated_at,
-                received_at, source)
+                received_at, source, volume_quote)
             select v.id, 1, v.open_time, v.open, v.high, v.low, v.close, v.volume, v.trade_count, 1, now(),
-                   v.received_at, v.source
-              from unnest(@ids, @open_time, @open, @high, @low, @close, @volume, @trade_count, @received_at, @source)
-                   as v(id, open_time, open, high, low, close, volume, trade_count, received_at, source)
+                   v.received_at, v.source, v.volume_quote
+              from unnest(
+                       @ids, @open_time, @open, @high, @low, @close, @volume, @trade_count, @received_at,
+                       @source, @volume_quote)
+                   as v(id, open_time, open, high, low, close, volume, trade_count, received_at, source,
+                        volume_quote)
             on conflict (exchange_instrument_id, timeframe, open_time) do update set
-                open        = excluded.open,
-                high        = excluded.high,
-                low         = excluded.low,
-                close       = excluded.close,
-                volume      = excluded.volume,
-                trade_count = excluded.trade_count,
-                updated_at  = now(),
-                received_at = excluded.received_at,
-                source      = excluded.source
+                open          = excluded.open,
+                high          = excluded.high,
+                low           = excluded.low,
+                close         = excluded.close,
+                volume        = excluded.volume,
+                trade_count   = excluded.trade_count,
+                updated_at    = now(),
+                received_at   = excluded.received_at,
+                source        = excluded.source,
+                volume_quote  = excluded.volume_quote
             """,
             conn, tx);
 
@@ -220,6 +226,7 @@ public sealed class CandleCollector
         cmd.Parameters.AddWithValue("trade_count", tradeCount);
         cmd.Parameters.AddWithValue("received_at", receivedAt);
         cmd.Parameters.AddWithValue("source", source);
+        cmd.Parameters.AddWithValue("volume_quote", volumeQuote);
 
         await cmd.ExecuteNonQueryAsync(ct);
     }

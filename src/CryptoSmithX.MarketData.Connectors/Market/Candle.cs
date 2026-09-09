@@ -5,6 +5,10 @@ namespace CryptoSmithX.MarketData.Connectors.Market;
 /// timeframe and bar_count are the store's concern.
 /// </summary>
 /// <param name="TradeCount">Null where the venue does not report it (Kraken Futures, WEEX).</param>
+/// <param name="VolumeQuote">Bar turnover in the quote asset, independent of <paramref name="Volume"/>
+/// (the base-asset/quote-asset price is not constant across the minute, only at a ticker's instant).
+/// Null where the venue does not report it at this scale — Kraken and Hyperliquid, on both REST and
+/// WS, at every timeframe.</param>
 public sealed record Candle(
     string ExchangeSymbol,
     DateTimeOffset OpenTime,
@@ -13,4 +17,5 @@ public sealed record Candle(
     double Low,
     double Close,
     double Volume,
-    int? TradeCount);
+    int? TradeCount,
+    double? VolumeQuote = null);

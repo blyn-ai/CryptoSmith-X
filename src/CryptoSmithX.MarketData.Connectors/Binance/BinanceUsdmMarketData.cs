@@ -292,12 +292,13 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
                 High: Parse(r[2].GetString()!),
                 Low: Parse(r[3].GetString()!),
                 Close: Parse(r[4].GetString()!),
-                // Index 5 is base-asset volume; index 7 is the quote value, which is not what the
-                // schema wants.
+                // Index 5 is base-asset volume.
                 Volume: Parse(r[5].GetString()!),
                 // Index 8. Binance is the first venue here that reports one at all — Kraken and WEEX
                 // both carry null — so the column finally gets a real value rather than a default.
-                TradeCount: r[8].GetInt32()));
+                TradeCount: r[8].GetInt32(),
+                // Index 7: quote-asset volume, independent of index 5 (0039).
+                VolumeQuote: Parse(r[7].GetString()!)));
         }
 
         return list;

@@ -215,10 +215,12 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
                 High: Parse(r[2]),
                 Low: Parse(r[3]),
                 Close: Parse(r[4]),
-                // Index 5 is base-asset volume; index 6 (quote value) is not what the schema wants.
+                // Index 5 is base-asset volume.
                 Volume: Parse(r[5]),
                 // WEEX klines carry no trade counter.
-                TradeCount: null));
+                TradeCount: null,
+                // Index 6: quote-asset volume, independent of index 5 (0039).
+                VolumeQuote: Parse(r[6])));
         }
 
         // The venue does not guarantee chronological order in the response.

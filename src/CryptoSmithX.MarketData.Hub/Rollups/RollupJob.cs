@@ -171,7 +171,13 @@ public sealed class RollupJob
                            (array_agg(c.close order by c.open_time desc))[1]     as close,
                            sum(c.volume)                                         as volume,
                            case when bool_and(c.trade_count is not null)
-                                then sum(c.trade_count) else null end            as trade_count
+                                then sum(c.trade_count) else null end            as trade_count,
+                           -- Same rule as trade_count: NULL unless every source bar in the window
+                           -- has it, so a window mixing Kraken/Hyperliquid (always NULL, 0039) with
+                           -- Binance/WEEX bars never reports a partial sum as if it were the whole
+                           -- window's turnover.
+                           case when bool_and(c.volume_quote is not null)
+                                then sum(c.volume_quote) else null end           as volume_quote
                       from touched t
                       join market_candle c
                         on  c.exchange_instrument_id = t.exchange_instrument_id
@@ -184,25 +190,26 @@ public sealed class RollupJob
                 insert into market_candle (
                     exchange_instrument_id, timeframe, open_time,
                     open, high, low, close, volume, trade_count, bar_count, updated_at,
-                    received_at, source)
+                    received_at, source, volume_quote)
                 select exchange_instrument_id, @tf, window_start,
                        open, high, low, close, volume, trade_count, bar_count, now(),
-                       now(), 'derived'
+                       now(), 'derived', volume_quote
                   from windows
                 on conflict (exchange_instrument_id, timeframe, open_time) do update set
-                    open        = excluded.open,
-                    high        = excluded.high,
-                    low         = excluded.low,
-                    close       = excluded.close,
-                    volume      = excluded.volume,
-                    trade_count = excluded.trade_count,
-                    bar_count   = excluded.bar_count,
-                    updated_at  = excluded.updated_at,
+                    open          = excluded.open,
+                    high          = excluded.high,
+                    low           = excluded.low,
+                    close         = excluded.close,
+                    volume        = excluded.volume,
+                    trade_count   = excluded.trade_count,
+                    bar_count     = excluded.bar_count,
+                    updated_at    = excluded.updated_at,
                     -- Per market_candle.received_at's own column comment (0035): "получен от биржи
                     -- (1m) или посчитан (derived, timeframe > 1)" — a rebuilt derived bar was
                     -- computed again just now, same as a freshly-inserted one.
-                    received_at = excluded.received_at,
-                    source      = excluded.source
+                    received_at   = excluded.received_at,
+                    source        = excluded.source,
+                    volume_quote  = excluded.volume_quote
                 """,
                 new
                 {

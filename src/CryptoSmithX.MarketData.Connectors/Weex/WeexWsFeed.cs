@@ -350,8 +350,11 @@ public sealed class WeexWsFeed : IWeexLiveFeed
     }
 
     /// <summary>One <c>d[]</c> entry: <c>t</c>/<c>T</c> open/close ms (numbers), <c>o</c>/<c>c</c>/
-    /// <c>h</c>/<c>l</c>/<c>v</c> decimal strings, <c>n</c> a trade count. A malformed bar is
-    /// dropped rather than half-applied — same rule <see cref="Levels"/> follows for depth.</summary>
+    /// <c>h</c>/<c>l</c>/<c>v</c> decimal strings, <c>n</c> a trade count, <c>q</c> quote-asset
+    /// volume (0039) — confirmed live in <c>Fixtures/weex-ws/kline-snapshot.json</c>, e.g.
+    /// <c>"v":"0.6827","n":287,"q":"54555.55851"</c>; <c>V</c>/<c>Q</c> (taker-side base/quote) exist
+    /// on the wire too but have no column to carry them yet. A malformed bar is dropped rather than
+    /// half-applied — same rule <see cref="Levels"/> follows for depth.</summary>
     private static Candle? ParseKlineBar(string symbol, JsonElement bar)
     {
         if (!bar.TryGetProperty("t", out var tEl) || !tEl.TryGetInt64(out var t))
@@ -367,8 +370,11 @@ public sealed class WeexWsFeed : IWeexLiveFeed
         }
 
         int? tradeCount = bar.TryGetProperty("n", out var nEl) && nEl.TryGetInt32(out var n) ? n : null;
+        double? volumeQuote = TryParseString(bar, "q", out var vq) ? vq : null;
 
-        return new Candle(symbol, DateTimeOffset.FromUnixTimeMilliseconds(t), open, high, low, close, volume, tradeCount);
+        return new Candle(
+            symbol, DateTimeOffset.FromUnixTimeMilliseconds(t), open, high, low, close, volume, tradeCount,
+            volumeQuote);
     }
 
     private static bool TryParseString(JsonElement obj, string property, out double value)
