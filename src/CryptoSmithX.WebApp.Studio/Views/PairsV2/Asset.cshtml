@@ -549,7 +549,7 @@
         вендоренным файлом закрывает пункт 4(d) Apache 2.0 сам по себе; эта строка закрывает второе.
     *@
     <span>Candles by <a href="https://www.tradingview.com/" rel="noopener">TradingView</a> Lightweight&nbsp;Charts™</span>
-    <a href="~/@Model.BaseFamily">First design of this page</a>
+    <a href="@Url.RouteUrl("asset-v1", new { controller = "Pairs", action = "Asset", baseFamily = Model.BaseFamily })">First design of this page</a>
 </footer>
 
 @* Библиотека грузится только если есть что рисовать: 198 КБ на странице без свечей — это

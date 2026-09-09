@@ -1570,9 +1570,44 @@ a.a-wordmark:hover { color: var(--text-heading); }
    it. The gap trick is tidier right up until a row is not full — and the last row of a board of
    three pairs never is — at which point the empty tracks show the container's colour and the panel
    grows a grey slab where nothing is. */
-.a-pair-card {
+/* Ячейка сетки — карточка и две кнопки под ней. Границы переехали на ячейку: они рисуют сетку,
+   а кнопки стоят внутри той же клетки и не должны от неё отрезаться. */
+.a-pair-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   border-right: var(--hairline);
   border-bottom: var(--hairline);
+}
+
+/* Две ссылки на два оформления одного актива. Карточка ведёт на v2 — как и вела; кнопки нужны
+   тому, кто сравнивает, и это ровно тот случай, ради которого обе страницы пока и держатся. */
+.a-pair-designs {
+  display: flex;
+  gap: 1px;
+  padding: 0 var(--space-6) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-eyebrow);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+.a-design {
+  padding: 2px 8px;
+  border: var(--hairline);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.a-design:hover { color: var(--accent); border-color: var(--border-strong); }
+
+/* Тот вариант, который откроет сама карточка, помечен: две одинаковые кнопки под кликабельной
+   карточкой не говорят, куда ведёт она. */
+.a-design--now { background: var(--surface-sunken); color: var(--text-heading); }
+
+.a-pair-card {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);

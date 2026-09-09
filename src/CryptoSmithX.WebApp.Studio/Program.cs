@@ -213,6 +213,17 @@ app.MapControllerRoute(
     @"{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
     new { controller = "Pairs", action = "Asset" });
 
+// The first design, at an address that says which it is: /studio/v1/PEPE.
+//
+// It has always been served at /studio/PEPE and still is — every link anyone has kept goes on
+// working. This is the second address, and it exists because the list now offers both designs side
+// by side: a button reading "v1" that points at a bare address says nothing about what it opens,
+// and the two buttons beside each other have to name the same kind of thing.
+app.MapControllerRoute(
+    "asset-v1",
+    @"v1/{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
+    new { controller = "Pairs", action = "Asset" });
+
 // The second design of the asset page: /studio/v2/PEPE. ABOVE the two-segment route below, and
 // that is load-bearing rather than tidy: "v2/PEPE" IS two segments, so the pair route would read it
 // as the pair v2 / PEPE and answer 302 to /studio/v2 — the same trap the live stream fell into in

@@ -103,17 +103,34 @@
                     baseFamily = p.BaseFamily
                 });
 
-                <a class="a-plain a-pair-card" href="@href">
-                    <span class="a-pair-name">@p.BaseFamily</span>
-                    <span class="a-pair-counts">
-                        <span title="Order books quoting this pair. Distinct segments, because a venue's spot book and its perp book are two books.">
-                            <b>@p.Venues</b> venue@(p.Venues == 1 ? "" : "s")
+                var v1 = Url.RouteUrl("asset-v1", new
+                {
+                    controller = "Pairs",
+                    action = "Asset",
+                    baseFamily = p.BaseFamily
+                });
+
+                @* Карточка ведёт на v2 — как и вела. Две кнопки под ней дают выбрать, а не гадать.
+                   ОТДЕЛЬНЫМИ ссылками рядом с карточкой, а не внутри неё: ссылка внутри ссылки —
+                   невалидная разметка, и браузеры разбирают её по-разному, вплоть до того, что
+                   внешняя перестаёт кликаться на части своей площади. *@
+                <div class="a-pair-cell">
+                    <a class="a-plain a-pair-card" href="@href">
+                        <span class="a-pair-name">@p.BaseFamily</span>
+                        <span class="a-pair-counts">
+                            <span title="Order books quoting this pair. Distinct segments, because a venue's spot book and its perp book are two books.">
+                                <b>@p.Venues</b> venue@(p.Venues == 1 ? "" : "s")
+                            </span>
+                            <span title="Instruments folding into this heading. Higher than the venue count where a venue lists the pair against more than one quote in the same family.">
+                                <b>@p.Listings</b> listing@(p.Listings == 1 ? "" : "s")
+                            </span>
                         </span>
-                        <span title="Instruments folding into this heading. Higher than the venue count where a venue lists the pair against more than one quote in the same family.">
-                            <b>@p.Listings</b> listing@(p.Listings == 1 ? "" : "s")
-                        </span>
+                    </a>
+                    <span class="a-pair-designs">
+                        <a class="a-design" href="@v1" title="@p.BaseFamily — first design">v1</a>
+                        <a class="a-design a-design--now" href="@href" title="@p.BaseFamily — second design">v2</a>
                     </span>
-                </a>
+                </div>
             }
         </div>
     }
