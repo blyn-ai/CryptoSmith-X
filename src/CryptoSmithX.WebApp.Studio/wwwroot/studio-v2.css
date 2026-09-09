@@ -176,10 +176,13 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    Первая колонка — листинг, дальше по колонке на вопрос. Число колонок приходит
    из вьюхи переменной --cols, чтобы группа добавлялась в одном месте. */
 .v2 { margin:0; }
-.v2-head{display:flex;align-items:baseline;gap:var(--space-5);flex-wrap:wrap;padding:10px var(--space-7);background:var(--surface-card);border-bottom:2px solid var(--brand)}
-.v2-wordmark{font-family:var(--font-display);font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--brand-text)}
-.v2-crumb,.v2-stamps{font:400 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-muted)}
-.v2-stamps{margin-left:auto}
+.v2-head{display:flex;align-items:center;gap:var(--space-6);flex-wrap:wrap;padding:var(--space-4) var(--space-7);background:var(--surface-card);border-bottom:2px solid var(--brand)}
+.v2-wordmark{font-family:var(--font-display);font-size:var(--fs-h3);line-height:1.2;letter-spacing:.06em;text-transform:uppercase;color:var(--brand-text)}
+.v2-crumb{color:var(--eyebrow)}
+/* Метка и значение — разные вещи и набраны по-разному. Одной строкой мелкого капса не видно,
+   где кончается «collected» и начинается время, которое и есть здесь единственный факт. */
+.v2-stamps{margin-left:auto;display:flex;align-items:center;gap:var(--space-6);flex-wrap:wrap}
+.v2-stamps > span{display:flex;align-items:baseline;gap:var(--space-2)}
 .v2-title{display:flex;align-items:baseline;gap:var(--space-5);flex-wrap:wrap;padding:var(--space-6) var(--space-7) var(--space-3)}
 .v2-title h1{margin:0;font-family:var(--font-display);font-size:var(--fs-h1);line-height:var(--lh-h1);text-transform:uppercase;color:var(--text-heading)}
 .v2-meta{margin-left:auto;font:500 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-faint)}
@@ -215,7 +218,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-hunit{font:400 8.5px/1.2 var(--font-mono);color:var(--text-faint)}
 
 .v2-listing{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:10px;min-width:0}
-.v2-plat{font:400 var(--fs-meta)/1.2 var(--font-body);color:var(--text-heading)}
+.v2-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading)}
 .v2-plat em,.v2-symbol em{font-style:normal;font:500 8.5px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin-left:5px}
 .v2-symbol{font:400 var(--fs-data)/1.2 var(--font-mono);color:var(--text-data);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* ── Свежесть строки ─────────────────────────────────────────────────────────
@@ -243,8 +246,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-strip-ends [data-old].a-spent .a-lab,.v2-strip-ends [data-old].a-spent .a-tok{display:inline}
 .v2-strip-ends .a-tri{font-style:normal;display:inline-block;width:1ch}
 .v2-strip-ends .a-spent{color:var(--accent)}
-.v2-ages{display:flex;flex-wrap:nowrap;gap:var(--space-3);font:400 8.5px/1.3 var(--font-mono);
-  letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);white-space:nowrap}
+/* Смешанный регистр и разделители точками: «Price 6 s · Depth 13 s · OI 45 s». Капс здесь
+   превращал три подписи в три аббревиатуры, а пробел перед единицей съедался вместе с ним. */
+.v2-ages{display:flex;flex-wrap:nowrap;gap:var(--space-3);font:400 var(--fs-age)/1.4 var(--font-mono);
+  color:var(--text-faint);white-space:nowrap}
+.v2-ages > span + span::before{content:"·";margin-right:var(--space-3);color:var(--text-unmeasured)}
 .v2-ages .a-spent{color:var(--accent)}
 
 .v2-cell{display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding:10px;border-left:1px solid var(--border-hairline);min-width:0}
@@ -325,8 +331,14 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-field em{font-style:normal;font:500 8.5px/1.2 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted)}
 .v2-field b{font-weight:400;font:400 var(--fs-data)/1.2 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
 
+/* ── Шрифт ───────────────────────────────────────────────────────────────────
+   МОНОШИРИННЫЙ ВЕЗДЕ. В эталоне --font-body стоит ровно в одном месте — на корне страницы, —
+   а каждый элемент внутри набран моно или дисплейным. У меня он протёк в подписи, описания и
+   пояснения, и на странице, где всё остальное моно, пропорциональная строка читается как
+   чужая вставка. */
 .v2-legend{margin:0;padding:var(--space-4) var(--space-7);font:400 var(--fs-caption)/1.5 var(--font-mono);color:var(--text-muted)}
 .v2-legend b{color:var(--text-data)}
+.v2-foot-right{margin-left:auto}
 .v2-foot{display:flex;gap:var(--space-5);padding:var(--space-5) var(--space-7);font:400 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-muted)}
 
 /* ── шапка: вердикт и тумблеры ──────────────────────────────────────────────── */
@@ -335,6 +347,10 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-title h1 em{font-style:normal;color:var(--accent)}
 /* INK / PAPER. Кнопка, а не тумблер: у неё не состояние, а действие — она называет, куда
    переключит, и это видно по самой странице, как только переключила. */
+.v2-stamp-label{font:500 var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);
+  text-transform:uppercase;color:var(--eyebrow)}
+.v2-stamp-value{font:400 var(--fs-data)/1 var(--font-mono);font-variant-numeric:tabular-nums;
+  color:var(--text-data)}
 .v2-ink{height:var(--control-h);padding:0 var(--space-5);background:transparent;
   border:1px solid var(--border-input);color:var(--text-body);cursor:pointer;
   font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase}
@@ -346,7 +362,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* Кнопка в ряду, а фраза о состоянии — ПОД рядом: она длиной в предложение и, стоя в ряду,
    переносилась на вторую строку и распирала его на каждой смене состояния. */
 .a-liverow{display:contents}
-.v2-livenote{flex-basis:100%;font:400 var(--fs-caption)/1.4 var(--font-body);
+.v2-livenote:empty{display:none}
+.v2-livenote{flex-basis:100%;font:400 var(--fs-caption)/1.4 var(--font-mono);
   color:var(--text-muted);max-width:var(--measure-note)}
 
 .v2-switch{display:inline-flex;align-items:center;gap:8px;height:var(--control-h);padding:0 12px 0 6px;border:1px solid var(--border-input);background:transparent;cursor:pointer}
@@ -379,14 +396,15 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-cutpick{height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);background:transparent;cursor:pointer;
   font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-heading)}
 .v2-cutpick:hover{border-color:var(--border-strong);color:var(--brand-text)}
-/* НАЖАТОЕ — ЧЕРНИЛА. Кислотный зелёный на этой странице занят: он значит вызов открытого
-   интереса (правило 5) и живёт ровно в трёх местах (правило 6) — линейка над шапкой, заливка
-   BEST, знак бренда. Восемь кислотных плашек «выбрано» отнимали смысл у всех трёх. */
-.v2-cutpick[aria-pressed="true"]{background:var(--text-data);border-color:var(--text-data);color:var(--surface-page)}
+/* ВЫБРАННОЕ — КОНТУР АКЦЕНТОМ И БЛЕДНАЯ ЗАЛИВКА, как в эталоне. Кислотный зелёный тут был бы
+   неправ вдвойне (правило 5 — он значит вызов открытого интереса; правило 6 — три места на
+   страницу), а сплошные чернила, которыми я его заменил, читаются как «выключено»: чёрная
+   плашка тяжелее всего вокруг и забирает внимание у цифр, ради которых сюда пришли. */
+.v2-cutpick[aria-pressed="true"]{background:var(--tag-worst-bg);border-color:var(--accent);color:var(--accent)}
 
 .v2-nows{padding:var(--space-4) var(--space-7)}
 .v2-now{display:grid;grid-template-columns:minmax(180px,1fr) minmax(120px,auto) 3fr minmax(120px,auto);align-items:center;gap:var(--space-5);padding:6px 0;border-bottom:1px solid var(--border-hairline)}
-.v2-now-plat{font:400 var(--fs-meta)/1.2 var(--font-body);color:var(--text-heading);min-width:0}
+.v2-now-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading);min-width:0}
 .v2-now-plat em{font-style:normal;font:500 8.5px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin:0 5px}
 .v2-now-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--text-muted)}
 .v2-now-val{text-align:right;font:400 var(--fs-body)/1.1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
@@ -414,7 +432,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-cuts[hidden],
 .v2-nows[hidden]{display:none}
 .v2-cut{display:flex;flex-direction:column;gap:6px;padding:var(--space-4);border:1px solid var(--border-hairline)}
-.v2-cut-plat{font:400 var(--fs-meta)/1.2 var(--font-body);color:var(--text-heading)}
+.v2-cut-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading)}
 .v2-cut-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--brand-text);margin-left:6px}
 .v2-chart{height:150px}
 .v2-line{display:block;width:100%;height:64px;color:var(--spark-ticker)}
@@ -431,7 +449,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* ── полоса 2 при выборе цены: стаканы ──────────────────────────────────────── */
 .v2-nows--books{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--space-4)}
 .v2-book{display:flex;flex-direction:column;gap:6px;padding:var(--space-4);border:1px solid var(--border-hairline)}
-.v2-book-plat{font:400 var(--fs-meta)/1.2 var(--font-body);color:var(--text-heading)}
+.v2-book-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading)}
 .v2-book-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--text-muted);margin-left:6px}
 .v2-book-plat em{font-style:normal;float:right;font:400 var(--fs-data)/1.2 var(--font-mono);color:var(--text-faint)}
 /* Лестница: уровень — полоса, длина = объём против крупнейшего в этой книге. Биды сверху вниз
@@ -522,7 +540,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-gap-what{font:400 var(--fs-data)/1.3 var(--font-mono);color:var(--text-heading)}
 .v2-gap-state{font:500 9px/1.2 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
 .v2-gap-state--open{color:var(--brand-text)}
-.v2-gap-why{font:400 var(--fs-caption)/1.4 var(--font-body);color:var(--text-muted)}
+.v2-gap-why{font:400 var(--fs-caption)/1.4 var(--font-mono);color:var(--text-muted)}
 .v2-gap-when{font:400 var(--fs-micro)/1.2 var(--font-mono);color:var(--text-faint);text-align:right}
 
 
@@ -535,7 +553,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-reach-row{display:grid;grid-template-columns:minmax(150px,auto) minmax(0,1fr) minmax(150px,auto);
   gap:var(--space-4);align-items:baseline;padding:3px 0}
 .v2-reach-name{font:400 var(--fs-data)/1.4 var(--font-mono);color:var(--text-heading)}
-.v2-reach-what{font:400 var(--fs-caption)/1.4 var(--font-body);color:var(--text-muted)}
+.v2-reach-what{font:400 var(--fs-caption)/1.4 var(--font-mono);color:var(--text-muted)}
 .v2-reach-where{text-align:right;font:400 var(--fs-data)/1.4 var(--font-mono)}
 .v2-reach-where a{color:var(--brand-text);text-decoration:none;border-bottom:1px solid var(--border-hairline)}
 .v2-reach-where a:hover{border-bottom-color:currentColor}
@@ -616,8 +634,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
   font:500 var(--fs-micro)/1.4 var(--font-mono);letter-spacing:var(--track-label);
   text-transform:uppercase;color:var(--text-muted)}
 .v2-chip em{font-style:normal;color:var(--text-faint);margin-left:4px;text-transform:none}
-.v2-chip[aria-pressed="true"]{background:var(--text-data);border-color:var(--text-data);color:var(--surface-page)}
-.v2-chip[aria-pressed="true"] em{color:var(--surface-page)}
+.v2-chip[aria-pressed="true"]{background:var(--tag-worst-bg);border-color:var(--accent);color:var(--accent)}
+.v2-chip[aria-pressed="true"] em{color:var(--accent)}
 .v2-tape-row[hidden]{display:none}
 
 /* Единица среза — один раз, в шапке полосы 2. */

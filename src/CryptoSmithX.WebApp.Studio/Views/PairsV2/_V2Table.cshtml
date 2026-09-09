@@ -100,7 +100,7 @@
                                   data-label="@call.Label"
                                   data-at="@call.InstantMs"
                                   data-win="@call.WindowSeconds?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"
-                                  ><span class="a-lab">@call.Label</span> <span class="a-tok">@Format.ShortAge(call.AgeSeconds)</span></span>
+                                  ><span class="a-lab">@call.Label</span> <span class="a-tok">@Format.SpacedAge(call.AgeSeconds)</span></span>
                         }
                     </span>
                 </span>
@@ -118,7 +118,7 @@
                            какой именно он. Отношение не зажимается по единице: три окна и
                            двенадцать окон назад должны читаться по-разному. *@
                         <span class="v2-fig @(strip.MostSpent is null ? "v2-fig--none" : "")">
-                            @(strip.MostSpent is null ? "—" : Format.ShortAge(strip.MostSpent.AgeSeconds))
+                            @(strip.MostSpent is null ? "—" : Format.SpacedAge(strip.MostSpent.AgeSeconds))
                         </span>
                         <span class="v2-figsub">
                             @(strip.MostSpent?.Label ?? "no cadence stated") ·

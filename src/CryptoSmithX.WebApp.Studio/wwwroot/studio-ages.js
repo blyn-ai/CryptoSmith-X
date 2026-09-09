@@ -255,19 +255,25 @@
   // "1y", over-stating by nine months to save a rung nobody reads. Same ladder as GitHub's narrow
   // relative-time (s, m, h, d, w, y), not one invented here. Format.ShortAge is the other copy and
   // a test reads this file for it.
+  // ПРОБЕЛ ПЕРЕД ЕДИНИЦЕЙ — по флагу листа, а не всегда. На первой странице его нет намеренно:
+  // строка возраста живёт в клетке шириной 134px, где «14 s ago» на два пикселя шире «14s ago»,
+  // и таблица дышала на переходе через десяток. Вторая страница этой мерки не имеет, и её
+  // эталон пишет `13 s`. Один движок часов, две ширины — флаг на .a-sheet.
+  const UNIT_SPACE = sheet.hasAttribute('data-age-space') ? ' ' : '';
+
   const shortAge = (ageS) => {
     if (ageS === null) return '—';
     const whole = Math.round(Math.max(ageS, 0));
-    if (whole < 100) return whole + 's';
+    if (whole < 100) return whole + UNIT_SPACE + 's';
     const minutes = Math.ceil(whole / 60);
-    if (minutes < 100) return minutes + 'm';
+    if (minutes < 100) return minutes + UNIT_SPACE + 'm';
     const hours = Math.ceil(whole / 3600);
-    if (hours < 100) return hours + 'h';
+    if (hours < 100) return hours + UNIT_SPACE + 'h';
     const days = Math.ceil(whole / 86400);
-    if (days < 100) return days + 'd';
+    if (days < 100) return days + UNIT_SPACE + 'd';
     const weeks = Math.ceil(whole / 604800);
-    if (weeks < 100) return weeks + 'w';
-    return Math.min(Math.ceil(whole / 31557600), 99) + 'y';
+    if (weeks < 100) return weeks + UNIT_SPACE + 'w';
+    return Math.min(Math.ceil(whole / 31557600), 99) + UNIT_SPACE + 'y';
   };
 
   // Word for word what Format.Age produces: the token above with the tense on it, and the word

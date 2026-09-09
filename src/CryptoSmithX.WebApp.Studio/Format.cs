@@ -217,6 +217,27 @@ public static class Format
         figure.ToString("0", CultureInfo.InvariantCulture) + unit;
 
     /// <summary>
+    /// The same ladder with a space before the unit — <c>13 s</c>, <c>2 m</c> — for the second
+    /// asset page, whose etalon writes it that way.
+    ///
+    /// Not a formatting preference on either side. The first page's age lives in a 134px cell where
+    /// the space is the two pixels that made the table breathe as counts crossed ten; the second
+    /// page has no such measurement to keep. studio-ages.js carries the same split behind
+    /// <c>data-age-space</c>, because it rewrites these tokens every tick and one of the two would
+    /// otherwise win a second after the render.
+    /// </summary>
+    public static string SpacedAge(double? seconds)
+    {
+        var text = ShortAge(seconds);
+        if (text == Dash)
+        {
+            return text;
+        }
+
+        return text[..^1] + " " + text[^1];
+    }
+
+    /// <summary>
     /// The age line's text: the token above with the tense on it, and past twelve windows the word
     /// instead of the count.
     ///

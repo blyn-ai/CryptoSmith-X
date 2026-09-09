@@ -54,7 +54,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=21">
+    <link rel="stylesheet" href="~/studio-v2.css?v=22">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -83,15 +83,23 @@
       data-now="@Model.RenderedAt.ToUnixTimeMilliseconds()"
       data-fade-floor="@Freshness.Floor.ToString(System.Globalization.CultureInfo.InvariantCulture)"
       data-fade-exponent="@Freshness.Exponent.ToString(System.Globalization.CultureInfo.InvariantCulture)"
-      data-degraded-windows="@Freshness.DegradedWindows">
+      data-degraded-windows="@Freshness.DegradedWindows"
+      data-age-space>
 
 @* ── шапка ─────────────────────────────────────────────────────────────────── *@
 <header class="v2-head">
     <a class="v2-wordmark" href="~/">CryptoSmith X</a>
-    <span class="v2-crumb">Asset · @Model.BaseFamily</span>
+    <span class="csx-eyebrow v2-crumb">Asset · @Model.BaseFamily</span>
+    @* Метка и значение — РАЗНЫЕ вещи и набраны по-разному: одной строкой мелкого капса они
+       читались как одна надпись, в которой не видно, где кончается «collected» и начинается
+       время. INK стоит здесь же, у правого края шапки, а не в ряду контролов: он про то, как
+       смотреть на страницу, а не про то, что она показывает. *@
     <span class="v2-stamps">
-        Collected @Format.UtcClock(Model.CollectedFrom) – @Format.UtcClock(Model.CollectedTo)
-        &nbsp;·&nbsp; Rendered @Format.UtcClock(Model.RenderedAt.UtcDateTime)
+        <span><span class="v2-stamp-label">Collected</span>
+            <span class="v2-stamp-value">@Format.UtcClock(Model.CollectedFrom) – @Format.UtcClock(Model.CollectedTo)</span></span>
+        <span><span class="v2-stamp-label">Rendered</span>
+            <span class="v2-stamp-value">@Format.UtcClock(Model.RenderedAt.UtcDateTime)</span></span>
+        <button type="button" id="a-ink" class="v2-ink" hidden>Ink</button>
     </span>
 </header>
 
@@ -111,11 +119,6 @@
 <div class="v2-controls">
     <a class="v2-back" href="~/">Back to list</a>
 
-    @* Ночь. Кнопка та же, что на первой странице, и обработчик у неё тот же — в studio-ages.js:
-       две копии переключателя темы означали бы два ключа хранилища и страницы, светящие
-       по-разному в одном сеансе. Приходит скрытой: со скриптами наотрез она бы ничего не делала. *@
-    <button type="button" id="a-ink" class="v2-ink" hidden>Ink</button>
-
     @* LIVE, и теперь за ним поток. Хуки — те же, что у первой страницы (.a-liverow, #a-live,
        .a-switch-label, #a-live-note): у этих двух страниц ОДИН клиент живого потока, потому что
        вся тонкая часть у него не в разметке, а в поведении при обрыве — пять попыток, слово
@@ -129,7 +132,9 @@
             <i></i><em class="a-switch-label">Live</em>
         </button>
         @* Слово о состоянии потока стоит ВНУТРИ .a-liverow, потому что клиент ищет его там же,
-           где кнопку: разнести их — и обрыв будет сообщён в никуда. *@
+           где кнопку: разнести их — и обрыв будет сообщён в никуда. В обычном состоянии его не
+           видно — эталон в этом ряду держит только тумблеры и возраст снимка, — а вот об обрыве
+           страница обязана сказать словами, и тогда оно появляется. *@
         <span id="a-live-note" class="v2-livenote"></span>
     </span>
     <button type="button" id="expand-all" class="v2-switch" aria-pressed="false">
@@ -149,7 +154,7 @@
     </button>
 
     <span class="v2-note">
-        A snapshot, @Format.ShortAge(oldest) old. Nothing here is hidden except what you folded.
+        A snapshot, @Format.SpacedAge(oldest) old. Nothing here is hidden except what you folded.
     </span>
 
     @* Что ниже — списком, чтобы под сгибом не было сюрпризов. *@
@@ -541,15 +546,14 @@
 <footer class="v2-foot">
     <span>Not investment advice · Own funds only</span>
     @*
-        ОБЯЗАТЕЛЬСТВО ПО ЛИЦЕНЗИИ, а не любезность, и здесь оно повторено намеренно.
-        На первой странице эта ссылка стоит в общем layout; у этой Layout = null, поэтому она
-        подвал не наследует — и без этой строки страница со свечами вышла бы без ссылки, которой
+        ОБЯЗАТЕЛЬСТВО ПО ЛИЦЕНЗИИ, а не любезность. У этой страницы Layout = null, подвал общий
+        она не наследует, и без этой строки страница со свечами вышла бы без ссылки, которой
         требует документация TradingView к attributionLogo: уведомление в коде И ссылка на
         https://www.tradingview.com/ на странице, доступной пользователю. NOTICE рядом с
         вендоренным файлом закрывает пункт 4(d) Apache 2.0 сам по себе; эта строка закрывает второе.
     *@
     <span>Candles by <a href="https://www.tradingview.com/" rel="noopener">TradingView</a> Lightweight&nbsp;Charts™</span>
-    <a href="@Url.RouteUrl("asset-v1", new { controller = "Pairs", action = "Asset", baseFamily = Model.BaseFamily })">First design of this page</a>
+    <span class="v2-foot-right">blynai.eu · MB „BlynAI“</span>
 </footer>
 
 @* Библиотека грузится только если есть что рисовать: 198 КБ на странице без свечей — это
@@ -559,7 +563,7 @@
     <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
     <script src="~/studio-candles.js?v=5"></script>
 }
-<script src="~/studio-ages.js?v=4"></script>
+<script src="~/studio-ages.js?v=5"></script>
 <script src="~/studio-live.js?v=3"></script>
 <script src="~/studio-v2.js?v=11"></script>
 </body>
