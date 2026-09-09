@@ -139,7 +139,18 @@ public sealed record VenueRowModel(
     FreshnessWindows Windows,
     CallAges Ages,
     CandleSeries Candles,
-    MetricHourSeries Metrics);
+    MetricHourSeries Metrics)
+{
+    /// <summary>
+    /// Hourly liquidation volume, index-aligned with <see cref="CandleSeries.Windows"/>.
+    ///
+    /// СВОЙСТВОМ, как и пять чтений второй страницы на PairPageModel, и по той же причине: строку
+    /// строят в трёх местах, из которых двум эта величина не нужна. Пустой ряд по умолчанию — это
+    /// «эту величину для строки не читали», и он рисуется тем же «не измерено», что и площадка,
+    /// которая ликвидаций не публикует.
+    /// </summary>
+    public IReadOnlyList<double?> Liquidations { get; init; } = [];
+}
 
 /// <summary>
 /// The age of each of the three calls behind one row, in seconds, against the time of the request.

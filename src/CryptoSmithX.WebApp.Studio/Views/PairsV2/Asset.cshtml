@@ -245,10 +245,20 @@
             {
                 if (maxNow is null)
                 {
-                    <p class="v2-empty">
-                        @c.Name does not rank in one column across venues — it is stated per venue interval,
-                        and the table normalises it in the cost-of-carry group.
-                    </p>
+                    @* Причина у пустой полосы РАЗНАЯ, и одна фраза на обе врала бы про вторую:
+                       фандинг не ранжируется в принципе — он назван в интервале каждой площадки;
+                       у остальных срезов колонка есть, просто по этому активу в ней ничего нет. *@
+                    if (c.Source == V2CutSource.Funding)
+                    {
+                        <p class="v2-empty">
+                            @c.Name does not rank in one column across venues — it is stated per venue interval,
+                            and the table normalises it in the cost-of-carry group.
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="v2-empty">No venue here has a figure for @c.Name.</p>
+                    }
                 }
                 else
                 {
@@ -490,8 +500,7 @@
         var bookLevels = Model.Books.Values.Select(b => (int)b.Levels).DefaultIfEmpty(0).Max();
         var newestBook = Model.Books.Values.Select(b => (DateTime?)b.ObservedAt).DefaultIfEmpty(null).Max();
         var tapeVenues = Model.Tape.Select(t => t.InstrumentId).Distinct().Count();
-        var stressVenues = Model.Stress.Count;
-        var stressTotal = Model.Stress.Values.Sum(x => x.Volume);
+        var liqVenues = Model.Rows.Count(r => r.Liquidations.Any(v => v is not null));
         var openGaps = Model.Gaps.Count(g => g.GapEnd is null);
 
         // (заголовок, что реально лежит, куда смотреть, якорь, срез)
@@ -522,10 +531,10 @@
              "Band 4", "#band-tape", null),
 
             ("Liquidations",
-             stressVenues == 0
-                 ? "nothing forced out on these venues in the last day"
-                 : $"five-minute buckets on {stressVenues} of {listings} listings, {Format.Num(stressTotal, 0)} in the newest",
-             "Band 1 → Stress", "#band-table", null),
+             liqVenues == 0
+                 ? "no venue here has reported a liquidation bucket in the last day"
+                 : $"hourly buckets on {liqVenues} of {listings} listings, in the venues' own aggregate",
+             "The cut → Liquidations", "#band-cuts", "liquidations"),
 
             ("Coverage & gaps",
              datasets.Count == 0

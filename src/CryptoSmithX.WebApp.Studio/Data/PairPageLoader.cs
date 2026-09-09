@@ -49,8 +49,10 @@ public static class PairPageLoader
                 var coverage = await V2Store.CoverageAsync(conn, ids, token);
                 var gaps = await V2Store.GapsAsync(conn, ids, segments, token);
                 var stress = await V2Store.StressAsync(conn, ids, token);
+                var liquidations = await V2Store.LiquidationsAsync(conn, ids, at, token);
 
-                return new PairData(comparison, candles, metrics, books, tape, coverage, gaps, stress);
+                return new PairData(
+                    comparison, candles, metrics, books, tape, coverage, gaps, stress, liquidations);
             },
             ct);
 
@@ -79,7 +81,10 @@ public static class PairPageLoader
                     Freshness.AgeSeconds(v.Row.OpenInterestAt, now),
                     Freshness.AgeSeconds(v.Row.DepthAt, now)),
                 data.Candles.TryGetValue(v.Row.InstrumentId, out var c) ? c : CandleSeries.Empty,
-                data.Metrics.TryGetValue(v.Row.InstrumentId, out var m) ? m : MetricHourSeries.Empty))
+                data.Metrics.TryGetValue(v.Row.InstrumentId, out var m) ? m : MetricHourSeries.Empty)
+            {
+                Liquidations = data.Liquidations.TryGetValue(v.Row.InstrumentId, out var l) ? l : [],
+            })
             .ToList();
 
         // The span the observations on this page actually cover, across all three calls on every
@@ -128,5 +133,6 @@ public static class PairPageLoader
         IReadOnlyList<TapeRow> Tape,
         IReadOnlyList<CoverageCell> Coverage,
         IReadOnlyList<GapRow> Gaps,
-        IReadOnlyDictionary<int, StressRow> Stress);
+        IReadOnlyDictionary<int, StressRow> Stress,
+        IReadOnlyDictionary<int, IReadOnlyList<double?>> Liquidations);
 }

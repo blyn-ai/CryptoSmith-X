@@ -100,12 +100,16 @@ internal static class Rows
         double? depth = 0,
         double? window = Window,
         CandleSeries? candles = null,
-        MetricHourSeries? metrics = null) =>
+        MetricHourSeries? metrics = null,
+        IReadOnlyList<double?>? liquidations = null) =>
         new(row,
             new FreshnessWindows(window, window, window),
             new CallAges(price, openInterest, depth),
             candles ?? CandleSeries.Empty,
-            metrics ?? MetricHourSeries.Empty);
+            metrics ?? MetricHourSeries.Empty)
+        {
+            Liquidations = liquidations ?? [],
+        };
 
     /// <summary>Rows whose three calls have all just landed. What a comparison looks like when
     /// freshness is not the subject of the test.</summary>

@@ -189,6 +189,59 @@ public static class V2Store
 
         return rows.ToDictionary(r => r.InstrumentId);
     }
+
+    /// <summary>
+    /// Hourly liquidation volume per instrument, on the SAME twenty-five windows every other series
+    /// on the page is drawn on.
+    ///
+    /// The venues publish this as a ready aggregate rather than as our own count of forced fills,
+    /// and every row we hold carries interval_s = 3600 and unit 'base' — so an hour is the bucket
+    /// the venue itself chose, not a rollup we invented, and the sum below only adds buckets that
+    /// fall in the same hour when a venue writes finer ones later.
+    ///
+    /// A window with no row is null and not zero: "no liquidation was reported for this hour" and
+    /// "nothing was liquidated this hour" are the same sentence only when the collector ran, and
+    /// this table cannot tell you whether it did — band 5 can.
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<int, IReadOnlyList<double?>>> LiquidationsAsync(
+        DbConnection conn, IReadOnlyList<int> ids, DateTimeOffset at, CancellationToken ct)
+    {
+        var windows = CandleStore.Windows(at);
+        if (ids.Count == 0 || windows.Count == 0)
+        {
+            return new Dictionary<int, IReadOnlyList<double?>>();
+        }
+
+        var rows = await conn.QueryAsync<LiquidationHour>(new CommandDefinition(
+            """
+            select l.exchange_instrument_id            as "InstrumentId",
+                   date_trunc('hour', l.bucket_time)   as "Hour",
+                   sum(l.volume)::double precision     as "Volume"
+              from liquidation_volume_history l
+             where l.exchange_instrument_id = any(@ids)
+               and l.bucket_time >= @from
+               and l.bucket_time < @to
+             group by 1, 2
+            """,
+            new
+            {
+                ids = ids.ToArray(),
+                from = windows[0],
+                to = windows[^1].AddHours(1),
+            },
+            cancellationToken: ct));
+
+        var byHour = rows.ToDictionary(r => (r.InstrumentId, r.Hour), r => r.Volume);
+
+        return rows
+            .Select(r => r.InstrumentId)
+            .Distinct()
+            .ToDictionary(
+                id => id,
+                id => (IReadOnlyList<double?>)windows
+                    .Select(w => byHour.TryGetValue((id, w), out var v) ? v : (double?)null)
+                    .ToList());
+    }
 }
 
 public sealed record BookFrame(
@@ -204,3 +257,5 @@ public sealed record GapRow(
     string SegmentCode, string Collector, DateTime GapStart, DateTime? GapEnd, string Cause, string? Detail);
 
 public sealed record StressRow(int InstrumentId, double Volume, string Unit, DateTime LatestBucket);
+
+public sealed record LiquidationHour(int InstrumentId, DateTime Hour, double Volume);

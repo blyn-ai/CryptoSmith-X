@@ -25,6 +25,7 @@ public static class V2Cuts
         new("oi", "Open interest", "base units", V2CutSource.OpenInterest, PairColumn.OpenInterest, 0),
         new("funding", "Funding", "per venue interval", V2CutSource.Funding, null, 6),
         new("turnover", "Turnover", "quote asset, rolling 24 h", V2CutSource.None, PairColumn.Turnover24h, 0),
+        new("liquidations", "Liquidations", "base units, hourly buckets", V2CutSource.Liquidations, null, 0),
     ];
 
     /// <summary>The hourly series for one cut, or an empty list when this cut keeps none.</summary>
@@ -35,23 +36,37 @@ public static class V2Cuts
         V2CutSource.Depth25 => r.Metrics.Depth25,
         V2CutSource.OpenInterest => r.Metrics.OpenInterest,
         V2CutSource.Funding => r.Metrics.Funding,
+        V2CutSource.Liquidations => r.Liquidations,
         _ => [],
     };
 
     /// <summary>The figure band 2 ranks the venues by, or null when this cut has no comparable
     /// "now" — funding is a rate over each venue's own interval and does not rank in one column
     /// until it is normalised, which is what the carry group in the table does.</summary>
-    public static double? Now(VenueRowModel r, V2Cut cut) => cut.Column switch
+    public static double? Now(VenueRowModel r, V2Cut cut)
     {
-        PairColumn.Bid => r.Row.BidPrice,
-        PairColumn.SpreadBps => r.Row.SpreadBps,
-        PairColumn.Depth25 => r.Row.DepthBid25 is { } b && r.Row.DepthAsk25 is { } a ? b + a : null,
-        PairColumn.OpenInterest => r.Row.OpenInterest,
-        PairColumn.Turnover24h => r.Row.Turnover24h,
-        _ => null,
-    };
+        // Ликвидации ранжируются, но не колонкой: их «сейчас» — последний ЗАКРЫТЫЙ час того же
+        // ряда, который рисует полоса 3, а не сумма за сутки и не текущий неполный час. Все
+        // площадки, которые их публикуют, отдают агрегат в базовых единицах, поэтому колонка
+        // сравнима; если однажды появится площадка с другой единицей, сравнивать станет нельзя и
+        // это придётся решать здесь, а не молча складывать.
+        if (cut.Source == V2CutSource.Liquidations)
+        {
+            return r.Liquidations.LastOrDefault(v => v is not null);
+        }
+
+        return cut.Column switch
+        {
+            PairColumn.Bid => r.Row.BidPrice,
+            PairColumn.SpreadBps => r.Row.SpreadBps,
+            PairColumn.Depth25 => r.Row.DepthBid25 is { } b && r.Row.DepthAsk25 is { } a ? b + a : null,
+            PairColumn.OpenInterest => r.Row.OpenInterest,
+            PairColumn.Turnover24h => r.Row.Turnover24h,
+            _ => null,
+        };
+    }
 }
 
 public sealed record V2Cut(string Key, string Name, string Unit, V2CutSource Source, PairColumn? Column, int Decimals);
 
-public enum V2CutSource { None, Candles, Spread, Depth25, OpenInterest, Funding }
+public enum V2CutSource { None, Candles, Spread, Depth25, OpenInterest, Funding, Liquidations }
