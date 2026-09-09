@@ -49,11 +49,11 @@ public sealed class GapVoiceTests
         foreach (var cause in allowed)
         {
             var said = GapVoice.Say(cause);
-            Assert.NotEqual("collection stopped", said);
+            Assert.NotEqual("Collection stopped", said);
             Assert.DoesNotContain('_', said);
         }
 
-        Assert.Equal("collection stopped", GapVoice.Say("something_new_in_0099"));
+        Assert.Equal("Collection stopped", GapVoice.Say("something_new_in_0099"));
     }
 
     private static GapRow Row(string collector, string cause, int minute, bool closed = true, string? detail = null) =>

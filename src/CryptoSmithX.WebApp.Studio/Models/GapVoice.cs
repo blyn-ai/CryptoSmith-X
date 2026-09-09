@@ -26,16 +26,20 @@ public static class GapVoice
     /// </summary>
     public static string Say(string cause) => cause switch
     {
-        "rate_limited" => "the venue asked us to slow down",
-        "timeout" => "the venue did not answer in time",
-        "ws_sequence_gap" => "the stream skipped a sequence and was rebuilt",
-        "ws_disconnected" => "the stream dropped",
-        "resync" => "we resynchronised from scratch",
-        "exchange_maintenance" => "the venue was in maintenance",
-        "collector_down" => "our collector was not running",
-        "error" => "the call failed",
-        _ => "collection stopped",
+        "rate_limited" => "Throttled by the venue",
+        "timeout" => "The venue did not answer in time",
+        "ws_sequence_gap" => "Sequence loss, resync not yet acknowledged",
+        "ws_disconnected" => "Socket drop",
+        "resync" => "Resynchronised from scratch",
+        "exchange_maintenance" => "Venue in maintenance",
+        "collector_down" => "Our collector was not running",
+        "error" => "The call failed",
+        _ => "Collection stopped",
     };
+
+    /// <summary>The line a dataset gets when the venue never had it to lose — not a break, and it
+    /// must not read as one. The etalon shows it beside the breaks, as NEVER.</summary>
+    public const string NeverSaid = "Venue publishes no level feed";
 
     /// <summary>
     /// The detail, when there is one a reader can use, and null otherwise.

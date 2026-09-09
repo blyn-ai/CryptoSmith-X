@@ -441,7 +441,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-nows[data-cut="depth25"] .v2-now-bar i{background:var(--bar-depth-bid)}
 .v2-now-note{font:400 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-faint)}
 
-.v2-cuts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--space-4);padding:var(--space-4) var(--space-7)}
+.v2-cuts{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--space-4);padding:var(--space-4) var(--space-7)}
 /* ТА ЖЕ ловушка, что у .v2-fields на строке 610, и здесь она стоила всей полосы 3: авторский
    display:grid бьёт [hidden]{display:none} из UA-таблицы всегда, независимо от специфичности,
    поэтому селектор шести срезов рисовал не выбранный, а все шесть сразу — шесть рядов площадок
@@ -450,9 +450,19 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-cuts[hidden],
 .v2-nows[hidden]{display:none}
 .v2-cut{display:flex;flex-direction:column;gap:6px;padding:var(--space-4);border:1px solid var(--border-hairline)}
-.v2-cut-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading)}
+/* Заголовок карточки полосы 3: площадка дисплейным, символ акцентным моно, OHLC справа. */
+.v2-cut-plat{display:flex;align-items:baseline;gap:var(--space-3);flex-wrap:wrap;
+  font:400 var(--fs-data)/1.2 var(--font-mono);color:var(--text-heading)}
+.v2-cut-plat b{font-family:var(--font-display);font-weight:400;font-size:var(--fs-meta);
+  text-transform:uppercase;letter-spacing:.03em}
+.v2-cut-plat em{font-style:normal;color:var(--accent)}
+.v2-ohlc{margin-left:auto;font:400 var(--fs-micro)/1.2 var(--font-mono);
+  font-variant-numeric:tabular-nums;color:var(--text-faint);white-space:nowrap}
+.v2-cut-held{font:400 var(--fs-micro)/1.3 var(--font-mono);color:var(--text-faint)}
+.v2-delta--up{color:var(--candle-up)}
+.v2-delta--down{color:var(--candle-down)}
 .v2-cut-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--brand-text);margin-left:6px}
-.v2-chart{height:150px}
+.v2-chart{height:180px}
 .v2-line{display:block;width:100%;height:64px;color:var(--spark-ticker)}
 /* Концы линии — числами. Линия без шкалы отвечает на «росло или падало» и молчит на «с чего». */
 .v2-cut-scale{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3);
@@ -529,10 +539,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-tape-head,.v2-tape-row{display:grid;grid-template-columns:86px minmax(0,1fr) 44px minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr);gap:var(--space-4);align-items:baseline;padding:4px 0}
 .v2-tape-head{font:500 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow);border-bottom:1px solid var(--border-hairline)}
 .v2-tape-row{font:400 var(--fs-data)/1.3 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);border-bottom:1px solid var(--border-hairline)}
-.v2-tape-row--loud{background:var(--tint-down,rgba(163,43,53,.08))}
+.v2-tape-row--loud{background:var(--tag-worst-bg)}
+.v2-tape-row--loud .v2-kind{color:var(--accent)}
 .v2-r{text-align:right}
 .v2-side{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted)}
-.v2-kind{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
+.v2-kind{font-size:var(--fs-eyebrow);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-faint)}
 .v2-tape-row--loud .v2-kind{color:var(--brand-text)}
 
 /* ── полоса 5: покрытие и пробелы ───────────────────────────────────────────── */
@@ -564,7 +575,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-gap{display:grid;grid-template-columns:minmax(160px,1fr) 70px 2fr minmax(160px,auto);gap:var(--space-4);align-items:baseline;padding:3px 0}
 .v2-gap-what{font:400 var(--fs-data)/1.3 var(--font-mono);color:var(--text-heading)}
 .v2-gap-state{font:500 9px/1.2 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
-.v2-gap-state--open{color:var(--brand-text)}
+.v2-gap-state--open{color:var(--accent)}
+.v2-gap-state--never{color:var(--text-unmeasured)}
 .v2-gap-why{font:400 var(--fs-caption)/1.4 var(--font-mono);color:var(--text-muted)}
 .v2-gap-when{font:400 var(--fs-micro)/1.2 var(--font-mono);color:var(--text-faint);text-align:right}
 
@@ -665,3 +677,6 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 
 /* Единица среза — один раз, в шапке полосы 2. */
 .v2-band-unit{color:var(--text-faint)}
+
+/* Имя выбранного поля — у правого края шапки полосы 3. */
+.v2-band-field{margin-left:auto;color:var(--accent)}

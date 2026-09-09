@@ -204,6 +204,16 @@ public sealed record PairPageModel(
 
     public IReadOnlyList<TapeRow> Tape { get; init; } = [];
 
+    /// <summary>
+    /// The busiest second this asset has had in the last hour, across every listing.
+    ///
+    /// It is the number band 4 leads with, and it is COUNTED rather than carried over from the
+    /// mock: "up to 3 400 fills a second" is a claim about this market, and a claim about this
+    /// market has to come from this market — and not off the eighteen rows the tape shows, which
+    /// are a sample of a sample and will miss the busiest second by construction.
+    /// </summary>
+    public int TapePeakPerSecond { get; init; }
+
     public IReadOnlyList<CoverageCell> Coverage { get; init; } = [];
 
     public IReadOnlyList<GapRow> Gaps { get; init; } = [];

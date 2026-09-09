@@ -51,9 +51,10 @@ public static class PairPageLoader
                 var stress = await V2Store.StressAsync(conn, ids, token);
                 var liquidations = await V2Store.LiquidationsAsync(conn, ids, at, token);
                 var modes = await V2Store.DatasetModesAsync(conn, segments, token);
+                var peak = await V2Store.TapePeakAsync(conn, ids, token);
 
                 return new PairData(
-                    comparison, candles, metrics, books, tape, coverage, gaps, stress, liquidations, modes);
+                    comparison, candles, metrics, books, tape, coverage, gaps, stress, liquidations, modes, peak);
             },
             ct);
 
@@ -117,6 +118,7 @@ public static class PairPageLoader
             Gaps = data.Gaps,
             Stress = data.Stress,
             Modes = data.Modes,
+            TapePeakPerSecond = data.TapePeak,
         };
     }
 
@@ -137,5 +139,6 @@ public static class PairPageLoader
         IReadOnlyList<GapRow> Gaps,
         IReadOnlyDictionary<int, StressRow> Stress,
         IReadOnlyDictionary<int, IReadOnlyList<double?>> Liquidations,
-        IReadOnlyDictionary<(string Segment, string Dataset), string> Modes);
+        IReadOnlyDictionary<(string Segment, string Dataset), string> Modes,
+        int TapePeak);
 }

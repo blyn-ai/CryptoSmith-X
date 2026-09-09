@@ -210,6 +210,36 @@ public static class V2Store
     }
 
     /// <summary>
+    /// The busiest second this asset has had in the last hour, across every listing.
+    ///
+    /// Band 4 leads with it, and it is COUNTED rather than carried over from the mock: "up to
+    /// 3 400 fills a second" is a claim about this market, so it has to come from this market. It
+    /// cannot be taken off the eighteen rows the tape shows — those are a sample of a sample, and
+    /// the busiest second is exactly what a sample of eighteen will miss.
+    /// </summary>
+    public static async Task<int> TapePeakAsync(
+        DbConnection conn, IReadOnlyList<int> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+        {
+            return 0;
+        }
+
+        return await conn.ExecuteScalarAsync<int?>(new CommandDefinition(
+            """
+            select coalesce(max(n), 0)::int
+              from (
+                    select count(*) as n
+                      from trade t
+                     where t.exchange_instrument_id = any(@ids)
+                       and t.event_time > now() - interval '1 hour'
+                     group by date_trunc('second', t.event_time)
+                   ) x
+            """,
+            new { ids = ids.ToArray() }, cancellationToken: ct)) ?? 0;
+    }
+
+    /// <summary>
     /// What each segment is SET to collect, per dataset.
     ///
     /// Band 5's grid used to list only the datasets that had written coverage rows, which made the

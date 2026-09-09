@@ -54,7 +54,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=24">
+    <link rel="stylesheet" href="~/studio-v2.css?v=25">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -200,8 +200,10 @@
 <section class="v2-band" id="band-time">
     <div class="v2-band-head">
         <span class="csx-eyebrow v2-band-no">3 · Over time, across venues</span>
-        <span class="csx-eyebrow v2-band-sub"><span id="cut-time-sub">@cuts[0].Name · @cuts[0].Unit</span>
-            · hourly, 24 h · one scale per quote · time axes tied</span>
+        <span class="csx-eyebrow v2-band-sub">quote asset · hourly candles, 24 h · one scale per quote, time axes tied</span>
+        @* Имя поля — справа, как в эталоне: слева стоит то, что верно для полосы всегда, справа
+           то, что меняется от клика. Смешанные в одну строку, они читались как одно описание. *@
+        <span class="csx-eyebrow v2-band-field" id="cut-time-sub">@cuts[0].Name</span>
     </div>
 
     @* Цена рисуется свечами той же вендоренной библиотекой, что и на первой странице, и по тому
@@ -227,8 +229,20 @@
                         c = series.Bars[i]?.Close
                     }));
                 var sc = priceScale[r.Row.QuoteAsset];
+                var last = series.Bars.LastOrDefault(b => b is not null);
+                var pd = Format.Decimals(r.Row.PriceStep, fallback: 4);
                 <div class="v2-cut">
-                    <span class="v2-cut-plat">@r.Row.ExchangeName <b>@r.Row.Symbol</b></span>
+                    @* Площадка дисплейным начертанием, символ — акцентным моно, и OHLC последнего
+                       закрытого часа справа: график отвечает на «как шло», а на «чем кончилось»
+                       по пикселям не отвечает никто. *@
+                    <span class="v2-cut-plat">
+                        <b>@r.Row.ExchangeName</b> <em>@r.Row.Symbol</em>
+                        @if (last is not null)
+                        {
+                            <span class="v2-ohlc">O @Format.Num(last.Open, pd) H @Format.Num(last.High, pd)
+                                L @Format.Num(last.Low, pd) C @Format.Num(last.Close, pd)</span>
+                        }
+                    </span>
                     <div class="a-chart v2-chart"
                          data-candles="@json"
                          data-scale-lo="@sc.Lo.ToString(System.Globalization.CultureInfo.InvariantCulture)"
@@ -277,33 +291,37 @@
                     var seen = vals.Where(v => v is not null).Select(v => v!.Value).ToList();
                     var first = seen[0];
                     var last = seen[^1];
+
+                    @* Дельта за окно и сколько часов из двадцати четырёх мы вообще держим: линия
+                       говорит, как шло, и молчит о том, на скольких часах она построена. Двадцать
+                       четыре точки и шесть — это две очень разные линии одинакового вида. *@
+                    var delta = first == 0 ? (double?)null : (last - first) / Math.Abs(first) * 100;
+                    var held = vals.Count(v => v is not null);
                     <div class="v2-cut">
-                        <span class="v2-cut-plat">@r.Row.ExchangeName <b>@r.Row.Symbol</b></span>
+                        <span class="v2-cut-plat"><b>@r.Row.ExchangeName</b> <em>@r.Row.Symbol</em></span>
                         <svg class="v2-line" viewBox="0 0 260 64" preserveAspectRatio="none" aria-hidden="true">
+                            @* Заливка под линией — та же кривая, замкнутая по нижнему краю: она
+                               не добавляет данных, но даёт линии вес, которого у волоска в один
+                               пиксель на светлом фоне нет. *@
+                            <path d="@(path) L 260 64 L 0 64 Z" fill="currentColor" fill-opacity=".12" stroke="none" />
                             <path d="@path" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke" />
                         </svg>
-                        <span class="v2-cut-scale" title="this line is scaled to its own low and high: @Format.Num(seen.Min(), c.Decimals) … @Format.Num(seen.Max(), c.Decimals)">
-                            <span>@Format.Num(first, c.Decimals)</span>
-                            <em>@(last > first ? "▲" : last < first ? "▼" : "=")</em>
-                            <span>@Format.Num(last, c.Decimals)</span>
+                        <span class="v2-cut-scale">
+                            <span>@Format.Num(last, c.Decimals) @c.Short</span>
+                            <span class="@(delta is > 0 ? "v2-delta--up" : delta is < 0 ? "v2-delta--down" : "")">
+                                @(delta is null ? "" : (delta > 0 ? "+" : "") + Format.Num(delta, 1) + "%")
+                            </span>
                         </span>
+                        <span class="v2-cut-held">@held of @vals.Count hours held</span>
                     </div>
                 }
 
-                @* Одной строкой снизу, а не по разу на площадку: пять одинаковых абзацев «Not
-                   measured on this venue.» занимают пять клеток сетки и говорят одно. *@
-                var all = Model.Rows
-                    .SelectMany(r => V2Cuts.Series(r, c))
-                    .Where(v => v is not null)
-                    .Select(v => v!.Value)
-                    .ToList();
-                <p class="v2-legend v2-cuts-foot">
-                    Across every listing drawn: @Format.Num(all.Min(), c.Decimals) … @Format.Num(all.Max(), c.Decimals) @c.Unit.
-                    @if (missing.Count > 0)
-                    {
-                        <text>Not measured: @string.Join(", ", missing).</text>
-                    }
-                </p>
+                @* Одной строкой снизу, а не по разу на площадку: пять одинаковых абзацев
+                   «Not measured on this venue.» занимают пять клеток сетки и говорят одно. *@
+                @if (missing.Count > 0)
+                {
+                    <p class="v2-legend v2-cuts-foot">Not measured: @string.Join(", ", missing).</p>
+                }
             }
         </div>
     }
@@ -319,7 +337,10 @@
 <section class="v2-band" id="band-tape">
     <div class="v2-band-head">
         <span class="csx-eyebrow v2-band-no">4 · The tape</span>
-        <span class="csx-eyebrow v2-band-sub">the last @Model.Tape.Count fills across every listing of this asset</span>
+        @* Пик за час, посчитанный, а не переписанный из макета: секунда, в которую по этому
+           активу прошло больше всего сделок на всех площадках сразу. *@
+        <span class="csx-eyebrow v2-band-sub">up to @Format.Num(Model.TapePeakPerSecond, 0) fills a second on this asset ·
+            the last @Model.Tape.Count shown</span>
         @* Тумблер, за которым что-то стоит. Лента — единственное на странице, что живёт само,
            поэтому она и единственное, что имеет смысл опрашивать: включённый FOLLOW раз в пять
            секунд просит те же восемнадцать сделок и подставляет их на место. Выключенный —
@@ -334,25 +355,6 @@
         </span>
     </div>
 
-    @* Фильтр по площадке. Без него лента бесполезна ровно тогда, когда интересна: одна громкая
-       площадка занимает все восемнадцать строк, и остальных четырёх в ленте просто нет. *@
-    @{
-        var tapeVenueList = Model.Rows
-            .Where(x => Model.Tape.Any(t => t.InstrumentId == x.Row.InstrumentId))
-            .ToList();
-    }
-    @if (tapeVenueList.Count > 1)
-    {
-        <div class="v2-tape-filter">
-            <button type="button" class="v2-chip" data-tape-venue="" aria-pressed="true">All</button>
-            @foreach (var x in tapeVenueList)
-            {
-                <button type="button" class="v2-chip" data-tape-venue="@x.Row.InstrumentId" aria-pressed="false">
-                    @x.Row.ExchangeName <em>@x.Row.Symbol</em>
-                </button>
-            }
-        </div>
-    }
     <div class="v2-tape">
         <div class="v2-tape-head">
             <span>Time</span><span>Venue</span><span>Side</span>
@@ -374,7 +376,7 @@
                 var owner = Model.Rows.FirstOrDefault(r => r.Row.InstrumentId == t.InstrumentId);
                 var kind = t.TradeType ?? "fill";
                 var loud = kind is "liquidation" or "partial_liquidation" or "termination";
-                <div class="v2-tape-row @(loud ? "v2-tape-row--loud" : "")" data-venue="@t.InstrumentId">
+                <div class="v2-tape-row @(loud ? "v2-tape-row--loud" : "")">
                     @* mm:ss.mmm: час в ленте, покрывающей последний час, — три знака, одинаковые во всех
                        восемнадцати строках. *@
                     <span>@t.EventTime.ToString("mm:ss.fff")</span>
@@ -385,7 +387,7 @@
                     @* Пометка только там, где есть что пометить: колонка, в которой на каждой
                        строке написано «fill», — не колонка, а поле, заполненное значением по
                        умолчанию. *@
-                    <span class="v2-kind">@(loud ? kind.Replace("_", " ") : "")</span>
+                    <span class="v2-kind">@kind</span>
                 </div>
             }
         </div>
@@ -401,8 +403,8 @@
 <section class="v2-band" id="band-trust">
     <div class="v2-band-head">
         <span class="csx-eyebrow v2-band-no">5 · What is behind the figures</span>
-        <span class="csx-eyebrow v2-band-sub">coverage per dataset · % of the last 24 h held ·
-            one colour, one metric, one axis of venues · gaps stay open until they close</span>
+        <span class="csx-eyebrow v2-band-sub">coverage per dataset · one colour, one metric, one axis of venues ·
+            gaps stay open until they close</span>
     </div>
 
     @* ВСЕ наборы, из которых страница рисует, а не только те, по которым что-то записано:
@@ -412,9 +414,10 @@
         <span class="v2-cov-corner"></span>
         @foreach (var r in Model.Rows)
         {
-            @* Одной строкой: площадка и котировка. Символ инструмента здесь второй строкой занимал
-               столько же места, сколько сама сетка, и ни на один вопрос этой полосы не отвечал. *@
-            <span class="v2-cov-vh">@r.Row.ExchangeName<em>@r.Row.QuoteAsset</em></span>
+            @* ОДНА строка и одно слово: там, где площадка в таблице одна, это её имя; где их две
+               (Binance в USDT и в USDC) — котировка, потому что именно она их и различает. *@
+            <span class="v2-cov-vh">@(Model.Rows.Count(x => x.Row.ExchangeName == r.Row.ExchangeName) > 1
+                ? r.Row.QuoteAsset : r.Row.ExchangeName)</span>
         }
         @foreach (var d in V2Coverage.Datasets)
         {
@@ -436,109 +439,83 @@
     <div class="v2-cov-key">
         <span>0 %</span>
         <span class="v2-cov-ramp"></span>
-        <span>100 % of the last 24 h held</span>
+        <span>100 % of the window held</span>
     </div>
-    @* Низкий процент читается как «сломано», и в большинстве случаев это неправда: история
-       набирается с того дня, когда набор включили, а не с рождения инструмента. *@
-    <p class="v2-legend">
-        A low figure usually means we started collecting this dataset later than the window, not that
-        the venue went quiet — a break the venue caused is a line below, with its own hours.
-        <b>·</b> not collected on this venue — not a gap in our data ·
-        <b>live</b> written as the venue speaks, with no window to hold a share of; its age is in band 1 ·
-        <b>—</b> nothing was asked for.
-    </p>
-
     <div class="v2-gaps">
         <span class="csx-eyebrow">Open and closed gaps</span>
-        @{ var lines = GapLine.Fold(Model.Gaps); }
-        @if (lines.Count == 0)
+        @{
+            var lines = GapLine.Fold(Model.Gaps);
+
+            @* NEVER — третье состояние, и оно не разрыв: набор, которого у площадки не бывает,
+               ничего не терял. Берётся из матрицы наборов, а не из журнала обрывов, потому что
+               в журнале его и не может быть. *@
+            var never = Model.Rows
+                .SelectMany(x => V2Coverage.Datasets.Select(d => (Row: x.Row, Dataset: d)))
+                .Where(x => !Model.Modes.TryGetValue((x.Row.SegmentCode, x.Dataset.Code), out var m) || m != "collect")
+                .Select(x => (Who: Names.Segment(x.Row.SegmentCode) + " · " + x.Dataset.Label, x.Dataset))
+                .Distinct()
+                .ToList();
+        }
+        @if (lines.Count == 0 && never.Count == 0)
         {
             <p class="v2-empty v2-empty--inline">Nothing has broken on these venues in the last day.</p>
         }
         else
         {
-            @* Двенадцать почти одинаковых строк — площадка, коллектор и причина те же, минуты
-               разные — это список, который надо прочитать целиком, чтобы понять, что он говорит
-               одно. Свёрнутый, он говорит это одно и сколько раз. Открытые идут первыми: разрыв,
-               который ещё идёт, — единственное в этой полосе, на что читатель может повлиять. *@
             foreach (var g in lines)
             {
                 <div class="v2-gap">
-                    @* ПО-ЧЕЛОВЕЧЕСКИ, а не первичными ключами: «binance-usdm · candles_index» — это наши
-                       коды, и читателю, чтобы прочесть фразу о разрыве, пришлось бы сперва выучить
-                       нашу схему. *@
                     <span class="v2-gap-what">@Names.Segment(g.SegmentCode) · @Names.Dataset(g.Collector)</span>
                     <span class="v2-gap-state @(g.Open ? "v2-gap-state--open" : "")">@(g.Open ? "open" : "closed")</span>
-                    @* ГОЛОС СТРАНИЦЫ, а не текст драйвера. Здесь печаталось `cause — detail`
-                       дословно из строки, то есть `NpgsqlException: Failed to connect to
-                       172.22.0.2:5432` — наш внутренний адрес и порт на витрине, и вдобавок не
-                       ответ на вопрос читателя: он спросил, чего ему не хватает, а не какой
-                       наш контейнер не дозвонился до какого. *@
-                    <span class="v2-gap-why">
-                        @GapVoice.Say(g.Cause)@(g.Detail is null ? "" : " · " + g.Detail)@(g.Count > 1 ? $" × {g.Count}" : "")
-                    </span>
+                    <span class="v2-gap-why">@GapVoice.Say(g.Cause)@(g.Detail is null ? "" : " · " + g.Detail)@(g.Count > 1 ? $" × {g.Count}" : "")</span>
                     <span class="v2-gap-when">@Format.UtcClock(g.From) → @(g.Open ? "open" : Format.UtcClock(g.To))</span>
+                </div>
+            }
+
+            foreach (var n in never)
+            {
+                <div class="v2-gap">
+                    <span class="v2-gap-what">@n.Who</span>
+                    <span class="v2-gap-state v2-gap-state--never">never</span>
+                    <span class="v2-gap-why">Not collected from this venue</span>
+                    <span class="v2-gap-when">—</span>
                 </div>
             }
         }
     </div>
 
     @* ── что ещё есть у этого актива ───────────────────────────────────────────
-       Список НЕ каталог наборов, а перепись того, что для ЭТОГО актива лежит в базе прямо
-       сейчас: строки собраны из тех же значений, что нарисованы выше, и ни одна не утверждает
-       больше того, что страница уже показала. Набор, у которого для актива ничего нет, так и
-       написан — «ничего», а не пропущен: разница между «не собираем» и «собираем, но пусто»
-       и есть половина смысла этой полосы. *@
+       Перепись наборов и того, куда за каждым идти. Цифр здесь нет намеренно: на «сколько
+       лежит» отвечает сетка покрытия двумя строками выше, и два разных числа про одно на одном
+       экране всегда читаются как ошибка. *@
     @{
-        var listings = Model.Rows.Count;
-        var withCandles = Model.Rows.Count(r => r.Candles.Present > 0);
-        var bars = Model.Rows.Sum(r => r.Candles.Present);
-        var withFunding = Model.Rows.Count(r => r.Metrics.Funding.Any(f => f is not null));
-        var fundingNow = Model.Rows.Count(r => r.Row.FundingRate is not null);
-        var bookLevels = Model.Books.Values.Select(b => (int)b.Levels).DefaultIfEmpty(0).Max();
-        var newestBook = Model.Books.Values.Select(b => (DateTime?)b.ObservedAt).DefaultIfEmpty(null).Max();
-        var tapeVenues = Model.Tape.Select(t => t.InstrumentId).Distinct().Count();
-        var liqVenues = Model.Rows.Count(r => r.Liquidations.Any(v => v is not null));
-        var tracked = V2Coverage.Datasets.Count(d => d.Tracked);
-        var gapLines = GapLine.Fold(Model.Gaps).Count;
-        var openGaps = GapLine.Fold(Model.Gaps).Count(g => g.Open);
-
-        // (заголовок, что реально лежит, куда смотреть, якорь, срез)
+        // Копия эталона дословно: это перепись наборов, а не отчёт о том, сколько чего лежит
+        // сегодня — цифры отсюда убраны, потому что на них уже отвечает сетка покрытия двумя
+        // полосами выше, и две разные цифры про одно на одном экране всегда читаются как ошибка.
         var reach = new (string Name, string What, string Where, string Href, string? Cut)[]
         {
             ("Candles",
-             withCandles == 0
-                 ? "nothing stored for this asset yet"
-                 : $"{bars} hourly bars over {withCandles} of {listings} listings, one scale per quote asset",
+             "1m stored, 5 / 15 / 60 / 240 / 1440 derived · mark and index series kept apart",
              "The cut → Price", "#band-cuts", "price"),
 
             ("Funding history",
-             withFunding == 0
-                 ? (fundingNow == 0 ? "no listing here publishes funding" : "a rate now, but no hourly history kept yet")
-                 : $"hourly rates on {withFunding} of {listings} listings, each at that venue's own interval",
+             "every payment, per venue interval, normalised on read",
              "The cut → Funding", "#band-cuts", "funding"),
 
             ("Level book",
-             Model.Books.Count == 0
-                 ? "no frame in the last ten minutes"
-                 : $"{bookLevels} levels a side on {Model.Books.Count} of {listings} listings, newest {Format.UtcClock(newestBook)}",
-             "Band 2", "#band-now", null),
+             "25 levels a side, top of book kept at full rate",
+             "Band 2, or the book endpoint", "#band-now", null),
 
             ("Trades",
-             Model.Tape.Count == 0
-                 ? "no fill in the last hour"
-                 : $"every fill with taker side and venue clock — {Model.Tape.Count} shown from {tapeVenues} listings",
-             "Band 4", "#band-tape", null),
+             "every fill with taker side, venue id and venue clock",
+             "Band 4, or a day file", "#band-tape", null),
 
             ("Liquidations",
-             liqVenues == 0
-                 ? "no venue here has reported a liquidation bucket in the last day"
-                 : $"hourly buckets on {liqVenues} of {listings} listings, in the venues' own aggregate",
+             "events whole, plus five-minute buckets and the side ratio",
              "The cut → Liquidations", "#band-cuts", "liquidations"),
 
             ("Coverage & gaps",
-             $"{V2Coverage.Datasets.Count} datasets accounted for, {tracked} of them measurable as coverage, "
-             + $"{gapLines} breaks recorded, {openGaps} still open",
+             "what we hold, where it broke and why",
              "Band 5", "#band-trust", null),
         };
     }
@@ -579,6 +556,6 @@
 }
 <script src="~/studio-ages.js?v=5"></script>
 <script src="~/studio-live.js?v=3"></script>
-<script src="~/studio-v2.js?v=12"></script>
+<script src="~/studio-v2.js?v=13"></script>
 </body>
 </html>

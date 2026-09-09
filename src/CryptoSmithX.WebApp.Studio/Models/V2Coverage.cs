@@ -28,23 +28,15 @@ public enum CoverageState
 
 public sealed record CoverageCellView(CoverageState State, int Percent, string Title)
 {
-    public string Text => State switch
-    {
-        CoverageState.Held => Percent.ToString(System.Globalization.CultureInfo.InvariantCulture),
-        CoverageState.Empty => "0",
-        CoverageState.NotCollected => "·",
-        CoverageState.NotTracked => "live",
-        _ => "—",
-    };
+    /// <summary>A share of the window, or a dash. Nothing else: the grid is one metric on one
+    /// scale, and a word in a cell of it is a second metric wearing the same shape.</summary>
+    public string Text => State == CoverageState.Held || State == CoverageState.Empty
+        ? Percent.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        : "—";
 
-    public string Class => State switch
-    {
-        CoverageState.Held => "",
-        CoverageState.Empty => "v2-cov-cell--zero",
-        CoverageState.NotCollected => "v2-cov-cell--off",
-        CoverageState.NotTracked => "v2-cov-cell--live",
-        _ => "v2-cov-cell--none",
-    };
+    public string Class => State == CoverageState.Held || State == CoverageState.Empty
+        ? ""
+        : "v2-cov-cell--none";
 }
 
 /// <summary>
@@ -66,16 +58,13 @@ public static class V2Coverage
 {
     public static IReadOnlyList<V2Dataset> Datasets { get; } =
     [
-        new("snapshot", "ticker", false, "band 1 — price, spread, funding rate, open interest"),
-        new("depth", "depth", false, "band 1 — the 10, 25 and 50 bps bands"),
-        new("book", "book", false, "band 2 — the level book"),
-        new("trades", "trades", false, "band 4 — the tape"),
-        new("candles", "candles", true, "band 3 — the price cut"),
-        new("candles_mark", "candles mark", true, "band 1 — the mark price"),
-        new("candles_index", "candles index", true, "band 1 — the index price"),
-        new("funding", "funding", true, "band 3 — the funding cut"),
-        new("open_interest", "open interest", true, "band 3 — the open-interest cut"),
-        new("liquidations", "liquidations", true, "band 3 — the liquidations cut"),
+        new("snapshot", "Snapshot", false, "band 1 — price, spread, funding rate, open interest"),
+        new("candles", "Candles 1m", true, "band 3 — the price cut"),
+        new("funding", "Funding", true, "band 3 — the funding cut"),
+        new("open_interest", "Open interest", true, "band 3 — the open-interest cut"),
+        new("trades", "Trades", false, "band 4 — the tape"),
+        new("book", "Level book", false, "band 2 — the level book"),
+        new("liquidations", "Liquidations", true, "band 3 — the liquidations cut"),
     ];
 
     public static CoverageCellView Cell(
