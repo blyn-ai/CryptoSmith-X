@@ -283,7 +283,7 @@ public abstract class LivePageController : Controller
                 // patched table under the reader's cursor there.
                 try
                 {
-                    await Task.Delay(StudioCache.Ttl, ct);
+                    await Task.Delay(MinPushInterval, ct);
                 }
                 catch (OperationCanceledException)
                 {
@@ -378,6 +378,17 @@ public abstract class LivePageController : Controller
     /// minute, for a picture that did not change.
     /// </summary>
     protected virtual bool Changed(string region, PairPageModel model) => true;
+
+    /// <summary>
+    /// The floor between two pushes.
+    ///
+    /// The cache's own window by default, which is the rate at which a new render can differ at
+    /// all. A page overrides it upward when its fragments are LARGE and its reader is slow: nobody
+    /// reads seven venues by twenty-six fields twice a second, and sending it to them anyway is a
+    /// hundred kilobytes and a re-morph of the whole table for a change they will not have finished
+    /// noticing before the next one lands.
+    /// </summary>
+    protected virtual TimeSpan MinPushInterval => StudioCache.Ttl;
 
     /// <summary>Renders a partial to a string outside the normal action-result pipeline, on this
     /// request's own <see cref="ControllerContext"/> so view lookup resolves exactly as

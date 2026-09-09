@@ -63,6 +63,19 @@ public sealed class PairsV2Controller : LivePageController
     protected override Task<PairPageModel?> LoadPageAsync(string baseFamily, CancellationToken ct) =>
         PairPageLoader.LoadAsync(_db, _cache, _clock, baseFamily, ct);
 
+    /// <summary>
+    /// Five seconds between pushes, not one.
+    ///
+    /// Measured before choosing it: fifteen seconds of this stream carried nine pushes and 1.6 MB —
+    /// the whole table nine times, to one reader, for figures that move in the fourth decimal. At
+    /// that rate the page is redrawing faster than anyone can read a row of it, which is what a
+    /// reader means by "it keeps refreshing".
+    ///
+    /// Nothing goes stale by waiting: the ages on screen keep counting on their own between pushes,
+    /// which is the whole point of them being computed against a clock rather than baked in.
+    /// </summary>
+    protected override TimeSpan MinPushInterval => TimeSpan.FromSeconds(5);
+
     /// <summary>The newest depth observation this stream has already drawn, so band 2 is not
     /// replaced for a pass that did not touch it. One field, read and written on the one loop that
     /// owns this response.</summary>
