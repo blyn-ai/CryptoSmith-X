@@ -193,40 +193,45 @@
                            поэтому сравнивать их местами нельзя, а показать, насколько эта цифра
                            велика для ЭТОЙ площадки за сутки, — можно и нужно. Шкала своя, по
                            странице, и подпись под цифрой называет единицу. *@
-                        @if (g.Key == "stress" && stress is not null)
-                        {
-                            var peak = Model.Stress.Values.Select(x => (double?)x.Volume).DefaultIfEmpty(null).Max();
-                            <span class="v2-bar" data-tone="ticker">
-                                <i style="width:@Format.BarWidth(stress.Volume, peak)"></i>
-                            </span>
-                        }
-                        @if (head.BarColumn is { } bc && head.Bar is not null)
-                        {
-                            <span class="v2-bar" data-tone="@g.Tone.ToString().ToLowerInvariant()">
-                                <i style="width:@Format.BarWidth(head.Bar, Model.Scales.Of(r.Row.InstrumentId, bc))"></i>
-                            </span>
-                        }
-
-                        @* Спарклайн — история ТОГО ЖЕ числа, что стоит крупно, за те же двадцать
-                           четыре часа, что рисует полоса 3. Он здесь потому, что свёрнутая
-                           таблица — единственное место на странице, где направление видно у всех
-                           площадок сразу: полоса 3 отвечает на «как пришло вот это одно поле» и
-                           больше одного поля показать не может.
-
-                           У двух групп из семи истории нет вовсе — оборот за скользящие сутки это
-                           одно число, а возраст меряется от «сейчас», — и там остаётся лог-бар
-                           (правило 11). Пустой рамки вместо линии не рисуем. *@
+                        @* Спарклайн — история ТОГО ЖЕ числа, что стоит крупно, за те же сутки,
+                           что рисует полоса 3. Он здесь потому, что свёрнутая таблица —
+                           единственное место, где направление видно у всех площадок сразу. У двух
+                           групп из семи истории нет вовсе, и там остаётся один бар (правило 11). *@
                         var spark = Format.SparkPath(V2Groups.Spark(r, g), 60, 14);
-                        @if (spark is not null)
-                        {
-                            @* Вдвое короче и прижат вправо под цифру: линия здесь — справка о
-                               направлении, а не второй главный объект в клетке. *@
-                            <svg class="v2-spark" data-tone="@g.Tone.ToString().ToLowerInvariant()"
-                                 viewBox="0 0 60 14" preserveAspectRatio="none" aria-hidden="true">
-                                <path d="@spark" fill="none" stroke="currentColor" stroke-width="1"
-                                      vector-effect="non-scaling-stroke" />
-                            </svg>
-                        }
+
+                        @* БАР И ЛИНИЯ — НА ОДНОЙ СТРОКЕ. Стопкой они добавляли каждой строке
+                           таблицы шестнадцать пикселей пустоты на семь колонок, и таблица, ради
+                           плотности которой всё это и затевалось, стала вдвое выше экрана.
+                           Бар меряет «сколько», линия — «куда»; рядом они не мешают друг другу,
+                           потому что отвечают на разные вопросы и занимают разные половины. *@
+                        <span class="v2-cell-foot">
+                            @if (g.Key == "stress" && stress is not null)
+                            {
+                                var peak = Model.Stress.Values.Select(x => (double?)x.Volume).DefaultIfEmpty(null).Max();
+                                <span class="v2-bar" data-tone="ticker">
+                                    <i style="width:@Format.BarWidth(stress.Volume, peak)"></i>
+                                </span>
+                            }
+                            else if (head.BarColumn is { } bc && head.Bar is not null)
+                            {
+                                <span class="v2-bar" data-tone="@g.Tone.ToString().ToLowerInvariant()">
+                                    <i style="width:@Format.BarWidth(head.Bar, Model.Scales.Of(r.Row.InstrumentId, bc))"></i>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="v2-bar v2-bar--none"></span>
+                            }
+
+                            @if (spark is not null)
+                            {
+                                <svg class="v2-spark" data-tone="@g.Tone.ToString().ToLowerInvariant()"
+                                     viewBox="0 0 60 14" preserveAspectRatio="none" aria-hidden="true">
+                                    <path d="@spark" fill="none" stroke="currentColor" stroke-width="1"
+                                          vector-effect="non-scaling-stroke" />
+                                </svg>
+                            }
+                        </span>
 
                         <span class="v2-fields" hidden>
                             @foreach (var f in g.Fields)

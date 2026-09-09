@@ -201,7 +201,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-grid{--cols:7}
 .v2-hrow,.v2-row{display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(var(--cols),minmax(110px,1fr));border-bottom:1px solid var(--border-hairline)}
 .v2-hrow{background:var(--surface-sunken)}
-.v2-hcell{display:flex;flex-direction:column;gap:3px;padding:7px 10px 8px;border-left:1px solid var(--border-hairline);border-top:2px solid var(--border-hairline)}
+.v2-hcell{display:flex;flex-direction:column;gap:2px;padding:5px 8px 6px;border-left:1px solid var(--border-hairline);border-top:2px solid var(--border-hairline)}
 .v2-hcell[data-tone="openinterest"]{border-top-color:var(--call-oi)}
 .v2-hcell[data-tone="depth"]{border-top-color:var(--call-depth,var(--text-faint))}
 .v2-hcell--listing{border-left:0;justify-content:flex-end;font:500 9px/1.2 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--eyebrow)}
@@ -221,7 +221,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-caret[aria-pressed="true"]{color:var(--accent,var(--brand-text))}
 .v2-hunit{font:400 8.5px/1.2 var(--font-mono);color:var(--text-faint)}
 
-.v2-listing{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:10px;min-width:0}
+.v2-listing{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:5px 8px;min-width:0}
 .v2-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading)}
 .v2-plat em,.v2-symbol em{font-style:normal;font:500 8.5px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin-left:5px}
 .v2-symbol{font:400 var(--fs-data)/1.2 var(--font-mono);color:var(--text-data);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -257,7 +257,10 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-ages > span + span::before{content:"·";margin-right:var(--space-3);color:var(--text-unmeasured)}
 .v2-ages .a-spent{color:var(--accent)}
 
-.v2-cell{display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding:10px;border-left:1px solid var(--border-hairline);min-width:0}
+/* ПЛОТНО. Ради плотности эта таблица и устроена как таблица; десять пикселей полей на семь
+   колонок и пять строк — это экран пустоты вокруг цифр, ради которых сюда пришли. */
+.v2-cell{display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding:5px 8px;
+  border-left:1px solid var(--border-hairline);min-width:0}
 .v2-fig{font:400 var(--fs-body)/1.1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
 .v2-fig--none{color:var(--text-unmeasured)}
 /* Возраст худшего вызова — единственное число, которое красится СОСТОЯНИЕМ, потому что оно и
@@ -294,7 +297,12 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* ── Спарклайн в свёрнутой клетке ───────────────────────────────────────────── */
 /* Справка о направлении, а не второй главный объект: вдвое короче, прижат вправо под цифру,
    цвет — полупрозрачные --spark-*, а не насыщенный вызов. */
-.v2-spark{display:block;width:60px;height:14px;margin:2px 0 0 auto;color:var(--spark-ticker)}
+/* Подвал клетки: бар слева во всю оставшуюся ширину, линия справа фиксированной. Стопкой они
+   стоили шестнадцать пикселей высоты каждой строке на каждой из семи колонок. */
+.v2-cell-foot{display:flex;align-items:center;gap:var(--space-3);width:100%}
+.v2-cell-foot .v2-bar{flex:1;min-width:0}
+.v2-bar--none{background:transparent}
+.v2-spark{display:block;width:60px;height:14px;flex:none;color:var(--spark-ticker)}
 .v2-spark[data-tone="openinterest"]{color:var(--spark-oi)}
 .v2-spark[data-tone="depth"]{color:var(--spark-depth)}
 /* Раскрытая группа отдаёт место полям: две картинки одного числа в одной клетке спорят. */
