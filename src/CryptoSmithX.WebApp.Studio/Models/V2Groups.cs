@@ -22,25 +22,31 @@ public static class V2Groups
         new("price", "Price", "quote asset · bid / ask · bps", PairColumn.SpreadBps, CallTone.Ticker,
             [new("Last", V2Field.Last), new("Mark", V2Field.Mark), new("Index", V2Field.Index),
              new("Spread", V2Field.Spread), new("Venue clock", V2Field.VenueClock),
-             new("Last trade", V2Field.LastTrade)]),
+             new("Last trade", V2Field.LastTrade)])
+            { Cut = "price" },
 
         new("liquidity", "Liquidity", "base units · bid / ask at 25 bps", PairColumn.Depth25, CallTone.Depth,
             [new("Bid size", V2Field.BidSize), new("Ask size", V2Field.AskSize),
              new("10 bps", V2Field.Depth10), new("25 bps", V2Field.Depth25),
-             new("50 bps", V2Field.Depth50), new("Book reach", V2Field.BookReach)]),
+             new("50 bps", V2Field.Depth50), new("Book reach", V2Field.BookReach)])
+            { Cut = "depth25" },
 
         new("positions", "Positions", "base units · × multiplier applied", PairColumn.OpenInterest, CallTone.OpenInterest,
-            [new("OI base", V2Field.OpenInterest), new("Multiplier", V2Field.Multiplier)]),
+            [new("OI base", V2Field.OpenInterest), new("Multiplier", V2Field.Multiplier)])
+            { Cut = "oi" },
 
         new("carry", "Cost of carry", "per cent per day · venue interval normalised", null, CallTone.Ticker,
             [new("Per day", V2Field.FundingPerDay), new("Venue rate", V2Field.FundingRate),
-             new("Interval", V2Field.FundingInterval)]),
+             new("Interval", V2Field.FundingInterval)])
+            { Cut = "funding" },
 
         new("activity", "Activity", "quote asset · rolling 24 h", PairColumn.Turnover24h, CallTone.Ticker,
-            [new("Turnover Q", V2Field.Turnover24h)]),
+            [new("Turnover Q", V2Field.Turnover24h)])
+            { Cut = "turnover" },
 
         new("stress", "Stress", "liquidations, last hour", null, CallTone.Ticker,
-            [new("Volume", V2Field.LiquidationVolume), new("Unit", V2Field.LiquidationUnit)]),
+            [new("Volume", V2Field.LiquidationVolume), new("Unit", V2Field.LiquidationUnit)])
+            { Cut = "liquidations" },
 
         new("trust", "Trust", "age of the worst call on this row", null, CallTone.Ticker,
             [new("Price", V2Field.AgePrice), new("Depth", V2Field.AgeDepth), new("OI", V2Field.AgeOpenInterest)]),
@@ -58,7 +64,18 @@ public sealed record V2Group(
     string Unit,
     PairColumn? Headline,
     CallTone Tone,
-    IReadOnlyList<V2FieldRef> Fields);
+    IReadOnlyList<V2FieldRef> Fields)
+{
+    /// <summary>
+    /// The cut bands 2 and 3 switch to when this group's caret is clicked, or null when the group
+    /// has no second dimension to show.
+    ///
+    /// Six of the seven groups have one. TRUST does not, and that is not an oversight: the ages it
+    /// prints are measured against the instant of the request, so an hourly series of them would be
+    /// a series of a subtraction we did not make at those hours.
+    /// </summary>
+    public string? Cut { get; init; }
+}
 
 public sealed record V2FieldRef(string Label, V2Field Field);
 

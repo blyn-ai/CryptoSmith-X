@@ -67,6 +67,11 @@
     picks.forEach(function (b) {
       b.setAttribute('aria-pressed', b.getAttribute('data-cut') === key ? 'true' : 'false');
     });
+    // Каретки в шапке таблицы показывают то же состояние: стрелка у группы, чьё поле сейчас
+    // внизу, — «вы здесь», а не «сюда можно».
+    document.querySelectorAll('.v2-caret[data-goto-cut]').forEach(function (c) {
+      c.setAttribute('aria-pressed', c.getAttribute('data-goto-cut') === key ? 'true' : 'false');
+    });
     // Свечи меряют себя при вставке; если их полоса была скрыта в этот момент, ширина вышла
     // нулевой и график остался невидим. Библиотека сама этого не замечает — просим пересчитать.
     window.dispatchEvent(new Event('resize'));
@@ -161,3 +166,32 @@
   });
 })();
 
+
+
+/* INK / PAPER.
+
+   Набор токенов ночи лежит в этом файле стилей с первого дня и до сих пор ничем не включался.
+   Выбор держится в localStorage и применяется В <head> ДО ОТРИСОВКИ (см. встроенный скрипт в
+   разметке): включить тему отсюда, снизу страницы, значило бы показать светлый экран и мигнуть
+   тёмным — ровно то, ради чего тему и переключают, в обратную сторону. */
+(function () {
+  var btn = document.getElementById('ink');
+  if (!btn) { return; }
+
+  function label() {
+    btn.textContent = document.documentElement.getAttribute('data-theme') === 'night' ? 'Paper' : 'Ink';
+  }
+
+  btn.addEventListener('click', function () {
+    var night = document.documentElement.getAttribute('data-theme') === 'night';
+    if (night) {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'night');
+    }
+    try { window.localStorage.setItem('csx-theme', night ? 'paper' : 'night'); } catch (e) { /* приватное окно */ }
+    label();
+  });
+
+  label();
+})();

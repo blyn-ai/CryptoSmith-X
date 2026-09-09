@@ -548,10 +548,16 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-hcell[data-tone="openinterest"]{border-top-color:var(--call-oi,var(--brand))}
 .v2-hcell[data-tone="depth"]{border-top-color:var(--call-depth,var(--text-faint))}
 .v2-hcell--listing{border-left:0;justify-content:flex-end;font:500 9px/1.2 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--eyebrow)}
+.v2-hrow{display:flex;align-items:baseline;justify-content:space-between;gap:6px;width:100%}
 .v2-gtoggle{display:flex;align-items:baseline;justify-content:space-between;gap:6px;width:100%;padding:0;background:none;border:0;cursor:pointer;
   font:500 9px/1.2 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--text-heading);text-align:left}
 .v2-gtoggle[aria-expanded="true"]{color:var(--brand-text)}
-.v2-caret{letter-spacing:.14em;color:var(--text-faint)}
+.v2-caret{padding:0 0 0 4px;background:none;border:0;cursor:pointer;letter-spacing:.14em;color:var(--text-faint);
+  font:inherit;line-height:1}
+.v2-caret:hover{color:var(--brand-text)}
+/* Активной каретка стоит у той группы, чьё поле сейчас в полосах 2 и 3 — иначе стрелка
+   означает «сюда можно», но никогда «вы здесь». */
+.v2-caret[aria-pressed="true"]{color:var(--accent,var(--brand-text))}
 .v2-hunit{font:400 8.5px/1.2 var(--font-mono);color:var(--text-faint)}
 
 .v2-listing{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:10px;min-width:0}
@@ -579,6 +585,13 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 
 /* ── шапка: вердикт и тумблеры ──────────────────────────────────────────────── */
 .v2-verdict{font-family:var(--font-display);font-size:var(--fs-h1);line-height:var(--lh-h1);text-transform:uppercase;color:var(--brand-text)}
+/* INK / PAPER. Кнопка, а не тумблер: у неё не состояние, а действие — она называет, куда
+   переключит, и это видно по самой странице, как только переключила. */
+.v2-ink{height:var(--control-h);padding:0 var(--space-5);background:transparent;
+  border:1px solid var(--border-input);color:var(--text-body);cursor:pointer;
+  font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase}
+.v2-ink:hover{color:var(--accent,var(--brand-text));border-color:var(--border-strong)}
+
 .v2-switch{display:inline-flex;align-items:center;gap:8px;height:var(--control-h);padding:0 12px 0 6px;border:1px solid var(--border-input);background:transparent;cursor:pointer}
 .v2-switch i{display:block;width:26px;height:14px;background:var(--surface-sunken);border:1px solid var(--border-input);position:relative;flex:none}
 .v2-switch i::after{content:"";position:absolute;top:1px;left:1px;width:10px;height:10px;background:var(--text-faint);transition:left 120ms linear,background-color 120ms linear}
@@ -621,6 +634,13 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-now-note{font:400 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-faint)}
 
 .v2-cuts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--space-4);padding:var(--space-4) var(--space-7)}
+/* ТА ЖЕ ловушка, что у .v2-fields на строке 610, и здесь она стоила всей полосы 3: авторский
+   display:grid бьёт [hidden]{display:none} из UA-таблицы всегда, независимо от специфичности,
+   поэтому селектор шести срезов рисовал не выбранный, а все шесть сразу — шесть рядов площадок
+   один под другим, где полоса обещает один. Любое правило display на элементе, который прячут
+   атрибутом, обязано иметь пару с [hidden]. */
+.v2-cuts[hidden],
+.v2-nows[hidden]{display:none}
 .v2-cut{display:flex;flex-direction:column;gap:6px;padding:var(--space-4);border:1px solid var(--border-hairline)}
 .v2-cut-plat{font:400 var(--fs-meta)/1.2 var(--font-body);color:var(--text-heading)}
 .v2-cut-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--brand-text);margin-left:6px}

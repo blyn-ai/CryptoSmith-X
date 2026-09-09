@@ -54,7 +54,18 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=5">
+    <link rel="stylesheet" href="~/studio-v2.css?v=7">
+
+    @* Тема применяется ДО первой отрисовки и поэтому здесь, а не в studio-v2.js внизу страницы:
+       поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
+       ночь и включают, в обратную сторону. Четыре строки в разметке дешевле этого мигания. *@
+    <script>
+        try {
+            if (window.localStorage.getItem('csx-theme') === 'night') {
+                document.documentElement.setAttribute('data-theme', 'night');
+            }
+        } catch (e) { /* приватное окно: страница остаётся светлой, и это рабочий исход */ }
+    </script>
 </head>
 <body class="v2">
 
@@ -82,6 +93,12 @@
 
 <div class="v2-controls">
     <a class="v2-back" href="~/">Back to list</a>
+
+    @* Ночь — тот же набор токенов при другом свете, он лежит в этом же файле стилей с самого
+       начала и до сих пор ничем не включался. Подпись называет, КУДА переключит, а не где вы
+       сейчас: «Ink» на светлой странице. Выбор переживает переход по ссылкам — иначе список
+       пар и страница актива светили бы по-разному в одном сеансе. *@
+    <button type="button" id="ink" class="v2-ink">Ink</button>
 
     @* Тумблеры, а не кнопки: у обоих есть состояние, и состояние должно быть видно, а не только
        подписано. LIVE стоит выключенным и назван неподключённым — переключатель, который молча
@@ -111,10 +128,20 @@
             <span class="v2-hcell v2-hcell--listing">Listing</span>
             @foreach (var g in groups)
             {
+                @* ДВА действия — две кнопки. У дизайнера каретка меняет срез, а раскрытие одно
+                   на всю таблицу; здесь раскрытие ещё и по группам, и вешать оба смысла на
+                   один клик значило бы, что предсказать, что случится, нельзя. Имя раскрывает
+                   группу на месте, каретка уводит полосы 2 и 3 на это поле. *@
                 <span class="v2-hcell" data-tone="@g.Tone.ToString().ToLowerInvariant()">
-                    <button type="button" class="v2-gtoggle" data-group="@g.Key" aria-expanded="false">
-                        @g.Name<span class="v2-caret">↓</span>
-                    </button>
+                    <span class="v2-hrow">
+                        <button type="button" class="v2-gtoggle" data-group="@g.Key" aria-expanded="false">@g.Name</button>
+                        @if (g.Cut is not null)
+                        {
+                            <button type="button" class="v2-caret" data-goto-cut="@g.Cut"
+                                    aria-pressed="@(g.Cut == "price" ? "true" : "false")"
+                                    title="Show this field now and over time, across every listing">↓</button>
+                        }
+                    </span>
                     <span class="v2-hunit">@g.Unit</span>
                 </span>
             }
@@ -577,6 +604,6 @@
     <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
     <script src="~/studio-candles.js?v=5"></script>
 }
-<script src="~/studio-v2.js?v=4"></script>
+<script src="~/studio-v2.js?v=5"></script>
 </body>
 </html>
