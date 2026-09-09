@@ -99,50 +99,107 @@ public static class Endpoints
     // `segment_code` and its value is a segment code (`kraken-futures`, not `kraken`). Renaming a
     // published /v1 parameter breaks every caller; that belongs in a version bump, not in a
     // schema migration. Same reason the parameter keeps its name in the three reads below.
-    private static async Task<IResult> Instruments(Db db, string? exchange, CancellationToken ct)
+    /// <summary>
+    /// Contract specs as the venue states them. Every column here is stored, none is derived.
+    ///
+    /// <c>include=raw</c> adds the venue's own instrument payload verbatim under <c>raw</c>. That is
+    /// deliberately the whole document rather than a hand-picked set of extra fields: max leverage,
+    /// margin tiers, settlement currency, expiry and linear-vs-inverse are spelled differently by
+    /// every venue and change without warning, so promoting a chosen few to typed columns would
+    /// publish a contract that quietly rots. The raw document cannot rot — it is what arrived.
+    /// </summary>
+    private static async Task<IResult> Instruments(
+        Db db, string? exchange, string? status, string? symbols, string? include, CancellationToken ct)
     {
+        string[]? wanted = null;
+        if (!string.IsNullOrWhiteSpace(symbols)
+            && ApiQuery.TryParseSymbols(symbols, null, out var parsed, out _))
+        {
+            wanted = parsed;
+        }
+
+        var withRaw = !string.IsNullOrWhiteSpace(include)
+            && ApiQuery.Includes(include, "raw");
+
         await using var conn = await db.OpenAsync(ct);
         var rows = await conn.QueryAsync(new CommandDefinition(
-            """
-            select segment_code          as "segmentCode",
-                   exchange_symbol        as symbol,
-                   base_asset             as "baseAsset",
-                   quote_asset            as "quoteAsset",
-                   contract_multiplier    as "contractMultiplier",
-                   price_step             as "priceStep",
-                   qty_step               as "qtyStep",
-                   min_qty                as "minQty",
-                   min_notional           as "minNotional",
-                   funding_interval_hours as "fundingIntervalHours",
-                   status,
-                   status_changed_at      as "statusChangedAt",
-                   first_seen_at          as "firstSeenAt",
-                   last_seen_at           as "lastSeenAt"
-              from exchange_instrument
-             where (@exchange is null or segment_code = @exchange)
-             order by segment_code, exchange_symbol
+            $"""
+            select s.exchange_code        as exchange,
+                   i.segment_code          as "segmentCode",
+                   i.exchange_symbol       as symbol,
+                   i.base_asset            as "baseAsset",
+                   i.quote_asset           as "quoteAsset",
+                   i.contract_multiplier   as "contractMultiplier",
+                   i.price_step            as "priceStep",
+                   i.qty_step              as "qtyStep",
+                   i.min_qty               as "minQty",
+                   i.min_notional          as "minNotional",
+                   i.funding_interval_hours as "fundingIntervalHours",
+                   i.status,
+                   i.status_changed_at     as "statusChangedAt",
+                   i.listed_at             as "listedAt",
+                   i.first_seen_at         as "firstSeenAt",
+                   i.last_seen_at          as "lastSeenAt"
+                   {(withRaw ? ", i.raw_json as raw" : string.Empty)}
+              from exchange_instrument i
+              join segment s on s.code = i.segment_code
+             where (@exchange is null or i.segment_code = @exchange)
+               and (@status is null or i.status = @status)
+               and (@symbols is null or i.exchange_symbol = any(@symbols))
+             order by i.segment_code, i.exchange_symbol
             """,
-            new { exchange },
+            new { exchange, status, symbols = wanted },
             cancellationToken: ct));
         return Results.Ok(rows);
     }
 
-    private static async Task<IResult> Snapshot(Db db, string? exchange, CancellationToken ct)
+    /// <summary>
+    /// The latest stored observation per instrument. Filters narrow which rows come back; none of
+    /// them changes what a row means.
+    ///
+    /// <c>maxAgeSeconds</c> EXCLUDES stale rows rather than flagging them, and says how many it
+    /// dropped in <c>warnings</c>. Returning them with an age beside it was the alternative, and it
+    /// loses: a caller who sets a freshness bound has already said what they will do with a stale
+    /// row, and handing it over anyway invites the check being forgotten one call site later.
+    ///
+    /// <c>include</c> selects which groups are POPULATED, not which keys exist. The keys stay so the
+    /// schema is one shape and so existing callers — who read every field unconditionally — keep
+    /// working; a null band already means "not measured" on this endpoint and that reading is
+    /// unchanged.
+    /// </summary>
+    private static async Task<IResult> Snapshot(
+        Db db, string? exchange, string? symbols, string? status, double? maxAgeSeconds,
+        string? include, CancellationToken ct)
     {
+        string[]? wanted = null;
+        if (!string.IsNullOrWhiteSpace(symbols))
+        {
+            if (!ApiQuery.TryParseSymbols(symbols, null, out var parsed, out var symbolError))
+            {
+                return Results.BadRequest(new { error = symbolError });
+            }
+
+            wanted = parsed;
+        }
+
+        var withQuote = ApiQuery.Includes(include, "quote");
+        var withDepth = ApiQuery.Includes(include, "depth");
+        var withInstrument = ApiQuery.Includes(include, "instrument");
+
         await using var conn = await db.OpenAsync(ct);
         var rows = (await conn.QueryAsync(new CommandDefinition(
             """
             select i.segment_code   as "segmentCode",
                    i.exchange_symbol as symbol,
-                   i.base_asset      as "baseAsset",
-                   i.quote_asset     as "quoteAsset",
+                   case when @withInstrument then i.base_asset  end as "baseAsset",
+                   case when @withInstrument then i.quote_asset end as "quoteAsset",
                    l.received_at     as "receivedAt",
                    extract(epoch from now() - l.received_at)::double precision as "ageSeconds",
-                   l.last_price      as "lastPrice",
-                   l.bid_price       as "bidPrice",
-                   l.ask_price       as "askPrice",
-                   l.bid_size        as "bidSize",
-                   l.ask_size        as "askSize",
+                   case when @withQuote then l.last_price end as "lastPrice",
+                   case when @withQuote then l.bid_price  end as "bidPrice",
+                   case when @withQuote then l.ask_price  end as "askPrice",
+                   case when @withQuote then l.bid_size   end as "bidSize",
+                   case when @withQuote then l.ask_size   end as "askSize",
                    -- derived, never stored
                    case when (l.bid_price + l.ask_price) > 0
                         then (l.ask_price - l.bid_price) / ((l.bid_price + l.ask_price) / 2) * 10000
@@ -154,19 +211,31 @@ public static class Endpoints
                    l.open_interest   as "openInterest",
                    l.open_interest * l.mark_price as "openInterestNotional",
                    l.open_interest_at as "openInterestAt",
-                   l.depth_bid_10bps as "depthBid10Bps",
-                   l.depth_ask_10bps as "depthAsk10Bps",
-                   l.depth_bid_25bps as "depthBid25Bps",
-                   l.depth_ask_25bps as "depthAsk25Bps",
-                   l.depth_bid_50bps as "depthBid50Bps",
-                   l.depth_ask_50bps as "depthAsk50Bps",
-                   l.depth_at        as "depthAt"
+                   case when @withDepth then l.depth_bid_10bps end as "depthBid10Bps",
+                   case when @withDepth then l.depth_ask_10bps end as "depthAsk10Bps",
+                   case when @withDepth then l.depth_bid_25bps end as "depthBid25Bps",
+                   case when @withDepth then l.depth_ask_25bps end as "depthAsk25Bps",
+                   case when @withDepth then l.depth_bid_50bps end as "depthBid50Bps",
+                   case when @withDepth then l.depth_ask_50bps end as "depthAsk50Bps",
+                   case when @withDepth then l.depth_ref       end as "depthRef",
+                   l.book_reach_bid  as "bookReachBid",
+                   l.book_reach_ask  as "bookReachAsk",
+                   l.depth_at        as "depthAt",
+                   l.venue_ts        as "venueTs",
+                   l.last_trade_at   as "lastTradeAt",
+                   l.funding_rate_predicted as "fundingRatePredicted",
+                   l.next_funding_at as "nextFundingAt",
+                   l.volume_24h_base as "volume24hBase"
               from market_snapshot_latest l
               join exchange_instrument i on i.id = l.exchange_instrument_id
              where (@exchange is null or i.segment_code = @exchange)
+               and (@symbols is null or i.exchange_symbol = any(@symbols))
+               and (@status is null or i.status = @status)
+               and (@maxAgeSeconds is null
+                    or l.received_at >= now() - make_interval(secs => @maxAgeSeconds))
              order by i.exchange_symbol
             """,
-            new { exchange },
+            new { exchange, symbols = wanted, status, maxAgeSeconds, withQuote, withDepth, withInstrument },
             cancellationToken: ct))).ToList();
 
         var asOf = await conn.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
@@ -175,44 +244,284 @@ public static class Endpoints
               from market_snapshot_latest l
               join exchange_instrument i on i.id = l.exchange_instrument_id
              where (@exchange is null or i.segment_code = @exchange)
+               and (@symbols is null or i.exchange_symbol = any(@symbols))
+               and (@status is null or i.status = @status)
             """,
-            new { exchange },
+            new { exchange, symbols = wanted, status },
             cancellationToken: ct));
 
-        return Results.Ok(new { asOf, tickers = rows });
+        var warnings = new List<string>();
+        if (maxAgeSeconds is not null)
+        {
+            // Counted with the SAME filters minus the age bound, so the number means "excluded for
+            // being stale" and not "absent for some other reason the caller also asked for".
+            var suppressed = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+                """
+                select count(*)::int
+                  from market_snapshot_latest l
+                  join exchange_instrument i on i.id = l.exchange_instrument_id
+                 where (@exchange is null or i.segment_code = @exchange)
+                   and (@symbols is null or i.exchange_symbol = any(@symbols))
+                   and (@status is null or i.status = @status)
+                   and l.received_at < now() - make_interval(secs => @maxAgeSeconds)
+                """,
+                new { exchange, symbols = wanted, status, maxAgeSeconds },
+                cancellationToken: ct));
+
+            if (suppressed > 0)
+            {
+                warnings.Add(
+                    $"{suppressed} instruments were left out for being older than {maxAgeSeconds} s. "
+                    + "They are still stored; raise maxAgeSeconds or omit it to see them.");
+            }
+        }
+
+        if (wanted is not null)
+        {
+            var present = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var row in rows)
+            {
+                present.Add((string)((IDictionary<string, object>)row)["symbol"]);
+            }
+
+            foreach (var s in wanted)
+            {
+                if (!present.Contains(s))
+                {
+                    warnings.Add($"{s} returned no row: unknown on this exchange, filtered out, or never observed.");
+                }
+            }
+        }
+
+        var utcAsOf = asOf is { } a ? new DateTimeOffset(DateTime.SpecifyKind(a, DateTimeKind.Utc), TimeSpan.Zero) : (DateTimeOffset?)null;
+
+        return Results.Ok(new
+        {
+            asOf,
+            exchange,
+            dataAgeSeconds = utcAsOf is null ? (double?)null : (DateTimeOffset.UtcNow - utcAsOf.Value).TotalSeconds,
+            tickers = rows,
+            warnings,
+        });
     }
 
+    /// <summary>
+    /// Bars for one or many instruments. The original call — <c>symbol</c>, <c>tf</c>, <c>limit</c>,
+    /// no window — still answers exactly as it did, including the flat <c>candles</c> array and its
+    /// newest-last order, because callers depend on it. Everything added is beside that, not instead
+    /// of it: <c>symbols</c> for several instruments at once, <c>from</c>/<c>to</c> for a window,
+    /// <c>priceType</c> for the mark and index series, and <c>series</c> keyed by symbol.
+    ///
+    /// <c>from</c>/<c>to</c> stay OPTIONAL here alone. The rule elsewhere is that a historical
+    /// request must state its window, but making it mandatory on this endpoint would break every
+    /// existing caller, and a contract already published outranks a rule written afterwards.
+    /// </summary>
     private static async Task<IResult> Candles(
-        Db db, string exchange, string symbol, int tf, int? limit, CancellationToken ct)
+        Db db, string? exchange, string? symbol, string? symbols, int tf, int? limit,
+        DateTimeOffset? from, DateTimeOffset? to, string? priceType, string? cursor,
+        CancellationToken ct)
     {
         if (tf <= 0)
         {
             return Results.BadRequest(new { error = "tf must be a positive number of minutes." });
         }
 
-        var take = Math.Clamp(limit ?? 300, 1, 5000);
+        if (string.IsNullOrWhiteSpace(exchange))
+        {
+            return Results.BadRequest(new { error = "exchange is required, for example kraken-futures." });
+        }
+
+        var series = (priceType ?? "trade").ToLowerInvariant();
+        if (series is not ("trade" or "mark" or "index"))
+        {
+            return Results.BadRequest(new { error = "priceType must be trade, mark or index." });
+        }
+
+        if (!ApiQuery.TryParseSymbols(symbols, symbol, out var wanted, out var symbolError))
+        {
+            return Results.BadRequest(new { error = symbolError });
+        }
+
+        // A window is optional, but a HALF window is a typo, not a request.
+        if ((from is null) != (to is null))
+        {
+            return Results.BadRequest(new
+            {
+                error = "from and to must be given together, or both omitted to take the most recent bars.",
+            });
+        }
+
+        ApiQuery.Window? window = null;
+        if (from is not null)
+        {
+            if (!ApiQuery.TryParseWindow(from, to, out var parsed, out var windowError))
+            {
+                return Results.BadRequest(new { error = windowError });
+            }
+
+            window = parsed;
+        }
+
+        Cursor? decoded = null;
+        if (!string.IsNullOrWhiteSpace(cursor) && !Cursor.TryDecode(cursor, out decoded!))
+        {
+            return Results.BadRequest(new { error = "cursor is not one this API issued." });
+        }
+
+        var take = ApiQuery.ClampLimit(limit, 300, 5000);
+        var warnings = new List<string>();
 
         await using var conn = await db.OpenAsync(ct);
-        var rows = (await conn.QueryAsync(new CommandDefinition(
-            """
-            select c.open_time   as "openTime",
-                   c.open, c.high, c.low, c.close, c.volume,
-                   c.trade_count as "tradeCount",
-                   c.bar_count   as "barCount",
-                   c.updated_at  as "updatedAt"
-              from market_candle c
-              join exchange_instrument i on i.id = c.exchange_instrument_id
-             where i.segment_code = @exchange
-               and i.exchange_symbol = @symbol
-               and c.timeframe = @tf
-             order by c.open_time desc
-             limit @take
-            """,
-            new { exchange, symbol, tf = (short)tf, take },
-            cancellationToken: ct))).Reverse();   // newest last
 
-        return Results.Ok(new { exchange, symbol, timeframe = tf, candles = rows });
+        var rows = series == "trade"
+            ? await TradeCandlesAsync(conn, exchange, wanted, tf, take, window, decoded, ct)
+            : await PriceCandlesAsync(conn, exchange, wanted, series, tf, take, window, decoded, ct);
+
+        var grouped = new Dictionary<string, IReadOnlyList<HistoryResponses.CandleRow>>(StringComparer.Ordinal);
+        foreach (var s in wanted)
+        {
+            grouped[s] = [];
+        }
+
+        foreach (var group in rows.GroupBy(r => r.Symbol, StringComparer.Ordinal))
+        {
+            grouped[group.Key] = group.Select(g => g.Row).ToList();
+        }
+
+        foreach (var s in wanted)
+        {
+            if (grouped[s].Count == 0)
+            {
+                warnings.Add(series == "trade"
+                    ? $"{s} has no {tf}m bars in range."
+                    : $"{s} has no {series} bars: only Binance publishes mark and index candles, so "
+                        + "this series is empty for every other venue rather than filled from the traded price.");
+            }
+        }
+
+        var next = window is not null && rows.Count >= take
+            ? new Cursor(rows[^1].Row.OpenTime, rows[^1].Symbol, "").Encode()
+            : null;
+
+        // The legacy half of the answer, present only for the singular `symbol` the old contract used.
+        var legacySymbol = string.IsNullOrWhiteSpace(symbols) ? symbol : null;
+
+        return TypedResults.Ok(new HistoryResponses.CandlePage(
+            DateTimeOffset.UtcNow, exchange, tf, series,
+            window?.From, window?.To, grouped, next, warnings,
+            legacySymbol, legacySymbol is null ? null : tf,
+            legacySymbol is null ? null : grouped[legacySymbol]));
     }
+
+    private static async Task<List<(string Symbol, HistoryResponses.CandleRow Row)>> TradeCandlesAsync(
+        Npgsql.NpgsqlConnection conn, string exchange, string[] symbols, int tf, int take,
+        ApiQuery.Window? window, Cursor? cursor, CancellationToken ct)
+    {
+        // Two shapes, because "the last N bars" and "every bar in a window" are different questions:
+        // the first needs a per-symbol ranking so one busy instrument cannot crowd out the others,
+        // the second is a plain keyset walk.
+        var sql = window is null
+            ? """
+              select symbol, open_time, open, high, low, close, volume, volume_quote, trade_count, bar_count, updated_at
+                from (
+                  select i.exchange_symbol as symbol, c.open_time, c.open, c.high, c.low, c.close,
+                         c.volume, c.volume_quote, c.trade_count, c.bar_count, c.updated_at,
+                         row_number() over (partition by c.exchange_instrument_id order by c.open_time desc) as rn
+                    from market_candle c
+                    join exchange_instrument i on i.id = c.exchange_instrument_id
+                   where i.segment_code = @exchange
+                     and i.exchange_symbol = any(@symbols)
+                     and c.timeframe = @tf
+                ) ranked
+               where rn <= @take
+               order by open_time, symbol
+              """
+            : """
+              select i.exchange_symbol as symbol, c.open_time, c.open, c.high, c.low, c.close,
+                     c.volume, c.volume_quote, c.trade_count, c.bar_count, c.updated_at
+                from market_candle c
+                join exchange_instrument i on i.id = c.exchange_instrument_id
+               where i.segment_code = @exchange
+                 and i.exchange_symbol = any(@symbols)
+                 and c.timeframe = @tf
+                 and c.open_time >= @from and c.open_time < @to
+                 and (@cursorAt::timestamptz is null
+                      or (c.open_time, i.exchange_symbol) > (@cursorAt, @cursorSymbol))
+               order by c.open_time, i.exchange_symbol
+               limit @take
+              """;
+
+        var rows = await conn.QueryAsync<(string Symbol, DateTime OpenTime, double Open, double High,
+            double Low, double Close, double? Volume, double? VolumeQuote, int? TradeCount,
+            short? BarCount, DateTime UpdatedAt)>(new CommandDefinition(
+            sql,
+            new
+            {
+                exchange, symbols, tf = (short)tf, take,
+                from = window?.From, to = window?.To,
+                cursorAt = cursor?.At, cursorSymbol = cursor?.Symbol ?? "",
+            },
+            cancellationToken: ct));
+
+        return rows.Select(r => (r.Symbol, new HistoryResponses.CandleRow(
+            Utc(r.OpenTime), Utc(r.OpenTime).AddMinutes(tf), r.Open, r.High, r.Low, r.Close,
+            r.Volume, r.VolumeQuote, r.TradeCount, r.BarCount, Utc(r.UpdatedAt)))).ToList();
+    }
+
+    private static async Task<List<(string Symbol, HistoryResponses.CandleRow Row)>> PriceCandlesAsync(
+        Npgsql.NpgsqlConnection conn, string exchange, string[] symbols, string series, int tf,
+        int take, ApiQuery.Window? window, Cursor? cursor, CancellationToken ct)
+    {
+        // market_price_candle carries OHLC only — a mark or index series has no volume and no trade
+        // count to report, and inventing zeros for them would read as a market that did not trade.
+        var sql = window is null
+            ? """
+              select symbol, open_time, open, high, low, close
+                from (
+                  select i.exchange_symbol as symbol, c.open_time, c.open, c.high, c.low, c.close,
+                         row_number() over (partition by c.exchange_instrument_id order by c.open_time desc) as rn
+                    from market_price_candle c
+                    join exchange_instrument i on i.id = c.exchange_instrument_id
+                   where i.segment_code = @exchange
+                     and i.exchange_symbol = any(@symbols)
+                     and c.series = @series and c.timeframe = @tf
+                ) ranked
+               where rn <= @take
+               order by open_time, symbol
+              """
+            : """
+              select i.exchange_symbol as symbol, c.open_time, c.open, c.high, c.low, c.close
+                from market_price_candle c
+                join exchange_instrument i on i.id = c.exchange_instrument_id
+               where i.segment_code = @exchange
+                 and i.exchange_symbol = any(@symbols)
+                 and c.series = @series and c.timeframe = @tf
+                 and c.open_time >= @from and c.open_time < @to
+                 and (@cursorAt::timestamptz is null
+                      or (c.open_time, i.exchange_symbol) > (@cursorAt, @cursorSymbol))
+               order by c.open_time, i.exchange_symbol
+               limit @take
+              """;
+
+        var rows = await conn.QueryAsync<(string Symbol, DateTime OpenTime, decimal Open, decimal High,
+            decimal Low, decimal Close)>(new CommandDefinition(
+            sql,
+            new
+            {
+                exchange, symbols, series, tf = (short)tf, take,
+                from = window?.From, to = window?.To,
+                cursorAt = cursor?.At, cursorSymbol = cursor?.Symbol ?? "",
+            },
+            cancellationToken: ct));
+
+        return rows.Select(r => (r.Symbol, new HistoryResponses.CandleRow(
+            Utc(r.OpenTime), Utc(r.OpenTime).AddMinutes(tf),
+            (double)r.Open, (double)r.High, (double)r.Low, (double)r.Close,
+            null, null, null, null, null))).ToList();
+    }
+
+    private static DateTimeOffset Utc(DateTime t) =>
+        new(DateTime.SpecifyKind(t, DateTimeKind.Utc), TimeSpan.Zero);
 
 
     /// <summary>

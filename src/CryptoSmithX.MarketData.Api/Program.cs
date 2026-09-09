@@ -28,6 +28,15 @@ builder.Services.AddSingleton(_ => new Db(
 // The OpenAPI document for the read-only /v1 surface, and a Scalar reference UI over it.
 builder.Services.AddOpenApi();
 
+// These payloads are long runs of similar JSON — a page of book frames or a 48 h tape compresses by
+// an order of magnitude, and the bot reading them is on the other side of the internet. Same
+// registration Studio already uses; brotli first, gzip for callers that do not offer it.
+builder.Services.AddResponseCompression(o =>
+{
+    o.EnableForHttps = true;
+    o.MimeTypes = [.. Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes, "application/json"];
+});
+
 var app = builder.Build();
 
 if (!string.IsNullOrWhiteSpace(sentryDsn))
@@ -64,6 +73,8 @@ app.Use(async (context, next) =>
 app.UseRouting();
 
 // /openapi/v1.json (the document) and /scalar/v1 (the interactive page).
+app.UseResponseCompression();
+
 app.MapOpenApi();
 app.MapScalarApiReference();
 
@@ -72,5 +83,6 @@ app.MapScalarApiReference();
 await Migrator.VerifyAsync(app.Services.GetRequiredService<Db>(), CancellationToken.None);
 
 app.MapMarketDataApi();
+app.MapHistoryApi();
 
 await app.RunAsync();
