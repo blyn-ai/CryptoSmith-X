@@ -510,7 +510,9 @@ body[data-cut="turnover"] .v2-nows[data-cut="turnover"]{display:block}
 body[data-cut="turnover"] .v2-cuts[data-cut="turnover"]{display:grid}
 body[data-cut="liquidations"] .v2-nows[data-cut="liquidations"]{display:block}
 body[data-cut="liquidations"] .v2-cuts[data-cut="liquidations"]{display:grid}
-body[data-cut="price"] .v2-nows--books{display:grid}
+/* Книги — сетка, и правило обязано быть СПЕЦИФИЧНЕЕ общего показа выше: у того селектор
+   body[attr] .класс[attr] сильнее, и книги встали бы в блок, то есть в одну колонку. */
+body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
 .v2-cut{display:flex;flex-direction:column;gap:6px;padding:var(--space-4);border:1px solid var(--border-hairline)}
 /* Заголовок карточки полосы 3: площадка дисплейным, символ акцентным моно, OHLC справа. */
 .v2-cut-plat{display:flex;align-items:baseline;gap:var(--space-3);flex-wrap:wrap;

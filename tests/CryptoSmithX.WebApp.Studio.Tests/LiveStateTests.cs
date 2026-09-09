@@ -45,6 +45,16 @@ public sealed class LiveStateTests
     }
 
     [Fact]
+    public void The_books_rule_outranks_the_generic_one_that_would_stack_them()
+    {
+        // `body[attr] .class[attr]` beats `body[attr] .class`, so the generic "show the selected
+        // cut" rule would have won over the books grid and put five books in one column.
+        Assert.Matches(
+            @"body\[data-cut=""price""\] \.v2-nows--books\[data-cut=""price""\]\{display:grid\}",
+            Read("studio-v2.css"));
+    }
+
+    [Fact]
     public void A_push_reorders_and_nothing_else()
     {
         var js = Read("studio-v2.js");
