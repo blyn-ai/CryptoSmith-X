@@ -202,8 +202,19 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-hrow,.v2-row{display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(var(--cols),minmax(110px,1fr));border-bottom:1px solid var(--border-hairline)}
 .v2-hrow{background:var(--surface-sunken)}
 .v2-hcell{display:flex;flex-direction:column;gap:2px;padding:5px 8px 6px;border-left:1px solid var(--border-hairline);border-top:2px solid var(--border-hairline)}
-.v2-hcell[data-tone="openinterest"]{border-top-color:var(--call-oi)}
-.v2-hcell[data-tone="depth"]{border-top-color:var(--call-depth,var(--text-faint))}
+/* ── Раскраска по ВЫЗОВУ ─────────────────────────────────────────────────────
+   Как на первой странице: колонка носит цвет того вызова, который её написал. Тикер, свип
+   глубины и открытый интерес отвечают с разной частотой и ломаются порознь, и это первое, что
+   нужно знать про любую цифру в таблице. Полоса поверх шапки и тон подложки — не украшение:
+   они разделяют таблицу на три источника, а не на семь колонок. */
+.v2-hcell[data-tone="ticker"]{border-top-color:var(--call-ticker)}
+.v2-hcell[data-tone="openinterest"]{border-top-color:var(--call-oi);background:var(--tint-oi)}
+.v2-hcell[data-tone="depth"]{border-top-color:var(--call-depth);background:var(--tint-depth)}
+.v2-cell[data-group="positions"]{background:var(--tint-oi)}
+.v2-cell[data-group="liquidity"]{background:var(--tint-depth)}
+.v2-hcell[data-tone="ticker"] .v2-gtoggle{color:var(--call-ticker)}
+.v2-hcell[data-tone="openinterest"] .v2-gtoggle{color:var(--call-oi)}
+.v2-hcell[data-tone="depth"] .v2-gtoggle{color:var(--call-depth)}
 .v2-hcell--listing{border-left:0;justify-content:flex-end;font:500 9px/1.2 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--eyebrow)}
 /* ИМЯ, А НЕ ОФОРМЛЕНИЕ, СЛОМАЛО ШАПКУ. Эта строка — имя и каретка ВНУТРИ клетки шапки, и она
    называлась .v2-hrow, ровно как строка-шапка таблицы двумя правилами выше. Второе правило
@@ -328,8 +339,7 @@ body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-spark{display:none}
    сравнение, а не про то, сколько секунд назад пришло это число. */
 /* Заливка расширяется padding'ом с отрицательным margin, а не тенью: теней в системе нет вовсе,
    а 0 0 0 2px и была тенью — просто без размытия. */
-.v2-field--best,.v2-field--tight,.v2-field--worst,.v2-field--wide{
-  padding:1px 3px;margin:-1px -3px}
+.v2-field--best,.v2-field--tight,.v2-field--worst,.v2-field--wide{padding:1px 2px}
 .v2-field--best,.v2-field--tight{background:var(--tag-best-bg)}
 .v2-field--best em,.v2-field--best b,.v2-field--tight em,.v2-field--tight b{color:var(--tag-best-ink)}
 .v2-field--worst,.v2-field--wide{background:var(--tag-worst-bg)}
@@ -375,10 +385,16 @@ body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-spark{display:none}
 .v2-bar[data-tone="openinterest"] i{background:var(--bar-oi)}
 .v2-bar[data-tone="depth"] i{background:var(--bar-depth-bid)}
 .v2-bar[data-tone="depth"] i{background:var(--call-depth,var(--text-muted))}
-.v2-fields{display:flex;flex-direction:column;gap:2px;width:100%;margin-top:4px;padding-top:5px;border-top:1px solid var(--border-hairline)}
-.v2-field{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.v2-field em{font-style:normal;font:500 8.5px/1.2 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted)}
-.v2-field b{font-weight:400;font:400 var(--fs-data)/1.2 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
+/* ── Раскрытая группа идёт В ШИРИНУ ─────────────────────────────────────────
+   Столбиком поля растили высоту строки и не трогали ширину, а места по горизонтали на этой
+   странице как раз вдоволь: семь колонок на 1920 — это километр воздуха. Развёрнутая группа
+   теперь раскладывает свои поля колонками внутри своей клетки, то есть «выносит их обратно в
+   колонки», не ломая семь вопросов, ради которых группы и заведены. */
+.v2-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:2px var(--space-3);
+  width:100%;margin-top:3px;padding-top:4px;border-top:1px solid var(--border-hairline)}
+.v2-field{display:flex;flex-direction:column;align-items:flex-end;gap:1px;min-width:0}
+.v2-field em{font-style:normal;font:500 7.5px/1.15 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);white-space:nowrap}
+.v2-field b{font-weight:400;font:400 var(--fs-caption)/1.2 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);white-space:nowrap}
 
 /* ── Шрифт ───────────────────────────────────────────────────────────────────
    МОНОШИРИННЫЙ ВЕЗДЕ. В эталоне --font-body стоит ровно в одном месте — на корне страницы, —
