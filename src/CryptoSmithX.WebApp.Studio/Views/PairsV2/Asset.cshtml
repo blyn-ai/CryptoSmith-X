@@ -24,6 +24,18 @@
         + (Freshness.PastWindow(r.Ages.DepthSeconds, r.Windows.DepthSeconds) ? 1 : 0)
         + (Freshness.PastWindow(r.Ages.OpenInterestSeconds, r.Windows.OpenInterestSeconds) ? 1 : 0));
 
+    var cuts = V2Cuts.All;
+    var drawable = Model.Rows.Where(r => r.Candles.Present >= 2).ToList();
+
+    // ОДНА ШКАЛА НА КОТИРОВКУ, как на первой странице: ADAUSDT и ADAUSDC ходят по разным ценам,
+    // и общая шкала на обе сплющила бы обе в прямые. Разные котировки — разные шкалы.
+    var priceScale = drawable
+        .GroupBy(r => r.Row.QuoteAsset, StringComparer.Ordinal)
+        .ToDictionary(
+            g => g.Key,
+            g => (Lo: g.Min(r => r.Candles.Low!.Value), Hi: g.Max(r => r.Candles.High!.Value)),
+            StringComparer.Ordinal);
+
     var oldest = Model.Rows
         .SelectMany(r => new[] { r.Ages.PriceSeconds, r.Ages.DepthSeconds, r.Ages.OpenInterestSeconds })
         .Where(a => a is not null)
@@ -159,11 +171,154 @@
     </p>
 </section>
 
+@* ── выбор измерения: одно на обе полосы ─────────────────────────────────────
+   Полосы 2 и 3 отвечают на ОДИН выбор: как площадки стоят сейчас и как они к этому пришли.
+   В первом наброске селектор висел только на нижней, а верхняя была прибита к глубине — из-за
+   этого они читались как две несвязанные вещи, и вопрос «почему книги не меняются, когда я
+   выбираю открытый интерес» оставался без ответа. *@
+<div class="v2-cutbar">
+    <span class="csx-eyebrow v2-cutbar-label">One field, two views</span>
+    <span class="csx-eyebrow v2-cutbar-sub">Bands 2 and 3 answer the same choice: how it stands now, and how it got there</span>
+    <span class="v2-cutpicks">
+        @foreach (var c in cuts)
+        {
+            <button type="button" class="v2-cutpick" data-cut="@c.Key"
+                    aria-pressed="@(c.Key == "price" ? "true" : "false")">@c.Name</button>
+        }
+    </span>
+</div>
+
+@* ── полоса 2: сейчас, по площадкам ──────────────────────────────────────────── *@
+<section class="v2-band">
+    <div class="v2-band-head">
+        <span class="csx-eyebrow v2-band-no">2 · Now, across venues</span>
+        <span class="csx-eyebrow v2-band-sub" id="cut-now-sub">every figure carried to one unit before the bar is drawn</span>
+    </div>
+
+    @foreach (var c in cuts)
+    {
+        var maxNow = Model.Rows.Select(r => V2Cuts.Now(r, c)).Where(v => v is not null).DefaultIfEmpty(null).Max();
+        <div class="v2-nows" data-cut="@c.Key" hidden="@(c.Key == "price" ? null : "hidden")">
+            @if (maxNow is null)
+            {
+                <p class="v2-empty">
+                    @c.Name does not rank in one column across venues — it is stated per venue interval,
+                    and the table normalises it in the cost-of-carry group.
+                </p>
+            }
+            else
+            {
+                foreach (var r in Model.Rows.OrderByDescending(r => V2Cuts.Now(r, c) ?? double.MinValue))
+                {
+                    var v = V2Cuts.Now(r, c);
+                    <div class="v2-now">
+                        <span class="v2-now-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em> <b>@r.Row.Symbol</b></span>
+                        <span class="v2-now-val @(v is null ? "v2-fig--none" : "")">@(v is null ? "—" : Format.Num(v, c.Decimals))</span>
+                        <span class="v2-now-bar"><i style="width:@Format.BarWidth(v, maxNow)"></i></span>
+                        <span class="v2-now-note">@c.Unit</span>
+                    </div>
+                }
+            }
+        </div>
+    }
+</section>
+
+@* ── полоса 3: во времени, по площадкам ──────────────────────────────────────── *@
+<section class="v2-band">
+    <div class="v2-band-head">
+        <span class="csx-eyebrow v2-band-no">3 · Over time, across venues</span>
+        <span class="csx-eyebrow v2-band-sub">hourly, 24 h · one scale per quote · time axes tied</span>
+    </div>
+
+    @* Цена рисуется свечами той же вендоренной библиотекой, что и на первой странице, и по тому
+       же контракту разметки (.a-chart[data-candles]) — второй рендерер значил бы два разных
+       представления одних и тех же баров. Остальные измерения — часовые ряды, они линия. *@
+    <div class="v2-cuts" data-cut="price">
+        @if (drawable.Count == 0)
+        {
+            <p class="v2-empty">No venue here has two closed bars yet.</p>
+        }
+        else
+        {
+            foreach (var r in drawable)
+            {
+                var series = r.Candles;
+                var json = System.Text.Json.JsonSerializer.Serialize(
+                    series.Windows.Select((w, i) => new
+                    {
+                        time = new DateTimeOffset(DateTime.SpecifyKind(w, DateTimeKind.Utc)).ToUnixTimeSeconds(),
+                        o = series.Bars[i]?.Open,
+                        h = series.Bars[i]?.High,
+                        l = series.Bars[i]?.Low,
+                        c = series.Bars[i]?.Close
+                    }));
+                var sc = priceScale[r.Row.QuoteAsset];
+                <div class="v2-cut">
+                    <span class="v2-cut-plat">@r.Row.ExchangeName <b>@r.Row.Symbol</b></span>
+                    <div class="a-chart v2-chart"
+                         data-candles="@json"
+                         data-scale-lo="@sc.Lo.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                         data-scale-hi="@sc.Hi.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                         data-decimals="@Format.Decimals(r.Row.PriceStep, fallback: 4)"></div>
+                </div>
+            }
+        }
+    </div>
+
+    @foreach (var c in cuts.Where(c => c.Source != V2CutSource.Candles))
+    {
+        <div class="v2-cuts" data-cut="@c.Key" hidden>
+            @{ var any = Model.Rows.Any(r => V2Cuts.Series(r, c).Any(v => v is not null)); }
+            @if (!any)
+            {
+                <p class="v2-empty">No hourly series is kept for @c.Name.</p>
+            }
+            else
+            {
+                foreach (var r in Model.Rows)
+                {
+                    var vals = V2Cuts.Series(r, c);
+                    var path = Format.SparkPath(vals, 260, 64);
+                    <div class="v2-cut">
+                        <span class="v2-cut-plat">@r.Row.ExchangeName <b>@r.Row.Symbol</b></span>
+                        @if (path is null)
+                        {
+                            <p class="v2-empty v2-empty--inline">Not measured on this venue.</p>
+                        }
+                        else
+                        {
+                            <svg class="v2-line" viewBox="0 0 260 64" preserveAspectRatio="none" aria-hidden="true">
+                                <path d="@path" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                            </svg>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    }
+</section>
+
 <footer class="v2-foot">
-    Not investment advice · Own funds only
+    <span>Not investment advice · Own funds only</span>
+    @*
+        ОБЯЗАТЕЛЬСТВО ПО ЛИЦЕНЗИИ, а не любезность, и здесь оно повторено намеренно.
+        На первой странице эта ссылка стоит в общем layout; у этой Layout = null, поэтому она
+        подвал не наследует — и без этой строки страница со свечами вышла бы без ссылки, которой
+        требует документация TradingView к attributionLogo: уведомление в коде И ссылка на
+        https://www.tradingview.com/ на странице, доступной пользователю. NOTICE рядом с
+        вендоренным файлом закрывает пункт 4(d) Apache 2.0 сам по себе; эта строка закрывает второе.
+    *@
+    <span>Candles by <a href="https://www.tradingview.com/" rel="noopener">TradingView</a> Lightweight&nbsp;Charts™</span>
     <a href="~/@Model.BaseFamily">First design of this page</a>
 </footer>
 
-<script src="~/studio-v2.js"></script>
+@* Библиотека грузится только если есть что рисовать: 198 КБ на странице без свечей — это
+   198 КБ, потраченных, чтобы не нарисовать ничего. *@
+@if (drawable.Count > 0)
+{
+    <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
+    <script src="~/studio-candles.js?v=5"></script>
+}
+<script src="~/studio-v2.js?v=2"></script>
 </body>
 </html>

@@ -599,3 +599,32 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* Заголовок группы — самое заметное в шапке колонки, иначе он сливается с единицей. */
 .v2-gtoggle{font-weight:600;font-size:9.5px;color:var(--text-heading)}
 .v2-hunit{opacity:.75}
+
+/* ── селектор измерения и полосы 2–3 ────────────────────────────────────────── */
+.v2-cutbar{display:flex;align-items:center;gap:var(--space-5);flex-wrap:wrap;margin:0 var(--space-7) var(--space-4);padding:var(--space-4) var(--space-7);background:var(--surface-card);border:1px solid var(--border-card)}
+.v2-cutbar-label{color:var(--brand-deep)}
+.v2-cutbar-sub{color:var(--text-faint)}
+.v2-cutpicks{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.v2-cutpick{height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);background:transparent;cursor:pointer;
+  font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-heading)}
+.v2-cutpick:hover{border-color:var(--border-strong);color:var(--brand-text)}
+.v2-cutpick[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--text-on-action)}
+
+.v2-nows{padding:var(--space-4) var(--space-7)}
+.v2-now{display:grid;grid-template-columns:minmax(180px,1fr) minmax(120px,auto) 3fr minmax(120px,auto);align-items:center;gap:var(--space-5);padding:6px 0;border-bottom:1px solid var(--border-hairline)}
+.v2-now-plat{font:400 var(--fs-meta)/1.2 var(--font-body);color:var(--text-heading);min-width:0}
+.v2-now-plat em{font-style:normal;font:500 8.5px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin:0 5px}
+.v2-now-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--text-muted)}
+.v2-now-val{text-align:right;font:400 var(--fs-body)/1.1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
+.v2-now-bar{display:block;height:8px;background:var(--tint-neutral)}
+.v2-now-bar i{display:block;height:100%;background:var(--brand)}
+.v2-now-note{font:400 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-faint)}
+
+.v2-cuts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--space-4);padding:var(--space-4) var(--space-7)}
+.v2-cut{display:flex;flex-direction:column;gap:6px;padding:var(--space-4);border:1px solid var(--border-hairline)}
+.v2-cut-plat{font:400 var(--fs-meta)/1.2 var(--font-body);color:var(--text-heading)}
+.v2-cut-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--brand-text);margin-left:6px}
+.v2-chart{height:150px}
+.v2-line{display:block;width:100%;height:64px;color:var(--brand)}
+.v2-empty{margin:0;padding:var(--space-4) 0;font:400 var(--fs-caption)/1.5 var(--font-mono);color:var(--text-muted)}
+.v2-empty--inline{padding:0}

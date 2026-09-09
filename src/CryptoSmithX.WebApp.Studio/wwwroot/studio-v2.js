@@ -49,3 +49,31 @@
 
   apply();
 })();
+
+/* Выбор измерения: один селектор на полосы 2 и 3.
+
+   Оба варианта каждой полосы отрисованы сервером и просто скрыты — рядов тут пять площадок на
+   шесть измерений по двадцать четыре точки, это килобайты, а не мегабайты. Взамен страница
+   переключается мгновенно, работает при выключенном скрипте (виден вариант по умолчанию) и не
+   заводит второго источника данных, который мог бы разойтись с таблицей выше. */
+(function () {
+  var picks = document.querySelectorAll('.v2-cutpick');
+  if (!picks.length) { return; }
+
+  function show(key) {
+    document.querySelectorAll('.v2-nows, .v2-cuts').forEach(function (el) {
+      el.hidden = el.getAttribute('data-cut') !== key;
+    });
+    picks.forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-cut') === key ? 'true' : 'false');
+    });
+    // Свечи меряют себя при вставке; если их полоса была скрыта в этот момент, ширина вышла
+    // нулевой и график остался невидим. Библиотека сама этого не замечает — просим пересчитать.
+    window.dispatchEvent(new Event('resize'));
+  }
+
+  picks.forEach(function (b) {
+    b.addEventListener('click', function () { show(b.getAttribute('data-cut')); });
+  });
+})();
+
