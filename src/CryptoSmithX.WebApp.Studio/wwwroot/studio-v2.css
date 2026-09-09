@@ -199,7 +199,25 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-band-sub{color:var(--text-faint)}
 
 .v2-grid{--cols:7}
-.v2-hrow,.v2-row{display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(var(--cols),minmax(110px,1fr));border-bottom:1px solid var(--border-hairline)}
+/* ── Ширина колонок ─────────────────────────────────────────────────────────
+   Дорожка на группу отдельной переменной, а не repeat(): раскрытая группа обязана получить
+   место, и взять его она может только у свёрнутых соседей. Восемь полей в клетке шириной 230px
+   не помещаются никак — они налезали друг на друга, — а раскрыта одновременно обычно одна.
+
+   Переменные объявлены на :root и переопределяются на <body> по data-open, потому что состояние
+   экрана живёт там: полосу заменяет живой поток, и всё, что задано внутри неё, уезжает. */
+/* На <body>, а не на :root, и не по формальной причине: раскрытие живёт на body (data-open), а
+   переопределить переменную может только правило на ТОМ ЖЕ элементе или ближе к цели. Заодно это
+   не токен — это ширина дорожки этой таблицы, и в ds/tokens ей делать нечего. */
+body{--w-price:minmax(104px,1fr);--w-liquidity:minmax(104px,1fr);--w-positions:minmax(104px,1fr);--w-carry:minmax(104px,1fr);--w-activity:minmax(104px,1fr);--w-stress:minmax(104px,1fr);--w-trust:minmax(104px,1fr)}
+body[data-open~="price"]{--w-price:minmax(300px,3fr)}
+body[data-open~="liquidity"]{--w-liquidity:minmax(300px,3fr)}
+body[data-open~="positions"]{--w-positions:minmax(300px,3fr)}
+body[data-open~="carry"]{--w-carry:minmax(300px,3fr)}
+body[data-open~="activity"]{--w-activity:minmax(300px,3fr)}
+body[data-open~="stress"]{--w-stress:minmax(300px,3fr)}
+body[data-open~="trust"]{--w-trust:minmax(300px,3fr)}
+.v2-hrow,.v2-row{display:grid;grid-template-columns:minmax(150px,1.2fr) var(--w-price) var(--w-liquidity) var(--w-positions) var(--w-carry) var(--w-activity) var(--w-stress) var(--w-trust);border-bottom:1px solid var(--border-hairline)}
 .v2-hrow{background:var(--surface-sunken)}
 .v2-hcell{display:flex;flex-direction:column;gap:2px;padding:5px 8px 6px;border-left:1px solid var(--border-hairline);border-top:2px solid var(--border-hairline)}
 /* ── Раскраска по ВЫЗОВУ ─────────────────────────────────────────────────────
@@ -390,11 +408,13 @@ body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-spark{display:none}
    странице как раз вдоволь: семь колонок на 1920 — это километр воздуха. Развёрнутая группа
    теперь раскладывает свои поля колонками внутри своей клетки, то есть «выносит их обратно в
    колонки», не ломая семь вопросов, ради которых группы и заведены. */
-.v2-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:2px var(--space-3);
+.v2-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:3px var(--space-4);
   width:100%;margin-top:3px;padding-top:4px;border-top:1px solid var(--border-hairline)}
-.v2-field{display:flex;flex-direction:column;align-items:flex-end;gap:1px;min-width:0}
-.v2-field em{font-style:normal;font:500 7.5px/1.15 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);white-space:nowrap}
-.v2-field b{font-weight:400;font:400 var(--fs-caption)/1.2 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);white-space:nowrap}
+.v2-field{display:flex;flex-direction:column;align-items:flex-end;gap:1px;min-width:0;overflow:hidden}
+.v2-field em{font-style:normal;font:500 7.5px/1.15 var(--font-mono);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--text-faint);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.v2-field b{font-weight:400;font:400 var(--fs-caption)/1.2 var(--font-mono);font-variant-numeric:tabular-nums;
+  color:var(--text-data);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 
 /* ── Шрифт ───────────────────────────────────────────────────────────────────
    МОНОШИРИННЫЙ ВЕЗДЕ. В эталоне --font-body стоит ровно в одном месте — на корне страницы, —
