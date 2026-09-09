@@ -190,7 +190,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-back,.v2-toggle{display:inline-flex;align-items:center;height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);background:transparent;cursor:pointer;
   font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-heading)}
 .v2-back:hover,.v2-toggle:hover{border-color:var(--border-strong);color:var(--brand-text)}
-.v2-toggle[aria-pressed="true"]{background:var(--text-data);border-color:var(--text-data);color:var(--surface-page)}
+.v2-toggle[aria-pressed="true"]{background:var(--action-primary);border-color:var(--action-primary);color:var(--text-on-action)}
 .v2-note{font:400 var(--fs-caption)/1.4 var(--font-mono);color:var(--text-muted)}
 
 .v2-band{margin:0 var(--space-7) var(--space-6);background:var(--surface-card);border:1px solid var(--border-card)}
@@ -205,7 +205,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-hcell[data-tone="openinterest"]{border-top-color:var(--call-oi)}
 .v2-hcell[data-tone="depth"]{border-top-color:var(--call-depth,var(--text-faint))}
 .v2-hcell--listing{border-left:0;justify-content:flex-end;font:500 9px/1.2 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--eyebrow)}
-.v2-hrow{display:flex;align-items:baseline;justify-content:space-between;gap:6px;width:100%}
+/* ИМЯ, А НЕ ОФОРМЛЕНИЕ, СЛОМАЛО ШАПКУ. Эта строка — имя и каретка ВНУТРИ клетки шапки, и она
+   называлась .v2-hrow, ровно как строка-шапка таблицы двумя правилами выше. Второе правило
+   переопределяло display:grid на flex, шапка переставала быть той же сеткой, что строки, и её
+   подписи разъезжались с колонками. */
+.v2-hcell-row{display:flex;align-items:baseline;justify-content:space-between;gap:6px;width:100%}
 .v2-gtoggle{display:flex;align-items:baseline;justify-content:space-between;gap:6px;width:100%;padding:0;background:none;border:0;cursor:pointer;
   font:500 9px/1.2 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--text-heading);text-align:left}
 .v2-gtoggle[aria-expanded="true"]{color:var(--brand-text)}
@@ -260,8 +264,6 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    есть состояние: внутри окна или за ним. */
 .v2-fig--fresh{color:var(--candle-up)}
 .v2-fig--late{color:var(--accent)}
-.v2-cell[data-group="trust"] .v2-window i{background:var(--candle-up)}
-.v2-cell[data-group="trust"] .v2-window--spent i{background:var(--accent)}
 
 /* Колонка выбранного поля: шапка акцентом. */
 .v2-hcell.is-cut .v2-gtoggle,.v2-hcell.is-cut .v2-caret{color:var(--accent)}
@@ -324,9 +326,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 
 /* Бар окна в клетке TRUST: доля СВОЕГО окна у худшего вызова — то, чего полоска в клетке
    листинга сказать не может, потому что она про расстановку, а не про перебор. */
+/* Заполнено — то, что от окна ОСТАЛОСЬ. Пустая дорожка у просроченного вызова красится сама:
+   нулевая ширина заливки читалась бы как «нет данных», а данные есть, и они плохие. */
 .v2-window{display:block;width:100%;height:var(--bar-h);background:var(--tint-neutral)}
-.v2-window i{display:block;height:100%;background:var(--bar-ticker)}
-.v2-window--spent i{background:var(--accent)}
+.v2-window i{display:block;height:100%;background:var(--candle-up)}
+.v2-window--spent{background:var(--tag-worst-bg)}
 .v2-gtoggle--flat{cursor:default}
 .v2-fig:hover,
 .v2-field:hover{background:var(--tint-brand,var(--surface-sunken));box-shadow:0 0 0 3px var(--tint-brand,var(--surface-sunken));
@@ -380,16 +384,24 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-livenote{flex-basis:100%;font:400 var(--fs-caption)/1.4 var(--font-mono);
   color:var(--text-muted);max-width:var(--measure-note)}
 
-.v2-switch{display:inline-flex;align-items:center;gap:8px;height:var(--control-h);padding:0 12px 0 6px;border:1px solid var(--border-input);background:transparent;cursor:pointer}
+/* Тумблер эталона: дорожка 40×20, шашка 14×14, магента во включённом состоянии, подпись рядом.
+   Рамки вокруг всего контрола в эталоне нет — я обвёл его коробкой, и два тумблера в ряду стали
+   двумя кнопками, которых там нет. */
+.v2-switch{display:inline-flex;align-items:center;gap:var(--space-3);padding:0;border:0;
+  background:none;cursor:pointer}
 .v2-switch[hidden]{display:none}
-.v2-switch i{display:block;width:26px;height:14px;background:var(--surface-sunken);border:1px solid var(--border-input);position:relative;flex:none}
-.v2-switch i::after{content:"";position:absolute;top:1px;left:1px;width:10px;height:10px;background:var(--text-faint);transition:left 120ms linear,background-color 120ms linear}
-.v2-switch em{font-style:normal;font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-heading)}
-.v2-switch[aria-pressed="true"]{border-color:var(--border-strong)}
-.v2-switch[aria-pressed="true"] i,.v2-switch[aria-checked="true"] i{background:var(--text-data);border-color:var(--text-data)}
-.v2-switch[aria-pressed="true"] i::after,.v2-switch[aria-checked="true"] i::after{left:13px;background:var(--surface-page)}
-.v2-switch[aria-pressed="true"] em{color:var(--brand-text)}
-/* Выключенный и неподключённый: видно, что он есть, и видно, что он не работает. */
+.v2-switch i{display:block;width:40px;height:20px;background:transparent;
+  border:1px solid var(--border-input);position:relative;flex:none;
+  transition:background-color 120ms linear,border-color 120ms linear}
+.v2-switch i::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;
+  background:var(--text-faint);transition:transform 120ms linear,background-color 120ms linear}
+.v2-switch em{font-style:normal;font:500 var(--fs-eyebrow)/1 var(--font-mono);
+  letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body)}
+.v2-switch[aria-pressed="true"] i,.v2-switch[aria-checked="true"] i{
+  background:var(--action-primary);border-color:var(--action-primary)}
+.v2-switch[aria-pressed="true"] i::after,.v2-switch[aria-checked="true"] i::after{
+  transform:translateX(20px);background:var(--text-on-action)}
+
 .v2-switch--dead{cursor:not-allowed;opacity:.5}
 
 /* ── СВОРАЧИВАНИЕ ───────────────────────────────────────────────────────────────
@@ -532,8 +544,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
   border:1px solid var(--border-input)}
 .v2-toggle .v2-toggle-knob::before{content:"";display:block;width:14px;height:14px;margin:2px;
   background:var(--text-faint);transition:transform 120ms linear,background-color 120ms linear}
-.v2-toggle[aria-checked="true"] .v2-toggle-knob{background:var(--text-data);border-color:var(--text-data)}
-.v2-toggle[aria-checked="true"] .v2-toggle-knob::before{transform:translateX(20px);background:var(--surface-page)}
+.v2-toggle[aria-checked="true"] .v2-toggle-knob{background:var(--action-primary);border-color:var(--action-primary)}
+.v2-toggle[aria-checked="true"] .v2-toggle-knob::before{transform:translateX(20px);background:var(--text-on-action)}
 /* Колонки по содержимому, а не растянутые на всю полосу: между временем и ценой стояли
    провалы в полэкрана, и глаз терял строку по дороге. */
 .v2-tape-head,.v2-tape-row{display:grid;grid-template-columns:86px minmax(0,1fr) 44px minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr);gap:var(--space-4);align-items:baseline;padding:4px 0}

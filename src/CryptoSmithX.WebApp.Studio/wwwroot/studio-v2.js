@@ -78,6 +78,7 @@
     var rows = Array.prototype.slice.call(grid.querySelectorAll('.v2-row'));
     if (rows.length < 2) { return; }
 
+    var before = rows.slice();
     var asc = ASC[key] === true;
     rows.sort(function (a, b) {
       var x = parseFloat(a.getAttribute('data-sort-' + key));
@@ -89,10 +90,17 @@
       return asc ? x - y : y - x;
     });
 
+    // НИЧЕГО НЕ ТРОГАЕМ, ЕСЛИ ПОРЯДОК ТОТ ЖЕ. Живой поток заменяет таблицу каждую посылку, и
+    // безусловный appendChild на каждой означал полный пересчёт раскладки раз в секунду — то
+    // самое мигание, из-за которого страницу невозможно читать. Ранг между двумя посылками
+    // меняется редко; сравнение дешевле перестановки.
+    var same = rows.every(function (r, i) { return r === before[i]; });
+    if (same) { return; }
+
     rows.forEach(function (r) { grid.appendChild(r); });
   }
 
-  function show(key) {
+  function show(key, quiet) {
     document.querySelectorAll('.v2-nows, .v2-cuts').forEach(function (el) {
       el.hidden = el.getAttribute('data-cut') !== key;
     });
@@ -127,7 +135,10 @@
 
     // Свечи меряют себя при вставке; если их полоса была скрыта в этот момент, ширина вышла
     // нулевой и график остался невидим. Библиотека сама этого не замечает — просим пересчитать.
-    window.dispatchEvent(new Event('resize'));
+    //
+    // ТОЛЬКО ПО КЛИКУ. На каждой посылке живого потока это заставляло библиотеку перемерять и
+    // перерисовать все графики раз в секунду, а ширина при этом не менялась ни разу.
+    if (!quiet) { window.dispatchEvent(new Event('resize')); }
   }
 
   picks.forEach(function (b) {
@@ -138,7 +149,7 @@
   // смотрящего на открытый интерес, посылка вернула бы к книгам, и так каждые несколько секунд.
   document.addEventListener('csx-studio-live', function () {
     var on = document.querySelector('.v2-cutpick[aria-pressed="true"]');
-    show(on ? on.getAttribute('data-cut') : 'price');
+    show(on ? on.getAttribute('data-cut') : 'price', true);
   });
 
   // Ссылки из полосы 5 («The cut → Funding») ведут не просто к якорю: они переключают срез,

@@ -24,7 +24,7 @@
                    один клик значило бы, что предсказать, что случится, нельзя. Имя раскрывает
                    группу на месте, каретка уводит полосы 2 и 3 на это поле. *@
                 <span class="v2-hcell @(g.Cut == "price" ? "is-cut" : "")" data-group="@g.Key" data-cut="@g.Cut" data-tone="@g.Tone.ToString().ToLowerInvariant()">
-                    <span class="v2-hrow">
+                    <span class="v2-hcell-row">
                         @if (g.Fields.Count > 0)
                         {
                             <button type="button" class="v2-gtoggle" data-group="@g.Key" aria-expanded="false">@g.Name</button>
@@ -136,9 +136,20 @@
                         </span>
                         @if (strip.MostSpent?.Spent is { } spent)
                         {
+                            @* БАР РАСТЁТ В СТОРОНУ ДОВЕРИЯ: он показывает, сколько окна ОСТАЛОСЬ,
+                               а не сколько потрачено. Полный — только что опрошено; пустой — вызов
+                               на границе своего окна. Наоборот было ровно задом наперёд: длинная
+                               полоса означала «верить нечему».
+
+                               Чем это отличается от полоски свежести в клетке листинга: та
+                               РАССТАВЛЯЕТ три вызова внутри одной строки — какой из них где, — и
+                               отвечает на «что именно тут отстало». Эта — одно число на строку,
+                               и читается ВНИЗ по колонке: какой из семи листингов сейчас стоит
+                               доверия меньше остальных. Полоска отвечает поперёк строки, бар —
+                               вдоль колонки. *@
                             <span class="v2-window @(strip.MostSpentPastWindow ? "v2-window--spent" : "")"
                                   title="@StripModel.EndTitle(strip.MostSpent, StripModel.MostSpentLabel)">
-                                <i style="width:@StripModel.Pct(Math.Min(1, spent))"></i>
+                                <i style="width:@StripModel.Pct(Math.Max(0, 1 - Math.Min(1, spent)))"></i>
                             </span>
                         }
                     }
