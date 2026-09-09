@@ -3,6 +3,7 @@ using CryptoSmithX.MarketData.Connectors.Market;
 using CryptoSmithX.MarketData.Connectors.Pacing;
 using CryptoSmithX.Database;
 using Dapper;
+using Npgsql;
 
 namespace CryptoSmithX.MarketData.Hub.Ingestion;
 
@@ -69,11 +70,13 @@ public sealed class CandleCollector
             return 0;
         }
 
-        // One connection for the pass, as in DepthCollector, and every write — including the
-        // per-symbol transaction below — behind one lane. The transaction is why the lane must wrap
-        // the whole write and not just each statement: two workers interleaving BEGIN/COMMIT on one
-        // Npgsql connection is not a slow pass, it is a broken one.
-        using var writeLane = new SemaphoreSlim(1, 1);
+        // Bars are gathered here across every symbol and written ONCE after the sweep, not one
+        // transaction with one INSERT per bar per symbol. Measured on test, schema 0038, warmed:
+        // Kraken's 275 symbols at 2-3 bars each took 5.98 s serialised, Binance's 44 took 1.47 s —
+        // both while the HTTP side of the same passes, 32 wide, finished in well under a second.
+        // Same fix as SnapshotCollector (e590bc1): a ConcurrentBag rather than a lock, since workers
+        // only ever append and never read each other's entries.
+        var fetched = new System.Collections.Concurrent.ConcurrentBag<(int Id, Candle Candle)>();
 
         // One venue symbol whose endpoint is broken (WEEX serves 400 for a live market's candles)
         // must not starve every symbol after it. Per-symbol isolation, unchanged by the move to a
@@ -100,45 +103,12 @@ public sealed class CandleCollector
                     candles = await _adapter.GetCandles1mAsync(symbol, from, now, workCt);
                 }
 
-                if (candles.Count == 0)
+                foreach (var c in candles)
                 {
-                    return 0;
+                    fetched.Add((id, c));
                 }
 
-                await writeLane.WaitAsync(workCt).ConfigureAwait(false);
-                try
-                {
-                    var stored = 0;
-                    await using var tx = await conn.BeginTransactionAsync(workCt);
-                    foreach (var c in candles)
-                    {
-                        await conn.ExecuteAsync(new CommandDefinition(
-                            """
-                            insert into market_candle (
-                                exchange_instrument_id, timeframe, open_time,
-                                open, high, low, close, volume, trade_count, bar_count, updated_at)
-                            values (@Id, 1, @OpenTime, @Open, @High, @Low, @Close, @Volume, @TradeCount, 1, now())
-                            on conflict (exchange_instrument_id, timeframe, open_time) do update set
-                                open        = excluded.open,
-                                high        = excluded.high,
-                                low         = excluded.low,
-                                close       = excluded.close,
-                                volume      = excluded.volume,
-                                trade_count = excluded.trade_count,
-                                updated_at  = now()
-                            """,
-                            new { Id = id, c.OpenTime, c.Open, c.High, c.Low, c.Close, c.Volume, c.TradeCount },
-                            tx, cancellationToken: workCt));
-                        stored++;
-                    }
-
-                    await tx.CommitAsync(workCt);
-                    return stored;
-                }
-                finally
-                {
-                    writeLane.Release();
-                }
+                return candles.Count;
             },
             // A venue that pushed us away holds back every caller on this IP, not just this
             // collector: that is what the venue-wide gate is for.
@@ -153,6 +123,81 @@ public sealed class CandleCollector
             throw new InvalidOperationException($"every symbol failed; last: {result.LastError.Message}", result.LastError);
         }
 
+        if (!fetched.IsEmpty)
+        {
+            // One transaction for the whole pass, not one per symbol: the per-symbol BEGIN/COMMIT
+            // this replaces existed only to isolate one worker's writes from another interleaving on
+            // the same connection, which a single statement no longer can — there is nothing left to
+            // isolate from.
+            await using var tx = await conn.BeginTransactionAsync(ct);
+            await WriteCandlesBatchAsync(conn, tx, fetched, ct);
+            await tx.CommitAsync(ct);
+        }
+
         return written;
+    }
+
+    /// <summary>Upsert every bar fetched this pass in one statement. <c>bar_count</c> stays the
+    /// literal 1 every minute bar has always been written with; <c>on conflict do update</c> is load-
+    /// bearing, not incidental — a venue corrects a late bar by re-serving its open_time, and the
+    /// re-ask for the newest stored minute in <see cref="RunAsync"/> exists specifically to catch
+    /// that correction, so a plain insert would fail the whole batch on the very bar this is for.</summary>
+    private static async Task WriteCandlesBatchAsync(
+        NpgsqlConnection conn, NpgsqlTransaction tx, IReadOnlyCollection<(int Id, Candle Candle)> fetched, CancellationToken ct)
+    {
+        var ids = new int[fetched.Count];
+        var openTime = new DateTimeOffset[fetched.Count];
+        var open = new double[fetched.Count];
+        var high = new double[fetched.Count];
+        var low = new double[fetched.Count];
+        var close = new double[fetched.Count];
+        var volume = new double[fetched.Count];
+        var tradeCount = new int?[fetched.Count];
+
+        var i = 0;
+        foreach (var (id, c) in fetched)
+        {
+            ids[i] = id;
+            openTime[i] = c.OpenTime;
+            open[i] = c.Open;
+            high[i] = c.High;
+            low[i] = c.Low;
+            close[i] = c.Close;
+            volume[i] = c.Volume;
+            tradeCount[i] = c.TradeCount;
+            i++;
+        }
+
+        // NpgsqlCommand rather than Dapper: Dapper expands any IEnumerable parameter into
+        // @p1, @p2, …, which turns unnest(@ids) into unnest((@ids1,@ids2,…)) and fails.
+        await using var cmd = new NpgsqlCommand(
+            """
+            insert into market_candle (
+                exchange_instrument_id, timeframe, open_time,
+                open, high, low, close, volume, trade_count, bar_count, updated_at)
+            select v.id, 1, v.open_time, v.open, v.high, v.low, v.close, v.volume, v.trade_count, 1, now()
+              from unnest(@ids, @open_time, @open, @high, @low, @close, @volume, @trade_count)
+                   as v(id, open_time, open, high, low, close, volume, trade_count)
+            on conflict (exchange_instrument_id, timeframe, open_time) do update set
+                open        = excluded.open,
+                high        = excluded.high,
+                low         = excluded.low,
+                close       = excluded.close,
+                volume      = excluded.volume,
+                trade_count = excluded.trade_count,
+                updated_at  = now()
+            """,
+            conn, tx);
+
+        cmd.Parameters.AddWithValue("ids", ids);
+        cmd.Parameters.AddWithValue("open_time", openTime);
+        cmd.Parameters.AddWithValue("open", open);
+        cmd.Parameters.AddWithValue("high", high);
+        cmd.Parameters.AddWithValue("low", low);
+        cmd.Parameters.AddWithValue("close", close);
+        cmd.Parameters.AddWithValue("volume", volume);
+        cmd.Parameters.AddWithValue("trade_count", tradeCount);
+
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 }

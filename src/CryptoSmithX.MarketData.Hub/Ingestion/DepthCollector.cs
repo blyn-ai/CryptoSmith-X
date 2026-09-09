@@ -74,10 +74,13 @@ public sealed class DepthCollector
             return 0;
         }
 
-        // One connection for the pass, as before: the writes are milliseconds against a network call
-        // of hundreds, so a single write lane behind the fetches costs nothing and keeps this loop's
-        // footprint on the pool at exactly one connection.
-        using var writeLane = new SemaphoreSlim(1, 1);
+        // Fetched books are gathered here and written ONCE after the sweep, not one UPDATE per
+        // symbol behind a single-slot write lane. Measured on test, schema 0038, warmed: 275 Kraken
+        // instruments at one UPDATE each took 2.67 s serialised, while the HTTP side of the same
+        // pass — 32 wide — finished in a fraction of a second. Same fix as SnapshotCollector
+        // (e590bc1): a ConcurrentBag rather than a lock, since workers only ever append and never
+        // read each other's entries.
+        var fetched = new System.Collections.Concurrent.ConcurrentBag<(int Id, Depth Depth)>();
 
         var result = await Sweep.RunAsync(
             targets,
@@ -101,15 +104,8 @@ public sealed class DepthCollector
                     return 0;
                 }
 
-                await writeLane.WaitAsync(workCt).ConfigureAwait(false);
-                try
-                {
-                    return await WriteDepthAsync(conn, id, depth, workCt);
-                }
-                finally
-                {
-                    writeLane.Release();
-                }
+                fetched.Add((id, depth));
+                return 1;
             },
             ex =>
             {
@@ -123,31 +119,72 @@ public sealed class DepthCollector
             SweepFailure.FailFast,
             ct).ConfigureAwait(false);
 
-        return result.Written;
+        if (fetched.IsEmpty)
+        {
+            return 0;
+        }
+
+        // The real count, not result.Written (which only says how many books were fetched): a plain
+        // UPDATE against an instrument with no market_snapshot_latest row yet still affects zero
+        // rows, harmlessly, until the first snapshot for it lands — same contract as before, now
+        // reported from the one statement that actually touches the table instead of per symbol.
+        return await WriteDepthBatchAsync(conn, fetched, ct);
     }
 
-    /// <summary>Update only the depth columns; the row itself is owned by the snapshot writer, and
-    /// affects zero rows harmlessly until the first snapshot for this instrument lands.</summary>
-    private static Task<int> WriteDepthAsync(NpgsqlConnection conn, int id, Depth depth, CancellationToken ct) =>
-        conn.ExecuteAsync(new CommandDefinition(
+    /// <summary>Update only the depth columns for every instrument fetched this pass, in one
+    /// statement. The row itself is owned by the snapshot writer; an instrument unnest carries but
+    /// that has no row yet is matched by nothing on the update side and simply does not affect one —
+    /// same as the per-row UPDATE it replaces.</summary>
+    private static async Task<int> WriteDepthBatchAsync(
+        NpgsqlConnection conn, IReadOnlyCollection<(int Id, Depth Depth)> fetched, CancellationToken ct)
+    {
+        var ids = new int[fetched.Count];
+        var bid10 = new double?[fetched.Count];
+        var ask10 = new double?[fetched.Count];
+        var bid25 = new double?[fetched.Count];
+        var ask25 = new double?[fetched.Count];
+        var bid50 = new double?[fetched.Count];
+        var ask50 = new double?[fetched.Count];
+        var at = new DateTimeOffset[fetched.Count];
+
+        var i = 0;
+        foreach (var (id, depth) in fetched)
+        {
+            ids[i] = id;
+            bid10[i] = depth.Bid10Bps;
+            ask10[i] = depth.Ask10Bps;
+            bid25[i] = depth.Bid25Bps;
+            ask25[i] = depth.Ask25Bps;
+            bid50[i] = depth.Bid50Bps;
+            ask50[i] = depth.Ask50Bps;
+            at[i] = depth.At;
+            i++;
+        }
+
+        // NpgsqlCommand rather than Dapper: Dapper expands any IEnumerable parameter into
+        // @p1, @p2, …, which turns unnest(@ids) into unnest((@ids1,@ids2,…)) and fails.
+        await using var cmd = new NpgsqlCommand(
             """
-            update market_snapshot_latest set
-                depth_bid_10bps = @Bid10, depth_ask_10bps = @Ask10,
-                depth_bid_25bps = @Bid25, depth_ask_25bps = @Ask25,
-                depth_bid_50bps = @Bid50, depth_ask_50bps = @Ask50,
-                depth_at        = @At
-             where exchange_instrument_id = @Id
+            update market_snapshot_latest as m set
+                depth_bid_10bps = v.bid10, depth_ask_10bps = v.ask10,
+                depth_bid_25bps = v.bid25, depth_ask_25bps = v.ask25,
+                depth_bid_50bps = v.bid50, depth_ask_50bps = v.ask50,
+                depth_at        = v.at
+            from unnest(@ids, @bid10, @ask10, @bid25, @ask25, @bid50, @ask50, @at)
+                as v(id, bid10, ask10, bid25, ask25, bid50, ask50, at)
+            where m.exchange_instrument_id = v.id
             """,
-            new
-            {
-                Id = id,
-                Bid10 = depth.Bid10Bps,
-                Ask10 = depth.Ask10Bps,
-                Bid25 = depth.Bid25Bps,
-                Ask25 = depth.Ask25Bps,
-                Bid50 = depth.Bid50Bps,
-                Ask50 = depth.Ask50Bps,
-                depth.At,
-            },
-            cancellationToken: ct));
+            conn);
+
+        cmd.Parameters.AddWithValue("ids", ids);
+        cmd.Parameters.AddWithValue("bid10", bid10);
+        cmd.Parameters.AddWithValue("ask10", ask10);
+        cmd.Parameters.AddWithValue("bid25", bid25);
+        cmd.Parameters.AddWithValue("ask25", ask25);
+        cmd.Parameters.AddWithValue("bid50", bid50);
+        cmd.Parameters.AddWithValue("ask50", ask50);
+        cmd.Parameters.AddWithValue("at", at);
+
+        return await cmd.ExecuteNonQueryAsync(ct);
+    }
 }
