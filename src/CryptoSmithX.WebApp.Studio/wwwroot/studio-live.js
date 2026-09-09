@@ -109,8 +109,17 @@
     source.addEventListener('panel', (ev) => {
       const region = document.querySelector('[data-live-region="' + ev.lastEventId + '"]');
       if (!region) return;
-      const next = new DOMParser().parseFromString(ev.data, 'text/html').body.firstElementChild;
-      if (next) morph(region, next);
+
+      // A region the pointer is inside is left alone until the pointer leaves. Patching under the
+      // cursor is not a repaint to the person doing it: they are reading down twenty-five levels of
+      // a book, and the row they were on moves. The fragment is kept and applied on pointerleave, so
+      // nothing is lost — only deferred, and only for as long as somebody is actually reading it.
+      if (region.matches('[data-live-hold]:hover')) {
+        held.set(region, ev.data);
+        return;
+      }
+
+      apply(region, ev.data);
     });
 
     // The server's instant, sent after the fragments it belongs to. Handing it to studio-ages.js is
@@ -189,6 +198,23 @@
   wanted = true;
   setPressed(true);
   open();
+
+  // Fragments that arrived while the pointer was inside their region, one per region: only the
+  // newest is worth keeping, because each is a whole re-render of the same thing.
+  const held = new Map();
+
+  function apply(region, html) {
+    const next = new DOMParser().parseFromString(html, 'text/html').body.firstElementChild;
+    if (next) morph(region, next);
+  }
+
+  document.addEventListener('pointerout', (ev) => {
+    const region = ev.target.closest ? ev.target.closest('[data-live-hold]') : null;
+    if (!region || region.matches(':hover') || !held.has(region)) return;
+    const html = held.get(region);
+    held.delete(region);
+    apply(region, html);
+  });
 
   // ── Patching ──
   // Ported from the admin console's live.js, which has run this shape for a while. It patches nodes

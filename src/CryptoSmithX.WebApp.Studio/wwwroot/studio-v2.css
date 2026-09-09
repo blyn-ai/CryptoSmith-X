@@ -360,6 +360,15 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-now-val{text-align:right;font:400 var(--fs-body)/1.1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
 .v2-now-bar{display:block;height:8px;background:var(--tint-neutral)}
 .v2-now-bar i{display:block;height:100%;background:var(--bar-ticker)}
+
+/* ── Зеркальный бар ──────────────────────────────────────────────────────────
+   У глубины сторона — это ответ. Один бар «обе стороны» складывает бид с аском и теряет ровно
+   то, ради чего на глубину смотрят: наклон книги. Две половины от общего нуля, бид влево. */
+.v2-mirror{display:flex;align-items:center;gap:1px;width:100%;height:var(--mirror-h)}
+.v2-mirror span{flex:1;background:var(--tint-neutral)}
+.v2-mirror span:first-child{display:flex;justify-content:flex-end}
+.v2-mirror i{display:block;height:100%;background:var(--bar-depth-bid)}
+.v2-mirror span:last-child i{background:var(--bar-depth-ask)}
 .v2-nows[data-cut="oi"] .v2-now-bar i,.v2-nows[data-cut="liquidations"] .v2-now-bar i{background:var(--bar-oi)}
 .v2-nows[data-cut="depth25"] .v2-now-bar i{background:var(--bar-depth-bid)}
 .v2-now-note{font:400 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-faint)}
@@ -391,9 +400,12 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* Лестница: уровень — полоса, длина = объём против крупнейшего в этой книге. Биды сверху вниз
    к середине, аски от середины вниз — форма читается, цифры двадцати пяти уровней не читает никто. */
 .v2-ladder{display:flex;flex-direction:column;gap:1px;padding:4px 0}
-.v2-lvl{display:block;height:3px;min-width:1px}
-.v2-lvl--bid{background:var(--call-depth,#8A5A12);opacity:.85}
-.v2-lvl--ask{background:var(--call-depth,#8A5A12);opacity:.45}
+/* 5px, а не 3px. Уровень в три пикселя тоньше курсора: его нельзя навести, а значит нельзя и
+   спросить цену — книга оставалась текстурой. Пять читаются и наводятся. */
+.v2-lvl{display:block;height:5px;min-width:1px;transition:background-color 120ms linear}
+.v2-lvl--bid{background:var(--bar-depth-bid)}
+.v2-lvl--ask{background:var(--bar-depth-ask)}
+.v2-lvl:hover{background:var(--accent)}
 .v2-book-note{font:400 var(--fs-micro)/1.3 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-faint)}
 
 /* ── полоса 4: лента ────────────────────────────────────────────────────────── */

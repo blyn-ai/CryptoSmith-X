@@ -63,6 +63,36 @@ public sealed class PairsV2Controller : LivePageController
     protected override Task<PairPageModel?> LoadPageAsync(string baseFamily, CancellationToken ct) =>
         PairPageLoader.LoadAsync(_db, _cache, _clock, baseFamily, ct);
 
+    /// <summary>The newest depth observation this stream has already drawn, so band 2 is not
+    /// replaced for a pass that did not touch it. One field, read and written on the one loop that
+    /// owns this response.</summary>
+    private DateTime? _sentDepthAt;
+
+    /// <summary>
+    /// Band 2 is the books, and the books answer to ONE call: the depth sweep. A ticker pass every
+    /// two seconds would otherwise re-render twenty-five levels a side that nobody touched — under
+    /// the cursor of a reader who is reading down them, which is the one thing that band is for.
+    ///
+    /// The table is the opposite case and is always sent: it carries every call on the page, so a
+    /// pass that changed anything changed something in it.
+    /// </summary>
+    protected override bool Changed(string region, PairPageModel model)
+    {
+        if (region != "now")
+        {
+            return true;
+        }
+
+        var newest = model.Rows.Select(r => r.Row.DepthAt).Where(d => d is not null).DefaultIfEmpty(null).Max();
+        if (newest is not null && newest == _sentDepthAt)
+        {
+            return false;
+        }
+
+        _sentDepthAt = newest;
+        return true;
+    }
+
     [HttpGet]
     public async Task<IActionResult> Asset(string baseFamily, CancellationToken ct)
     {

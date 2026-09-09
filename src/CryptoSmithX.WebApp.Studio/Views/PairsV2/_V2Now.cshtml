@@ -5,7 +5,7 @@
     var bookNote = V2Notes.Book(Model);
 }
 @* ── полоса 2: сейчас, по площадкам ──────────────────────────────────────────── *@
-<section class="v2-band" id="band-now" data-live-region="now">
+<section class="v2-band" id="band-now" data-live-region="now" data-live-hold>
     <div class="v2-band-head">
         <span class="csx-eyebrow v2-band-no">2 · <span id="cut-now-title">The books</span></span>
         <span class="csx-eyebrow v2-band-sub" id="cut-now-sub">@bookNote</span>
@@ -31,21 +31,44 @@
                         else
                         {
                             var top = Math.Max(bk.BidQty.DefaultIfEmpty(0).Max(), bk.AskQty.DefaultIfEmpty(0).Max());
+
+                            @* ЧЕТЫРНАДЦАТЬ уровней с каждой стороны, по 5px. Двадцать пять по три
+                               пикселя нельзя ни навести, ни разглядеть: уровень в 3px меньше
+                               толщины курсора, и книга из формы превращалась в текстуру. Подпись
+                               говорит, сколько нарисовано из скольких, — молча урезать данные на
+                               витрине нельзя.
+
+                               У каждого уровня title с точной ценой и размером: форма отвечает на
+                               «где стена», а на «какая» отвечает только число. *@
+                            var drawn = 14;
+                            var bidShown = Math.Min(Math.Min(bk.BidPx.Length, (int)bk.Levels), drawn);
+                            var askShown = Math.Min(Math.Min(bk.AskPx.Length, (int)bk.Levels), drawn);
+                            var held = Math.Max(bk.BidPx.Length, bk.AskPx.Length);
                             <span class="v2-ladder">
-                                @for (var i = Math.Min(bk.BidPx.Length, bk.Levels) - 1; i >= 0; i--)
+                                @for (var i = bidShown - 1; i >= 0; i--)
                                 {
-                                    <i class="v2-lvl v2-lvl--bid" style="width:@Format.BarWidth(bk.BidQty[i], top)"></i>
+                                    <i class="v2-lvl v2-lvl--bid" style="width:@Format.BarWidth(bk.BidQty[i], top)"
+                                       title="bid @Format.Num(bk.BidPx[i], 8) × @Format.Num(bk.BidQty[i], 4)"></i>
                                 }
-                                @for (var i = 0; i < Math.Min(bk.AskPx.Length, bk.Levels); i++)
+                                @for (var i = 0; i < askShown; i++)
                                 {
-                                    <i class="v2-lvl v2-lvl--ask" style="width:@Format.BarWidth(bk.AskQty[i], top)"></i>
+                                    <i class="v2-lvl v2-lvl--ask" style="width:@Format.BarWidth(bk.AskQty[i], top)"
+                                       title="ask @Format.Num(bk.AskPx[i], 8) × @Format.Num(bk.AskQty[i], 4)"></i>
                                 }
                             </span>
                             <span class="v2-book-note">
-                                @(r.Row.BookReachBid is null && r.Row.BookReachAsk is null
-                                    ? "reach not measured"
-                                    : "seen to ±" + Format.Num(Math.Max(r.Row.BookReachBid ?? 0, r.Row.BookReachAsk ?? 0), 0) + " bps")
-                                · @bk.BidPx.Length / @bk.AskPx.Length levels a side
+                                @* Ноль здесь НЕ НАБЛЮДЕНИЕ (правило 8): «книга видна до ±0 bps»
+                                   не бывает — это значит, что досягаемость не посчитана. И берётся
+                                   она только если правдоподобна: ±108 734 bps — это тысяча
+                                   процентов от середины, то есть мусор, а не глубокая книга. *@
+                                @{
+                                    var reach = Math.Max(r.Row.BookReachBid ?? 0, r.Row.BookReachAsk ?? 0);
+                                    var sane = reach > 0 && reach <= 10000;
+                                }
+                                @(sane ? "seen to ±" + Format.Num(reach, 0) + " bps" : "reach not measured")
+                                · @(bidShown == held && askShown == held
+                                      ? $"{held} levels a side"
+                                      : $"{Math.Max(bidShown, askShown)} of {held} levels a side drawn")
                             </span>
                         }
                     </div>
@@ -78,8 +101,29 @@
                         <div class="v2-now">
                             <span class="v2-now-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em> <b>@r.Row.Symbol</b></span>
                             <span class="v2-now-val @(v is null ? "v2-fig--none" : "")">@(v is null ? "—" : Format.Num(v, c.Decimals))</span>
-                            <span class="v2-now-bar"><i style="width:@Format.BarWidth(v, maxNow)"></i></span>
-                            <span class="v2-now-note">@c.Unit</span>
+                            @* У ГЛУБИНЫ СТОРОНА — ЭТО ОТВЕТ. Один бар на сумму сторон складывает
+                               бид с аском и теряет наклон книги, ради которого на глубину и
+                               смотрят: 200 к бида против 40 к аска и 120 к против 120 к дают
+                               одинаковый бар и противоположный рынок. Обе половины меряются от
+                               ОДНОГО максимума по странице, иначе они несравнимы между строками. *@
+                            @if (c.Key == "depth25")
+                            {
+                                var half = Model.Rows
+                                    .SelectMany(x => new[] { x.Row.DepthBid25, x.Row.DepthAsk25 })
+                                    .Where(x => x is not null)
+                                    .DefaultIfEmpty(null)
+                                    .Max();
+                                <span class="v2-mirror"
+                                      title="bid @Format.Num(r.Row.DepthBid25, 0) · ask @Format.Num(r.Row.DepthAsk25, 0)">
+                                    <span><i style="width:@Format.BarWidth(r.Row.DepthBid25, half)"></i></span>
+                                    <span><i style="width:@Format.BarWidth(r.Row.DepthAsk25, half)"></i></span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="v2-now-bar"><i style="width:@Format.BarWidth(v, maxNow)"></i></span>
+                            }
+                            <span class="v2-now-note">@(c.Key == "depth25" ? "base units · bid ◂ ▸ ask, one scale" : c.Unit)</span>
                         </div>
                     }
                 }

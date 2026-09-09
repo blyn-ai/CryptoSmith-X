@@ -334,6 +334,11 @@ public abstract class LivePageController : Controller
 
         foreach (var (region, view) in LiveRegions)
         {
+            if (!Changed(region, model))
+            {
+                continue;
+            }
+
             await WriteEventAsync("panel", region, await RenderPartialAsync(view, model), ct);
         }
 
@@ -363,6 +368,16 @@ public abstract class LivePageController : Controller
     /// first time. The candle panels are absent on purpose — see the note on <see cref="Live"/>.
     /// </summary>
     protected abstract (string Region, string View)[] LiveRegions { get; }
+
+    /// <summary>
+    /// Whether this region is worth sending on this pass. True by default — a collector wrote
+    /// something, and the page is one reading.
+    ///
+    /// A page overrides it where one region answers to ONE call: replacing a book because the
+    /// funding rate moved patches the element the reader's cursor is inside, several times a
+    /// minute, for a picture that did not change.
+    /// </summary>
+    protected virtual bool Changed(string region, PairPageModel model) => true;
 
     /// <summary>Renders a partial to a string outside the normal action-result pipeline, on this
     /// request's own <see cref="ControllerContext"/> so view lookup resolves exactly as
