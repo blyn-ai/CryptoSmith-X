@@ -12,10 +12,20 @@ namespace CryptoSmithX.WebApp.Studio.Models;
 /// grouped by their call. The seven questions have not gone anywhere; they are how the fields were
 /// chosen, and they are still what the units under the headings say.
 /// </summary>
+/// <param name="Width">
+/// The column's width in pixels, and fixed on purpose.
+///
+/// Content-sized tracks looked obvious and were wrong twice over: a column re-measured itself
+/// whenever its text changed, so a hundred and ten ages ticking over re-laid the whole grid once a
+/// second, and the widest number a venue happened to print decided the width for everyone. Fixed
+/// widths are chosen for what the column HOLDS — a price is eight digits, an interval is "8 h", a
+/// turnover is nine digits and a comma every three — and they do not move.
+/// </param>
 public sealed record V2Column(
     V2Field Field,
     string Label,
     CallTone Call,
+    int Width,
     string? Cut = null,
     bool Spark = false);
 
@@ -24,33 +34,39 @@ public static class V2Columns
     public static IReadOnlyList<V2Column> All { get; } =
     [
         // ── The ticker call: one response carries all of these ──────────────────────────────
-        new(V2Field.Bid, "Bid", CallTone.Ticker, Spark: true),
-        new(V2Field.Ask, "Ask", CallTone.Ticker, Spark: true),
-        new(V2Field.Spread, "Spread bps", CallTone.Ticker, Cut: "spread", Spark: true),
-        new(V2Field.Last, "Last", CallTone.Ticker, Cut: "price", Spark: true),
-        new(V2Field.Mark, "Mark", CallTone.Ticker),
-        new(V2Field.Index, "Index", CallTone.Ticker),
-        new(V2Field.FundingPerDay, "Funding /day", CallTone.Ticker, Cut: "funding", Spark: true),
-        new(V2Field.FundingRate, "Venue rate", CallTone.Ticker),
-        new(V2Field.FundingInterval, "Interval", CallTone.Ticker),
-        new(V2Field.Turnover24h, "Turnover 24h", CallTone.Ticker, Cut: "turnover"),
-        new(V2Field.LiquidationVolume, "Liquidations", CallTone.Ticker, Cut: "liquidations", Spark: true),
-        new(V2Field.LiquidationUnit, "Unit", CallTone.Ticker),
-        new(V2Field.VenueClock, "Venue clock", CallTone.Ticker),
-        new(V2Field.LastTrade, "Last trade", CallTone.Ticker),
+        new(V2Field.Bid, "Bid", CallTone.Ticker, 100, Spark: true),
+        new(V2Field.Ask, "Ask", CallTone.Ticker, 100, Spark: true),
+        new(V2Field.Spread, "Spread bps", CallTone.Ticker, 80, Cut: "spread", Spark: true),
+        new(V2Field.Last, "Last", CallTone.Ticker, 100, Cut: "price", Spark: true),
+        new(V2Field.Mark, "Mark", CallTone.Ticker, 104),
+        new(V2Field.Index, "Index", CallTone.Ticker, 104),
+        new(V2Field.FundingPerDay, "Funding /day", CallTone.Ticker, 96, Cut: "funding", Spark: true),
+        new(V2Field.FundingRate, "Venue rate", CallTone.Ticker, 96),
+        new(V2Field.FundingInterval, "Interval", CallTone.Ticker, 64),
+        new(V2Field.Turnover24h, "Turnover 24h", CallTone.Ticker, 116, Cut: "turnover"),
+        new(V2Field.LiquidationVolume, "Liquidations", CallTone.Ticker, 104, Cut: "liquidations", Spark: true),
+        new(V2Field.LiquidationUnit, "Unit", CallTone.Ticker, 60),
+        new(V2Field.VenueClock, "Venue clock", CallTone.Ticker, 88),
+        new(V2Field.LastTrade, "Last trade", CallTone.Ticker, 88),
 
         // ── The open-interest call: its own clock, its own cadence ──────────────────────────
-        new(V2Field.OpenInterest, "Open interest", CallTone.OpenInterest, Cut: "oi", Spark: true),
-        new(V2Field.Multiplier, "Multiplier", CallTone.OpenInterest),
+        new(V2Field.OpenInterest, "Open interest", CallTone.OpenInterest, 124, Cut: "oi", Spark: true),
+        new(V2Field.Multiplier, "Multiplier", CallTone.OpenInterest, 72),
 
         // ── The depth sweep: the slowest of the three, and the one that goes quiet first ────
-        new(V2Field.BidSize, "Bid size", CallTone.Depth),
-        new(V2Field.AskSize, "Ask size", CallTone.Depth),
-        new(V2Field.Depth10, "Depth 10bps", CallTone.Depth),
-        new(V2Field.Depth25, "Depth 25bps", CallTone.Depth, Cut: "depth25", Spark: true),
-        new(V2Field.Depth50, "Depth 50bps", CallTone.Depth),
-        new(V2Field.BookReach, "Book reach", CallTone.Depth),
+        new(V2Field.BidSize, "Bid size", CallTone.Depth, 92),
+        new(V2Field.AskSize, "Ask size", CallTone.Depth, 92),
+        new(V2Field.Depth10, "Depth 10bps", CallTone.Depth, 108),
+        new(V2Field.Depth25, "Depth 25bps", CallTone.Depth, 108, Cut: "depth25", Spark: true),
+        new(V2Field.Depth50, "Depth 50bps", CallTone.Depth, 108),
+        new(V2Field.BookReach, "Book reach", CallTone.Depth, 100),
     ];
+
+    /// <summary>The grid's tracks: the listing cell, then every column at the width its content
+    /// actually needs. One string, built here, so the bands, the headings and every row are laid on
+    /// the same tracks by construction rather than by three declarations agreeing.</summary>
+    public static string Tracks { get; } =
+        "150px " + string.Join(" ", All.Select(c => c.Width + "px"));
 
     /// <summary>The bands over the headings: one per call, each as wide as the columns it owns.
     /// Built from the list rather than written down, so a column moved between calls cannot leave a

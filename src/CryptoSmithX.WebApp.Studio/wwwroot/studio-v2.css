@@ -188,9 +188,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    колонки бралась из самого длинного содержимого, и любое изменение текста — возраст раз в
    секунду в каждой из ста десяти клеток — пересчитывало всю сетку: CLS 0.12 и таблица, которая
    шевелится сама по себе. Фиксированная дорожка не зависит от текста вовсе. */
-.v2-grid{--cols:22;display:flex;flex-direction:column;width:max-content;min-width:100%}
-.v2-calls,.v2-hrow,.v2-row{display:grid;
-  grid-template-columns:150px repeat(var(--cols),96px);
+.v2-grid{display:flex;flex-direction:column;width:max-content;min-width:100%}
+.v2-calls,.v2-hrow,.v2-row{display:grid;grid-template-columns:var(--tracks);
   border-bottom:1px solid var(--border-hairline)}
 
 /* Полоса вызова: сплошной цвет вызова, светлый текст, во всю ширину его колонок. */
