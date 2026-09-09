@@ -30,11 +30,18 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 /// </summary>
 public sealed class OpenInterestHistoryCollector
 {
+    // `latest` is what keeps a pass proportional to what is MISSING rather than to the configured
+    // backfill window: without it every pass would re-ask each venue for the whole window and
+    // re-upsert it, which on Kraken is 275 symbols x 720 hourly buckets every five minutes, forever.
     internal const string TargetInstrumentsSql =
         """
-        select exchange_symbol, id
-          from exchange_instrument
-         where segment_code = @code and collect = true and status <> 'delisted'
+        select i.exchange_symbol,
+               i.id,
+               (select max(o.bucket_time)
+                  from open_interest_history o
+                 where o.exchange_instrument_id = i.id) as latest
+          from exchange_instrument i
+         where i.segment_code = @code and i.collect = true and i.status <> 'delisted'
         """;
 
     /// <summary>The grid the sampled venues are bucketed onto. Five minutes, matching the finest
@@ -66,7 +73,7 @@ public sealed class OpenInterestHistoryCollector
             (await _settings.CurrentAsync(ct)).DatasetSettingInt("open_interest", "backfill_hours"));
 
         await using var conn = await _db.OpenAsync(ct);
-        var targets = (await conn.QueryAsync<(string Symbol, int Id)>(new CommandDefinition(
+        var targets = (await conn.QueryAsync<(string Symbol, int Id, DateTimeOffset? Latest)>(new CommandDefinition(
             TargetInstrumentsSql, new { code = _adapter.SegmentCode }, cancellationToken: ct))).ToList();
 
         if (targets.Count == 0)
@@ -82,11 +89,21 @@ public sealed class OpenInterestHistoryCollector
             _gate.MaxConcurrentRequests,
             async (target, workCt) =>
             {
-                var (symbol, id) = target;
+                var (symbol, id, latest) = target;
+
+                // From the newest stored bucket, bounded by the backfill floor. Re-asking for the
+                // newest one is deliberate: an analytics bucket is only final once its window has
+                // closed, so the last one stored is exactly the one that can still change.
+                var from = latest ?? floor;
+                if (from < floor)
+                {
+                    from = floor;
+                }
+
                 IReadOnlyList<OpenInterestBucket> buckets;
                 using (await _gate.AcquireAsync(workCt).ConfigureAwait(false))
                 {
-                    buckets = await _adapter.GetOpenInterestHistoryAsync(symbol, floor, now, workCt);
+                    buckets = await _adapter.GetOpenInterestHistoryAsync(symbol, from, now, workCt);
                 }
 
                 foreach (var b in buckets)
@@ -137,7 +154,8 @@ public sealed class OpenInterestHistoryCollector
             .ToList();
 
         await using var tx = await conn.BeginTransactionAsync(ct);
-        await using (var cmd = new NpgsqlCommand(
+        await BulkJson.WriteAsync(
+            conn, tx,
             """
             insert into open_interest_history (
                 exchange_instrument_id, interval_s, bucket_time,
@@ -159,12 +177,7 @@ public sealed class OpenInterestHistoryCollector
                 received_at = excluded.received_at,
                 source      = excluded.source
             """,
-            conn, tx))
-        {
-            var json = cmd.Parameters.Add("rows", NpgsqlTypes.NpgsqlDbType.Jsonb);
-            json.Value = JsonSerializer.Serialize(rows);
-            await cmd.ExecuteNonQueryAsync(ct);
-        }
+            rows, ct);
 
         await Coverage.WriteAsync(
             conn, tx, "open_interest", now, receivedAt,

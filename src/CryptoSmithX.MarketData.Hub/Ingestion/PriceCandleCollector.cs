@@ -127,7 +127,8 @@ public sealed class PriceCandleCollector
             .ToList();
 
         await using var tx = await conn.BeginTransactionAsync(ct);
-        await using (var cmd = new NpgsqlCommand(
+        await BulkJson.WriteAsync(
+            conn, tx,
             """
             insert into market_price_candle (
                 exchange_instrument_id, series, timeframe, open_time,
@@ -147,12 +148,7 @@ public sealed class PriceCandleCollector
                 received_at = excluded.received_at,
                 source      = excluded.source
             """,
-            conn, tx))
-        {
-            var json = cmd.Parameters.Add("rows", NpgsqlTypes.NpgsqlDbType.Jsonb);
-            json.Value = JsonSerializer.Serialize(rows);
-            await cmd.ExecuteNonQueryAsync(ct);
-        }
+            rows, ct);
 
         await Coverage.WriteAsync(
             conn, tx, $"candles_{_series}", now, receivedAt,

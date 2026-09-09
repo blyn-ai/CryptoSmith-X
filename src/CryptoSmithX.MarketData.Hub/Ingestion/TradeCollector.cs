@@ -106,7 +106,8 @@ public sealed class TradeCollector
     /// </summary>
     private static async Task<int> WriteAsync(NpgsqlConnection conn, IReadOnlyList<TradeRow> rows, CancellationToken ct)
     {
-        await using var cmd = new NpgsqlCommand(
+        return await BulkJson.WriteAsync(
+            conn, null,
             """
             insert into trade (
                 exchange_instrument_id, event_time, venue_uid, seq, received_at, source,
@@ -119,11 +120,7 @@ public sealed class TradeCollector
                    price numeric, qty numeric, taker_side text, trade_type text)
             on conflict (exchange_instrument_id, event_time, venue_uid) do nothing
             """,
-            conn);
-
-        var json = cmd.Parameters.Add("rows", NpgsqlTypes.NpgsqlDbType.Jsonb);
-        json.Value = JsonSerializer.Serialize(rows);
-        return await cmd.ExecuteNonQueryAsync(ct);
+            rows, ct);
     }
 
     /// <summary>Property names match the column names the statement above declares — the mapping is

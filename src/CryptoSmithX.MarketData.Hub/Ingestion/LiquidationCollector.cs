@@ -30,11 +30,17 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 /// </summary>
 public sealed class LiquidationCollector
 {
+    // Same reason as OpenInterestHistoryCollector's: roll forward from the newest stored bucket so
+    // a pass costs what is missing, not what the backfill window would cost from scratch every time.
     internal const string TargetInstrumentsSql =
         """
-        select exchange_symbol, id
-          from exchange_instrument
-         where segment_code = @code and collect = true and status <> 'delisted'
+        select i.exchange_symbol,
+               i.id,
+               (select max(l.bucket_time)
+                  from liquidation_volume_history l
+                 where l.exchange_instrument_id = i.id) as latest
+          from exchange_instrument i
+         where i.segment_code = @code and i.collect = true and i.status <> 'delisted'
         """;
 
     /// <summary>The grid both paths use, matching Kraken's analytics bucket so the two venues'
@@ -65,7 +71,7 @@ public sealed class LiquidationCollector
             (await _settings.CurrentAsync(ct)).DatasetSettingInt("liquidations", "backfill_hours"));
 
         await using var conn = await _db.OpenAsync(ct);
-        var targets = (await conn.QueryAsync<(string Symbol, int Id)>(new CommandDefinition(
+        var targets = (await conn.QueryAsync<(string Symbol, int Id, DateTimeOffset? Latest)>(new CommandDefinition(
             TargetInstrumentsSql, new { code = _adapter.SegmentCode }, cancellationToken: ct))).ToList();
 
         if (targets.Count == 0)
@@ -83,11 +89,18 @@ public sealed class LiquidationCollector
             _gate.MaxConcurrentRequests,
             async (target, workCt) =>
             {
-                var (symbol, id) = target;
+                var (symbol, id, latest) = target;
+
+                var from = latest ?? floor;
+                if (from < floor)
+                {
+                    from = floor;
+                }
+
                 IReadOnlyList<LiquidationBucket> series;
                 using (await _gate.AcquireAsync(workCt).ConfigureAwait(false))
                 {
-                    series = await _adapter.GetLiquidationVolumeAsync(symbol, floor, now, workCt);
+                    series = await _adapter.GetLiquidationVolumeAsync(symbol, from, now, workCt);
                 }
 
                 foreach (var b in series)
@@ -145,7 +158,8 @@ public sealed class LiquidationCollector
             .ToList();
 
         await using var tx = await conn.BeginTransactionAsync(ct);
-        await using (var cmd = new NpgsqlCommand(
+        await BulkJson.WriteAsync(
+            conn, tx,
             """
             insert into liquidation_volume_history (
                 exchange_instrument_id, interval_s, bucket_time, volume, volume_unit, received_at, source)
@@ -163,12 +177,7 @@ public sealed class LiquidationCollector
                 received_at = excluded.received_at,
                 source      = excluded.source
             """,
-            conn, tx))
-        {
-            var json = cmd.Parameters.Add("rows", NpgsqlTypes.NpgsqlDbType.Jsonb);
-            json.Value = JsonSerializer.Serialize(rows);
-            await cmd.ExecuteNonQueryAsync(ct);
-        }
+            rows, ct);
 
         await Coverage.WriteAsync(
             conn, tx, "liquidations", now, receivedAt,

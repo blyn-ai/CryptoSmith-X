@@ -86,7 +86,10 @@ public sealed class BookCollector
             return 0;
         }
 
-        await using var cmd = new NpgsqlCommand(
+        // jsonb rather than unnest, and here it is not a preference: each row carries FOUR
+        // variable-length arrays, and Postgres has no jagged array type for unnest to walk.
+        return await BulkJson.WriteAsync(
+            conn, null,
             """
             insert into book_topn (
                 exchange_instrument_id, observed_at, seq, received_at, is_snapshot, levels,
@@ -102,13 +105,7 @@ public sealed class BookCollector
             -- observation. DO NOTHING rather than a second row saying the same thing.
             on conflict (exchange_instrument_id, observed_at, seq) do nothing
             """,
-            conn);
-
-        // jsonb rather than unnest, and here it is not a preference: each row carries FOUR
-        // variable-length arrays, and Postgres has no jagged array type for unnest to walk.
-        var json = cmd.Parameters.Add("rows", NpgsqlTypes.NpgsqlDbType.Jsonb);
-        json.Value = JsonSerializer.Serialize(rows);
-        return await cmd.ExecuteNonQueryAsync(ct);
+            rows, ct);
     }
 
     private sealed record BookRow(

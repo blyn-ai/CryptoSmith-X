@@ -86,7 +86,8 @@ public static class Coverage
             return;
         }
 
-        await using var cmd = new NpgsqlCommand(
+        await BulkJson.WriteAsync(
+            conn, tx,
             """
             insert into coverage (
                 exchange_instrument_id, dataset_code, range_from, range_to, returned, requested_at)
@@ -96,11 +97,7 @@ public static class Coverage
                    range_from timestamptz, range_to timestamptz,
                    returned integer, requested_at timestamptz)
             """,
-            conn, tx);
-
-        var json = cmd.Parameters.Add("rows", NpgsqlTypes.NpgsqlDbType.Jsonb);
-        json.Value = JsonSerializer.Serialize(rows);
-        await cmd.ExecuteNonQueryAsync(ct);
+            rows, ct);
     }
 
     private sealed record CoverageRow(
