@@ -197,7 +197,7 @@ public sealed class PublicSurfaceTests
     [Fact]
     public void The_pattern_closes_at_the_end_of_the_string()
     {
-        // The property above, said about the constant itself, so the four route templates that
+        // The property above, said about the constant itself, so the route templates that
         // carry this pattern verbatim cannot be left anchored the old way by an edit here.
         Assert.EndsWith(@"\z", PairAddress.Pattern, StringComparison.Ordinal);
         Assert.DoesNotContain("$", PairAddress.Pattern, StringComparison.Ordinal);
@@ -212,8 +212,19 @@ public sealed class PublicSurfaceTests
         // have to say the same thing, so this reads the templates and checks that they do.
         var program = Code("Program.cs");
 
-        Assert.Equal(4, Regex.Matches(program, Regex.Escape($"regex({PairAddress.Pattern})")).Count);
-        Assert.Equal(4, Regex.Matches(program, Regex.Escape($"maxlength({PairAddress.MaxLength})")).Count);
+        // Counted against the number of {baseFamily} parameters rather than against a literal,
+        // and that is the point: the invariant is "every route that takes a base family carries
+        // the rule", not "there are exactly four such routes". Written the second way, adding the
+        // v2 page failed this test for the one reason that is not a defect — a new route — and the
+        // fix would have been to bump a number, which teaches the next person to bump it again
+        // rather than to check what they added.
+        // Both family parameters, not just the base one: the two-segment pair route constrains
+        // quoteFamily by the same rule, so it is a fifth place the rule has to be right.
+        var families = Regex.Matches(program, @"\{(?:base|quote)Family:").Count;
+        Assert.True(families >= 5, "the asset routes are gone or renamed, which this test cannot see past");
+
+        Assert.Equal(families, Regex.Matches(program, Regex.Escape($"regex({PairAddress.Pattern})")).Count);
+        Assert.Equal(families, Regex.Matches(program, Regex.Escape($"maxlength({PairAddress.MaxLength})")).Count);
     }
 
     [Fact]

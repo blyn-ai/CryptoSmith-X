@@ -167,85 +167,8 @@ public sealed class PairsController : Controller
     /// one loader, so a figure cannot mean one thing when the page is opened and another thing when
     /// it is updated.
     /// </summary>
-    private async Task<PairPageModel?> LoadAsync(string baseFamily, CancellationToken ct)
-    {
-        var data = await _cache.GetAsync<PairData?>(
-            "asset:" + baseFamily,
-            async token =>
-            {
-                await using var conn = await _db.OpenAsync(token);
-                var comparison = await StudioStore.GetAssetAsync(conn, baseFamily, token);
-                if (comparison is null)
-                {
-                    return null;
-                }
-
-                var ids = comparison.Venues.Select(v => v.Row.InstrumentId).ToList();
-
-                // Two series queries on one connection, both anchored to the same instant and both
-                // resolved onto the same window list (CandleStore.Windows). Seven lines are drawn
-                // per row from these two results and a reader compares them across the row, so they
-                // have to be describing the same twenty-five hours — two anchors would put the
-                // price line and the open-interest line an hour apart with nothing on the page to
-                // say so.
-                var at = _clock.GetUtcNow();
-                var candles = await CandleStore.ReadAsync(conn, ids, at, token);
-                var metrics = await MetricHourStore.ReadAsync(conn, ids, at, token);
-                return new PairData(comparison, candles, metrics);
-            },
-            ct);
-
-        if (data is null)
-        {
-            return null;
-        }
-
-        // Every age on the page is a subtraction against THIS instant — the time of the request —
-        // and never against the moment the cache filled. The payload above holds only absolute
-        // instants, which is what makes a second-old answer still able to report a truthful age
-        // (blueprint §5). Doing the subtraction anywhere else would undo that.
-        //
-        // The live stream calls this method again per push for exactly the same reason: it must
-        // never re-send a fragment it rendered a minute ago, because the ages baked into that
-        // fragment were true a minute ago.
-        var now = _clock.GetUtcNow();
-        var comparison = data.Comparison;
-
-        var rows = comparison.Venues
-            .Select(v => new VenueRowModel(
-                v.Row,
-                v.Windows,
-                new CallAges(
-                    Freshness.AgeSeconds(v.Row.ReceivedAt, now),
-                    Freshness.AgeSeconds(v.Row.OpenInterestAt, now),
-                    Freshness.AgeSeconds(v.Row.DepthAt, now)),
-                data.Candles.TryGetValue(v.Row.InstrumentId, out var c) ? c : CandleSeries.Empty,
-                data.Metrics.TryGetValue(v.Row.InstrumentId, out var m) ? m : MetricHourSeries.Empty))
-            .ToList();
-
-        // The span the observations on this page actually cover, across all three calls on every
-        // row. Both ends, and never the maximum alone: the freshest row on the page is not a
-        // statement about the page, and a header printing it as one tells a reader that a table
-        // holding a three-day-old venue is seconds old. Both are null — a dash in the header, not a
-        // zero — when nothing here has ever been observed, which is a real state: discovery lists an
-        // instrument the moment the venue announces it, and the first snapshot arrives later.
-        var collected = PairPageModel.CollectedSpan(rows);
-
-        // Computed HERE and not where the comparison was loaded, because a rank is now withheld
-        // from a figure whose call has gone degraded and that is a judgement against `now`. Putting
-        // it back in the cached payload would freeze the freshness half of it at the instant the
-        // cache filled (blueprint §5, and the note on PairComparison).
-        var verdicts = Verdicts.Compute(rows);
-
-        return new PairPageModel(
-            comparison.BaseFamily,
-            rows,
-            verdicts,
-            ColumnScales.Compute(rows),
-            collected.From,
-            collected.To,
-            now);
-    }
+    private Task<PairPageModel?> LoadAsync(string baseFamily, CancellationToken ct) =>
+        PairPageLoader.LoadAsync(_db, _cache, _clock, baseFamily, ct);
 
     /// <summary>
     /// The live upgrade of the pair page: Server-Sent Events, opened only when the reader presses

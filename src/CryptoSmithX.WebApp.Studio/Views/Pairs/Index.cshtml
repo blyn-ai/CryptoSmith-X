@@ -90,10 +90,15 @@
                    to be, or a two-segment pair route swallows every conventional URL on the site —
                    so link generation would otherwise resolve this to /Pairs/Pair?baseFamily=… and
                    the short address the page is designed around would exist only if a visitor typed
-                   it. Naming the route asks for the address we mean. *@
-                var href = Url.RouteUrl("asset", new
+                   it. Naming the route asks for the address we mean.
+
+                   POINTS AT v2. The first design stays reachable at /studio/{asset} — nothing about
+                   it changed and its own address still serves it — but the list is the way in, so the
+                   way in leads to the page being judged. Only this one line decides that; swap the
+                   route name back and the whole site returns to the first design. *@
+                var href = Url.RouteUrl("asset-v2", new
                 {
-                    controller = "Pairs",
+                    controller = "PairsV2",
                     action = "Asset",
                     baseFamily = p.BaseFamily
                 });

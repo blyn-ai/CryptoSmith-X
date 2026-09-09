@@ -1,0 +1,138 @@
+@using CryptoSmithX.WebApp.Studio.Data
+@model PairPageModel
+@{
+    Layout = null;
+    var title = $"{Model.BaseFamily} · {Model.Listings} listings";
+    ViewData["Title"] = title;
+
+    var perp = Model.Rows.Count(r => r.Row.SegmentKind == "perp");
+    var spot = Model.Rows.Count(r => r.Row.SegmentKind == "spot");
+    var groups = V2Groups.All;
+
+    // Figures on the page, counted rather than claimed: the header prints this number and a reader
+    // can check it against what is drawn.
+    var figures = Model.Rows.Count * groups.Sum(g => g.Fields.Count);
+}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@title · CryptoSmith X</title>
+    <link rel="stylesheet" href="~/ds/styles.css">
+    <link rel="stylesheet" href="~/studio-v2.css">
+</head>
+<body class="v2">
+
+@* ── шапка ─────────────────────────────────────────────────────────────────── *@
+<header class="v2-head">
+    <a class="v2-wordmark" href="~/">CryptoSmith X</a>
+    <span class="v2-crumb">Asset · @Model.BaseFamily</span>
+    <span class="v2-stamps">
+        Collected @Format.UtcClock(Model.CollectedFrom) – @Format.UtcClock(Model.CollectedTo)
+        &nbsp;·&nbsp; Rendered @Format.UtcClock(Model.RenderedAt.UtcDateTime)
+    </span>
+</header>
+
+<div class="v2-title">
+    <h1>@Model.Listings listings quote @Model.BaseFamily.</h1>
+    <span class="v2-meta">
+        @Model.PlatformCount platforms · @perp perp · @spot spot ·
+        @groups.Sum(g => g.Fields.Count) fields each · @figures figures
+    </span>
+</div>
+
+<div class="v2-controls">
+    <a class="v2-back" href="~/">Back to list</a>
+    <button type="button" id="expand-all" class="v2-toggle" aria-pressed="false">Expand all</button>
+    <span class="v2-note">
+        A group opens where it stands, so the venues stay side by side while you read it.
+    </span>
+</div>
+
+@* ── полоса 1: таблица ─────────────────────────────────────────────────────── *@
+<section class="v2-band" id="band-table">
+    <div class="v2-band-head">
+        <span class="csx-eyebrow v2-band-no">1 · Every figure</span>
+        <span class="csx-eyebrow v2-band-sub">Seven questions, not seven calls · a group opens in place ·
+            sizes and open interest in base units through the venue’s own multiplier</span>
+    </div>
+
+    <div class="v2-grid" style="--cols:@(groups.Count)">
+        <div class="v2-hrow">
+            <span class="v2-hcell v2-hcell--listing">Listing</span>
+            @foreach (var g in groups)
+            {
+                <span class="v2-hcell" data-tone="@g.Tone.ToString().ToLowerInvariant()">
+                    <button type="button" class="v2-gtoggle" data-group="@g.Key" aria-expanded="false">
+                        @g.Name<span class="v2-caret">↓</span>
+                    </button>
+                    <span class="v2-hunit">@g.Unit</span>
+                </span>
+            }
+        </div>
+
+        @foreach (var r in Model.Rows)
+        {
+            <div class="v2-row">
+                <span class="v2-listing">
+                    <span class="v2-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em></span>
+                    <span class="v2-symbol">
+                        @r.Row.Symbol
+                        <em>@(r.Row.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(r.Row.ContractMultiplier, 0))</em>
+                    </span>
+                    @* Ages live here, one clock per call — a figure's age is a fact about the call
+                       that wrote it, not about the cell it landed in. *@
+                    <span class="v2-ages">
+                        Price @Format.ShortAge(r.Ages.PriceSeconds)
+                        @if (r.Ages.DepthSeconds is not null) { <text>· Depth @Format.ShortAge(r.Ages.DepthSeconds)</text> }
+                        @if (r.Ages.OpenInterestSeconds is not null) { <text>· OI @Format.ShortAge(r.Ages.OpenInterestSeconds)</text> }
+                    </span>
+                </span>
+
+                @foreach (var g in groups)
+                {
+                    var head = g.Headline is { } col ? V2Cells.Headline(r, col) : V2Cells.Headline(r, g);
+                    <span class="v2-cell" data-group="@g.Key">
+                        <span class="v2-fig @(head.Value is null ? "v2-fig--none" : "")">@head.Text</span>
+                        @if (head.Sub is not null)
+                        {
+                            <span class="v2-figsub">@head.Sub</span>
+                        }
+                        @if (g.Headline is { } bc && head.Value is not null)
+                        {
+                            <span class="v2-bar" data-tone="@g.Tone.ToString().ToLowerInvariant()">
+                                <i style="width:@Format.BarWidth(head.Value, Model.Scales.Of(r.Row.InstrumentId, bc))"></i>
+                            </span>
+                        }
+                        <span class="v2-fields" hidden>
+                            @foreach (var f in g.Fields)
+                            {
+                                var cell = V2Cells.Field(r, f.Field);
+                                <span class="v2-field">
+                                    <em>@f.Label</em><b class="@(cell.Value is null ? "v2-fig--none" : "")">@cell.Text</b>
+                                </span>
+                            }
+                        </span>
+                    </span>
+                }
+            </div>
+        }
+    </div>
+
+    <p class="v2-legend">
+        A bar is the figure against the largest listing in the same unit, log-scaled — it replaces the
+        BEST chip, which could not tell a book a hundred times larger from one a hair larger.
+        <b>—</b> is not measured and never a zero. Ages live in the listing cell, one clock per call,
+        because a figure’s age is a fact about the call that wrote it and not about the cell.
+    </p>
+</section>
+
+<footer class="v2-foot">
+    Not investment advice · Own funds only
+    <a href="~/@Model.BaseFamily">First design of this page</a>
+</footer>
+
+<script src="~/studio-v2.js"></script>
+</body>
+</html>

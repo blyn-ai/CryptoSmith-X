@@ -213,6 +213,15 @@ app.MapControllerRoute(
     @"{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
     new { controller = "Pairs", action = "Asset" });
 
+// The second design of the asset page: /studio/v2/PEPE. ABOVE the two-segment route below, and
+// that is load-bearing rather than tidy: "v2/PEPE" IS two segments, so the pair route would read it
+// as the pair v2 / PEPE and answer 302 to /studio/v2 — the same trap the live stream fell into in
+// 886859a. A route that also matches has to sit below the one that must win.
+app.MapControllerRoute(
+    "asset-v2",
+    @"v2/{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
+    new { controller = "PairsV2", action = "Asset" });
+
 // The live stream for one asset: /studio/live/PEPE. ABOVE the two-segment route below, and that
 // is load-bearing rather than tidy. "live/PEPE" is two segments, so the pair route reads it as the
 // pair "live / PEPE" and answers 302 to /studio/live — which is exactly what shipped in 886859a:
