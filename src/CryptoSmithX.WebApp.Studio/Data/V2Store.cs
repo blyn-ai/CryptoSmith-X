@@ -191,6 +191,39 @@ public static class V2Store
     }
 
     /// <summary>
+    /// What each segment is SET to collect, per dataset.
+    ///
+    /// Band 5's grid used to list only the datasets that had written coverage rows, which made the
+    /// band silent exactly where it should speak: a dataset nobody collected simply vanished from
+    /// it, and a reader could not tell "we hold none of this" from "there is no such thing here".
+    ///
+    /// The matrix is full by construction — 0014 and 0034 both insist on a row for every
+    /// (segment, dataset) pair, even where the venue cannot — so an ABSENT row means the pair was
+    /// never decided, and 'disabled' means it was decided against. Those are different sentences and
+    /// the grid prints them differently.
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<(string Segment, string Dataset), string>> DatasetModesAsync(
+        DbConnection conn, IReadOnlyList<string> segments, CancellationToken ct)
+    {
+        if (segments.Count == 0)
+        {
+            return new Dictionary<(string, string), string>();
+        }
+
+        var rows = await conn.QueryAsync<DatasetMode>(new CommandDefinition(
+            """
+            select sd.segment_code as "SegmentCode",
+                   sd.dataset_code as "DatasetCode",
+                   sd.mode         as "Mode"
+              from segment_dataset sd
+             where sd.segment_code = any(@segments)
+            """,
+            new { segments = segments.ToArray() }, cancellationToken: ct));
+
+        return rows.ToDictionary(r => (r.SegmentCode, r.DatasetCode), r => r.Mode);
+    }
+
+    /// <summary>
     /// Hourly liquidation volume per instrument, on the SAME twenty-five windows every other series
     /// on the page is drawn on.
     ///
@@ -259,3 +292,5 @@ public sealed record GapRow(
 public sealed record StressRow(int InstrumentId, double Volume, string Unit, DateTime LatestBucket);
 
 public sealed record LiquidationHour(int InstrumentId, DateTime Hour, double Volume);
+
+public sealed record DatasetMode(string SegmentCode, string DatasetCode, string Mode);

@@ -54,7 +54,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=14">
+    <link rel="stylesheet" href="~/studio-v2.css?v=15">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -312,66 +312,70 @@
             gaps stay open until they close</span>
     </div>
 
-    @{
-        var datasets = Model.Coverage.Select(c => c.Dataset).Distinct(StringComparer.Ordinal).OrderBy(d => d, StringComparer.Ordinal).ToList();
-    }
-    @if (datasets.Count == 0)
-    {
-        <p class="v2-empty" style="padding:var(--space-4) var(--space-7)">
-            No coverage recorded for this asset in the last day. Coverage is written by the history
-            collectors, so an empty grid means none of them has run for these listings — not that the
-            history is empty.
-        </p>
-    }
-    else
-    {
-        <div class="v2-cov" style="--vcols:@Model.Rows.Count">
-            <span class="v2-cov-corner"></span>
+    @* ВСЕ наборы, из которых страница рисует, а не только те, по которым что-то записано:
+       набор, который никто не собрал, раньше просто исчезал из полосы — то есть полоса «что стоит
+       за цифрами» молчала ровно там, где читателю нужнее всего, у цифры, которой нет. *@
+    <div class="v2-cov" style="--vcols:@Model.Rows.Count">
+        <span class="v2-cov-corner"></span>
+        @foreach (var r in Model.Rows)
+        {
+            <span class="v2-cov-vh">@r.Row.ExchangeName<em>@r.Row.Symbol</em></span>
+        }
+        @foreach (var d in V2Coverage.Datasets)
+        {
+            <span class="v2-cov-dh" title="@d.Draws">@d.Label</span>
             @foreach (var r in Model.Rows)
             {
-                <span class="v2-cov-vh">@r.Row.ExchangeName<em>@r.Row.Symbol</em></span>
+                @* Четыре вида «ничего», и это четыре разных факта: доля окна · измеренный ноль ·
+                   «здесь это не собираем» (не наш пробел) · «не спрашивали». Одна шкала зелёного
+                   на одну метрику по одной оси площадок; никаких палитр поперёк метрик — у них
+                   нет общей шкалы, и раскрасить их одним градиентом значило бы соврать. *@
+                var cell = V2Coverage.Cell(Model, d, r.Row);
+                <span class="v2-cov-cell @cell.Class"
+                      style="@(cell.State == CoverageState.Held ? $"--held:{cell.Percent}%" : "")"
+                      title="@cell.Title">@cell.Text</span>
             }
-            @foreach (var d in datasets)
-            {
-                <span class="v2-cov-dh">@d.Replace("_", " ")</span>
-                @foreach (var r in Model.Rows)
-                {
-                    var cell = Model.Coverage.FirstOrDefault(c => c.Dataset == d && c.InstrumentId == r.Row.InstrumentId);
-                    @* Одна шкала зелёного на одну метрику по одной оси площадок. Никаких палитр
-                       поперёк метрик: у них нет общей шкалы, и раскрасить их одним градиентом
-                       значило бы соврать. *@
-                    <span class="v2-cov-cell @(cell is null ? "v2-cov-cell--none" : "")"
-                          style="@(cell is null ? "" : $"--held:{cell.PercentHeld}%")"
-                          title="@(cell is null ? "not asked for this listing" : $"{cell.PercentHeld}% of the day held")">
-                        @(cell is null ? "—" : cell.PercentHeld.ToString())
-                    </span>
-                }
-            }
-        </div>
-        @* Шкала подписана, иначе насыщенность клетки — просто оттенок. Полоса рисуется теми же
-           двумя цветами, что и клетки, поэтому её концы можно приложить к сетке глазами. *@
-        <div class="v2-cov-key">
-            <span>0 %</span>
-            <span class="v2-cov-ramp"></span>
-            <span>100 % of the window held</span>
-        </div>
-    }
+        }
+    </div>
+    @* Шкала подписана И названа окном: голое «84» в клетке — это не процент чего угодно. *@
+    <div class="v2-cov-key">
+        <span>0 %</span>
+        <span class="v2-cov-ramp"></span>
+        <span>100 % of the last 24 h held</span>
+    </div>
+    <p class="v2-legend">
+        <b>·</b> not collected on this venue — not a gap in our data ·
+        <b>live</b> written as the venue speaks, with no window to hold a share of; its age is in band 1 ·
+        <b>—</b> nothing was asked for.
+    </p>
 
     <div class="v2-gaps">
         <span class="csx-eyebrow">Open and closed gaps</span>
-        @if (Model.Gaps.Count == 0)
+        @{ var lines = GapLine.Fold(Model.Gaps); }
+        @if (lines.Count == 0)
         {
             <p class="v2-empty v2-empty--inline">Nothing has broken on these venues in the last day.</p>
         }
         else
         {
-            foreach (var g in Model.Gaps)
+            @* Двенадцать почти одинаковых строк — площадка, коллектор и причина те же, минуты
+               разные — это список, который надо прочитать целиком, чтобы понять, что он говорит
+               одно. Свёрнутый, он говорит это одно и сколько раз. Открытые идут первыми: разрыв,
+               который ещё идёт, — единственное в этой полосе, на что читатель может повлиять. *@
+            foreach (var g in lines)
             {
                 <div class="v2-gap">
                     <span class="v2-gap-what">@g.SegmentCode · @g.Collector</span>
-                    <span class="v2-gap-state @(g.GapEnd is null ? "v2-gap-state--open" : "")">@(g.GapEnd is null ? "open" : "closed")</span>
-                    <span class="v2-gap-why">@g.Cause.Replace("_", " ")@(g.Detail is null ? "" : " — " + g.Detail)</span>
-                    <span class="v2-gap-when">@Format.UtcClock(g.GapStart) → @(g.GapEnd is null ? "open" : Format.UtcClock(g.GapEnd))</span>
+                    <span class="v2-gap-state @(g.Open ? "v2-gap-state--open" : "")">@(g.Open ? "open" : "closed")</span>
+                    @* ГОЛОС СТРАНИЦЫ, а не текст драйвера. Здесь печаталось `cause — detail`
+                       дословно из строки, то есть `NpgsqlException: Failed to connect to
+                       172.22.0.2:5432` — наш внутренний адрес и порт на витрине, и вдобавок не
+                       ответ на вопрос читателя: он спросил, чего ему не хватает, а не какой
+                       наш контейнер не дозвонился до какого. *@
+                    <span class="v2-gap-why">
+                        @GapVoice.Say(g.Cause)@(g.Detail is null ? "" : " · " + g.Detail)@(g.Count > 1 ? $" × {g.Count}" : "")
+                    </span>
+                    <span class="v2-gap-when">@Format.UtcClock(g.From) → @(g.Open ? "open" : Format.UtcClock(g.To))</span>
                 </div>
             }
         }
@@ -393,7 +397,9 @@
         var newestBook = Model.Books.Values.Select(b => (DateTime?)b.ObservedAt).DefaultIfEmpty(null).Max();
         var tapeVenues = Model.Tape.Select(t => t.InstrumentId).Distinct().Count();
         var liqVenues = Model.Rows.Count(r => r.Liquidations.Any(v => v is not null));
-        var openGaps = Model.Gaps.Count(g => g.GapEnd is null);
+        var tracked = V2Coverage.Datasets.Count(d => d.Tracked);
+        var gapLines = GapLine.Fold(Model.Gaps).Count;
+        var openGaps = GapLine.Fold(Model.Gaps).Count(g => g.Open);
 
         // (заголовок, что реально лежит, куда смотреть, якорь, срез)
         var reach = new (string Name, string What, string Where, string Href, string? Cut)[]
@@ -429,9 +435,8 @@
              "The cut → Liquidations", "#band-cuts", "liquidations"),
 
             ("Coverage & gaps",
-             datasets.Count == 0
-                 ? "no coverage written for this asset in the last day"
-                 : $"{datasets.Count} datasets tracked, {Model.Gaps.Count} breaks recorded, {openGaps} still open",
+             $"{V2Coverage.Datasets.Count} datasets accounted for, {tracked} of them measurable as coverage, "
+             + $"{gapLines} breaks recorded, {openGaps} still open",
              "Band 5", "#band-trust", null),
         };
     }

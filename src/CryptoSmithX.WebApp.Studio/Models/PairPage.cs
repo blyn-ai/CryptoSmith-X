@@ -210,6 +210,11 @@ public sealed record PairPageModel(
 
     public IReadOnlyDictionary<int, StressRow> Stress { get; init; } = new Dictionary<int, StressRow>();
 
+    /// <summary>What each segment on this page is set to collect, per dataset. Empty where the
+    /// page was built by a path that does not draw band 5.</summary>
+    public IReadOnlyDictionary<(string Segment, string Dataset), string> Modes { get; init; }
+        = new Dictionary<(string, string), string>();
+
     /// <summary>Rows: one order book, on one venue, with one quote. Binance's PEPE/USDT and
     /// PEPE/USDC are two of them, and the header must not print one number for both.</summary>
     public int Listings => Rows.Count;

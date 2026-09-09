@@ -441,7 +441,16 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* Одна метрика — одна шкала. Насыщенность несёт долю удержанного окна и ничего больше. */
 .v2-cov-cell{display:flex;align-items:center;justify-content:center;padding:6px 0;font:400 var(--fs-data)/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);
   background:color-mix(in srgb, var(--money-up,#2F5A00) var(--held,0%), var(--surface-sunken))}
+/* Четыре вида «ничего» ЧЕТЫРЬМЯ разными клетками. Измеренный ноль несёт ту же шкалу в её нижней
+   точке; «здесь не собираем» — нейтральная, без шкалы вовсе, потому что это не наш пробел;
+   «пишется потоком» — своя, потому что доли окна у него не бывает; «не спрашивали» — пустая. */
+.v2-cov-cell--zero{background:var(--surface-sunken);color:var(--text-data)}
+.v2-cov-cell--off{background:transparent;color:var(--text-unmeasured);
+  box-shadow:inset 0 0 0 1px var(--border-hairline)}
+.v2-cov-cell--live{background:var(--tint-neutral);color:var(--text-muted);
+  font-size:var(--fs-micro);letter-spacing:var(--track-label);text-transform:uppercase}
 .v2-cov-cell--none{background:var(--surface-sunken);color:var(--text-unmeasured)}
+.v2-cov-dh{cursor:help}
 
 /* Подпись шкалы. Полоса — тот же градиент, что несут клетки, иначе легенда объясняет не то. */
 .v2-cov-key{display:flex;align-items:center;gap:10px;padding:0 var(--space-7) var(--space-4)}
