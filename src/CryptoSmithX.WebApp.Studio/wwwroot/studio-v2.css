@@ -298,7 +298,20 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-spark[data-tone="openinterest"]{color:var(--spark-oi)}
 .v2-spark[data-tone="depth"]{color:var(--spark-depth)}
 /* Раскрытая группа отдаёт место полям: две картинки одного числа в одной клетке спорят. */
-.v2-cell:has(.v2-fields:not([hidden])) .v2-spark{display:none}
+body[data-open~="price"] .v2-cell[data-group="price"] .v2-fields[hidden]{display:flex}
+body[data-open~="price"] .v2-cell[data-group="price"] .v2-spark{display:none}
+body[data-open~="liquidity"] .v2-cell[data-group="liquidity"] .v2-fields[hidden]{display:flex}
+body[data-open~="liquidity"] .v2-cell[data-group="liquidity"] .v2-spark{display:none}
+body[data-open~="positions"] .v2-cell[data-group="positions"] .v2-fields[hidden]{display:flex}
+body[data-open~="positions"] .v2-cell[data-group="positions"] .v2-spark{display:none}
+body[data-open~="carry"] .v2-cell[data-group="carry"] .v2-fields[hidden]{display:flex}
+body[data-open~="carry"] .v2-cell[data-group="carry"] .v2-spark{display:none}
+body[data-open~="activity"] .v2-cell[data-group="activity"] .v2-fields[hidden]{display:flex}
+body[data-open~="activity"] .v2-cell[data-group="activity"] .v2-spark{display:none}
+body[data-open~="stress"] .v2-cell[data-group="stress"] .v2-fields[hidden]{display:flex}
+body[data-open~="stress"] .v2-cell[data-group="stress"] .v2-spark{display:none}
+body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-fields[hidden]{display:flex}
+body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-spark{display:none}
 
 /* ── Ранг цифры ──────────────────────────────────────────────────────────────
    Заливка на всю строку поля — подпись и значение вместе, — а не чип рядом: строка из двух
@@ -314,14 +327,24 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-field--worst,.v2-field--wide{background:var(--tag-worst-bg)}
 .v2-field--worst em,.v2-field--worst b,.v2-field--wide em,.v2-field--wide b{color:var(--tag-worst-ink)}
 
-/* Марка в СВЁРНУТОЙ строке: слово, а фон — его ground. Цвет на этой странице значит вызов
-   (правило 5), поэтому зелёная плашка без слова читается как «это OI-вызов», а не как «лучший». */
-/* --fs-eyebrow (9px) — тот же кегль, что у всех категориальных значений на странице.
-   В присланном куске стоял --fs-nano, которого в ds/tokens нет ни в одном файле. */
-.v2-mark{font:500 var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);
-  text-transform:uppercase;padding:1px 3px;margin-right:4px;white-space:nowrap}
-.v2-mark--best,.v2-mark--tight{background:var(--tag-best-bg);color:var(--tag-best-ink)}
-.v2-mark--worst,.v2-mark--wide{background:var(--tag-worst-bg);color:var(--tag-worst-ink)}
+/* Марка и число — ОДИН блок с одной заливкой под обоими; слово стоит мелко у головы числа.
+   Число держит свой цвет: покрасить измерение в цвет суждения о нём — значит сказать, что
+   зелёное число и есть другая величина.
+
+   У спреда заливки нет вовсе, только цветное слово: TIGHT и WIDE — это тот же ранг, названный
+   словом колонки, и wash под каждым спредом на семи строках забил бы всю колонку. */
+.v2-part{display:inline-flex;align-items:flex-start;gap:2px}
+.v2-part i{font-style:normal;font:500 7.5px/1.15 var(--font-mono);letter-spacing:.08em;
+  text-transform:uppercase}
+.v2-part > span{line-height:1}
+.v2-part--best,.v2-part--worst{padding:1px 3px}
+.v2-part--best{background:var(--tag-best-bg)}
+.v2-part--best i{color:var(--tag-best-ink)}
+.v2-part--worst{background:var(--tag-worst-bg)}
+.v2-part--worst i{color:var(--tag-worst-ink)}
+.v2-part--tight i{color:var(--tag-tight)}
+.v2-part--wide i{color:var(--tag-wide)}
+
 .v2-fig em,.v2-figsub em{font-style:normal;color:var(--text-faint);margin:0 3px}
 
 /* Бар окна в клетке TRUST: доля СВОЕГО окна у худшего вызова — то, чего полоска в клетке
@@ -410,6 +433,16 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    display перебивает. Атрибут ставился, поля оставались на экране. */
 .v2-fields[hidden]{display:none}
 
+/* ── ГДЕ ЖИВЁТ СОСТОЯНИЕ ЭКРАНА ──────────────────────────────────────────────
+   НА <body>, а не на элементах внутри полос. Живой поток заменяет полосы 1 и 2 целиком каждую
+   посылку — примерно раз в секунду, — и всё, что скрипт успел поставить внутри них, уезжает
+   вместе с разметкой: раскрытые группы схлопывались, выбранный срез возвращался к цене, число
+   колонок к серверному. Скрипт ставил это обратно следующим кадром, и получалось то, что читатель
+   видит как «страница перерисовывается и сбрасывает раскладку».
+
+   Состояние снаружи заменяемой области, а показывает его CSS — тогда посылка физически не может
+   его потерять, и ставить обратно нечего. */
+
 /* Заголовок группы — самое заметное в шапке колонки, иначе он сливается с единицей. */
 .v2-gtoggle{font-weight:600;font-size:9.5px;color:var(--text-heading)}
 .v2-hunit{opacity:.75}
@@ -461,6 +494,23 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    атрибутом, обязано иметь пару с [hidden]. */
 .v2-cuts[hidden],
 .v2-nows[hidden]{display:none}
+
+body[data-cut] .v2-nows,body[data-cut] .v2-cuts{display:none}
+body[data-cut="price"] .v2-nows[data-cut="price"]{display:block}
+body[data-cut="price"] .v2-cuts[data-cut="price"]{display:grid}
+body[data-cut="spread"] .v2-nows[data-cut="spread"]{display:block}
+body[data-cut="spread"] .v2-cuts[data-cut="spread"]{display:grid}
+body[data-cut="depth25"] .v2-nows[data-cut="depth25"]{display:block}
+body[data-cut="depth25"] .v2-cuts[data-cut="depth25"]{display:grid}
+body[data-cut="oi"] .v2-nows[data-cut="oi"]{display:block}
+body[data-cut="oi"] .v2-cuts[data-cut="oi"]{display:grid}
+body[data-cut="funding"] .v2-nows[data-cut="funding"]{display:block}
+body[data-cut="funding"] .v2-cuts[data-cut="funding"]{display:grid}
+body[data-cut="turnover"] .v2-nows[data-cut="turnover"]{display:block}
+body[data-cut="turnover"] .v2-cuts[data-cut="turnover"]{display:grid}
+body[data-cut="liquidations"] .v2-nows[data-cut="liquidations"]{display:block}
+body[data-cut="liquidations"] .v2-cuts[data-cut="liquidations"]{display:grid}
+body[data-cut="price"] .v2-nows--books{display:grid}
 .v2-cut{display:flex;flex-direction:column;gap:6px;padding:var(--space-4);border:1px solid var(--border-hairline)}
 /* Заголовок карточки полосы 3: площадка дисплейным, символ акцентным моно, OHLC справа. */
 .v2-cut-plat{display:flex;align-items:baseline;gap:var(--space-3);flex-wrap:wrap;
@@ -713,9 +763,9 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-cols-btn[data-cols="2"] .v2-cols-icon i{width:5px}
 .v2-cols-btn[data-cols="3"] .v2-cols-icon i{width:3px}
 
-.v2-nows--books[data-cols="5"],.v2-cuts[data-cols="5"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - 4 * var(--space-4)) / 5)),1fr))}
-.v2-nows--books[data-cols="4"],.v2-cuts[data-cols="4"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - 3 * var(--space-4)) / 4)),1fr))}
-.v2-nows--books[data-cols="3"],.v2-cuts[data-cols="3"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - 2 * var(--space-4)) / 3)),1fr))}
-.v2-nows--books[data-cols="2"],.v2-cuts[data-cols="2"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - var(--space-4)) / 2)),1fr))}
+body[data-cols-books="5"] .v2-nows--books,body[data-cols-charts="5"] .v2-cuts{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - 4 * var(--space-4)) / 5)),1fr))}
+body[data-cols-books="4"] .v2-nows--books,body[data-cols-charts="4"] .v2-cuts{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - 3 * var(--space-4)) / 4)),1fr))}
+body[data-cols-books="3"] .v2-nows--books,body[data-cols-charts="3"] .v2-cuts{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - 2 * var(--space-4)) / 3)),1fr))}
+body[data-cols-books="2"] .v2-nows--books,body[data-cols-charts="2"] .v2-cuts{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - var(--space-4)) / 2)),1fr))}
 /* Одна колонка не берёт минимума: стопка и есть то, ради чего её просят. */
-.v2-nows--books[data-cols="1"],.v2-cuts[data-cols="1"]{grid-template-columns:minmax(0,1fr)}
+body[data-cols-books="1"] .v2-nows--books,body[data-cols-charts="1"] .v2-cuts{grid-template-columns:minmax(0,1fr)}

@@ -9,14 +9,13 @@
   var open = new Set();
 
   function apply() {
-    document.querySelectorAll('[data-group]').forEach(function (el) {
-      var on = open.has(el.getAttribute('data-group'));
-      if (el.classList.contains('v2-cell')) {
-        var fields = el.querySelector('.v2-fields');
-        if (fields) { fields.hidden = !on; }
-      } else if (el.tagName === 'BUTTON') {
-        el.setAttribute('aria-expanded', on ? 'true' : 'false');
-      }
+    // НА <body>, снаружи заменяемых полос: живой поток меняет таблицу целиком, и hidden,
+    // проставленный внутри неё, уезжает вместе с разметкой — группы схлопывались на каждой
+    // посылке, а скрипт открывал их обратно следующим кадром. Показывает состояние CSS.
+    document.body.setAttribute('data-open', Array.from(open).join(' '));
+
+    document.querySelectorAll('.v2-gtoggle[data-group]').forEach(function (el) {
+      el.setAttribute('aria-expanded', open.has(el.getAttribute('data-group')) ? 'true' : 'false');
     });
     var all = document.getElementById('expand-all');
     var total = document.querySelectorAll('.v2-gtoggle').length;
@@ -49,9 +48,9 @@
 
   apply();
 
-  // Живой поток заменяет полосу 1 целиком. Патч ставит атрибуты сервера обратно, а сервер рисует
-  // все группы свёрнутыми — значит, без этой строки каждая пришедшая посылка закрывала бы группы
-  // под руками у читателя. Событие приходит ПОСЛЕ фрагментов: его шлёт та же посылка, последним.
+  // Восстанавливать после посылки больше нечего: состояние лежит на <body>, снаружи заменяемой
+  // полосы, и показывает его CSS. Осталось одно — aria-expanded на кнопках, которые приехали
+  // новыми вместе с разметкой.
   document.addEventListener('csx-studio-live', function () { apply(); });
 })();
 
@@ -101,9 +100,7 @@
   }
 
   function show(key, quiet) {
-    document.querySelectorAll('.v2-nows, .v2-cuts').forEach(function (el) {
-      el.hidden = el.getAttribute('data-cut') !== key;
-    });
+    document.body.setAttribute('data-cut', key);
     picks.forEach(function (b) {
       b.setAttribute('aria-pressed', b.getAttribute('data-cut') === key ? 'true' : 'false');
     });
@@ -145,11 +142,11 @@
     b.addEventListener('click', function () { show(b.getAttribute('data-cut')); });
   });
 
-  // И по той же причине — выбранное измерение. Полоса 2 приходит с сервера на «цене»; читателя,
-  // смотрящего на открытый интерес, посылка вернула бы к книгам, и так каждые несколько секунд.
+  // Пересортировка после посылки: строки приехали в серверном порядке, а выбранный срез лежит
+  // на <body> и никуда не делся. Ни скрытий, ни resize — только порядок, и только если он
+  // действительно другой.
   document.addEventListener('csx-studio-live', function () {
-    var on = document.querySelector('.v2-cutpick[aria-pressed="true"]');
-    show(on ? on.getAttribute('data-cut') : 'price', true);
+    sort(document.body.getAttribute('data-cut') || 'price');
   });
 
   // Ссылки из полосы 5 («The cut → Funding») ведут не просто к якорю: они переключают срез,
@@ -350,9 +347,7 @@
     var band = group.closest('section') || document;
 
     function set(n, remember) {
-      band.querySelectorAll(target).forEach(function (grid) {
-        grid.setAttribute('data-cols', n);
-      });
+      document.body.setAttribute('data-cols-' + group.getAttribute('data-cols-key'), n);
       group.querySelectorAll('.v2-cols-btn').forEach(function (b) {
         b.setAttribute('aria-pressed', b.getAttribute('data-cols') === n ? 'true' : 'false');
       });

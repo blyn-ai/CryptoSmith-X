@@ -159,13 +159,20 @@
                         @* МАРКА — СЛОВО, а заливка только его фон: цвет на этой странице значит
                            вызов, написавший цифру (правило 5), поэтому зелёная плашка без слова
                            читается как «это OI-вызов», а не как «лучший». *@
+                        @* МАРКА И ЧИСЛО — ОДИН БЛОК: заливка идёт под обоими, слово стоит мелко у
+                           головы числа, а не отдельным чипом рядом. Чип на своей строке стоил бы
+                           зарезервированного слота в каждой клетке; так он не стоит ничего и
+                           говорит то же самое. Число сохраняет СВОЙ цвет — красить его в цвет
+                           марки значит красить измерение в цвет суждения о нём. *@
                         <span class="v2-fig @(head.Big.Any(x => x.Measured) ? "" : "v2-fig--none")">
                             @for (var i = 0; i < head.Big.Count; i++)
                             {
                                 var part = head.Big[i];
                                 if (i > 0) { <em>/</em> }
-                                if (part.Mark is { } m) { <b class="v2-mark v2-mark--@m.Class">@m.Word</b> }
-                                <span>@part.Text</span>
+                                <span class="v2-part @(part.Mark is { } m ? "v2-part--" + m.Class : "")">
+                                    @if (part.Mark is { } mk) { <i>@mk.Word</i> }
+                                    <span>@part.Text</span>
+                                </span>
                             }
                         </span>
                         @if (head.Small.Count > 0)
@@ -175,8 +182,10 @@
                                 {
                                     var part = head.Small[i];
                                     if (i > 0) { <em>/</em> }
-                                    if (part.Mark is { } m) { <b class="v2-mark v2-mark--@m.Class">@m.Word</b> }
-                                    <span>@part.Text</span>
+                                    <span class="v2-part @(part.Mark is { } m2 ? "v2-part--" + m2.Class : "")">
+                                        @if (part.Mark is { } mk2) { <i>@mk2.Word</i> }
+                                        <span>@part.Text</span>
+                                    </span>
                                 }
                             </span>
                         }
