@@ -9,6 +9,7 @@
     <div class="v2-band-head">
         <span class="csx-eyebrow v2-band-no">2 · <span id="cut-now-title">The books</span></span>
         <span class="csx-eyebrow v2-band-sub" id="cut-now-sub">@bookNote</span>
+        <span class="csx-eyebrow v2-band-unit" id="cut-now-unit">@cuts[0].Unit</span>
     </div>
 
     @foreach (var c in cuts)
@@ -123,7 +124,9 @@
                             {
                                 <span class="v2-now-bar"><i style="width:@Format.BarWidth(v, maxNow)"></i></span>
                             }
-                            <span class="v2-now-note">@(c.Key == "depth25" ? "base units · bid ◂ ▸ ask, one scale" : c.Unit)</span>
+                            @* Единица названа ОДИН раз, в шапке полосы: пять одинаковых «base
+                               units» под пятью барами — это пять раз одно и то же в колонке, по
+                               которой глаз идёт сравнивать числа. *@
                         </div>
                     }
                 }

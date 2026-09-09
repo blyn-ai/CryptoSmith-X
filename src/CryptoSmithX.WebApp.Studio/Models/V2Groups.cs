@@ -64,12 +64,15 @@ public static class V2Groups
             [new("Turnover Q", V2Field.Turnover24h)])
             { Cut = "turnover" },
 
-        new("stress", "Stress", "liquidations, last hour", null, CallTone.Ticker,
-            [new("Volume", V2Field.LiquidationVolume), new("Unit", V2Field.LiquidationUnit)])
+        // Единица переехала к числу (правило 9), а объём и был единственной цифрой: группа из
+        // одного поля, повторяющего заголовок, — это не группа.
+        new("stress", "Stress", "liquidations, last hour", null, CallTone.Ticker, [])
             { Cut = "liquidations" },
 
-        new("trust", "Trust", "age of the worst call on this row", null, CallTone.Ticker,
-            [new("Price", V2Field.AgePrice), new("Depth", V2Field.AgeDepth), new("OI", V2Field.AgeOpenInterest)]),
+        // ПОЛЕЙ НЕТ. Здесь лежали те же три возраста, что уже нарисованы полоской свежести в
+        // клетке листинга, — группа целиком дублировала соседнюю клетку. Осталось то, чего
+        // полоска сказать не может: насколько худший вызов прошёл СВОЁ окно, и какой он.
+        new("trust", "Trust", "the worst call against its own window", null, CallTone.Ticker, []),
     ];
 }
 

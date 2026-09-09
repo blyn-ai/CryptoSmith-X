@@ -20,15 +20,21 @@ public sealed class ColumnReadingTests
     [Fact]
     public void Every_ranked_column_is_reachable_from_a_figure_on_the_page()
     {
-        // Verdicts ranks ten columns. A column ranked and never rendered is arithmetic nobody sees,
-        // which is what BidSize/AskSize/Depth10/Depth50 and — until Bid and Ask became fields —
-        // both sides of the top of book were.
-        var shown = V2Groups.All
+        // Verdicts ranks twelve columns. A column ranked and never rendered is arithmetic nobody
+        // sees — which is what both book sizes, depth 10 and 50, and both sides of the top of book
+        // were until the marks moved into the collapsed row.
+        var row = Rows.At(Rows.Venue(1));
+
+        var fromFields = V2Groups.All
             .SelectMany(g => g.Fields)
-            .Select(f => V2Ranks.ColumnOf(f.Field))
-            .Where(c => c is not null)
-            .Select(c => c!.Value)
-            .ToHashSet();
+            .Select(f => V2Ranks.ColumnOf(f.Field));
+
+        var fromCells = V2Groups.All
+            .Select(g => V2Cells.Head(row, g, VerdictTable.Empty))
+            .SelectMany(h => h.Big.Concat(h.Small))
+            .Select(p => p.Column);
+
+        var shown = fromFields.Concat(fromCells).Where(c => c is not null).Select(c => c!.Value).ToHashSet();
 
         foreach (var column in Enum.GetValues<PairColumn>())
         {

@@ -27,7 +27,19 @@ public enum PairColumn
     OpenInterest,
     Depth10,
     Depth25,
-    Depth50
+    Depth50,
+
+    /// <summary>
+    /// The two halves of the 25 bps band, ranked apart from their sum.
+    ///
+    /// The sum answers "which book is deepest" and the halves answer "which way does it lean", and
+    /// they are different questions with different winners: a venue can hold the most bid depth on
+    /// the page inside the book with the smallest total. The asset page prints both — the sum large
+    /// and the halves under it — so both are comparisons a reader can see being made, and a figure
+    /// on screen that is part of a comparison has to say where it stands.
+    /// </summary>
+    Depth25Bid,
+    Depth25Ask
 }
 
 /// <summary>Which rows a column is allowed to be ranked against.</summary>
@@ -213,6 +225,13 @@ public static class Verdicts
             r => ShownDepth(r.DepthBid25, r.DepthAsk25)),
         new(PairColumn.Depth50, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Depth,
             r => ShownDepth(r.DepthBid50, r.DepthAsk50)),
+
+        // Each half on its own, rounded the same way the sum's halves are rounded, so a reader
+        // adding the two printed numbers gets the printed total and the three marks agree.
+        new(PairColumn.Depth25Bid, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Depth,
+            r => Shown(r.DepthBid25, 0)),
+        new(PairColumn.Depth25Ask, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Depth,
+            r => Shown(r.DepthAsk25, 0)),
 
         // Quote-free, so the whole page competes. Three decimals, which is what the cell prints.
         new(PairColumn.SpreadBps, VerdictScope.WholePair, HighIsBest: false, Call.Price,

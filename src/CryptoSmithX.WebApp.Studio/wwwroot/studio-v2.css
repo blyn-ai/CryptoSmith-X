@@ -233,8 +233,14 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* Метка, съехавшая за край шкалы, рисуется цветом карточки: она стоит на потраченном конце
    градиента, и чернильная там читалась бы как измерение, а не как край. */
 .v2-strip .a-strip-tick--spent{background:var(--surface-card)}
-.v2-strip-ends{display:flex;justify-content:space-between;gap:var(--space-3);
+/* Возраст в этой клетке сказан ДВАЖДЫ, а не трижды: полоска расставляет вызовы, строка под ней
+   называет все три. Концы полоски молчат — их называет title метки, — и открывают рот только
+   когда вызов просрочен: △ и слово видны всегда (правило 3, строка возраста не гаснет). */
+.v2-strip-ends{display:flex;justify-content:flex-end;gap:var(--space-3);
   font:400 8.5px/1.2 var(--font-mono);letter-spacing:var(--track-age);color:var(--text-faint)}
+.v2-strip-ends [data-fresh]{display:none}
+.v2-strip-ends [data-old] .a-lab,.v2-strip-ends [data-old] .a-tok{display:none}
+.v2-strip-ends [data-old].a-spent .a-lab,.v2-strip-ends [data-old].a-spent .a-tok{display:inline}
 .v2-strip-ends .a-tri{font-style:normal;display:inline-block;width:1ch}
 .v2-strip-ends .a-spent{color:var(--accent)}
 .v2-ages{display:flex;flex-wrap:nowrap;gap:var(--space-3);font:400 8.5px/1.3 var(--font-mono);
@@ -264,7 +270,9 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
   box-shadow:inset 1px 0 0 var(--border-hairline),inset -1px 0 0 var(--border-hairline)}
 
 /* ── Спарклайн в свёрнутой клетке ───────────────────────────────────────────── */
-.v2-spark{display:block;width:100%;height:22px;margin-top:2px;color:var(--spark-ticker)}
+/* Справка о направлении, а не второй главный объект: вдвое короче, прижат вправо под цифру,
+   цвет — полупрозрачные --spark-*, а не насыщенный вызов. */
+.v2-spark{display:block;width:60px;height:14px;margin:2px 0 0 auto;color:var(--spark-ticker)}
 .v2-spark[data-tone="openinterest"]{color:var(--spark-oi)}
 .v2-spark[data-tone="depth"]{color:var(--spark-depth)}
 /* Раскрытая группа отдаёт место полям: две картинки одного числа в одной клетке спорят. */
@@ -275,14 +283,31 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    элементов, к которой добавили третий, читается как три вещи; помеченная строка читается как
    та же строка. Ранг не гаснет с возрастом: он посчитан ПОПЕРЁК площадок, и его правда — про
    сравнение, а не про то, сколько секунд назад пришло это число. */
-.v2-field--best{background:var(--tag-best-bg);box-shadow:0 0 0 2px var(--tag-best-bg)}
-.v2-field--best em,.v2-field--best b{color:var(--tag-best-ink)}
-.v2-field--worst{background:var(--tag-worst-bg);box-shadow:0 0 0 2px var(--tag-worst-bg)}
-.v2-field--worst em,.v2-field--worst b{color:var(--tag-worst-ink)}
-.v2-field--tight{background:var(--tag-best-bg);box-shadow:0 0 0 2px var(--tag-best-bg)}
-.v2-field--tight em,.v2-field--tight b{color:var(--tag-best-ink)}
-.v2-field--wide{background:var(--tag-worst-bg);box-shadow:0 0 0 2px var(--tag-worst-bg)}
-.v2-field--wide em,.v2-field--wide b{color:var(--tag-worst-ink)}
+/* Заливка расширяется padding'ом с отрицательным margin, а не тенью: теней в системе нет вовсе,
+   а 0 0 0 2px и была тенью — просто без размытия. */
+.v2-field--best,.v2-field--tight,.v2-field--worst,.v2-field--wide{
+  padding:1px 3px;margin:-1px -3px}
+.v2-field--best,.v2-field--tight{background:var(--tag-best-bg)}
+.v2-field--best em,.v2-field--best b,.v2-field--tight em,.v2-field--tight b{color:var(--tag-best-ink)}
+.v2-field--worst,.v2-field--wide{background:var(--tag-worst-bg)}
+.v2-field--worst em,.v2-field--worst b,.v2-field--wide em,.v2-field--wide b{color:var(--tag-worst-ink)}
+
+/* Марка в СВЁРНУТОЙ строке: слово, а фон — его ground. Цвет на этой странице значит вызов
+   (правило 5), поэтому зелёная плашка без слова читается как «это OI-вызов», а не как «лучший». */
+/* --fs-eyebrow (9px) — тот же кегль, что у всех категориальных значений на странице.
+   В присланном куске стоял --fs-nano, которого в ds/tokens нет ни в одном файле. */
+.v2-mark{font:500 var(--fs-eyebrow)/1 var(--font-mono);letter-spacing:var(--track-label);
+  text-transform:uppercase;padding:1px 3px;margin-right:4px;white-space:nowrap}
+.v2-mark--best,.v2-mark--tight{background:var(--tag-best-bg);color:var(--tag-best-ink)}
+.v2-mark--worst,.v2-mark--wide{background:var(--tag-worst-bg);color:var(--tag-worst-ink)}
+.v2-fig em,.v2-figsub em{font-style:normal;color:var(--text-faint);margin:0 3px}
+
+/* Бар окна в клетке TRUST: доля СВОЕГО окна у худшего вызова — то, чего полоска в клетке
+   листинга сказать не может, потому что она про расстановку, а не про перебор. */
+.v2-window{display:block;width:100%;height:var(--bar-h);background:var(--tint-neutral)}
+.v2-window i{display:block;height:100%;background:var(--bar-ticker)}
+.v2-window--spent i{background:var(--accent)}
+.v2-gtoggle--flat{cursor:default}
 .v2-fig:hover,
 .v2-field:hover{background:var(--tint-brand,var(--surface-sunken));box-shadow:0 0 0 3px var(--tint-brand,var(--surface-sunken));
   transition:background-color 120ms linear}
@@ -318,8 +343,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 
 /* Живой поток: кнопка и слово о его состоянии стоят одной группой, потому что читаются вместе —
    «включено» без «и вот что сейчас происходит» на этой странице ничего не значит. */
-.a-liverow{display:inline-flex;align-items:center;gap:var(--space-4);flex-wrap:wrap}
-.v2-livenote{font:400 var(--fs-caption)/1.4 var(--font-body);color:var(--text-muted);max-width:52ch}
+/* Кнопка в ряду, а фраза о состоянии — ПОД рядом: она длиной в предложение и, стоя в ряду,
+   переносилась на вторую строку и распирала его на каждой смене состояния. */
+.a-liverow{display:contents}
+.v2-livenote{flex-basis:100%;font:400 var(--fs-caption)/1.4 var(--font-body);
+  color:var(--text-muted);max-width:var(--measure-note)}
 
 .v2-switch{display:inline-flex;align-items:center;gap:8px;height:var(--control-h);padding:0 12px 0 6px;border:1px solid var(--border-input);background:transparent;cursor:pointer}
 .v2-switch[hidden]{display:none}
@@ -555,3 +583,19 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
   .v2-gap-why,.v2-reach-what{grid-column:1/-1}
   .v2-reach-where{text-align:left}
 }
+
+
+/* ── Фильтр ленты по площадке ────────────────────────────────────────────────
+   Без него лента бесполезна ровно тогда, когда интересна: одна громкая площадка занимает все
+   восемнадцать строк, и остальных четырёх в ленте нет вовсе. */
+.v2-tape-filter{display:flex;flex-wrap:wrap;gap:var(--space-3);padding:0 var(--space-7) var(--space-3)}
+.v2-chip{padding:2px 7px;background:transparent;border:1px solid var(--border-input);cursor:pointer;
+  font:500 var(--fs-micro)/1.4 var(--font-mono);letter-spacing:var(--track-label);
+  text-transform:uppercase;color:var(--text-muted)}
+.v2-chip em{font-style:normal;color:var(--text-faint);margin-left:4px;text-transform:none}
+.v2-chip[aria-pressed="true"]{background:var(--text-data);border-color:var(--text-data);color:var(--surface-page)}
+.v2-chip[aria-pressed="true"] em{color:var(--surface-page)}
+.v2-tape-row[hidden]{display:none}
+
+/* Единица среза — один раз, в шапке полосы 2. */
+.v2-band-unit{color:var(--text-faint)}

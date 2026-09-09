@@ -25,7 +25,16 @@
                    группу на месте, каретка уводит полосы 2 и 3 на это поле. *@
                 <span class="v2-hcell" data-group="@g.Key" data-tone="@g.Tone.ToString().ToLowerInvariant()">
                     <span class="v2-hrow">
-                        <button type="button" class="v2-gtoggle" data-group="@g.Key" aria-expanded="false">@g.Name</button>
+                        @if (g.Fields.Count > 0)
+                        {
+                            <button type="button" class="v2-gtoggle" data-group="@g.Key" aria-expanded="false">@g.Name</button>
+                        }
+                        else
+                        {
+                            @* Раскрывать нечего — и кнопка, которая ничего не открывает, хуже
+                               отсутствующей. *@
+                            <span class="v2-gtoggle v2-gtoggle--flat">@g.Name</span>
+                        }
                         @if (g.Cut is not null)
                         {
                             <button type="button" class="v2-caret" data-goto-cut="@g.Cut"
@@ -71,12 +80,15 @@
                         }
                     </span>
 
-                    @* Концы НАЗЫВАЮТ вызов, стоящий на каждом конце рампы, — выбранный по его
-                       доле своего окна, той же арифметикой, что расставила метки. Слот под △
-                       занят всегда и пуст, пока сказать нечего: иначе знак въезжал бы в строку
-                       и толкал слова влево на своём кегле. *@
+                    @* Концы полоски словами НЕ подписываются: их называет title метки, а строка
+                       под полоской называет все три вызова разом — три уровня про одно и то же
+                       читались как недоделка. Слот остаётся ради одного случая: просроченный
+                       вызов, у которого △ и слово видны всегда (правило 3 — строка возраста не
+                       гаснет никогда). *@
+                    @* Разметка концов остаётся ПОЛНОЙ — её каждый тик переписывает studio-ages.js,
+                       и урезанная тут же собралась бы обратно. Прячет их стиль, а не разметка. *@
                     <span class="v2-strip-ends a-strip-ends">
-                        <span data-fresh title="@StripModel.EndTitle(strip.LeastSpent, StripModel.LeastSpentLabel)"><span class="a-lab">@(strip.Degraded ? "" : StripModel.EndLabel(strip.LeastSpent))</span> <span class="a-tok">@(strip.Degraded ? "" : StripModel.EndToken(strip.LeastSpent))</span></span>
+                        <span data-fresh><span class="a-lab">@(strip.Degraded ? "" : StripModel.EndLabel(strip.LeastSpent))</span> <span class="a-tok">@(strip.Degraded ? "" : StripModel.EndToken(strip.LeastSpent))</span></span>
                         <span data-old class="@(strip.MostSpentPastWindow ? "a-spent" : "")"
                               title="@StripModel.EndTitle(strip.MostSpent, StripModel.MostSpentLabel)"><i class="a-tri">@(strip.MostSpentPastWindow ? Format.PastWindowMark : "")</i><span class="a-lab">@(strip.Degraded ? StripModel.DegradedText : StripModel.EndLabel(strip.MostSpent))</span> <span class="a-tok">@(strip.Degraded ? "" : StripModel.EndToken(strip.MostSpent))</span></span>
                     </span>
@@ -96,17 +108,61 @@
                 @foreach (var g in groups)
                 {
                     Model.Stress.TryGetValue(r.Row.InstrumentId, out var stress);
-                    var head = g.Headline is { } col ? V2Cells.Headline(r, col) : V2Cells.Headline(r, g, stress);
+                    Model.Books.TryGetValue(r.Row.InstrumentId, out var book);
+
                     <span class="v2-cell" data-group="@g.Key" data-label="@g.Name" data-unit="@g.Unit">
-                        <span class="v2-fig @(head.Value is null ? "v2-fig--none" : "")">@head.Text</span>
-                        @if (head.Sub is not null)
+                    @if (g.Key == "trust")
+                    {
+                        @* Полоска в клетке листинга говорит, ГДЕ стоит каждый вызов. Здесь — то,
+                           чего она сказать не может: насколько худший из них прошёл своё окно, и
+                           какой именно он. Отношение не зажимается по единице: три окна и
+                           двенадцать окон назад должны читаться по-разному. *@
+                        <span class="v2-fig @(strip.MostSpent is null ? "v2-fig--none" : "")">
+                            @(strip.MostSpent is null ? "—" : Format.ShortAge(strip.MostSpent.AgeSeconds))
+                        </span>
+                        <span class="v2-figsub">
+                            @(strip.MostSpent?.Label ?? "no cadence stated") ·
+                            @strip.Calls.Count(c => c.AgeSeconds is not null) calls
+                        </span>
+                        @if (strip.MostSpent?.Spent is { } spent)
                         {
-                            <span class="v2-figsub">@head.Sub</span>
+                            <span class="v2-window @(strip.MostSpentPastWindow ? "v2-window--spent" : "")"
+                                  title="@StripModel.EndTitle(strip.MostSpent, StripModel.MostSpentLabel)">
+                                <i style="width:@StripModel.Pct(Math.Min(1, spent))"></i>
+                            </span>
                         }
-                        @if (g.Headline is { } bc && head.Value is not null)
+                    }
+                    else
+                    {
+                        var head = V2Cells.Head(r, g, Model.Verdicts, stress);
+                        @* МАРКА — СЛОВО, а заливка только его фон: цвет на этой странице значит
+                           вызов, написавший цифру (правило 5), поэтому зелёная плашка без слова
+                           читается как «это OI-вызов», а не как «лучший». *@
+                        <span class="v2-fig @(head.Big.Any(x => x.Measured) ? "" : "v2-fig--none")">
+                            @for (var i = 0; i < head.Big.Count; i++)
+                            {
+                                var part = head.Big[i];
+                                if (i > 0) { <em>/</em> }
+                                if (part.Mark is { } m) { <b class="v2-mark v2-mark--@m.Class">@m.Word</b> }
+                                <span>@part.Text</span>
+                            }
+                        </span>
+                        @if (head.Small.Count > 0)
+                        {
+                            <span class="v2-figsub">
+                                @for (var i = 0; i < head.Small.Count; i++)
+                                {
+                                    var part = head.Small[i];
+                                    if (i > 0) { <em>/</em> }
+                                    if (part.Mark is { } m) { <b class="v2-mark v2-mark--@m.Class">@m.Word</b> }
+                                    <span>@part.Text</span>
+                                }
+                            </span>
+                        }
+                        @if (head.BarColumn is { } bc && head.Bar is not null)
                         {
                             <span class="v2-bar" data-tone="@g.Tone.ToString().ToLowerInvariant()">
-                                <i style="width:@Format.BarWidth(head.Value, Model.Scales.Of(r.Row.InstrumentId, bc))"></i>
+                                <i style="width:@Format.BarWidth(head.Bar, Model.Scales.Of(r.Row.InstrumentId, bc))"></i>
                             </span>
                         }
 
@@ -119,11 +175,13 @@
                            У двух групп из семи истории нет вовсе — оборот за скользящие сутки это
                            одно число, а возраст меряется от «сейчас», — и там остаётся лог-бар
                            (правило 11). Пустой рамки вместо линии не рисуем. *@
-                        @{ var spark = Format.SparkPath(V2Groups.Spark(r, g), 120, 22); }
+                        var spark = Format.SparkPath(V2Groups.Spark(r, g), 60, 14);
                         @if (spark is not null)
                         {
+                            @* Вдвое короче и прижат вправо под цифру: линия здесь — справка о
+                               направлении, а не второй главный объект в клетке. *@
                             <svg class="v2-spark" data-tone="@g.Tone.ToString().ToLowerInvariant()"
-                                 viewBox="0 0 120 22" preserveAspectRatio="none" aria-hidden="true">
+                                 viewBox="0 0 60 14" preserveAspectRatio="none" aria-hidden="true">
                                 <path d="@spark" fill="none" stroke="currentColor" stroke-width="1"
                                       vector-effect="non-scaling-stroke" />
                             </svg>
@@ -132,7 +190,7 @@
                         <span class="v2-fields" hidden>
                             @foreach (var f in g.Fields)
                             {
-                                var cell = V2Cells.Field(r, f.Field, stress);
+                                var cell = V2Cells.Field(r, f.Field, stress, book);
 
                                 @* РАНГ НА КАЖДОЙ ЦИФРЕ, а не на группе. Verdicts считает его давно
                                    и по каждой колонке отдельно; до сих пор на второй странице он
@@ -151,6 +209,7 @@
                                 </span>
                             }
                         </span>
+                    }
                     </span>
                 }
             </div>
@@ -158,8 +217,10 @@
     </div>
 
     <p class="v2-legend">
-        A bar is the figure against the largest listing in the same unit, log-scaled — it replaces the
-        BEST chip, which could not tell a book a hundred times larger from one a hair larger.
+        A bar is scale — the figure against the largest listing in the same unit, log-scaled. A mark
+        is rank — who holds this figure among the listings it can be compared against. Both ends or
+        neither. The two answer different questions and the legend used to say one replaced the
+        other: the bar says how much, the mark says who.
         <b>—</b> is not measured and never a zero. Ages live in the listing cell, one clock per call,
         because a figure’s age is a fact about the call that wrote it and not about the cell.
     </p>

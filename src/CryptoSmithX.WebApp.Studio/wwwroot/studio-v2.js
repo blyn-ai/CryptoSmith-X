@@ -88,6 +88,8 @@
       if (title) { title.textContent = pick.getAttribute('data-title'); }
       if (note) { note.textContent = pick.getAttribute('data-note'); }
       if (series) { series.textContent = pick.getAttribute('data-series'); }
+      var unit = document.getElementById('cut-now-unit');
+      if (unit) { unit.textContent = pick.getAttribute('data-unit'); }
     }
 
     // Свечи меряют себя при вставке; если их полоса была скрыта в этот момент, ширина вышла
@@ -150,15 +152,17 @@
     rows.forEach(function (t) {
       var row = document.createElement('div');
       row.className = 'v2-tape-row' + (t.loud ? ' v2-tape-row--loud' : '');
+      row.setAttribute('data-venue', t.listing);
       row.appendChild(cell(null, t.at));
       row.appendChild(cell(null, t.venue));
       row.appendChild(cell('v2-side v2-side--' + t.side, t.side));
       row.appendChild(cell('v2-r', t.price));
       row.appendChild(cell('v2-r', t.qty));
-      row.appendChild(cell('v2-kind', t.kind));
+      row.appendChild(cell('v2-kind', t.loud ? t.kind : ''));
       frag.appendChild(row);
     });
     body.replaceChildren(frag);
+    document.dispatchEvent(new CustomEvent('csx-tape-drawn'));
   }
 
   function poll() {
@@ -255,4 +259,37 @@
   });
 
   set(false);
+})();
+
+/* Фильтр ленты по площадке.
+
+   Делегированно и по data-venue, потому что тело ленты переписывает опрос FOLLOW: обработчики,
+   повешенные на строки, ушли бы с первой же заменой, а выбранный чип остался бы нажатым — то
+   есть страница показывала бы фильтр, которого больше нет. */
+(function () {
+  var bar = document.querySelector('.v2-tape-filter');
+  var body = document.getElementById('tape-body');
+  if (!bar || !body) { return; }
+
+  var chosen = '';
+
+  function apply() {
+    body.querySelectorAll('.v2-tape-row').forEach(function (row) {
+      row.hidden = chosen !== '' && row.getAttribute('data-venue') !== chosen;
+    });
+    bar.querySelectorAll('.v2-chip').forEach(function (c) {
+      c.setAttribute('aria-pressed', c.getAttribute('data-tape-venue') === chosen ? 'true' : 'false');
+    });
+  }
+
+  bar.addEventListener('click', function (e) {
+    var chip = e.target.closest ? e.target.closest('.v2-chip') : null;
+    if (!chip) { return; }
+    chosen = chip.getAttribute('data-tape-venue') || '';
+    apply();
+  });
+
+  // Лента пришла заново — фильтр применяется к новым строкам, а не остаётся нажатым над
+  // неотфильтрованным списком.
+  document.addEventListener('csx-tape-drawn', apply);
 })();
