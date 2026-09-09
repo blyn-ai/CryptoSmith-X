@@ -72,6 +72,19 @@
     document.querySelectorAll('.v2-caret[data-goto-cut]').forEach(function (c) {
       c.setAttribute('aria-pressed', c.getAttribute('data-goto-cut') === key ? 'true' : 'false');
     });
+    // Заголовок и подписи обеих полос называют ВЫБРАННОЕ поле. Без этого селектор менял
+    // содержимое, а шапка над ним продолжала описывать книги — то есть подпись противоречила
+    // тому, что под ней нарисовано.
+    var pick = document.querySelector('.v2-cutpick[data-cut="' + key + '"]');
+    if (pick) {
+      var title = document.getElementById('cut-now-title');
+      var note = document.getElementById('cut-now-sub');
+      var series = document.getElementById('cut-time-sub');
+      if (title) { title.textContent = pick.getAttribute('data-title'); }
+      if (note) { note.textContent = pick.getAttribute('data-note'); }
+      if (series) { series.textContent = pick.getAttribute('data-series'); }
+    }
+
     // Свечи меряют себя при вставке; если их полоса была скрыта в этот момент, ширина вышла
     // нулевой и график остался невидим. Библиотека сама этого не замечает — просим пересчитать.
     window.dispatchEvent(new Event('resize'));
