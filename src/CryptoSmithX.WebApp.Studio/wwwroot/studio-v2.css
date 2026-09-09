@@ -604,7 +604,13 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
   font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase}
 .v2-ink:hover{color:var(--accent,var(--brand-text));border-color:var(--border-strong)}
 
+/* Живой поток: кнопка и слово о его состоянии стоят одной группой, потому что читаются вместе —
+   «включено» без «и вот что сейчас происходит» на этой странице ничего не значит. */
+.a-liverow{display:inline-flex;align-items:center;gap:var(--space-4);flex-wrap:wrap}
+.v2-livenote{font:400 var(--fs-caption)/1.4 var(--font-body);color:var(--text-muted);max-width:52ch}
+
 .v2-switch{display:inline-flex;align-items:center;gap:8px;height:var(--control-h);padding:0 12px 0 6px;border:1px solid var(--border-input);background:transparent;cursor:pointer}
+.v2-switch[hidden]{display:none}
 .v2-switch i{display:block;width:26px;height:14px;background:var(--surface-sunken);border:1px solid var(--border-input);position:relative;flex:none}
 .v2-switch i::after{content:"";position:absolute;top:1px;left:1px;width:10px;height:10px;background:var(--text-faint);transition:left 120ms linear,background-color 120ms linear}
 .v2-switch em{font-style:normal;font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-heading)}

@@ -1,7 +1,9 @@
 using CryptoSmithX.WebApp.Studio.Data;
+using CryptoSmithX.WebApp.Studio.Live;
 using CryptoSmithX.WebApp.Studio.Models;
 using CryptoSmithX.Database;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewEngines;
 
 namespace CryptoSmithX.WebApp.Studio.Controllers;
 
@@ -19,18 +21,47 @@ namespace CryptoSmithX.WebApp.Studio.Controllers;
 /// which on a site whose subject is "what did each venue say" is the one contradiction that cannot
 /// be explained away.
 /// </summary>
-public sealed class PairsV2Controller : Controller
+public sealed class PairsV2Controller : LivePageController
 {
     private readonly Db _db;
     private readonly StudioCache _cache;
     private readonly TimeProvider _clock;
 
-    public PairsV2Controller(Db db, StudioCache cache, TimeProvider clock)
+    public PairsV2Controller(
+        Db db,
+        StudioCache cache,
+        TimeProvider clock,
+        LiveNotifier notifier,
+        LiveStreamGate streams,
+        ICompositeViewEngine viewEngine,
+        ILogger<PairsV2Controller> logger)
+        : base(notifier, streams, viewEngine, logger)
     {
         _db = db;
         _cache = cache;
         _clock = clock;
     }
+
+    /// <summary>
+    /// What a pass can change on this page, and what it deliberately cannot.
+    ///
+    /// Two regions: the table and the "now" band. Both are figures, both are re-rendered from the
+    /// same partials the first paint used.
+    ///
+    /// THE OTHER THREE BANDS ARE ABSENT ON PURPOSE. Band 3 is candles and hourly lines — the chart
+    /// library owns those panels, and pulling them out from under a reader who is panning one, every
+    /// few seconds, for bars that cannot have changed, is the page moving for its own sake. Band 4
+    /// follows the venues on its own switch and at its own rate. Band 5 is coverage and breaks,
+    /// which move on the hour, not on a pass.
+    /// </summary>
+    protected override (string Region, string View)[] LiveRegions { get; } =
+    [
+        ("table", "_V2Table"),
+        ("now", "_V2Now"),
+    ];
+
+    protected override Task<PairPageModel?> LoadPageAsync(string baseFamily, CancellationToken ct) =>
+        PairPageLoader.LoadAsync(_db, _cache, _clock, baseFamily, ct);
 
     [HttpGet]
     public async Task<IActionResult> Asset(string baseFamily, CancellationToken ct)

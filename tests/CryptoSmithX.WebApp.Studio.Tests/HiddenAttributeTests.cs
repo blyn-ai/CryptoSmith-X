@@ -21,13 +21,18 @@ namespace CryptoSmithX.WebApp.Studio.Tests;
 /// </summary>
 public sealed class HiddenAttributeTests
 {
+    private static readonly string[] Views = ["AssetV2.cshtml", "_V2Table.cshtml", "_V2Now.cshtml"];
+
     private static string Read(string name) =>
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "surface", name));
 
     [Fact]
     public void Every_class_the_view_hides_with_the_attribute_has_a_sheet_rule_to_match()
     {
-        var view = Read("AssetV2.cshtml");
+        // The page AND the partials it is assembled from — band 2's hidden variants live in one
+        // of those, and a test that read only the page would have stopped seeing them the day the
+        // partial was extracted, silently.
+        var view = string.Concat(Views.Select(Read));
         var css = Read("studio-v2.css");
 
         // Elements carrying `hidden` — literal, or a Razor conditional that may emit it.

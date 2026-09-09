@@ -230,6 +230,12 @@ app.MapControllerRoute(
     @"v2/{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}/tape",
     new { controller = "PairsV2", action = "Tape" });
 
+// И живой поток этой страницы: /studio/v2/PEPE/live. Тот же класс адреса, что и лента.
+app.MapControllerRoute(
+    "asset-v2-live",
+    @"v2/{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}/live",
+    new { controller = "PairsV2", action = "Live" });
+
 // The live stream for one asset: /studio/live/PEPE. ABOVE the two-segment route below, and that
 // is load-bearing rather than tidy. "live/PEPE" is two segments, so the pair route reads it as the
 // pair "live / PEPE" and answers 302 to /studio/live — which is exactly what shipped in 886859a:

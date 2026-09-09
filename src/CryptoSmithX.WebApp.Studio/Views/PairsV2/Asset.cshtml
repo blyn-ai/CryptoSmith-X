@@ -54,7 +54,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=9">
+    <link rel="stylesheet" href="~/studio-v2.css?v=11">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не в studio-v2.js внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -100,11 +100,21 @@
        пар и страница актива светили бы по-разному в одном сеансе. *@
     <button type="button" id="ink" class="v2-ink">Ink</button>
 
-    @* Тумблеры, а не кнопки: у обоих есть состояние, и состояние должно быть видно, а не только
-       подписано. LIVE стоит выключенным и назван неподключённым — переключатель, который молча
-       ничего не делает, хуже отсутствующего. *@
-    <span class="v2-switch v2-switch--dead" title="Not wired on this page yet — the first design has it">
-        <i></i><em>Live</em>
+    @* LIVE, и теперь за ним поток. Хуки — те же, что у первой страницы (.a-liverow, #a-live,
+       .a-switch-label, #a-live-note): у этих двух страниц ОДИН клиент живого потока, потому что
+       вся тонкая часть у него не в разметке, а в поведении при обрыве — пять попыток, слово
+       вместо тишины, отказ по заполненности. Второй экземпляр этого поведения был бы вторым
+       местом, где рвущийся поток однажды промолчит.
+
+       Кнопка приходит скрытой и показывается скриптом: без EventSource страница остаётся
+       статической — полной и верной, — а видимый неработающий тумблер был бы обещанием. *@
+    <span class="a-liverow" data-live-url="@Url.Action("Live", "PairsV2", new { baseFamily = Model.BaseFamily })">
+        <button type="button" id="a-live" class="v2-switch" role="switch" aria-checked="false" hidden>
+            <i></i><em class="a-switch-label">Live</em>
+        </button>
+        @* Слово о состоянии потока стоит ВНУТРИ .a-liverow, потому что клиент ищет его там же,
+           где кнопку: разнести их — и обрыв будет сообщён в никуда. *@
+        <span id="a-live-note" class="v2-livenote"></span>
     </span>
     <button type="button" id="expand-all" class="v2-switch" aria-pressed="false">
         <i></i><em>Expand all · @figures figures</em>
@@ -115,94 +125,7 @@
     </span>
 </div>
 
-@* ── полоса 1: таблица ─────────────────────────────────────────────────────── *@
-<section class="v2-band" id="band-table">
-    <div class="v2-band-head">
-        <span class="csx-eyebrow v2-band-no">1 · Every figure</span>
-        <span class="csx-eyebrow v2-band-sub">Seven questions, not seven calls · a group opens in place ·
-            sizes and open interest in base units through the venue’s own multiplier</span>
-    </div>
-
-    <div class="v2-grid" style="--cols:@(groups.Count)">
-        <div class="v2-hrow">
-            <span class="v2-hcell v2-hcell--listing">Listing</span>
-            @foreach (var g in groups)
-            {
-                @* ДВА действия — две кнопки. У дизайнера каретка меняет срез, а раскрытие одно
-                   на всю таблицу; здесь раскрытие ещё и по группам, и вешать оба смысла на
-                   один клик значило бы, что предсказать, что случится, нельзя. Имя раскрывает
-                   группу на месте, каретка уводит полосы 2 и 3 на это поле. *@
-                <span class="v2-hcell" data-tone="@g.Tone.ToString().ToLowerInvariant()">
-                    <span class="v2-hrow">
-                        <button type="button" class="v2-gtoggle" data-group="@g.Key" aria-expanded="false">@g.Name</button>
-                        @if (g.Cut is not null)
-                        {
-                            <button type="button" class="v2-caret" data-goto-cut="@g.Cut"
-                                    aria-pressed="@(g.Cut == "price" ? "true" : "false")"
-                                    title="Show this field now and over time, across every listing">↓</button>
-                        }
-                    </span>
-                    <span class="v2-hunit">@g.Unit</span>
-                </span>
-            }
-        </div>
-
-        @foreach (var r in Model.Rows)
-        {
-            <div class="v2-row">
-                <span class="v2-listing">
-                    <span class="v2-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em></span>
-                    <span class="v2-symbol">
-                        @r.Row.Symbol
-                        <em>@(r.Row.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(r.Row.ContractMultiplier, 0))</em>
-                    </span>
-                    @* Ages live here, one clock per call — a figure's age is a fact about the call
-                       that wrote it, not about the cell it landed in. *@
-                    <span class="v2-ages">
-                        Price @Format.ShortAge(r.Ages.PriceSeconds)
-                        @if (r.Ages.DepthSeconds is not null) { <text>· Depth @Format.ShortAge(r.Ages.DepthSeconds)</text> }
-                        @if (r.Ages.OpenInterestSeconds is not null) { <text>· OI @Format.ShortAge(r.Ages.OpenInterestSeconds)</text> }
-                    </span>
-                </span>
-
-                @foreach (var g in groups)
-                {
-                    Model.Stress.TryGetValue(r.Row.InstrumentId, out var stress);
-                    var head = g.Headline is { } col ? V2Cells.Headline(r, col) : V2Cells.Headline(r, g, stress);
-                    <span class="v2-cell" data-group="@g.Key">
-                        <span class="v2-fig @(head.Value is null ? "v2-fig--none" : "")">@head.Text</span>
-                        @if (head.Sub is not null)
-                        {
-                            <span class="v2-figsub">@head.Sub</span>
-                        }
-                        @if (g.Headline is { } bc && head.Value is not null)
-                        {
-                            <span class="v2-bar" data-tone="@g.Tone.ToString().ToLowerInvariant()">
-                                <i style="width:@Format.BarWidth(head.Value, Model.Scales.Of(r.Row.InstrumentId, bc))"></i>
-                            </span>
-                        }
-                        <span class="v2-fields" hidden>
-                            @foreach (var f in g.Fields)
-                            {
-                                var cell = V2Cells.Field(r, f.Field, stress);
-                                <span class="v2-field">
-                                    <em>@f.Label</em><b class="@(cell.Value is null ? "v2-fig--none" : "")">@cell.Text</b>
-                                </span>
-                            }
-                        </span>
-                    </span>
-                }
-            </div>
-        }
-    </div>
-
-    <p class="v2-legend">
-        A bar is the figure against the largest listing in the same unit, log-scaled — it replaces the
-        BEST chip, which could not tell a book a hundred times larger from one a hair larger.
-        <b>—</b> is not measured and never a zero. Ages live in the listing cell, one clock per call,
-        because a figure’s age is a fact about the call that wrote it and not about the cell.
-    </p>
-</section>
+<partial name="_V2Table" model="Model" />
 
 @* ── выбор измерения: одно на обе полосы ─────────────────────────────────────
    Полосы 2 и 3 отвечают на ОДИН выбор: как площадки стоят сейчас и как они к этому пришли.
@@ -213,16 +136,7 @@
     <span class="csx-eyebrow v2-cutbar-label">One field, two views</span>
     <span class="csx-eyebrow v2-cutbar-sub">Bands 2 and 3 answer the same choice: how it stands now, and how it got there</span>
     <span class="v2-cutpicks">
-        @{
-            // Подпись полосы 2 у книг СЧИТАЕТСЯ, как и всё остальное на этой странице: столько
-            // уровней и столько чисел лежит в последнем кадре по этому активу прямо сейчас.
-            var bookLevelsMax = Model.Books.Values.Select(b => (int)b.Levels).DefaultIfEmpty(0).Max();
-            var bookFigures = Model.Books.Values.Sum(b => (b.BidPx.Length + b.AskPx.Length) * 2);
-            var bookNote = Model.Books.Count == 0
-                ? "no venue here has a level book in the last ten minutes"
-                : $"{bookFigures} figures · {bookLevelsMax} levels a side · read as shape: where the wall is, "
-                  + "where the hole is, whether the book leans";
-        }
+        @{ var bookNote = V2Notes.Book(Model); }
         @foreach (var c in cuts)
         {
             @* Заголовок и подпись полосы 2 меняются вместе со срезом, поэтому строки едут с
@@ -237,89 +151,7 @@
     </span>
 </div>
 
-@* ── полоса 2: сейчас, по площадкам ──────────────────────────────────────────── *@
-<section class="v2-band" id="band-now">
-    <div class="v2-band-head">
-        <span class="csx-eyebrow v2-band-no">2 · <span id="cut-now-title">The books</span></span>
-        <span class="csx-eyebrow v2-band-sub" id="cut-now-sub">@bookNote</span>
-    </div>
-
-    @foreach (var c in cuts)
-    {
-        var maxNow = Model.Rows.Select(r => V2Cuts.Now(r, c)).Where(v => v is not null).DefaultIfEmpty(null).Max();
-        <div class="v2-nows @(c.Key == "price" ? "v2-nows--books" : "")" data-cut="@c.Key" hidden="@(c.Key == "price" ? null : "hidden")">
-            @if (c.Key == "price")
-            {
-                @* Цена «сейчас» — это стакан, а не одно число: книга читается формой, где стена,
-                   где дыра, симметрична ли она. Двадцать пять уровней цифрами не читает никто. *@
-                foreach (var r in Model.Rows)
-                {
-                    <div class="v2-book">
-                        <span class="v2-book-plat">@r.Row.ExchangeName <b>@r.Row.Symbol</b>
-                            <em>@(r.Row.SpreadBps is { } sp ? Format.Num(sp, 1) + " bps" : "—")</em></span>
-                        @if (!Model.Books.TryGetValue(r.Row.InstrumentId, out var bk) || bk.BidPx.Length == 0)
-                        {
-                            <p class="v2-empty v2-empty--inline">No level book from this venue. Not a thin book — an unmeasured one.</p>
-                        }
-                        else
-                        {
-                            var top = Math.Max(bk.BidQty.DefaultIfEmpty(0).Max(), bk.AskQty.DefaultIfEmpty(0).Max());
-                            <span class="v2-ladder">
-                                @for (var i = Math.Min(bk.BidPx.Length, bk.Levels) - 1; i >= 0; i--)
-                                {
-                                    <i class="v2-lvl v2-lvl--bid" style="width:@Format.BarWidth(bk.BidQty[i], top)"></i>
-                                }
-                                @for (var i = 0; i < Math.Min(bk.AskPx.Length, bk.Levels); i++)
-                                {
-                                    <i class="v2-lvl v2-lvl--ask" style="width:@Format.BarWidth(bk.AskQty[i], top)"></i>
-                                }
-                            </span>
-                            <span class="v2-book-note">
-                                @(r.Row.BookReachBid is null && r.Row.BookReachAsk is null
-                                    ? "reach not measured"
-                                    : "seen to ±" + Format.Num(Math.Max(r.Row.BookReachBid ?? 0, r.Row.BookReachAsk ?? 0), 0) + " bps")
-                                · @bk.BidPx.Length / @bk.AskPx.Length levels a side
-                            </span>
-                        }
-                    </div>
-                }
-            }
-            else
-            {
-                if (maxNow is null)
-                {
-                    @* Причина у пустой полосы РАЗНАЯ, и одна фраза на обе врала бы про вторую:
-                       фандинг не ранжируется в принципе — он назван в интервале каждой площадки;
-                       у остальных срезов колонка есть, просто по этому активу в ней ничего нет. *@
-                    if (c.Source == V2CutSource.Funding)
-                    {
-                        <p class="v2-empty">
-                            @c.Name does not rank in one column across venues — it is stated per venue interval,
-                            and the table normalises it in the cost-of-carry group.
-                        </p>
-                    }
-                    else
-                    {
-                        <p class="v2-empty">No venue here has a figure for @c.Name.</p>
-                    }
-                }
-                else
-                {
-                    foreach (var r in Model.Rows.OrderByDescending(r => V2Cuts.Now(r, c) ?? double.MinValue))
-                    {
-                        var v = V2Cuts.Now(r, c);
-                        <div class="v2-now">
-                            <span class="v2-now-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em> <b>@r.Row.Symbol</b></span>
-                            <span class="v2-now-val @(v is null ? "v2-fig--none" : "")">@(v is null ? "—" : Format.Num(v, c.Decimals))</span>
-                            <span class="v2-now-bar"><i style="width:@Format.BarWidth(v, maxNow)"></i></span>
-                            <span class="v2-now-note">@c.Unit</span>
-                        </div>
-                    }
-                }
-            }
-        </div>
-    }
-</section>
+<partial name="_V2Now" model="Model" />
 
 @* ── полоса 3: во времени, по площадкам ──────────────────────────────────────── *@
 <section class="v2-band">
@@ -621,6 +453,7 @@
     <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
     <script src="~/studio-candles.js?v=5"></script>
 }
-<script src="~/studio-v2.js?v=6"></script>
+<script src="~/studio-live.js?v=2"></script>
+<script src="~/studio-v2.js?v=7"></script>
 </body>
 </html>

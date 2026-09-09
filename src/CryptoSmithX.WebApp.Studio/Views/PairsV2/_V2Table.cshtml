@@ -1,0 +1,96 @@
+@using CryptoSmithX.WebApp.Studio.Data
+@model PairPageModel
+@{
+    // Партиал, а не кусок страницы, потому что ЭТО и есть то, что пересылает живой поток: одна
+    // разметка на первую отрисовку и на каждое обновление. Второй экземпляр той же таблицы —
+    // ровно тот способ, которым страница начинает расходиться сама с собой через месяц.
+    var groups = V2Groups.All;
+}
+@* ── полоса 1: таблица ─────────────────────────────────────────────────────── *@
+<section class="v2-band" id="band-table" data-live-region="table">
+    <div class="v2-band-head">
+        <span class="csx-eyebrow v2-band-no">1 · Every figure</span>
+        <span class="csx-eyebrow v2-band-sub">Seven questions, not seven calls · a group opens in place ·
+            sizes and open interest in base units through the venue’s own multiplier</span>
+    </div>
+
+    <div class="v2-grid" style="--cols:@(groups.Count)">
+        <div class="v2-hrow">
+            <span class="v2-hcell v2-hcell--listing">Listing</span>
+            @foreach (var g in groups)
+            {
+                @* ДВА действия — две кнопки. У дизайнера каретка меняет срез, а раскрытие одно
+                   на всю таблицу; здесь раскрытие ещё и по группам, и вешать оба смысла на
+                   один клик значило бы, что предсказать, что случится, нельзя. Имя раскрывает
+                   группу на месте, каретка уводит полосы 2 и 3 на это поле. *@
+                <span class="v2-hcell" data-tone="@g.Tone.ToString().ToLowerInvariant()">
+                    <span class="v2-hrow">
+                        <button type="button" class="v2-gtoggle" data-group="@g.Key" aria-expanded="false">@g.Name</button>
+                        @if (g.Cut is not null)
+                        {
+                            <button type="button" class="v2-caret" data-goto-cut="@g.Cut"
+                                    aria-pressed="@(g.Cut == "price" ? "true" : "false")"
+                                    title="Show this field now and over time, across every listing">↓</button>
+                        }
+                    </span>
+                    <span class="v2-hunit">@g.Unit</span>
+                </span>
+            }
+        </div>
+
+        @foreach (var r in Model.Rows)
+        {
+            <div class="v2-row">
+                <span class="v2-listing">
+                    <span class="v2-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em></span>
+                    <span class="v2-symbol">
+                        @r.Row.Symbol
+                        <em>@(r.Row.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(r.Row.ContractMultiplier, 0))</em>
+                    </span>
+                    @* Ages live here, one clock per call — a figure's age is a fact about the call
+                       that wrote it, not about the cell it landed in. *@
+                    <span class="v2-ages">
+                        Price @Format.ShortAge(r.Ages.PriceSeconds)
+                        @if (r.Ages.DepthSeconds is not null) { <text>· Depth @Format.ShortAge(r.Ages.DepthSeconds)</text> }
+                        @if (r.Ages.OpenInterestSeconds is not null) { <text>· OI @Format.ShortAge(r.Ages.OpenInterestSeconds)</text> }
+                    </span>
+                </span>
+
+                @foreach (var g in groups)
+                {
+                    Model.Stress.TryGetValue(r.Row.InstrumentId, out var stress);
+                    var head = g.Headline is { } col ? V2Cells.Headline(r, col) : V2Cells.Headline(r, g, stress);
+                    <span class="v2-cell" data-group="@g.Key">
+                        <span class="v2-fig @(head.Value is null ? "v2-fig--none" : "")">@head.Text</span>
+                        @if (head.Sub is not null)
+                        {
+                            <span class="v2-figsub">@head.Sub</span>
+                        }
+                        @if (g.Headline is { } bc && head.Value is not null)
+                        {
+                            <span class="v2-bar" data-tone="@g.Tone.ToString().ToLowerInvariant()">
+                                <i style="width:@Format.BarWidth(head.Value, Model.Scales.Of(r.Row.InstrumentId, bc))"></i>
+                            </span>
+                        }
+                        <span class="v2-fields" hidden>
+                            @foreach (var f in g.Fields)
+                            {
+                                var cell = V2Cells.Field(r, f.Field, stress);
+                                <span class="v2-field">
+                                    <em>@f.Label</em><b class="@(cell.Value is null ? "v2-fig--none" : "")">@cell.Text</b>
+                                </span>
+                            }
+                        </span>
+                    </span>
+                }
+            </div>
+        }
+    </div>
+
+    <p class="v2-legend">
+        A bar is the figure against the largest listing in the same unit, log-scaled — it replaces the
+        BEST chip, which could not tell a book a hundred times larger from one a hair larger.
+        <b>—</b> is not measured and never a zero. Ages live in the listing cell, one clock per call,
+        because a figure’s age is a fact about the call that wrote it and not about the cell.
+    </p>
+</section>
