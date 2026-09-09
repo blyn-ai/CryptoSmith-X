@@ -54,7 +54,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=3">
+    <link rel="stylesheet" href="~/studio-v2.css?v=4">
 </head>
 <body class="v2">
 
@@ -140,7 +140,8 @@
 
                 @foreach (var g in groups)
                 {
-                    var head = g.Headline is { } col ? V2Cells.Headline(r, col) : V2Cells.Headline(r, g);
+                    Model.Stress.TryGetValue(r.Row.InstrumentId, out var stress);
+                    var head = g.Headline is { } col ? V2Cells.Headline(r, col) : V2Cells.Headline(r, g, stress);
                     <span class="v2-cell" data-group="@g.Key">
                         <span class="v2-fig @(head.Value is null ? "v2-fig--none" : "")">@head.Text</span>
                         @if (head.Sub is not null)
@@ -156,7 +157,7 @@
                         <span class="v2-fields" hidden>
                             @foreach (var f in g.Fields)
                             {
-                                var cell = V2Cells.Field(r, f.Field);
+                                var cell = V2Cells.Field(r, f.Field, stress);
                                 <span class="v2-field">
                                     <em>@f.Label</em><b class="@(cell.Value is null ? "v2-fig--none" : "")">@cell.Text</b>
                                 </span>
@@ -203,25 +204,64 @@
     @foreach (var c in cuts)
     {
         var maxNow = Model.Rows.Select(r => V2Cuts.Now(r, c)).Where(v => v is not null).DefaultIfEmpty(null).Max();
-        <div class="v2-nows" data-cut="@c.Key" hidden="@(c.Key == "price" ? null : "hidden")">
-            @if (maxNow is null)
+        <div class="v2-nows @(c.Key == "price" ? "v2-nows--books" : "")" data-cut="@c.Key" hidden="@(c.Key == "price" ? null : "hidden")">
+            @if (c.Key == "price")
             {
-                <p class="v2-empty">
-                    @c.Name does not rank in one column across venues — it is stated per venue interval,
-                    and the table normalises it in the cost-of-carry group.
-                </p>
+                @* Цена «сейчас» — это стакан, а не одно число: книга читается формой, где стена,
+                   где дыра, симметрична ли она. Двадцать пять уровней цифрами не читает никто. *@
+                foreach (var r in Model.Rows)
+                {
+                    <div class="v2-book">
+                        <span class="v2-book-plat">@r.Row.ExchangeName <b>@r.Row.Symbol</b>
+                            <em>@(r.Row.SpreadBps is { } sp ? Format.Num(sp, 1) + " bps" : "—")</em></span>
+                        @if (!Model.Books.TryGetValue(r.Row.InstrumentId, out var bk) || bk.BidPx.Length == 0)
+                        {
+                            <p class="v2-empty v2-empty--inline">No level book from this venue. Not a thin book — an unmeasured one.</p>
+                        }
+                        else
+                        {
+                            var top = Math.Max(bk.BidQty.DefaultIfEmpty(0).Max(), bk.AskQty.DefaultIfEmpty(0).Max());
+                            <span class="v2-ladder">
+                                @for (var i = Math.Min(bk.BidPx.Length, bk.Levels) - 1; i >= 0; i--)
+                                {
+                                    <i class="v2-lvl v2-lvl--bid" style="width:@Format.BarWidth(bk.BidQty[i], top)"></i>
+                                }
+                                @for (var i = 0; i < Math.Min(bk.AskPx.Length, bk.Levels); i++)
+                                {
+                                    <i class="v2-lvl v2-lvl--ask" style="width:@Format.BarWidth(bk.AskQty[i], top)"></i>
+                                }
+                            </span>
+                            <span class="v2-book-note">
+                                @(r.Row.BookReachBid is null && r.Row.BookReachAsk is null
+                                    ? "reach not measured"
+                                    : "seen to ±" + Format.Num(Math.Max(r.Row.BookReachBid ?? 0, r.Row.BookReachAsk ?? 0), 0) + " bps")
+                                · @bk.BidPx.Length / @bk.AskPx.Length levels a side
+                            </span>
+                        }
+                    </div>
+                }
             }
             else
             {
-                foreach (var r in Model.Rows.OrderByDescending(r => V2Cuts.Now(r, c) ?? double.MinValue))
+                if (maxNow is null)
                 {
-                    var v = V2Cuts.Now(r, c);
-                    <div class="v2-now">
-                        <span class="v2-now-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em> <b>@r.Row.Symbol</b></span>
-                        <span class="v2-now-val @(v is null ? "v2-fig--none" : "")">@(v is null ? "—" : Format.Num(v, c.Decimals))</span>
-                        <span class="v2-now-bar"><i style="width:@Format.BarWidth(v, maxNow)"></i></span>
-                        <span class="v2-now-note">@c.Unit</span>
-                    </div>
+                    <p class="v2-empty">
+                        @c.Name does not rank in one column across venues — it is stated per venue interval,
+                        and the table normalises it in the cost-of-carry group.
+                    </p>
+                }
+                else
+                {
+                    foreach (var r in Model.Rows.OrderByDescending(r => V2Cuts.Now(r, c) ?? double.MinValue))
+                    {
+                        var v = V2Cuts.Now(r, c);
+                        <div class="v2-now">
+                            <span class="v2-now-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em> <b>@r.Row.Symbol</b></span>
+                            <span class="v2-now-val @(v is null ? "v2-fig--none" : "")">@(v is null ? "—" : Format.Num(v, c.Decimals))</span>
+                            <span class="v2-now-bar"><i style="width:@Format.BarWidth(v, maxNow)"></i></span>
+                            <span class="v2-now-note">@c.Unit</span>
+                        </div>
+                    }
                 }
             }
         </div>
@@ -303,6 +343,119 @@
     }
 </section>
 
+
+@* ── полоса 4: лента ────────────────────────────────────────────────────────── *@
+<section class="v2-band">
+    <div class="v2-band-head">
+        <span class="csx-eyebrow v2-band-no">4 · The tape</span>
+        <span class="csx-eyebrow v2-band-sub">the last @Model.Tape.Count fills across every listing of this asset</span>
+    </div>
+
+    @if (Model.Tape.Count == 0)
+    {
+        <p class="v2-empty" style="padding:var(--space-4) var(--space-7)">
+            No fills recorded in the last hour. The trades dataset is collected per venue — an empty
+            tape here is either a quiet asset or a venue whose trades are switched off, and band 5
+            below says which.
+        </p>
+    }
+    else
+    {
+        <div class="v2-tape">
+            <div class="v2-tape-head">
+                <span>Time</span><span>Venue</span><span>Side</span>
+                <span class="v2-r">Price</span><span class="v2-r">Size</span><span>Kind</span>
+            </div>
+            @foreach (var t in Model.Tape)
+            {
+                var owner = Model.Rows.FirstOrDefault(r => r.Row.InstrumentId == t.InstrumentId);
+                var kind = t.TradeType ?? "fill";
+                var loud = kind is "liquidation" or "partial_liquidation" or "termination";
+                <div class="v2-tape-row @(loud ? "v2-tape-row--loud" : "")">
+                    <span>@t.EventTime.ToString("HH:mm:ss.fff")</span>
+                    <span>@(owner?.Row.ExchangeName ?? "—")</span>
+                    <span class="v2-side v2-side--@t.TakerSide">@t.TakerSide</span>
+                    <span class="v2-r">@Format.Num(t.Price, 6)</span>
+                    <span class="v2-r">@Format.Num(t.Qty, 0)</span>
+                    <span class="v2-kind">@kind.Replace("_", " ")</span>
+                </div>
+            }
+        </div>
+        <p class="v2-legend">
+            The tape is the one thing on this page that moves on its own, because a tape is a tape.
+            Three fills can carry one millisecond between them and they are three rows, not one.
+            Everything else changes when a pass lands.
+        </p>
+    }
+</section>
+
+@* ── полоса 5: что стоит за цифрами ─────────────────────────────────────────── *@
+<section class="v2-band">
+    <div class="v2-band-head">
+        <span class="csx-eyebrow v2-band-no">5 · What is behind the figures</span>
+        <span class="csx-eyebrow v2-band-sub">coverage per dataset · one colour, one metric, one axis of venues ·
+            gaps stay open until they close</span>
+    </div>
+
+    @{
+        var datasets = Model.Coverage.Select(c => c.Dataset).Distinct(StringComparer.Ordinal).OrderBy(d => d, StringComparer.Ordinal).ToList();
+    }
+    @if (datasets.Count == 0)
+    {
+        <p class="v2-empty" style="padding:var(--space-4) var(--space-7)">
+            No coverage recorded for this asset in the last day. Coverage is written by the history
+            collectors, so an empty grid means none of them has run for these listings — not that the
+            history is empty.
+        </p>
+    }
+    else
+    {
+        <div class="v2-cov" style="--vcols:@Model.Rows.Count">
+            <span class="v2-cov-corner"></span>
+            @foreach (var r in Model.Rows)
+            {
+                <span class="v2-cov-vh">@r.Row.ExchangeName<em>@r.Row.Symbol</em></span>
+            }
+            @foreach (var d in datasets)
+            {
+                <span class="v2-cov-dh">@d.Replace("_", " ")</span>
+                @foreach (var r in Model.Rows)
+                {
+                    var cell = Model.Coverage.FirstOrDefault(c => c.Dataset == d && c.InstrumentId == r.Row.InstrumentId);
+                    @* Одна шкала зелёного на одну метрику по одной оси площадок. Никаких палитр
+                       поперёк метрик: у них нет общей шкалы, и раскрасить их одним градиентом
+                       значило бы соврать. *@
+                    <span class="v2-cov-cell @(cell is null ? "v2-cov-cell--none" : "")"
+                          style="@(cell is null ? "" : $"--held:{cell.PercentHeld}%")"
+                          title="@(cell is null ? "not asked for this listing" : $"{cell.PercentHeld}% of the day held")">
+                        @(cell is null ? "—" : cell.PercentHeld.ToString())
+                    </span>
+                }
+            }
+        </div>
+    }
+
+    <div class="v2-gaps">
+        <span class="csx-eyebrow">Open and closed gaps</span>
+        @if (Model.Gaps.Count == 0)
+        {
+            <p class="v2-empty v2-empty--inline">Nothing has broken on these venues in the last day.</p>
+        }
+        else
+        {
+            foreach (var g in Model.Gaps)
+            {
+                <div class="v2-gap">
+                    <span class="v2-gap-what">@g.SegmentCode · @g.Collector</span>
+                    <span class="v2-gap-state @(g.GapEnd is null ? "v2-gap-state--open" : "")">@(g.GapEnd is null ? "open" : "closed")</span>
+                    <span class="v2-gap-why">@g.Cause.Replace("_", " ")@(g.Detail is null ? "" : " — " + g.Detail)</span>
+                    <span class="v2-gap-when">@Format.UtcClock(g.GapStart) → @(g.GapEnd is null ? "open" : Format.UtcClock(g.GapEnd))</span>
+                </div>
+            }
+        }
+    </div>
+</section>
+
 <footer class="v2-foot">
     <span>Not investment advice · Own funds only</span>
     @*
@@ -324,6 +477,6 @@
     <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
     <script src="~/studio-candles.js?v=5"></script>
 }
-<script src="~/studio-v2.js?v=2"></script>
+<script src="~/studio-v2.js?v=3"></script>
 </body>
 </html>

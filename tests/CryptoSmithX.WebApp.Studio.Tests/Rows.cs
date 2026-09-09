@@ -63,7 +63,19 @@ internal static class Rows
             DepthAsk25: depthAsk25,
             DepthBid50: null,
             DepthAsk50: null,
-            DepthAt: null);
+            DepthAt: null,
+
+            // Колонки 0030. Названы поимённо и здесь: у записи нет умолчаний намеренно — умолчание
+            // значило бы, что колонка, забытая в запросе, тихо приходит как NULL и выглядит как
+            // «площадка не отдаёт». Тест, который не назвал поле, должен не собираться.
+            VenueTs: null,
+            LastTradeAt: null,
+            FundingRatePredicted: null,
+            NextFundingAt: null,
+            Volume24hBase: null,
+            DepthRef: null,
+            BookReachBid: null,
+            BookReachAsk: null);
 
     /// <summary>A window wide enough to be a real one and round enough to do arithmetic against:
     /// twelve of these is 360 s, so an age of 360 s is exactly the degraded boundary.</summary>

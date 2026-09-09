@@ -183,7 +183,18 @@ public static class StudioStore
                s.depth_ask_25bps                as "DepthAsk25",
                s.depth_bid_50bps                as "DepthBid50",
                s.depth_ask_50bps                as "DepthAsk50",
-               s.depth_at                       as "DepthAt"
+               s.depth_at                       as "DepthAt",
+               -- Колонки 0030. Заполнены в базе с фазы 4 и до сих пор не читались страницей:
+               -- порядок и типы здесь обязаны совпасть с хвостом PairVenueRow — Dapper заполняет
+               -- позиционную запись по порядку и по точному типу, и за эту серию это кусало трижды.
+               s.venue_ts                       as "VenueTs",
+               s.last_trade_at                  as "LastTradeAt",
+               s.funding_rate_predicted         as "FundingRatePredicted",
+               s.next_funding_at                as "NextFundingAt",
+               s.volume_24h_base                as "Volume24hBase",
+               s.depth_ref                      as "DepthRef",
+               s.book_reach_bid                 as "BookReachBid",
+               s.book_reach_ask                 as "BookReachAsk"
           from exchange_instrument i
           join segment  sg on sg.code = i.segment_code
           join exchange x  on x.code  = sg.exchange_code

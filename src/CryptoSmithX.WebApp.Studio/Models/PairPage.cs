@@ -181,6 +181,24 @@ public sealed record PairPageModel(
     DateTime? CollectedTo,
     DateTimeOffset RenderedAt)
 {
+    /// <summary>
+    /// Что читает только вторая страница: стаканы, лента, покрытие, пробелы, ликвидации.
+    ///
+    /// СВОЙСТВАМИ, а не позициями записи: конструктор у неё позиционный, и первая страница
+    /// строит его в трёх местах — дописать туда пять аргументов значило бы менять код, которому
+    /// эти данные не нужны, ради страницы, о которой он не знает. Пустое значение по умолчанию
+    /// и есть правильный ответ там, где их не читали.
+    /// </summary>
+    public IReadOnlyDictionary<int, BookFrame> Books { get; init; } = new Dictionary<int, BookFrame>();
+
+    public IReadOnlyList<TapeRow> Tape { get; init; } = [];
+
+    public IReadOnlyList<CoverageCell> Coverage { get; init; } = [];
+
+    public IReadOnlyList<GapRow> Gaps { get; init; } = [];
+
+    public IReadOnlyDictionary<int, StressRow> Stress { get; init; } = new Dictionary<int, StressRow>();
+
     /// <summary>Rows: one order book, on one venue, with one quote. Binance's PEPE/USDT and
     /// PEPE/USDC are two of them, and the header must not print one number for both.</summary>
     public int Listings => Rows.Count;

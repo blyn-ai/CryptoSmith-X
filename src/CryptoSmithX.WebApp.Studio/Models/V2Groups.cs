@@ -39,7 +39,8 @@ public static class V2Groups
         new("activity", "Activity", "quote asset · rolling 24 h", PairColumn.Turnover24h, CallTone.Ticker,
             [new("Turnover Q", V2Field.Turnover24h)]),
 
-        new("stress", "Stress", "base units · liquidations, last 5 min", null, CallTone.Ticker, []),
+        new("stress", "Stress", "liquidations, last hour", null, CallTone.Ticker,
+            [new("Volume", V2Field.LiquidationVolume), new("Unit", V2Field.LiquidationUnit)]),
 
         new("trust", "Trust", "age of the worst call on this row", null, CallTone.Ticker,
             [new("Price", V2Field.AgePrice), new("Depth", V2Field.AgeDepth), new("OI", V2Field.AgeOpenInterest)]),
@@ -69,5 +70,6 @@ public enum V2Field
     OpenInterest, Multiplier,
     FundingPerDay, FundingRate, FundingInterval,
     Turnover24h,
+    LiquidationVolume, LiquidationUnit,
     AgePrice, AgeDepth, AgeOpenInterest,
 }

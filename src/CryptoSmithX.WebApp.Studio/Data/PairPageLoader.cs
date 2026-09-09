@@ -39,7 +39,18 @@ public static class PairPageLoader
                 var at = clock.GetUtcNow();
                 var candles = await CandleStore.ReadAsync(conn, ids, at, token);
                 var metrics = await MetricHourStore.ReadAsync(conn, ids, at, token);
-                return new PairData(comparison, candles, metrics);
+
+                // Пять новых чтений второй страницы. На той же связи и в том же кешируемом
+                // значении, что и остальные: страница, задающая базе восемь вопросов, чтобы
+                // нарисовать один экран, расходится сама с собой между вторым и седьмым.
+                var segments = comparison.Venues.Select(v => v.Row.SegmentCode).Distinct(StringComparer.Ordinal).ToArray();
+                var books = await V2Store.BooksAsync(conn, ids, token);
+                var tape = await V2Store.TapeAsync(conn, ids, 18, token);
+                var coverage = await V2Store.CoverageAsync(conn, ids, token);
+                var gaps = await V2Store.GapsAsync(conn, ids, segments, token);
+                var stress = await V2Store.StressAsync(conn, ids, token);
+
+                return new PairData(comparison, candles, metrics, books, tape, coverage, gaps, stress);
             },
             ct);
 
@@ -92,7 +103,14 @@ public static class PairPageLoader
             ColumnScales.Compute(rows),
             collected.From,
             collected.To,
-            now);
+            now)
+        {
+            Books = data.Books,
+            Tape = data.Tape,
+            Coverage = data.Coverage,
+            Gaps = data.Gaps,
+            Stress = data.Stress,
+        };
     }
 
     /// <summary>
@@ -105,5 +123,10 @@ public static class PairPageLoader
     private sealed record PairData(
         AssetComparison Comparison,
         IReadOnlyDictionary<int, CandleSeries> Candles,
-        IReadOnlyDictionary<int, MetricHourSeries> Metrics);
+        IReadOnlyDictionary<int, MetricHourSeries> Metrics,
+        IReadOnlyDictionary<int, BookFrame> Books,
+        IReadOnlyList<TapeRow> Tape,
+        IReadOnlyList<CoverageCell> Coverage,
+        IReadOnlyList<GapRow> Gaps,
+        IReadOnlyDictionary<int, StressRow> Stress);
 }

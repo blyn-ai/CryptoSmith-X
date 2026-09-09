@@ -89,7 +89,29 @@ public sealed record PairVenueRow(
     double? DepthAsk25,
     double? DepthBid50,
     double? DepthAsk50,
-    DateTime? DepthAt)
+    DateTime? DepthAt,
+
+    /// <summary>Время тикера по бирже; NULL там, где площадка его не проставляет.</summary>
+    DateTime? VenueTs,
+
+    /// <summary>Момент сделки, которой соответствует LastPrice. У Hyperliquid ВСЕГДА NULL:
+    /// его last_price — это mid книги, а не сделка.</summary>
+    DateTime? LastTradeAt,
+
+    double? FundingRatePredicted,
+    DateTime? NextFundingAt,
+
+    /// <summary>Оборот 24 ч в БАЗЕ. Turnover24h остаётся в котировке; одно из другого не
+    /// выводится без цены на каждый момент внутри окна, а не только на его конец.</summary>
+    double? Volume24hBase,
+
+    /// <summary>Mid, ОТ которого отсчитаны полосы глубины. Без него полосы невоспроизводимы.</summary>
+    double? DepthRef,
+
+    /// <summary>Докуда видна сторона книги, в bps от DepthRef. Пустая сторона — 0, а не NULL:
+    /// измерение состоялось и дало «пусто». NULL — глубину не собирали.</summary>
+    double? BookReachBid,
+    double? BookReachAsk)
 {
     /// <summary>
     /// The spread in basis points of the mid. Quote-free by construction, which is why it is the

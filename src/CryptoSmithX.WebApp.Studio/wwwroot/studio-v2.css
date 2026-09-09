@@ -628,3 +628,47 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-line{display:block;width:100%;height:64px;color:var(--brand)}
 .v2-empty{margin:0;padding:var(--space-4) 0;font:400 var(--fs-caption)/1.5 var(--font-mono);color:var(--text-muted)}
 .v2-empty--inline{padding:0}
+
+/* ── полоса 2 при выборе цены: стаканы ──────────────────────────────────────── */
+.v2-nows--books{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--space-4)}
+.v2-book{display:flex;flex-direction:column;gap:6px;padding:var(--space-4);border:1px solid var(--border-hairline)}
+.v2-book-plat{font:400 var(--fs-meta)/1.2 var(--font-body);color:var(--text-heading)}
+.v2-book-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--text-muted);margin-left:6px}
+.v2-book-plat em{font-style:normal;float:right;font:400 var(--fs-data)/1.2 var(--font-mono);color:var(--text-faint)}
+/* Лестница: уровень — полоса, длина = объём против крупнейшего в этой книге. Биды сверху вниз
+   к середине, аски от середины вниз — форма читается, цифры двадцати пяти уровней не читает никто. */
+.v2-ladder{display:flex;flex-direction:column;gap:1px;padding:4px 0}
+.v2-lvl{display:block;height:3px;min-width:1px}
+.v2-lvl--bid{background:var(--call-depth,#8A5A12);opacity:.85}
+.v2-lvl--ask{background:var(--call-depth,#8A5A12);opacity:.45}
+.v2-book-note{font:400 var(--fs-micro)/1.3 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-faint)}
+
+/* ── полоса 4: лента ────────────────────────────────────────────────────────── */
+.v2-tape{padding:0 var(--space-7) var(--space-4)}
+.v2-tape-head,.v2-tape-row{display:grid;grid-template-columns:110px 1fr 60px 1fr 1fr 1.2fr;gap:var(--space-4);align-items:baseline;padding:4px 0}
+.v2-tape-head{font:500 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow);border-bottom:1px solid var(--border-hairline)}
+.v2-tape-row{font:400 var(--fs-data)/1.3 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);border-bottom:1px solid var(--border-hairline)}
+.v2-tape-row--loud{background:var(--tint-down,rgba(163,43,53,.08))}
+.v2-r{text-align:right}
+.v2-side{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted)}
+.v2-kind{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
+.v2-tape-row--loud .v2-kind{color:var(--brand-text)}
+
+/* ── полоса 5: покрытие и пробелы ───────────────────────────────────────────── */
+.v2-cov{display:grid;grid-template-columns:minmax(140px,auto) repeat(var(--vcols),1fr);gap:2px;padding:var(--space-4) var(--space-7)}
+.v2-cov-corner{}
+.v2-cov-vh{display:flex;flex-direction:column;font:500 var(--fs-micro)/1.3 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow);text-align:center}
+.v2-cov-vh em{font-style:normal;font-size:8px;color:var(--text-faint);text-transform:none;letter-spacing:0}
+.v2-cov-dh{display:flex;align-items:center;font:500 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted)}
+/* Одна метрика — одна шкала. Насыщенность несёт долю удержанного окна и ничего больше. */
+.v2-cov-cell{display:flex;align-items:center;justify-content:center;padding:6px 0;font:400 var(--fs-data)/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);
+  background:color-mix(in srgb, var(--money-up,#2F5A00) var(--held,0%), var(--surface-sunken))}
+.v2-cov-cell--none{background:var(--surface-sunken);color:var(--text-unmeasured)}
+
+.v2-gaps{display:flex;flex-direction:column;gap:4px;padding:var(--space-4) var(--space-7) var(--space-5);border-top:1px solid var(--border-hairline)}
+.v2-gap{display:grid;grid-template-columns:minmax(160px,1fr) 70px 2fr minmax(160px,auto);gap:var(--space-4);align-items:baseline;padding:3px 0}
+.v2-gap-what{font:400 var(--fs-data)/1.3 var(--font-mono);color:var(--text-heading)}
+.v2-gap-state{font:500 9px/1.2 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
+.v2-gap-state--open{color:var(--brand-text)}
+.v2-gap-why{font:400 var(--fs-caption)/1.4 var(--font-body);color:var(--text-muted)}
+.v2-gap-when{font:400 var(--fs-micro)/1.2 var(--font-mono);color:var(--text-faint);text-align:right}
