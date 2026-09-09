@@ -288,6 +288,12 @@ body[data-open~="trust"]{--w-trust:minmax(300px,3fr)}
   color:var(--text-faint);white-space:nowrap}
 .v2-ages > span + span::before{content:"·";margin-right:var(--space-3);color:var(--text-unmeasured)}
 .v2-ages .a-spent{color:var(--accent)}
+/* ТОКЕН ВОЗРАСТА — СЛОТ ПОСТОЯННОЙ ШИРИНЫ. Он меняется каждую секунду, и «9 s» на символ уже,
+   чем «10 s»: строка дёргалась раз в секунду в каждой из пяти строк таблицы. Измерено — 18
+   сдвигов раскладки за четырнадцать секунд, CLS 0.048, и это ровно то мелкое дрожание, которое
+   остаётся после всех крупных починок. Первая страница решает это тем же способом. */
+.v2-ages .a-tok,.v2-strip-ends .a-tok{display:inline-block;min-width:4ch;text-align:right;
+  font-variant-numeric:tabular-nums}
 
 /* ПЛОТНО. Ради плотности эта таблица и устроена как таблица; десять пикселей полей на семь
    колонок и пять строк — это экран пустоты вокруг цифр, ради которых сюда пришли. */
