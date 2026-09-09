@@ -33,14 +33,30 @@
     <partial name="_Statement" model="Model" />
 
     @*
-        The live button, and the sentence beside it.
+        The way back, and the live switch beside it, and the sentence beside that.
 
-        It sits OUTSIDE every [data-live-region] deliberately: a control that redrew itself on each
-        update would lose its own state and its listener in the middle of the thing it started.
+        BACK TO LIST is a plain link to the pair index — the default route, so this is also
+        literally /studio. The wordmark in the header goes to the same place; this one exists
+        because a reader looking for a way off a pair page looks at the row with the controls in
+        it, not at the header above the fold, and the only alternative before this was the
+        browser's own back button.
 
-        It starts hidden and studio-live.js reveals it, the same argument as the INK button — with
-        scripts off, or in a browser with no EventSource, this control could do nothing, and a
-        control that does nothing is a small lie. The page below it is complete either way.
+        The live control is a switch, not a button that said "Live" and meant a state the reader
+        could not see — that shape was tried and nobody found it. A switch's position IS the
+        state: no reading required, on sight. The word "Live" sits beside it as a permanent label
+        (what the control is FOR), not a toggling one (what it currently IS) — that half of the
+        job belongs to the sentence in #a-live-what, same as before.
+
+        Both sit OUTSIDE every [data-live-region] deliberately: a control that redrew itself on
+        each update would lose its own state and its listener in the middle of the thing it
+        started.
+
+        The switch and its label start hidden and studio-live.js reveals them, the same argument
+        as the INK button — with scripts off, or in a browser with no EventSource, this control
+        could do nothing, and a control that does nothing is a small lie. The page below it is
+        complete either way. BACK TO LIST stays visible unconditionally: it is a plain link, it
+        needs no script to work, and hiding it would make the one certain way off this page
+        depend on the one thing this whole paragraph is about not depending on anything.
 
         The note is where a failure has to be said out loud. A stream that dies, a database signal
         that stops, a feed at capacity: every one of those looks, on a page whose subject is a
@@ -65,8 +81,15 @@
         });
     }
     <div class="a-liverow" data-live-url="@liveUrl">
-        <button type="button" class="a-btn" id="a-live" aria-pressed="false"
-                aria-describedby="a-live-what" hidden>Live</button>
+        <a class="a-btn" href="@Url.Action("Index", "Pairs")" style="display:inline-flex;align-items:center">Back to list</a>
+
+        <span class="a-switchrow">
+            <button type="button" class="a-switch" id="a-live" role="switch" aria-checked="false"
+                    aria-describedby="a-live-what" hidden>
+                <span class="a-switch-track" aria-hidden="true"><span class="a-switch-knob"></span></span>
+            </button>
+            <label class="a-switch-label" for="a-live" hidden>Live</label>
+        </span>
 
         @*
             RELOAD, and it is not the browser's button said twice.
@@ -84,20 +107,19 @@
         @*
             WHAT THIS PAGE IS, in words, beside the control that changes it.
 
-            The live button worked and nobody found it: 54 by 32 pixels, one word, and nothing to
-            say what pressing it would do until it had been pressed. A control whose label is the
-            name of a state the reader cannot see is not discoverable, it is guessable. So the
-            sentence beside it names the state the page is IN — a snapshot whose ages count forward
-            from the render — and names the button as the thing that changes it. Written by
-            studio-ages.js and empty here on purpose: with scripts off the ages do not count forward,
-            and a server-rendered sentence saying they do would be false on exactly the pages that
-            cannot correct it.
+            The switch's position says ON or OFF at a glance — that half of the old button's
+            discoverability problem is gone by construction now. What a switch still cannot say is
+            WHAT the state means on THIS page, so the sentence beside it names the state the page
+            is IN — a snapshot whose ages count forward from the render — and names the switch as
+            the thing that changes it. Written by studio-ages.js and empty here on purpose: with
+            scripts off the ages do not count forward, and a server-rendered sentence saying they
+            do would be false on exactly the pages that cannot correct it.
 
             It is also where this page admits it has gone stale; see THE DOCUMENT'S OWN AGE in
             studio-ages.js for what that means and why it is stated once about the document rather
             than 500 times about the cells.
 
-            role="status" AND NOT ONLY aria-describedby. The description is read when the Live button
+            role="status" AND NOT ONLY aria-describedby. The description is read when the switch
             takes focus, which is a reader who has gone looking; this sentence also REWRITES ITSELF
             under a reader who has done nothing at all — a tab comes back from an hour in the
             background and a box appears saying the document is an hour old. Announced only on
@@ -575,5 +597,5 @@
     }
 
     @* 4 KB, on the pair page only, and it opens nothing until the button is pressed. *@
-    <script src="~/studio-live.js?v=1" defer></script>
+    <script src="~/studio-live.js?v=2" defer></script>
 }

@@ -28,6 +28,7 @@
   if (!row) return;
 
   const button = row.querySelector('#a-live');
+  const label = row.querySelector('.a-switch-label');
   const note = row.querySelector('#a-live-note');
   const url = row.dataset.liveUrl;
   if (!button || !note || !url) return;
@@ -69,8 +70,11 @@
 
   const say = (text) => { note.textContent = text; };
 
+  // aria-checked, not aria-pressed: this is role="switch" now, a state the reader flips, not a
+  // button they press. The name stays setPressed — every caller already reads that as "the
+  // control's on/off state", which is exactly what it still sets.
   const setPressed = (on) => {
-    button.setAttribute('aria-pressed', on ? 'true' : 'false');
+    button.setAttribute('aria-checked', on ? 'true' : 'false');
   };
 
   function open() {
@@ -175,6 +179,7 @@
   });
 
   button.hidden = false;
+  if (label) label.hidden = false;
 
   // Opens on arrival rather than waiting for a click: the reader came to a market page, and a page
   // that has to be told to be live is a page that reads as static by default, which this one no

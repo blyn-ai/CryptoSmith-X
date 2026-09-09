@@ -1661,19 +1661,73 @@ a.a-wordmark:hover { color: var(--text-heading); }
    changed would be the interface claiming a liveliness the figures have to claim for themselves. */
 .a-btn[aria-pressed="true"] { color: var(--accent); border-color: var(--border-strong); }
 
-/* THE LIVE BUTTON ALONE GETS A FILL, and the reason is the default changed under it. A page that
-   opens already streaming needs its one toggle to read as a STATE at a glance, not as a label a
-   reader has to stop and parse — off is the quiet, bordered .a-btn above; on is solid. Still no
-   pulse and no dot: a fill does not move, and the rule above still governs every other toggle,
-   including this one while it is off. */
-#a-live[aria-pressed="true"] {
+/* ── The live control: a switch, not a button ──
+
+   The button shape was tried and nobody found it: 54 by 32 pixels, one word, and nothing to say
+   what pressing it would do until it had been pressed — a label naming a state the reader could
+   not see. A switch's position IS the state, readable on sight, which is what a page that now
+   OPENS already streaming needs its one toggle to be. role="switch" / aria-checked, not
+   aria-pressed — see studio-live.js.
+
+   SQUARE, deliberately, on a design system with --radius-control:0 everywhere else (see
+   effects.css) — a rounded pill would be the one curved thing on the page. Off is the quiet,
+   bordered look every other .a-btn already has; on is a solid fill, same pair every primary
+   action already uses (--action-primary / --text-on-action). Still no pulse and no dot — the
+   page's one moving thing is an age, and the knob's slide is a position changing, not a signal
+   blinking; it moves once, on the one interaction that changes the state, and sits still
+   otherwise. */
+.a-switchrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.a-switch {
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.a-switch:focus-visible .a-switch-track { outline: var(--focus-ring); outline-offset: 1px; }
+
+.a-switch-track {
+  display: block;
+  width: 40px;
+  height: 20px;
+  background: transparent;
+  border: 1px solid var(--border-input);
+  transition: var(--transition-color);
+}
+.a-switch:hover .a-switch-track { border-color: var(--border-strong); }
+
+.a-switch-knob {
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 2px;
+  background: var(--text-faint);
+  transform: translateX(0);
+  transition: transform var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+
+.a-switch[aria-checked="true"] .a-switch-track {
   background: var(--action-primary);
-  color: var(--text-on-action);
   border-color: var(--action-primary);
 }
-#a-live[aria-pressed="true"]:hover { color: var(--text-on-action); border-color: var(--action-primary-hover); }
+.a-switch[aria-checked="true"] .a-switch-knob {
+  background: var(--text-on-action);
+  transform: translateX(20px);
+}
 
-/* ── The live control ── */
+.a-switch-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-eyebrow);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--text-body);
+  cursor: pointer;
+}
 
 .a-liverow {
   display: flex;
