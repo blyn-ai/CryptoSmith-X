@@ -2,6 +2,7 @@ using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Connectors.Market;
 using CryptoSmithX.Database;
 using Dapper;
+using Npgsql;
 
 namespace CryptoSmithX.MarketData.Hub.Ingestion;
 
@@ -64,6 +65,7 @@ public sealed class DiscoveryCollector
             last_seen_at           = excluded.last_seen_at,
             raw_json               = excluded.raw_json,
             updated_at             = excluded.updated_at
+        returning id
             -- collect is ABSENT from this list ON PURPOSE, and must stay absent. It used to be
             -- absent by omission, which is a property nobody can see and the next reader will
             -- "fix" for consistency with the insert list three lines up. What that edit would do:
@@ -158,9 +160,16 @@ public sealed class DiscoveryCollector
             tx,
             cancellationToken: ct));
 
+        // Phase 4 item 3 (plans/prompt-collect-everything.md): spec_versions has a table
+        // (instrument_spec, 0031) and a hash function to detect a real change, but no writer.
+        // Enabling is the operator's, not code's — mode is read once for the pass, not re-checked
+        // per instrument, since it cannot change mid-pass.
+        var specVersionsOn = snapshot.Mode(_adapter.SegmentCode, "spec_versions") == "collect";
+
         foreach (var (i, canon, multiplier) in resolved)
         {
-            await conn.ExecuteAsync(new CommandDefinition(
+            var status = i.Status.ToDb();
+            var instrumentId = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
                 UpsertInstrumentSql,
                 new
                 {
@@ -178,13 +187,19 @@ public sealed class DiscoveryCollector
                     i.MinNotional,
                     i.FundingIntervalHours,
                     i.ListedAt,
-                    Status = i.Status.ToDb(),
+                    Status = status,
                     Now = now,
                     i.RawJson,
                     Collect = DecideCollectOnInsert(canon, autoCollectAssets),
                 },
                 tx,
                 cancellationToken: ct));
+
+            if (specVersionsOn)
+            {
+                await WriteSpecVersionAsync(
+                    conn, tx, instrumentId, status, i, multiplier, now, ct);
+            }
         }
 
         // Gone for several rounds in a row is a delisting. Age of last_seen_at is used rather than
@@ -252,4 +267,70 @@ public sealed class DiscoveryCollector
     /// </remarks>
     internal static bool DecideCollectOnInsert(string canon, IReadOnlySet<string> autoCollectAssets) =>
         autoCollectAssets.Contains(canon);
+
+    /// <summary>
+    /// SCD2 write for one instrument (0031). Three cases, in order: the open version already has
+    /// this exact hash — only <c>last_seen_at</c> moves, no new row; an open version exists with a
+    /// DIFFERENT hash — it closes and a new one opens; no open version exists at all — one opens.
+    /// The hash itself is computed by <c>instrument_spec_hash</c>, not reimplemented here — 0031's
+    /// own warning is explicit that a second implementation drifting from the seed's would version
+    /// every instrument on the first divergent pass.
+    /// </summary>
+    private static async Task WriteSpecVersionAsync(
+        NpgsqlConnection conn, NpgsqlTransaction tx, int instrumentId, string status, Instrument i,
+        decimal multiplier, DateTimeOffset now, CancellationToken ct)
+    {
+        var hashParams = new
+        {
+            InstrumentId = instrumentId,
+            Status = status,
+            i.PriceStep,
+            i.QtyStep,
+            i.MinQty,
+            i.MinNotional,
+            ContractMultiplier = multiplier,
+            i.FundingIntervalHours,
+            Now = now,
+            i.RawJson,
+        };
+
+        var confirmed = await conn.ExecuteAsync(new CommandDefinition(
+            """
+            update instrument_spec
+               set last_seen_at = @Now
+             where exchange_instrument_id = @InstrumentId
+               and valid_to is null
+               and spec_hash = instrument_spec_hash(
+                       @Status, @PriceStep, @QtyStep, @MinQty, @MinNotional, @ContractMultiplier,
+                       @FundingIntervalHours)
+            """,
+            hashParams, tx, cancellationToken: ct));
+
+        if (confirmed > 0)
+        {
+            return;
+        }
+
+        await conn.ExecuteAsync(new CommandDefinition(
+            "update instrument_spec set valid_to = @Now "
+            + "where exchange_instrument_id = @InstrumentId and valid_to is null",
+            hashParams, tx, cancellationToken: ct));
+
+        await conn.ExecuteAsync(new CommandDefinition(
+            """
+            insert into instrument_spec (
+                exchange_instrument_id, valid_from, last_seen_at, status,
+                price_step, qty_step, min_qty, min_notional, contract_multiplier,
+                funding_interval_hours, spec_hash, raw_json, written_by)
+            values (
+                @InstrumentId, @Now, @Now, @Status,
+                @PriceStep, @QtyStep, @MinQty, @MinNotional, @ContractMultiplier,
+                @FundingIntervalHours,
+                instrument_spec_hash(
+                    @Status, @PriceStep, @QtyStep, @MinQty, @MinNotional, @ContractMultiplier,
+                    @FundingIntervalHours),
+                @RawJson::jsonb, 'discovery')
+            """,
+            hashParams, tx, cancellationToken: ct));
+    }
 }
