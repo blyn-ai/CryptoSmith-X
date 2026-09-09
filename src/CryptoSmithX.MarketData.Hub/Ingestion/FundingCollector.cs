@@ -25,6 +25,7 @@ public sealed class FundingCollector
         """
         select i.id,
                i.exchange_symbol,
+               i.funding_interval_hours,
                (select max(f.funding_time)
                   from funding_rate_history f
                  where f.exchange_instrument_id = i.id) as latest
@@ -57,7 +58,7 @@ public sealed class FundingCollector
 
         await using var conn = await _db.OpenAsync(ct);
 
-        var targets = (await conn.QueryAsync<(int Id, string Symbol, DateTimeOffset? Latest)>(new CommandDefinition(
+        var targets = (await conn.QueryAsync<(int Id, string Symbol, short? FundingIntervalHours, DateTimeOffset? Latest)>(new CommandDefinition(
             TargetInstrumentsSql,
             new { code = _adapter.SegmentCode },
             cancellationToken: ct))).ToList();
@@ -82,7 +83,12 @@ public sealed class FundingCollector
             _gate.MaxConcurrentRequests,
             async (target, workCt) =>
             {
-                var (id, symbol, latest) = target;
+                var (id, symbol, fundingIntervalHours, latest) = target;
+
+                // Same signal CandleCollector uses: nothing stored yet for this instrument means
+                // this pull reaches back to floor, i.e. a genuine catch-up rather than the normal
+                // roll-forward from the last payment.
+                var source = latest is null ? "backfill" : "rest";
 
                 // From the newest stored payment (nothing before it can be missing), bounded so a
                 // first run cannot ask a venue for years of history.
@@ -107,15 +113,23 @@ public sealed class FundingCollector
                 try
                 {
                     var stored = 0;
+                    var receivedAt = _clock.GetUtcNow();
                     foreach (var rate in rates)
                     {
                         stored += await conn.ExecuteAsync(new CommandDefinition(
                             """
-                            insert into funding_rate_history (exchange_instrument_id, funding_time, rate)
-                            values (@Id, @FundingTime, @Rate)
+                            insert into funding_rate_history (
+                                exchange_instrument_id, funding_time, rate,
+                                received_at, source, funding_interval_hours)
+                            values (@Id, @FundingTime, @Rate, @ReceivedAt, @Source, @FundingIntervalHours)
                             on conflict (exchange_instrument_id, funding_time) do nothing
                             """,
-                            new { Id = id, rate.FundingTime, rate.Rate },
+                            new
+                            {
+                                Id = id, rate.FundingTime, rate.Rate,
+                                ReceivedAt = receivedAt, Source = source,
+                                FundingIntervalHours = fundingIntervalHours,
+                            },
                             cancellationToken: workCt));
                     }
 

@@ -183,9 +183,11 @@ public sealed class RollupJob
                 )
                 insert into market_candle (
                     exchange_instrument_id, timeframe, open_time,
-                    open, high, low, close, volume, trade_count, bar_count, updated_at)
+                    open, high, low, close, volume, trade_count, bar_count, updated_at,
+                    received_at, source)
                 select exchange_instrument_id, @tf, window_start,
-                       open, high, low, close, volume, trade_count, bar_count, now()
+                       open, high, low, close, volume, trade_count, bar_count, now(),
+                       now(), 'derived'
                   from windows
                 on conflict (exchange_instrument_id, timeframe, open_time) do update set
                     open        = excluded.open,
@@ -195,7 +197,12 @@ public sealed class RollupJob
                     volume      = excluded.volume,
                     trade_count = excluded.trade_count,
                     bar_count   = excluded.bar_count,
-                    updated_at  = excluded.updated_at
+                    updated_at  = excluded.updated_at,
+                    -- Per market_candle.received_at's own column comment (0035): "получен от биржи
+                    -- (1m) или посчитан (derived, timeframe > 1)" — a rebuilt derived bar was
+                    -- computed again just now, same as a freshly-inserted one.
+                    received_at = excluded.received_at,
+                    source      = excluded.source
                 """,
                 new
                 {

@@ -76,7 +76,7 @@ public sealed class CandleCollector
         // both while the HTTP side of the same passes, 32 wide, finished in well under a second.
         // Same fix as SnapshotCollector (e590bc1): a ConcurrentBag rather than a lock, since workers
         // only ever append and never read each other's entries.
-        var fetched = new System.Collections.Concurrent.ConcurrentBag<(int Id, Candle Candle)>();
+        var fetched = new System.Collections.Concurrent.ConcurrentBag<(int Id, Candle Candle, string Source)>();
 
         // One venue symbol whose endpoint is broken (WEEX serves 400 for a live market's candles)
         // must not starve every symbol after it. Per-symbol isolation, unchanged by the move to a
@@ -88,6 +88,12 @@ public sealed class CandleCollector
             async (target, workCt) =>
             {
                 var (id, symbol, latest) = target;
+
+                // No stored bar at all is the only signal that distinguishes a genuine catch-up
+                // request (source='backfill') from the normal rolling pull (source='rest') — the
+                // same distinction that already decides `from` below, just carried through to the
+                // write instead of being thrown away once the range is picked.
+                var source = latest is null ? "backfill" : "rest";
 
                 // Re-ask for the newest stored minute as well: a venue that back-fills a late bar
                 // then has a chance to correct it, and the rollup repairs the parents from there.
@@ -105,7 +111,7 @@ public sealed class CandleCollector
 
                 foreach (var c in candles)
                 {
-                    fetched.Add((id, c));
+                    fetched.Add((id, c, source));
                 }
 
                 return candles.Count;
@@ -130,7 +136,7 @@ public sealed class CandleCollector
             // the same connection, which a single statement no longer can — there is nothing left to
             // isolate from.
             await using var tx = await conn.BeginTransactionAsync(ct);
-            await WriteCandlesBatchAsync(conn, tx, fetched, ct);
+            await WriteCandlesBatchAsync(conn, tx, fetched, _clock, ct);
             await tx.CommitAsync(ct);
         }
 
@@ -143,7 +149,8 @@ public sealed class CandleCollector
     /// re-ask for the newest stored minute in <see cref="RunAsync"/> exists specifically to catch
     /// that correction, so a plain insert would fail the whole batch on the very bar this is for.</summary>
     private static async Task WriteCandlesBatchAsync(
-        NpgsqlConnection conn, NpgsqlTransaction tx, IReadOnlyCollection<(int Id, Candle Candle)> fetched, CancellationToken ct)
+        NpgsqlConnection conn, NpgsqlTransaction tx, IReadOnlyCollection<(int Id, Candle Candle, string Source)> fetched,
+        TimeProvider clock, CancellationToken ct)
     {
         var ids = new int[fetched.Count];
         var openTime = new DateTimeOffset[fetched.Count];
@@ -153,9 +160,12 @@ public sealed class CandleCollector
         var close = new double[fetched.Count];
         var volume = new double[fetched.Count];
         var tradeCount = new int?[fetched.Count];
+        var receivedAt = new DateTimeOffset[fetched.Count];
+        var source = new string[fetched.Count];
 
+        var receivedNow = clock.GetUtcNow();
         var i = 0;
-        foreach (var (id, c) in fetched)
+        foreach (var (id, c, src) in fetched)
         {
             ids[i] = id;
             openTime[i] = c.OpenTime;
@@ -165,19 +175,28 @@ public sealed class CandleCollector
             close[i] = c.Close;
             volume[i] = c.Volume;
             tradeCount[i] = c.TradeCount;
+            receivedAt[i] = receivedNow;
+            source[i] = src;
             i++;
         }
 
         // NpgsqlCommand rather than Dapper: Dapper expands any IEnumerable parameter into
         // @p1, @p2, …, which turns unnest(@ids) into unnest((@ids1,@ids2,…)) and fails.
+        //
+        // known_from is left NULL on every row this collector writes: per its column comment
+        // (0035) NULL already means "known from the moment it was received," which is exactly
+        // what both 'rest' and 'backfill' rows are — the column exists for a future writer that
+        // can claim earlier knowledge (e.g. an imported vendor dataset), not for this one.
         await using var cmd = new NpgsqlCommand(
             """
             insert into market_candle (
                 exchange_instrument_id, timeframe, open_time,
-                open, high, low, close, volume, trade_count, bar_count, updated_at)
-            select v.id, 1, v.open_time, v.open, v.high, v.low, v.close, v.volume, v.trade_count, 1, now()
-              from unnest(@ids, @open_time, @open, @high, @low, @close, @volume, @trade_count)
-                   as v(id, open_time, open, high, low, close, volume, trade_count)
+                open, high, low, close, volume, trade_count, bar_count, updated_at,
+                received_at, source)
+            select v.id, 1, v.open_time, v.open, v.high, v.low, v.close, v.volume, v.trade_count, 1, now(),
+                   v.received_at, v.source
+              from unnest(@ids, @open_time, @open, @high, @low, @close, @volume, @trade_count, @received_at, @source)
+                   as v(id, open_time, open, high, low, close, volume, trade_count, received_at, source)
             on conflict (exchange_instrument_id, timeframe, open_time) do update set
                 open        = excluded.open,
                 high        = excluded.high,
@@ -185,7 +204,9 @@ public sealed class CandleCollector
                 close       = excluded.close,
                 volume      = excluded.volume,
                 trade_count = excluded.trade_count,
-                updated_at  = now()
+                updated_at  = now(),
+                received_at = excluded.received_at,
+                source      = excluded.source
             """,
             conn, tx);
 
@@ -197,6 +218,8 @@ public sealed class CandleCollector
         cmd.Parameters.AddWithValue("close", close);
         cmd.Parameters.AddWithValue("volume", volume);
         cmd.Parameters.AddWithValue("trade_count", tradeCount);
+        cmd.Parameters.AddWithValue("received_at", receivedAt);
+        cmd.Parameters.AddWithValue("source", source);
 
         await cmd.ExecuteNonQueryAsync(ct);
     }
