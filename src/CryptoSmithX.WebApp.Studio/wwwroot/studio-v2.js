@@ -21,9 +21,10 @@
     var all = document.getElementById('expand-all');
     var total = document.querySelectorAll('.v2-gtoggle').length;
     if (all) {
-      var every = open.size === total;
-      all.setAttribute('aria-pressed', every ? 'true' : 'false');
-      all.textContent = every ? 'Collapse all' : 'Expand all';
+      // Только состояние, подпись не трогаем: у тумблера состояние показывает он сам, а
+      // переписывание надписи на «Collapse all» заставляет читать текст, чтобы понять,
+      // включено сейчас или нет.
+      all.setAttribute('aria-pressed', open.size === total ? 'true' : 'false');
     }
   }
 

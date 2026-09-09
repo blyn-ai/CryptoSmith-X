@@ -8,10 +8,27 @@
     var perp = Model.Rows.Count(r => r.Row.SegmentKind == "perp");
     var spot = Model.Rows.Count(r => r.Row.SegmentKind == "spot");
     var groups = V2Groups.All;
+    var fieldsEach = groups.Sum(g => g.Fields.Count);
 
-    // Figures on the page, counted rather than claimed: the header prints this number and a reader
-    // can check it against what is drawn.
-    var figures = Model.Rows.Count * groups.Sum(g => g.Fields.Count);
+    // Counted, not claimed. The header prints these and a reader can check every one against what
+    // is drawn below — which is the only reason to print them at all.
+    var figures = Model.Rows.Count * fieldsEach;
+    var books = Model.Rows.Count(r => r.Row.DepthAt is not null);
+    var series = Model.Rows.Count(r => r.Candles.Bars.Any(b => b is not null));
+
+    // The verdict: how many of the three calls behind each row are past the window their own dataset
+    // sets. It is the page's own answer to "can any of this still be believed", and it is a count
+    // rather than an adjective so a reader can check it against the ages in the rows.
+    var behind = Model.Rows.Sum(r =>
+        (Freshness.PastWindow(r.Ages.PriceSeconds, r.Windows.PriceSeconds) ? 1 : 0)
+        + (Freshness.PastWindow(r.Ages.DepthSeconds, r.Windows.DepthSeconds) ? 1 : 0)
+        + (Freshness.PastWindow(r.Ages.OpenInterestSeconds, r.Windows.OpenInterestSeconds) ? 1 : 0));
+
+    var oldest = Model.Rows
+        .SelectMany(r => new[] { r.Ages.PriceSeconds, r.Ages.DepthSeconds, r.Ages.OpenInterestSeconds })
+        .Where(a => a is not null)
+        .DefaultIfEmpty(null)
+        .Max();
 }
 <!doctype html>
 <html lang="en">
@@ -36,17 +53,31 @@
 
 <div class="v2-title">
     <h1>@Model.Listings listings quote @Model.BaseFamily.</h1>
+    @if (behind > 0)
+    {
+        <span class="v2-verdict">@behind @(behind == 1 ? "call is" : "calls are") behind @(behind == 1 ? "its window" : "their windows").</span>
+    }
     <span class="v2-meta">
         @Model.PlatformCount platforms · @perp perp · @spot spot ·
-        @groups.Sum(g => g.Fields.Count) fields each · @figures figures
+        @fieldsEach fields each · @figures figures · @books books · @series series
     </span>
 </div>
 
 <div class="v2-controls">
     <a class="v2-back" href="~/">Back to list</a>
-    <button type="button" id="expand-all" class="v2-toggle" aria-pressed="false">Expand all</button>
+
+    @* Тумблеры, а не кнопки: у обоих есть состояние, и состояние должно быть видно, а не только
+       подписано. LIVE стоит выключенным и назван неподключённым — переключатель, который молча
+       ничего не делает, хуже отсутствующего. *@
+    <span class="v2-switch v2-switch--dead" title="Not wired on this page yet — the first design has it">
+        <i></i><em>Live</em>
+    </span>
+    <button type="button" id="expand-all" class="v2-switch" aria-pressed="false">
+        <i></i><em>Expand all · @figures figures</em>
+    </button>
+
     <span class="v2-note">
-        A group opens where it stands, so the venues stay side by side while you read it.
+        A snapshot, @Format.ShortAge(oldest) old. Nothing here is hidden except what you folded.
     </span>
 </div>
 
