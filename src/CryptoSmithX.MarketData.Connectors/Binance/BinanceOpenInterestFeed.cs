@@ -20,9 +20,8 @@ namespace CryptoSmithX.MarketData.Connectors.Binance;
 /// in-scope set used to be ~570 trading perpetuals — the venue's whole listing — and a full pass
 /// cost ~570 weight, a quarter of a minute's budget, which is why it was throttled to a 400 ms
 /// trickle and took ~4 minutes to come back to a symbol. It now samples what we actually collect,
-/// 44 symbols, so a pass costs 44 weight and the trickle is gone: the only tempo is the venue gate.
-/// See <see cref="SymbolCycle"/> for the trade that makes — the pass repeats far more often than
-/// <see cref="MaxAge"/> requires, and shares one budget with the collector loops.
+/// 44 symbols, so a pass costs 44 weight and takes well under a second — the tempo WITHIN a pass is
+/// the venue gate alone; BETWEEN passes see <see cref="PassInterval"/>.
 /// </summary>
 public sealed class BinanceOpenInterestFeed : IBinanceOpenInterestFeed
 {
@@ -33,6 +32,12 @@ public sealed class BinanceOpenInterestFeed : IBinanceOpenInterestFeed
     /// lag of a cycle that is running. A tighter number would omit every symbol the cycle happens to
     /// be walking away from, which is most of them, most of the time.</summary>
     private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(15);
+
+    /// <summary>How often a pass may START — a fifteenth of <see cref="MaxAge"/>, comfortably below
+    /// the "several times the cycle length" margin <see cref="MaxAge"/>'s own comment already
+    /// documents. See <c>SymbolCycle</c>'s class remarks for why this exists and why an earlier
+    /// attempt at it was withdrawn for a reason that does not apply this time.</summary>
+    private static readonly TimeSpan PassInterval = TimeSpan.FromMinutes(1);
 
     private readonly BinanceUsdmClient _client;
     private readonly VenueGate _gate;
@@ -80,7 +85,7 @@ public sealed class BinanceOpenInterestFeed : IBinanceOpenInterestFeed
     }
 
     private Task RunAsync(CancellationToken ct) => SymbolCycle.RunAsync(
-        "Binance.OpenInterest", _symbolsAsync, SymbolRefreshInterval, _gate,
+        "Binance.OpenInterest", _symbolsAsync, SymbolRefreshInterval, PassInterval, _gate,
         async (symbol, workCt) =>
         {
             // Through the venue ceiling, so these calls are counted against the same budget as

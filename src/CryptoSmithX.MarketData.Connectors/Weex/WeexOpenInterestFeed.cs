@@ -19,11 +19,18 @@ public sealed class WeexOpenInterestFeed : IWeexOpenInterestFeed
     // No per-request pause any more: the 150 ms that used to live here made a pass over the venue's
     // ~990 contracts take ~7 minutes against a 10-minute freshness threshold — a margin of 1.4x, so a
     // pass a third slower would have started dropping open interest off the page and looking like a
-    // venue outage. The list is now the 25 symbols we collect and the only tempo is the venue gate;
-    // see SymbolCycle for what that trades away.
+    // venue outage. The list is now the 25 symbols we collect, so a pass takes well under a second;
+    // the tempo WITHIN one is the venue gate alone.
     private static readonly TimeSpan SymbolRefreshInterval = TimeSpan.FromMinutes(10);
 
     private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(10);
+
+    /// <summary>How often a pass may START — a tenth of <see cref="MaxAge"/>, the same margin
+    /// <see cref="MaxAge"/>'s own comment already asks for ("several times the cycle length"), read
+    /// the other way: the cycle should be several times shorter than the threshold that exists to
+    /// notice it stopped. See SymbolCycle's class remarks for why this exists at all and why it was
+    /// briefly withdrawn once for a reason that does not apply this time.</summary>
+    private static readonly TimeSpan PassInterval = TimeSpan.FromMinutes(1);
 
     private readonly WeexFuturesClient _client;
     private readonly VenueGate _gate;
@@ -70,7 +77,7 @@ public sealed class WeexOpenInterestFeed : IWeexOpenInterestFeed
     }
 
     private Task RunAsync(CancellationToken ct) => SymbolCycle.RunAsync(
-        "Weex.OpenInterest", _symbolsAsync, SymbolRefreshInterval, _gate,
+        "Weex.OpenInterest", _symbolsAsync, SymbolRefreshInterval, PassInterval, _gate,
         async (symbol, workCt) =>
         {
             // Through the venue ceiling, so these calls are counted against the same budget as the

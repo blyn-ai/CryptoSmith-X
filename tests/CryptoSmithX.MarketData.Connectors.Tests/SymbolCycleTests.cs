@@ -1,5 +1,6 @@
 using CryptoSmithX.MarketData.Connectors.Pacing;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace CryptoSmithX.MarketData.Connectors.Tests;
 
@@ -26,7 +27,7 @@ public sealed class SymbolCycleTests
 
         await SymbolCycle.RunAsync(
             "test", _ => Task.FromResult(new[] { "BTC", "ETH", "SOL" }),
-            TimeSpan.FromMinutes(10), Gate(),
+            TimeSpan.FromMinutes(10), TimeSpan.Zero, Gate(),
             (symbol, _) =>
             {
                 sampled.Add(symbol);
@@ -60,8 +61,10 @@ public sealed class SymbolCycleTests
             _ => ++calls == 1
                 ? Task.FromResult(new[] { "BTC" })
                 : Task.FromException<string[]>(new InvalidOperationException("database is away")),
-            // Zero, so every iteration re-reads and the second read is the failing one.
-            TimeSpan.Zero, Gate(),
+            // Zero, so every iteration re-reads and the second read is the failing one. Zero again
+            // for passInterval, so the two are not confused for one another: this one governs how
+            // often the SYMBOL LIST is refreshed, the new one governs how often a PASS starts.
+            TimeSpan.Zero, TimeSpan.Zero, Gate(),
             (symbol, _) =>
             {
                 sampled.Add(symbol);
@@ -89,7 +92,7 @@ public sealed class SymbolCycleTests
 
         await SymbolCycle.RunAsync(
             "test", _ => Task.FromResult(new[] { "BTC", "BROKEN", "ETH" }),
-            TimeSpan.FromMinutes(10), Gate(concurrency: 1),
+            TimeSpan.FromMinutes(10), TimeSpan.Zero, Gate(concurrency: 1),
             (symbol, _) =>
             {
                 seen.Add(symbol);
@@ -105,5 +108,71 @@ public sealed class SymbolCycleTests
             NullLogger.Instance, TimeProvider.System, cts.Token);
 
         Assert.Equal(["BROKEN", "BTC", "ETH"], seen.Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// The mechanism plans/prompt-rest-hygiene.md asked back for, on a fake clock so the test asserts
+    /// the exact floor rather than sleeping through it. A second pass over the same three symbols
+    /// must not start before <c>passInterval</c> has elapsed since the FIRST one started — this is
+    /// what stops a feed from re-sampling as fast as the venue gate allows once its own budget
+    /// (VenueGate here is generous enough that the pass itself is instantaneous on the fake clock).
+    /// </summary>
+    [Fact]
+    public async Task A_second_pass_does_not_start_before_the_interval_has_elapsed()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 9, 10, 12, 0, 0, TimeSpan.Zero));
+        var passStarts = new List<DateTimeOffset>();
+        var passesSeen = 0;
+        using var cts = new CancellationTokenSource();
+
+        var run = SymbolCycle.RunAsync(
+            "test", _ => Task.FromResult(new[] { "BTC", "ETH", "SOL" }),
+            TimeSpan.FromMinutes(10), TimeSpan.FromSeconds(30), Gate(),
+            (symbol, _) =>
+            {
+                if (symbol == "BTC")
+                {
+                    passStarts.Add(clock.GetUtcNow());
+                    passesSeen++;
+                }
+
+                return Task.CompletedTask;
+            },
+            NullLogger.Instance, clock, cts.Token);
+
+        // Let the first pass complete (three symbols, an immediate gate — this settles on its own).
+        await WaitUntil(() => passesSeen >= 1);
+
+        // Nothing has advanced the clock yet: a second pass starting here would mean no floor exists
+        // at all — the exact regression this test is for.
+        await Task.Delay(50);
+        Assert.Equal(1, passesSeen);
+
+        clock.Advance(TimeSpan.FromSeconds(29));
+        await Task.Delay(50);
+        Assert.Equal(1, passesSeen);
+
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await WaitUntil(() => passesSeen >= 2);
+
+        Assert.Equal(TimeSpan.FromSeconds(30), passStarts[1] - passStarts[0]);
+
+        // Cancellation is swallowed inside SymbolCycle.RunAsync (the same DelayAsync helper the
+        // empty-list backoff already relies on), so the loop returns normally rather than throwing.
+        await cts.CancelAsync();
+        await run;
+    }
+
+    /// <summary>Polls a real, short wall-clock interval for a condition driven by a fake clock — the
+    /// condition itself never depends on real time passing, only on the async machinery around it
+    /// getting a chance to run.</summary>
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        for (var i = 0; i < 200 && !condition(); i++)
+        {
+            await Task.Delay(5);
+        }
+
+        Assert.True(condition());
     }
 }

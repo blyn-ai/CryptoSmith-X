@@ -15,18 +15,27 @@ namespace CryptoSmithX.MarketData.Connectors.Pacing;
 /// allows was the right idea expressed as a constant nobody could see, tune, or reconcile with the
 /// other callers; sharing one budget between feeds and loops is a policy question and belongs on the
 /// exchange row next to the ceiling, not in three private fields. Until that exists the single tempo
-/// is <see cref="VenueGate"/>, which is the thing the venue actually reacts to.
-///
-/// THE CONSEQUENCE IS STATED RATHER THAN HIDDEN, and it is not yet measured under this code: with no
-/// pause a feed re-samples its list as fast as the gate allows, far more often than the freshness
-/// threshold needs, and every claim it makes is one the collector loops queue behind. If a pass gets
-/// slower after this, that contention is the first place to look — and the per-pass cadence this
-/// deliberately does NOT have is the first thing to try.
+/// WITHIN a pass is <see cref="VenueGate"/>, which is the thing the venue actually reacts to.
 ///
 /// The list narrowed. Each feed used to take its symbols from the VENUE's listing — all 566 Binance
 /// perpetuals while 44 are collected, all ~990 WEEX contracts while 25 are — so most of every pass
 /// was spent sampling instruments nobody stores. The list now comes from a delegate the Hub fills
 /// from our own database, which is where the answer to "what do we collect" has always lived.
+///
+/// A CADENCE BETWEEN PASSES, though, is back — see <paramref name="passInterval"/> below — and this
+/// paragraph exists because it was tried once already (commit 1de2674) and withdrawn (0c26930) for a
+/// reason that does not apply here: that attempt cited a measurement taken against code that had not
+/// actually been committed, so what it "measured" was three feeds with NO cadence at all hammering a
+/// venue gate whose queue they kept permanently full — evidence for the cadence's NECESSITY, not
+/// against it, and withdrawn anyway because the commit could not be trusted to mean what it said. The
+/// argument for a cadence is structural and does not need that number: a feed with no floor between
+/// passes re-samples as fast as the gate allows, every one of its own workers landing back at the end
+/// of the SAME queue the collector loops are standing in, and MaxAge on every one of these feeds is
+/// already documented as "several times the cycle length" (see e.g.
+/// <see cref="Weex.WeexOpenInterestFeed.MaxAge"/>) — a threshold sized for noticing the cycle has
+/// stopped, not for policing the normal lag of one that is running once a second. Sampling something
+/// once a second that is allowed to be minutes old is not diligence, it is spending a budget the
+/// collector loops are queued behind.
 /// </summary>
 public static class SymbolCycle
 {
@@ -39,10 +48,17 @@ public static class SymbolCycle
     /// symbol per pass and must acquire its own <see cref="VenueGate"/> lease around the request; a
     /// symbol that throws is logged and left stale, and a 429 penalises the venue for every caller.
     /// </summary>
+    /// <param name="passInterval">The floor between the START of one pass and the START of the next
+    /// — a pass that runs longer than this simply begins the next one immediately, so this bounds
+    /// how OFTEN the feed asks, never how fast one pass itself may go (that is <see cref="VenueGate"/>
+    /// alone, within the pass). Pick it from the consumer's own freshness need, not from how quickly
+    /// the venue would tolerate being asked — see the class remarks for why "as fast as the gate
+    /// allows" is the wrong default once one already existed.</param>
     public static async Task RunAsync(
         string name,
         Func<CancellationToken, Task<string[]>> symbolsAsync,
         TimeSpan symbolRefreshInterval,
+        TimeSpan passInterval,
         VenueGate gate,
         Func<string, CancellationToken, Task> sampleAsync,
         ILogger log,
@@ -116,6 +132,12 @@ public static class SymbolCycle
             log.LogInformation(
                 "{Feed}: pass of {Symbols} symbols in {Seconds:F1} s, {Failed} failed",
                 name, symbols.Length, elapsed.TotalSeconds, pass.Failed);
+
+            var rest = passInterval - elapsed;
+            if (rest > TimeSpan.Zero && !await DelayAsync(rest, clock, ct).ConfigureAwait(false))
+            {
+                return;
+            }
         }
     }
 

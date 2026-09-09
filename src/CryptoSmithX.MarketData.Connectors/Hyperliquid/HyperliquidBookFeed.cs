@@ -28,6 +28,15 @@ public sealed class HyperliquidBookFeed : IHyperliquidLiveFeed
 
     private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(5);
 
+    /// <summary>How often a pass may START. Much shorter, relative to MaxAge, than the two open-
+    /// interest feeds' minute: this one is the REST fallback for the live BOOK — bid, ask and depth
+    /// — not a slower-moving gauge, so its consumer wants the newest sample the gate can afford, not
+    /// merely one inside MaxAge. Ten seconds over 25 coins is a small, bounded share of the venue's
+    /// budget and still a 30x margin under MaxAge. See <c>SymbolCycle</c>'s class remarks for why a
+    /// between-pass cadence exists at all and why an earlier attempt at it was withdrawn for a reason
+    /// that does not apply this time.</summary>
+    private static readonly TimeSpan PassInterval = TimeSpan.FromSeconds(10);
+
     private readonly HyperliquidClient _client;
     private readonly VenueGate _gate;
     private readonly MarketCache<(BookTop Top, Depth? Depth)> _cache;
@@ -99,7 +108,7 @@ public sealed class HyperliquidBookFeed : IHyperliquidLiveFeed
     }
 
     private Task RunAsync(CancellationToken ct) => SymbolCycle.RunAsync(
-        "Hyperliquid.Book", _symbolsAsync, SymbolRefreshInterval, _gate,
+        "Hyperliquid.Book", _symbolsAsync, SymbolRefreshInterval, PassInterval, _gate,
         async (symbol, workCt) =>
         {
             HlL2Book book;
