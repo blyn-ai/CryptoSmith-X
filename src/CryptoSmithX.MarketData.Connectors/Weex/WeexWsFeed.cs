@@ -69,6 +69,11 @@ public sealed class WeexWsFeed : IWeexLiveFeed
     /// no longer coupled at the subscription level, only at the connection level.</summary>
     private const string KlineChannel = "kline_1m";
 
+    /// <summary>The trade tape. Subscribed for the same narrow set as klines, not the broad depth
+    /// set: a trade row is stored per event, so the wide list would multiply storage by the ~40x
+    /// ratio between listed contracts and collected ones for data nothing reads.</summary>
+    private const string TradeChannel = "trade";
+
     /// <summary>Symbols per SUBSCRIBE frame. The envelope takes an array, but the capture only ever
     /// sent one element, so the venue's real ceiling is unknown — and guessing high is expensive
     /// here, since an oversized frame would come back as a reject and rejects are what close the
@@ -83,6 +88,7 @@ public sealed class WeexWsFeed : IWeexLiveFeed
     private readonly VenueGate _gate;
     private readonly WeexBookBuilder _books;
     private readonly CandleCache _candles = new();
+    private readonly EventBuffer<TradeEvent> _trades = new();
     private readonly TimeProvider _clock;
     private readonly ILogger _log;
     private readonly TimeSpan _staleAfter;
@@ -231,6 +237,7 @@ public sealed class WeexWsFeed : IWeexLiveFeed
             symbols.Length, DepthChannel, klineSymbols.Length, KlineChannel);
         await SubscribeDepthAsync("SUBSCRIBE", symbols, ct);
         await SubscribeKlineAsync("SUBSCRIBE", klineSymbols, ct);
+        await SubscribeTradeAsync("SUBSCRIBE", klineSymbols, ct);
     }
 
     private void OnMessage(string text)
@@ -294,6 +301,10 @@ public sealed class WeexWsFeed : IWeexLiveFeed
                     break;
                 case "kline":
                     HandleKline(root, isSnapshot: false);
+                    break;
+                case "tradeSnapshot":
+                case "trade":
+                    HandleTrades(root);
                     break;
             }
         }
@@ -419,10 +430,15 @@ public sealed class WeexWsFeed : IWeexLiveFeed
         // Our receive time, not the venue's E — the builder reads it back as this feed's freshness
         // signal, and that has to measure our own receipt.
         var at = _clock.GetUtcNow();
+        // The frame's own event time — book_topn.observed_at is defined as the VENUE's clock, and
+        // `at` above is ours (it stays ours, freshness is measured against our own reads).
+        DateTimeOffset? venueTime = root.TryGetProperty("E", out var evEl) && evEl.TryGetInt64(out var evMs)
+            ? DateTimeOffset.FromUnixTimeMilliseconds(evMs)
+            : null;
 
         if (isSnapshot)
         {
-            _books.ApplySnapshot(symbol, lastEl.GetInt64(), levels, bids, asks, at);
+            _books.ApplySnapshot(symbol, lastEl.GetInt64(), levels, bids, asks, at, venueTime);
 
             // Loud, because a thinner book than we asked for means the WS depth path is inert: the
             // books sequence correctly and are never served. Silence here would look exactly like a
@@ -438,7 +454,7 @@ public sealed class WeexWsFeed : IWeexLiveFeed
             return;
         }
 
-        if (_books.ApplyDelta(symbol, firstEl.GetInt64(), lastEl.GetInt64(), levels, bids, asks, at)
+        if (_books.ApplyDelta(symbol, firstEl.GetInt64(), lastEl.GetInt64(), levels, bids, asks, at, venueTime)
             == WeexBookBuilder.DeltaResult.Gap)
         {
             // Per-symbol at Debug, not Warning: a thousand symbols make a per-gap warning a wall of
@@ -617,11 +633,13 @@ public sealed class WeexWsFeed : IWeexLiveFeed
         if (klineAdded.Length > 0)
         {
             await SubscribeKlineAsync("SUBSCRIBE", klineAdded, ct);
+            await SubscribeTradeAsync("SUBSCRIBE", klineAdded, ct);
         }
 
         if (klineRemoved.Length > 0)
         {
             await SubscribeKlineAsync("UNSUBSCRIBE", klineRemoved, ct);
+            await SubscribeTradeAsync("UNSUBSCRIBE", klineRemoved, ct);
             foreach (var symbol in klineRemoved)
             {
                 _candles.Remove(symbol);
@@ -631,6 +649,57 @@ public sealed class WeexWsFeed : IWeexLiveFeed
 
     private Task SubscribeDepthAsync(string method, IReadOnlyList<string> symbols, CancellationToken ct) =>
         SubscribeAsync(method, symbols, DepthChannel, ct);
+
+    /// <summary>One <c>trade</c>/<c>tradeSnapshot</c> frame: <c>{e,E,s,d:[{T,t,p,q,v,m}]}</c>,
+    /// confirmed live in Fixtures/weex-ws/trade.jsonl. <c>t</c> is a uuid, <c>m</c> the
+    /// buyer-is-maker flag Binance's tape uses, and there is no sequence number and no trade type —
+    /// WEEX does not mark liquidations, so trade_type stays NULL rather than being defaulted to
+    /// 'fill'.</summary>
+    private void HandleTrades(JsonElement root)
+    {
+        if (!root.TryGetProperty("s", out var symbolEl) || symbolEl.GetString() is not { } wireSymbol
+            || !_v3ToV2.TryGetValue(wireSymbol, out var symbol))
+        {
+            return;
+        }
+
+        if (!root.TryGetProperty("d", out var rows) || rows.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var row in rows.EnumerateArray())
+        {
+            if (!row.TryGetProperty("t", out var uidEl) || uidEl.GetString() is not { } uid
+                || !row.TryGetProperty("T", out var timeEl) || !timeEl.TryGetInt64(out var ms)
+                || !TryParseString(row, "p", out var price) || !TryParseString(row, "q", out var qty))
+            {
+                continue;
+            }
+
+            if (price <= 0 || qty <= 0)
+            {
+                continue;
+            }
+
+            // "m" is the buyer-is-maker flag: a maker buyer means the SELLER crossed the spread.
+            var takerSide = row.TryGetProperty("m", out var mEl) && mEl.ValueKind == JsonValueKind.True
+                ? "sell"
+                : "buy";
+
+            _trades.Add(new TradeEvent(
+                symbol, DateTimeOffset.FromUnixTimeMilliseconds(ms), uid, Seq: null, price, qty,
+                takerSide, TradeType: null));
+        }
+    }
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _trades.Drain();
+
+    public bool TryGetBookFrame(string symbol, int levels, out BookFrame frame) =>
+        _books.TryGetFrame(symbol, levels, out frame);
+
+    private Task SubscribeTradeAsync(string method, IReadOnlyList<string> symbols, CancellationToken ct) =>
+        SubscribeAsync(method, symbols, TradeChannel, ct);
 
     private Task SubscribeKlineAsync(string method, IReadOnlyList<string> symbols, CancellationToken ct) =>
         SubscribeAsync(method, symbols, KlineChannel, ct);

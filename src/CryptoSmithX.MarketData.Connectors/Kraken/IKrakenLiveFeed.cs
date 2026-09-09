@@ -12,4 +12,14 @@ public interface IKrakenLiveFeed
     bool TryGetFreshTickers(out IReadOnlyList<Ticker> tickers);
 
     bool TryGetDepth(string symbol, out Depth depth);
+
+    /// <summary>Trades buffered since the last call — see <see cref="IExchangeMarketData.DrainTrades"/>.
+    /// Defaulted so a test double that only cares about tickers stays a two-line class.</summary>
+    IReadOnlyList<TradeEvent> DrainTrades() => [];
+
+    bool TryGetBookFrame(string symbol, int levels, out BookFrame frame)
+    {
+        frame = null!;
+        return false;
+    }
 }

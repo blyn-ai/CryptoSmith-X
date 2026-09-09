@@ -77,7 +77,90 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
         new("depth", "rest,ws"),
         new("candles", "rest,ws"),
         new("funding", "rest"),
+        new("trades", "ws"),
+        new("book", "ws"),
+        new("open_interest", "rest"),
+        new("liquidations", "ws"),
+        new("candles_mark", "rest"),
+        new("candles_index", "rest"),
+        new("spec_versions", "rest"),
     ];
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _marketFeed?.DrainTrades() ?? [];
+
+    public IReadOnlyList<TradeEvent> DrainLiquidations() => _marketFeed?.DrainLiquidations() ?? [];
+
+    public bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame)
+    {
+        if (_ws is not null && _ws.TryGetBookFrame(exchangeSymbol, levels, out frame))
+        {
+            return true;
+        }
+
+        frame = null!;
+        return false;
+    }
+
+
+    /// <summary>The venue's own 5-minute open-interest aggregate. One point per bucket (no OHLC),
+    /// with a quote-notional column the live openInterest endpoint does not carry. The venue keeps
+    /// about 30 days here, so a request reaching further back simply returns what exists.</summary>
+    public async Task<IReadOnlyList<OpenInterestBucket>> GetOpenInterestHistoryAsync(
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        var wanted = (int)Math.Ceiling((to - from).TotalSeconds / OpenInterestBucketSeconds) + 1;
+        var rows = await _client.GetOpenInterestHistAsync(
+            exchangeSymbol, "5m", Math.Clamp(wanted, 1, 500), ct);
+
+        var list = new List<OpenInterestBucket>(rows.Count);
+        foreach (var r in rows)
+        {
+            var at = DateTimeOffset.FromUnixTimeMilliseconds(r.Timestamp);
+            if (at < from || at > to)
+            {
+                continue;
+            }
+
+            list.Add(new OpenInterestBucket(
+                exchangeSymbol, OpenInterestBucketSeconds, at,
+                Open: null, High: null, Low: null,
+                Close: Parse(r.SumOpenInterest),
+                Quote: Parse(r.SumOpenInterestValue),
+                Source: "analytics"));
+        }
+
+        return list;
+    }
+
+    /// <summary>Binance is the only one of the four venues that publishes mark- and index-price bars
+    /// at all. Same closed-bar rule as the traded candles: the bar covering <paramref name="to"/> is
+    /// still forming and is dropped.</summary>
+    public async Task<IReadOnlyList<PriceCandle>> GetPriceCandles1mAsync(
+        string exchangeSymbol, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        var rows = await _client.GetPriceKlines1mAsync(
+            series, exchangeSymbol, from.ToUnixTimeMilliseconds(), to.ToUnixTimeMilliseconds(), ct);
+
+        var list = new List<PriceCandle>(rows.Count);
+        foreach (var r in rows)
+        {
+            var openTime = DateTimeOffset.FromUnixTimeMilliseconds(r[0].GetInt64());
+            if (openTime + TimeSpan.FromMinutes(1) > to)
+            {
+                continue;
+            }
+
+            list.Add(new PriceCandle(
+                exchangeSymbol, series, openTime,
+                Parse(r[1].GetString()!), Parse(r[2].GetString()!),
+                Parse(r[3].GetString()!), Parse(r[4].GetString()!)));
+        }
+
+        return list;
+    }
+
+    /// <summary>The venue's own bucket size for openInterestHist. 5m is its finest grain.</summary>
+    private const int OpenInterestBucketSeconds = 300;
 
     public async Task<IReadOnlyList<Instrument>> GetInstrumentsAsync(CancellationToken ct)
     {

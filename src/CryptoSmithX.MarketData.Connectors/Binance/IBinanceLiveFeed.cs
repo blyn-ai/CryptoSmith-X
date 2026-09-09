@@ -26,4 +26,12 @@ namespace CryptoSmithX.MarketData.Connectors.Binance;
 public interface IBinanceLiveFeed
 {
     bool TryGetDepth(string symbol, out Depth depth);
+
+    /// <summary>The maintained book's top N levels (book_topn, 0032) — the raw levels this feed has
+    /// always kept and never exposed, since depth only ever left here as bps bands.</summary>
+    bool TryGetBookFrame(string symbol, int levels, out BookFrame frame)
+    {
+        frame = null!;
+        return false;
+    }
 }

@@ -72,7 +72,8 @@ public sealed class BinanceBookBuilder
         string symbol, long lastUpdateId,
         IReadOnlyList<(double Price, double Qty)> bids,
         IReadOnlyList<(double Price, double Qty)> asks,
-        DateTimeOffset at)
+        DateTimeOffset at,
+        DateTimeOffset? venueTime = null)
     {
         var book = _books.GetOrAdd(symbol, _ => new SymbolBook());
 
@@ -90,6 +91,7 @@ public sealed class BinanceBookBuilder
             // is validated by the first-event rule, not by the pu chain.
             book.AwaitingFirstEvent = true;
             book.UpdatedAt = at;
+            book.VenueTime = venueTime ?? at;
 
             // The window this book is COMPLETE within, taken from the snapshot's own extent rather
             // than from the limit we asked for: the venue may return fewer levels than requested on
@@ -124,7 +126,7 @@ public sealed class BinanceBookBuilder
             var clean = true;
             foreach (var f in replay)
             {
-                if (ApplyDeltaLocked(book, f.FirstUpdateId, f.LastUpdateId, f.PreviousUpdateId, f.Bids, f.Asks, at)
+                if (ApplyDeltaLocked(book, f.FirstUpdateId, f.LastUpdateId, f.PreviousUpdateId, f.Bids, f.Asks, at, venueTime)
                     == DeltaResult.Gap)
                 {
                     clean = false;
@@ -144,13 +146,14 @@ public sealed class BinanceBookBuilder
         string symbol, long firstUpdateId, long lastUpdateId, long previousUpdateId,
         IReadOnlyList<(double Price, double Qty)> bids,
         IReadOnlyList<(double Price, double Qty)> asks,
-        DateTimeOffset at)
+        DateTimeOffset at,
+        DateTimeOffset? venueTime = null)
     {
         var book = _books.GetOrAdd(symbol, _ => new SymbolBook());
 
         lock (book.Gate)
         {
-            return ApplyDeltaLocked(book, firstUpdateId, lastUpdateId, previousUpdateId, bids, asks, at);
+            return ApplyDeltaLocked(book, firstUpdateId, lastUpdateId, previousUpdateId, bids, asks, at, venueTime);
         }
     }
 
@@ -160,7 +163,8 @@ public sealed class BinanceBookBuilder
         SymbolBook book, long firstUpdateId, long lastUpdateId, long previousUpdateId,
         IReadOnlyList<(double Price, double Qty)> bids,
         IReadOnlyList<(double Price, double Qty)> asks,
-        DateTimeOffset at)
+        DateTimeOffset at,
+        DateTimeOffset? venueTime)
     {
         // Buffered rather than dropped — and a book being RESEEDED is in exactly the same position
         // as one being seeded for the first time. Binance's procedure needs frames from BEFORE the
@@ -215,6 +219,7 @@ public sealed class BinanceBookBuilder
         Apply(book.Asks, asks);
         book.LastUpdateId = lastUpdateId;
         book.UpdatedAt = at;
+            book.VenueTime = venueTime ?? at;
         return DeltaResult.Applied;
     }
 
@@ -439,6 +444,44 @@ public sealed class BinanceBookBuilder
         lock (book.Gate) { return !book.Seeded || book.Dirty; }
     }
 
+    /// <summary>The top <paramref name="levels"/> of a clean, seeded book (book_topn, 0032), stamped
+    /// with the venue's own frame time and the <c>u</c> the venue put on that frame. Same
+    /// seeded/dirty gate as <see cref="TryGetDepth"/> — a book not trusted for a band is not stored
+    /// as a frame either.</summary>
+    public bool TryGetFrame(string symbol, int levels, out BookFrame frame)
+    {
+        frame = null!;
+        if (!_books.TryGetValue(symbol, out var book))
+        {
+            return false;
+        }
+
+        KeyValuePair<double, double>[] bids, asks;
+        DateTimeOffset observedAt;
+        long seq;
+        lock (book.Gate)
+        {
+            if (!book.Seeded || book.Dirty)
+            {
+                return false;
+            }
+
+            bids = [.. book.Bids];
+            asks = [.. book.Asks];
+            observedAt = book.VenueTime;
+            seq = book.LastUpdateId;
+        }
+
+        var built = BookFrames.From(symbol, bids, asks, observedAt, seq, levels);
+        if (built is null)
+        {
+            return false;
+        }
+
+        frame = built;
+        return true;
+    }
+
     public enum DeltaResult
     {
         Applied,
@@ -488,6 +531,11 @@ public sealed class BinanceBookBuilder
 
         public bool Dirty;
         public bool Seeded;
+
+        /// <summary>The venue's own clock for the last frame applied (depthUpdate's "E"), kept apart
+        /// from <see cref="UpdatedAt"/>: book_topn.observed_at is the venue's time by definition and
+        /// received_at is ours, and this feed measures its own freshness against ours.</summary>
+        public DateTimeOffset VenueTime;
 
         /// <summary>Frames that arrived before the seed, in arrival order.</summary>
         public List<PendingFrame> Pending = [];

@@ -58,7 +58,27 @@ public sealed class HyperliquidMarketData : IExchangeMarketData
         new("depth", "rest,ws"),
         new("candles", "rest,ws"),
         new("funding", "rest"),
+        new("trades", "ws"),
+        new("book", "ws"),
+        // metaAndAssetCtxs carries current OI and nothing historical (probed live: the info API
+        // rejects an openInterestHistory request outright), so this is our own bucketed sampling.
+        new("open_interest", "rest"),
+        new("spec_versions", "rest"),
     ];
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _wsFeed?.DrainTrades() ?? [];
+
+    public bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame)
+    {
+        if (_wsFeed is not null && _wsFeed.TryGetBookFrame(exchangeSymbol, levels, out frame))
+        {
+            return true;
+        }
+
+        frame = null!;
+        return false;
+    }
+
 
     public async Task<IReadOnlyList<Instrument>> GetInstrumentsAsync(CancellationToken ct)
     {

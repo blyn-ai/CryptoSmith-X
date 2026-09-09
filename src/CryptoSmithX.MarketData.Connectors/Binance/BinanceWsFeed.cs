@@ -156,6 +156,19 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     /// quiet book under a live socket is served, and the cross-check is what distinguishes the two.
     /// Bands the seed never covered come back null inside a Depth that is otherwise real; see
     /// <see cref="BinanceBookBuilder.TryGetDepth"/>.</summary>
+    /// <summary>Gated on the same feed health as <see cref="TryGetDepth"/>: an unhealthy feed's
+    /// book is not a frame worth storing either.</summary>
+    public bool TryGetBookFrame(string symbol, int levels, out BookFrame frame)
+    {
+        if (!Healthy)
+        {
+            frame = null!;
+            return false;
+        }
+
+        return _books.TryGetFrame(symbol, levels, out frame);
+    }
+
     public bool TryGetDepth(string symbol, out Depth depth)
     {
         if (!Healthy)
@@ -427,7 +440,9 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         // signal, and that has to measure our own receipt.
         var result = _books.ApplyDelta(
             frame.Symbol, frame.FirstUpdateId, frame.LastUpdateId, frame.PreviousUpdateId,
-            bids, asks, _clock.GetUtcNow());
+            bids, asks, _clock.GetUtcNow(),
+            // book_topn.observed_at wants the VENUE's clock; freshness above still uses ours.
+            frame.EventTime > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(frame.EventTime) : null);
 
         if (result == BinanceBookBuilder.DeltaResult.Gap)
         {

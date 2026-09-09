@@ -47,4 +47,11 @@ public interface IBinanceMarketFeed
     /// <see cref="Market.CandleCache.TryGetRange"/> for why a partial answer is refused rather than
     /// thinned. The caller falls back to REST for the entire call.</summary>
     bool TryGetCandles1m(string symbol, DateTimeOffset from, DateTimeOffset to, out IReadOnlyList<Candle> candles);
+
+    /// <summary>Tape trades buffered since the last call (<c>@aggTrade</c>).</summary>
+    IReadOnlyList<TradeEvent> DrainTrades() => [];
+
+    /// <summary>Liquidation orders buffered since the last call (<c>!forceOrder@arr</c>), kept apart
+    /// from the tape — see <see cref="IExchangeMarketData.DrainLiquidations"/>.</summary>
+    IReadOnlyList<TradeEvent> DrainLiquidations() => [];
 }

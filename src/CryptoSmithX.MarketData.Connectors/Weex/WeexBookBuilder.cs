@@ -52,7 +52,8 @@ public sealed class WeexBookBuilder
         string symbol, long lastUpdateId, int levels,
         IReadOnlyList<(double Price, double Qty)> bids,
         IReadOnlyList<(double Price, double Qty)> asks,
-        DateTimeOffset at)
+        DateTimeOffset at,
+        DateTimeOffset? venueTime = null)
     {
         var book = _books.GetOrAdd(symbol, _ => new SymbolBook());
         lock (book.Gate)
@@ -66,6 +67,7 @@ public sealed class WeexBookBuilder
             book.Dirty = false;
             book.Seeded = true;
             book.UpdatedAt = at;
+            book.VenueTime = venueTime ?? at;
         }
     }
 
@@ -76,7 +78,8 @@ public sealed class WeexBookBuilder
         string symbol, long firstUpdateId, long lastUpdateId, int levels,
         IReadOnlyList<(double Price, double Qty)> bids,
         IReadOnlyList<(double Price, double Qty)> asks,
-        DateTimeOffset at)
+        DateTimeOffset at,
+        DateTimeOffset? venueTime = null)
     {
         if (!_books.TryGetValue(symbol, out var book))
         {
@@ -104,6 +107,7 @@ public sealed class WeexBookBuilder
             book.LastUpdateId = lastUpdateId;
             book.Levels = levels;
             book.UpdatedAt = at;
+            book.VenueTime = venueTime ?? at;
             Trim(book.Bids, levels, bestFirst: (a, b) => b.CompareTo(a));
             Trim(book.Asks, levels, bestFirst: (a, b) => a.CompareTo(b));
             return DeltaResult.Applied;
@@ -276,6 +280,43 @@ public sealed class WeexBookBuilder
         return list;
     }
 
+    /// <summary>The top <paramref name="levels"/> of a clean, seeded book (book_topn, 0032), stamped
+    /// with the venue's own frame time and the <c>u</c> the venue put on that frame. Same
+    /// seeded/dirty gate as <see cref="TryGetDepth"/>.</summary>
+    public bool TryGetFrame(string symbol, int levels, out BookFrame frame)
+    {
+        frame = null!;
+        if (!_books.TryGetValue(symbol, out var book))
+        {
+            return false;
+        }
+
+        KeyValuePair<double, double>[] bids, asks;
+        DateTimeOffset observedAt;
+        long seq;
+        lock (book.Gate)
+        {
+            if (!book.Seeded || book.Dirty)
+            {
+                return false;
+            }
+
+            bids = [.. book.Bids];
+            asks = [.. book.Asks];
+            observedAt = book.VenueTime;
+            seq = book.LastUpdateId;
+        }
+
+        var built = BookFrames.From(symbol, bids, asks, observedAt, seq, levels);
+        if (built is null)
+        {
+            return false;
+        }
+
+        frame = built;
+        return true;
+    }
+
     private static bool IsDirtyLocked(SymbolBook book)
     {
         lock (book.Gate) { return book.Dirty || !book.Seeded; }
@@ -305,5 +346,11 @@ public sealed class WeexBookBuilder
 
         /// <summary>Our receive time for the last applied frame — see <see cref="ApplySnapshot"/>.</summary>
         public DateTimeOffset UpdatedAt;
+
+        /// <summary>The venue's own clock for that frame (the depth message's "E"), kept apart from
+        /// <see cref="UpdatedAt"/> because book_topn.observed_at is defined as the venue's time and
+        /// received_at as ours — the two are different columns on purpose. Falls back to our clock
+        /// only when a frame carries no event time at all.</summary>
+        public DateTimeOffset VenueTime;
     }
 }

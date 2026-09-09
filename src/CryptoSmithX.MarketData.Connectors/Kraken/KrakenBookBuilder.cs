@@ -124,6 +124,44 @@ public sealed class KrakenBookBuilder
         return true;
     }
 
+    /// <summary>The top <paramref name="levels"/> of a clean, seeded book, with the venue's own
+    /// sequence and update time on the frame (book_topn, 0032). Same seeded/dirty gate as
+    /// <see cref="TryGetDepth"/>: a book we do not trust for a band is not one to store as a
+    /// frame either.</summary>
+    public bool TryGetFrame(string symbol, int levels, out BookFrame frame)
+    {
+        frame = null!;
+        if (!_books.TryGetValue(symbol, out var book))
+        {
+            return false;
+        }
+
+        KeyValuePair<double, double>[] bids, asks;
+        DateTimeOffset observedAt;
+        long seq;
+        lock (book.Gate)
+        {
+            if (!book.Seeded || book.Dirty)
+            {
+                return false;
+            }
+
+            bids = [.. book.Bids];
+            asks = [.. book.Asks];
+            observedAt = book.UpdatedAt;
+            seq = book.Seq;
+        }
+
+        var built = BookFrames.From(symbol, bids, asks, observedAt, seq, levels);
+        if (built is null)
+        {
+            return false;
+        }
+
+        frame = built;
+        return true;
+    }
+
     /// <summary>Mid of the top of a clean, seeded book — for the REST cross-check, which compares this
     /// against REST to catch a book that has frozen behind a live socket. False if not measurable.</summary>
     public bool TryGetTopMid(string symbol, out double mid)

@@ -111,3 +111,18 @@ internal sealed record KrakenOrderBook
     public double[][] Bids { get; init; } = [];
     public double[][] Asks { get; init; } = [];
 }
+
+/// <summary>The envelope both analytics series share. <c>Data</c> is deliberately
+/// <see cref="JsonElement"/>: open-interest fills it with four-element string arrays (OHLC) and
+/// liquidation-volume with bare strings, and forcing one shape onto the other would mean parsing a
+/// scalar as a one-element array or vice versa.</summary>
+internal sealed record KrakenAnalyticsResponse
+{
+    public KrakenAnalyticsResult Result { get; init; } = new();
+}
+
+internal sealed record KrakenAnalyticsResult
+{
+    public List<long> Timestamp { get; init; } = [];
+    public List<System.Text.Json.JsonElement> Data { get; init; } = [];
+}

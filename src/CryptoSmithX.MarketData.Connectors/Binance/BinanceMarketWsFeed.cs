@@ -53,6 +53,14 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
     private readonly MarketCache<(double Last, double Turnover24h, double? VolumeBase)> _ticker;
     private readonly MarketCache<(double Mark, double Index, double Funding, DateTimeOffset? VenueTs, DateTimeOffset? NextFundingAt)> _markPrice;
     private readonly CandleCache _candles = new();
+
+    /// <summary>Trades from <c>@aggTrade</c> AND liquidations from <c>!forceOrder@arr</c> — one
+    /// buffer, because both are trades in <c>trade</c>'s terms and differ only by trade_type.</summary>
+    private readonly EventBuffer<TradeEvent> _trades = new();
+
+    /// <summary>Liquidation orders, apart from the tape — see the class remarks on
+    /// <see cref="HandleForceOrder"/> for why storing them as trade rows would double-count.</summary>
+    private readonly EventBuffer<TradeEvent> _liquidations = new();
     private readonly TimeProvider _clock;
     private readonly ILogger _log;
 
@@ -170,8 +178,11 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
         // The two array streams cover the whole venue in one subscribe each — no per-symbol
         // management, unlike kline. Sent first so a slow kline subscribe chunk-out never delays the
         // cheaper, more valuable streams.
-        await SendAsync(new { method = "SUBSCRIBE", @params = new[] { "!ticker@arr", "!markPrice@arr@1s" }, id = NextId() }, ct);
+        // !forceOrder@arr joins them: also whole-venue in one subscribe, and the only place this
+        // venue publishes liquidations at all (there is no aggregate endpoint for them any more).
+        await SendAsync(new { method = "SUBSCRIBE", @params = new[] { "!ticker@arr", "!markPrice@arr@1s", "!forceOrder@arr" }, id = NextId() }, ct);
         await SubscribeKlinesAsync("SUBSCRIBE", symbols, ct);
+        await SubscribeTradesAsync("SUBSCRIBE", symbols, ct);
 
         _ = WatchStartupLivenessAsync(symbols.Length, ct);
     }
@@ -235,10 +246,21 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
                 case "!markPrice@arr@1s":
                     HandleMarkPriceArray(data);
                     break;
+                case "!forceOrder@arr":
+                    HandleForceOrder(data);
+                    break;
                 default:
-                    if (data.ValueKind == JsonValueKind.Object && data.TryGetProperty("e", out var e) && e.GetString() == "kline")
+                    if (data.ValueKind == JsonValueKind.Object && data.TryGetProperty("e", out var e))
                     {
-                        HandleKline(data);
+                        switch (e.GetString())
+                        {
+                            case "kline":
+                                HandleKline(data);
+                                break;
+                            case "aggTrade":
+                                HandleAggTrade(data);
+                                break;
+                        }
                     }
 
                     break;
@@ -353,6 +375,97 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
             volumeQuote));
     }
 
+    /// <summary>One <c>aggTrade</c>: <c>{e,E,a,s,p,q,f,l,T,m}</c>, confirmed live. <c>a</c> is the
+    /// aggregate id (venue_uid), <c>T</c> the trade time, and <c>m</c> the buyer-is-maker flag —
+    /// a maker buyer means the SELLER crossed. trade_type stays NULL: the tape does not say whether
+    /// a fill came from a liquidation, and defaulting it to 'fill' would claim it did not.</summary>
+    private void HandleAggTrade(JsonElement data)
+    {
+        if (!data.TryGetProperty("s", out var sEl) || sEl.GetString() is not { } symbol
+            || !_known.Contains(symbol))
+        {
+            return;
+        }
+
+        if (!data.TryGetProperty("a", out var aEl) || !aEl.TryGetInt64(out var aggId)
+            || !data.TryGetProperty("T", out var tEl) || !tEl.TryGetInt64(out var ms)
+            || !TryParseString(data, "p", out var price) || !TryParseString(data, "q", out var qty))
+        {
+            return;
+        }
+
+        if (price <= 0 || qty <= 0)
+        {
+            return;
+        }
+
+        var takerSide = data.TryGetProperty("m", out var mEl) && mEl.ValueKind == JsonValueKind.True
+            ? "sell"
+            : "buy";
+
+        _trades.Add(new TradeEvent(
+            symbol, DateTimeOffset.FromUnixTimeMilliseconds(ms), aggId.ToString(CultureInfo.InvariantCulture),
+            Seq: null, price, qty, takerSide, TradeType: null));
+    }
+
+    /// <summary>One <c>!forceOrder@arr</c> event: <c>{e,E,o:{s,S,q,p,ap,X,l,z,T}}</c> — a liquidation
+    /// ORDER, not a tape entry. <c>z</c> is the accumulated filled quantity and <c>ap</c> the average
+    /// fill price, which is the pair that describes what actually executed. Buffered apart from the
+    /// tape (see <see cref="IExchangeMarketData.DrainLiquidations"/>): these same fills also arrive
+    /// on @aggTrade, so they are bucketed into liquidation_volume_history rather than stored as
+    /// second copies of the same executed quantity.</summary>
+    private void HandleForceOrder(JsonElement data)
+    {
+        if (!data.TryGetProperty("o", out var o) || o.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        if (!o.TryGetProperty("s", out var sEl) || sEl.GetString() is not { } symbol
+            || !_known.Contains(symbol))
+        {
+            return;
+        }
+
+        if (!o.TryGetProperty("T", out var tEl) || !tEl.TryGetInt64(out var ms))
+        {
+            return;
+        }
+
+        // Accumulated filled quantity, falling back to the last fill; average price, falling back to
+        // the order price. A liquidation that filled nothing carries no volume and is skipped.
+        if (!TryParseString(o, "z", out var qty) && !TryParseString(o, "l", out qty))
+        {
+            return;
+        }
+
+        if (!TryParseString(o, "ap", out var price) || price <= 0)
+        {
+            if (!TryParseString(o, "p", out price) || price <= 0)
+            {
+                return;
+            }
+        }
+
+        if (qty <= 0)
+        {
+            return;
+        }
+
+        // The venue states the side of the liquidated ORDER; the taker is whoever it hit.
+        var side = o.TryGetProperty("S", out var sideEl) && sideEl.GetString() is "BUY" ? "buy" : "sell";
+
+        _liquidations.Add(new TradeEvent(
+            symbol, DateTimeOffset.FromUnixTimeMilliseconds(ms),
+            // forceOrder carries no id of its own; the instant plus side is what distinguishes one
+            // event from the next, and nothing downstream keys on this beyond bucketing.
+            $"{ms}-{side}", Seq: null, price, qty, side, TradeTypes.Liquidation));
+    }
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _trades.Drain();
+
+    public IReadOnlyList<TradeEvent> DrainLiquidations() => _liquidations.Drain();
+
     private static bool TryParseString(JsonElement obj, string property, out double value)
     {
         value = 0;
@@ -385,11 +498,13 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
             if (added.Length > 0)
             {
                 await SubscribeKlinesAsync("SUBSCRIBE", added, ct);
+                await SubscribeTradesAsync("SUBSCRIBE", added, ct);
             }
 
             if (removed.Length > 0)
             {
                 await SubscribeKlinesAsync("UNSUBSCRIBE", removed, ct);
+                await SubscribeTradesAsync("UNSUBSCRIBE", removed, ct);
                 foreach (var symbol in removed)
                 {
                     _candles.Remove(symbol);
@@ -404,12 +519,22 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
 
     /// <summary>Chunked and paced like <see cref="BinanceWsFeed.SubscribeAsync"/> — the venue caps
     /// incoming messages at 10/s per connection regardless of which streams they name.</summary>
-    private async Task SubscribeKlinesAsync(string method, IReadOnlyList<string> symbols, CancellationToken ct)
+    private Task SubscribeKlinesAsync(string method, IReadOnlyList<string> symbols, CancellationToken ct) =>
+        SubscribeStreamAsync(method, symbols, "@kline_1m", ct);
+
+    /// <summary>The trade tape, per symbol like klines. aggTrade rather than trade: one row per
+    /// aggregated price level instead of one per maker order filled, which is the same executed
+    /// quantity at a fraction of the row count — and the aggregate id is a stable venue_uid.</summary>
+    private Task SubscribeTradesAsync(string method, IReadOnlyList<string> symbols, CancellationToken ct) =>
+        SubscribeStreamAsync(method, symbols, "@aggTrade", ct);
+
+    private async Task SubscribeStreamAsync(
+        string method, IReadOnlyList<string> symbols, string suffix, CancellationToken ct)
     {
         for (var i = 0; i < symbols.Count; i += SubscribeChunk)
         {
             var chunk = symbols.Skip(i).Take(SubscribeChunk)
-                .Select(s => s.ToLowerInvariant() + "@kline_1m")
+                .Select(s => s.ToLowerInvariant() + suffix)
                 .ToArray();
             if (chunk.Length == 0)
             {

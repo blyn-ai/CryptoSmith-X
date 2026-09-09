@@ -26,4 +26,14 @@ public interface IWeexLiveFeed
     /// <see cref="Market.CandleCache.TryGetRange"/> for why a partial answer is refused rather than
     /// thinned. The caller falls back to REST for the entire call.</summary>
     bool TryGetCandles1m(string symbol, DateTimeOffset from, DateTimeOffset to, out IReadOnlyList<Candle> candles);
+
+    /// <summary>Trades buffered since the last call — see <see cref="IExchangeMarketData.DrainTrades"/>.
+    /// Defaulted so a test double that only cares about depth stays small.</summary>
+    IReadOnlyList<TradeEvent> DrainTrades() => [];
+
+    bool TryGetBookFrame(string symbol, int levels, out BookFrame frame)
+    {
+        frame = null!;
+        return false;
+    }
 }

@@ -55,7 +55,27 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
         new("depth", "rest,ws"),
         new("candles", "rest,ws"),
         new("funding", "rest"),
+        new("trades", "ws"),
+        new("book", "ws"),
+        // No history endpoint on either API generation (probed live: 404 on v2 and v3), so the OI
+        // series is our own periodic observation of the venue's current value — source='rest'.
+        new("open_interest", "rest"),
+        new("spec_versions", "rest"),
     ];
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _ws?.DrainTrades() ?? [];
+
+    public bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame)
+    {
+        if (_ws is not null && _ws.TryGetBookFrame(exchangeSymbol, levels, out frame))
+        {
+            return true;
+        }
+
+        frame = null!;
+        return false;
+    }
+
 
     public async Task<IReadOnlyList<Instrument>> GetInstrumentsAsync(CancellationToken ct)
     {

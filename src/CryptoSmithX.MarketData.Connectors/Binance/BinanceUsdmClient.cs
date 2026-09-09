@@ -154,6 +154,31 @@ public sealed class BinanceUsdmClient
             $"{_baseUrl}/fapi/v1/klines?symbol={symbol}&interval=1m&startTime={fromMs}&endTime={toMs}&limit={KlineLimit}",
             ct);
 
+    /// <summary>Open-interest history, the venue's own 5-minute aggregate. Lives under
+    /// <c>/futures/data</c> (the analytics namespace), not <c>/fapi</c>, and unlike
+    /// <see cref="GetOpenInterestAsync"/> it carries a quote-notional column of its own. The venue
+    /// keeps only the last 30 days here.</summary>
+    internal Task<IReadOnlyList<BinanceOpenInterestHistRow>> GetOpenInterestHistAsync(
+        string symbol, string period, int limit, CancellationToken ct) =>
+        GetAsync<IReadOnlyList<BinanceOpenInterestHistRow>>(
+            $"{_baseUrl}/futures/data/openInterestHist?symbol={symbol}&period={period}&limit={limit}", ct);
+
+    /// <summary>Closed 1-minute mark- or index-price bars. Same heterogeneous row shape as
+    /// <see cref="GetKlines1mAsync"/> with volume columns the venue always fills with "0" — mark and
+    /// index do not trade, which is why market_price_candle has no volume column to put them in.
+    /// Index klines are keyed by PAIR rather than symbol; for a USDⓈ-M perpetual the two spellings
+    /// coincide, and the caller passes whichever the series wants.</summary>
+    internal Task<IReadOnlyList<JsonElement[]>> GetPriceKlines1mAsync(
+        string series, string symbol, long fromMs, long toMs, CancellationToken ct)
+    {
+        var (path, key) = series == "index"
+            ? ("indexPriceKlines", "pair")
+            : ("markPriceKlines", "symbol");
+        return GetAsync<IReadOnlyList<JsonElement[]>>(
+            $"{_baseUrl}/fapi/v1/{path}?{key}={symbol}&interval=1m&startTime={fromMs}&endTime={toMs}&limit={KlineLimit}",
+            ct);
+    }
+
     /// <summary>Historical funding payments in [from, to], oldest first. Weight-free.</summary>
     internal Task<IReadOnlyList<BinanceFundingRateRow>> GetFundingHistoryAsync(
         string symbol, long fromMs, long toMs, CancellationToken ct) =>

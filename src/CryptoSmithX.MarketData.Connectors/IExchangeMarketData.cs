@@ -52,6 +52,61 @@ public interface IExchangeMarketData
     /// instruments, so it lives apart from <see cref="GetTickersAsync"/>.
     /// </summary>
     Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct);
+
+    // ---------------------------------------------------------------------------------------
+    // The datasets whose tables 0032 created. Default implementations rather than required
+    // members, and that is the honest shape: "this venue publishes no such thing" is a fact about
+    // the venue, not a gap in the adapter, and every one of these is genuinely absent somewhere.
+    // A venue that does publish one overrides it AND declares the dataset in Capabilities — the
+    // two together are what let ExchangeWorker start a loop for it.
+    // ---------------------------------------------------------------------------------------
+
+    /// <summary>Every trade received from the live socket since the last call, oldest first, and
+    /// removed from the buffer by the call. Drained rather than fetched because trades are a push
+    /// stream: there is no "current trade" to poll, which is the whole reason
+    /// <see cref="Streaming.EventBuffer{T}"/> exists.</summary>
+    IReadOnlyList<TradeEvent> DrainTrades() => [];
+
+    /// <summary>
+    /// Liquidation events received since the last call, KEPT APART from <see cref="DrainTrades"/>
+    /// on purpose. Binance publishes liquidations on their own stream (<c>!forceOrder@arr</c>) AND
+    /// their fills again on the ordinary tape (<c>@aggTrade</c>) — storing both as <c>trade</c> rows
+    /// would count the same executed quantity twice. These are bucketed into
+    /// <c>liquidation_volume_history</c> instead, which is the table for exactly this number.
+    ///
+    /// Kraken needs nothing here: its tape marks a liquidation inline as a trade type, so its
+    /// liquidations are already in <see cref="DrainTrades"/> without any double counting, and its
+    /// bucketed volume comes from the venue's own analytics series.
+    /// </summary>
+    IReadOnlyList<TradeEvent> DrainLiquidations() => [];
+
+    /// <summary>The top <paramref name="levels"/> of the maintained book right now, or false when
+    /// this venue keeps no raw book (the fake) or has not seeded this symbol yet.</summary>
+    bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame)
+    {
+        frame = null!;
+        return false;
+    }
+
+    /// <summary>Open-interest history in [from, to]. Empty where the venue publishes no history
+    /// series — WEEX and Hyperliquid both answer only "OI right now", and the Hub buckets that
+    /// itself rather than inventing a series the venue never served.</summary>
+    Task<IReadOnlyList<OpenInterestBucket>> GetOpenInterestHistoryAsync(
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<OpenInterestBucket>>([]);
+
+    /// <summary>Closed 1-minute mark- or index-price bars in [from, to]. Only Binance publishes
+    /// either; the other three have no such endpoint on any transport.</summary>
+    Task<IReadOnlyList<PriceCandle>> GetPriceCandles1mAsync(
+        string exchangeSymbol, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<PriceCandle>>([]);
+
+    /// <summary>Aggregated liquidation volume per bucket in [from, to], from the venue's own
+    /// analytics. Only Kraken publishes one; Binance's liquidations arrive as individual socket
+    /// events and land in <c>trade</c> with trade_type='liquidation' instead.</summary>
+    Task<IReadOnlyList<LiquidationBucket>> GetLiquidationVolumeAsync(
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<LiquidationBucket>>([]);
 }
 
 /// <summary>One declared capability: this adapter implements <paramref name="DatasetCode"/>, using

@@ -73,6 +73,17 @@ public sealed class KrakenFuturesClient
     internal Task<KrakenFundingResponse> GetFundingHistoryAsync(string symbol, CancellationToken ct) =>
         GetAsync<KrakenFundingResponse>($"{_baseUrl}/derivatives/api/v4/historicalfundingrates?symbol={symbol}", ct);
 
+    /// <summary>One of Kraken's analytics series for a symbol — <c>open-interest</c> (OHLC per
+    /// bucket) or <c>liquidation-volume</c> (a single number per bucket). Both answer
+    /// <c>{"result":{"timestamp":[...],"data":[...]}}</c>, differing only in whether each data
+    /// element is an array of four strings or one string; probed live before either was wired.
+    /// This is the analytics host, not the derivatives API, so it takes seconds rather than ms.</summary>
+    internal Task<KrakenAnalyticsResponse> GetAnalyticsAsync(
+        string symbol, string series, long sinceSec, long toSec, int intervalSec, CancellationToken ct) =>
+        GetAsync<KrakenAnalyticsResponse>(
+            $"{_baseUrl}/api/charts/v1/analytics/{symbol}/{series}?since={sinceSec}&to={toSec}&interval={intervalSec}",
+            ct);
+
     internal Task<KrakenOrderBookResponse> GetOrderBookAsync(string symbol, CancellationToken ct) =>
         GetAsync<KrakenOrderBookResponse>($"{_baseUrl}/derivatives/api/v3/orderbook?symbol={symbol}", ct);
 

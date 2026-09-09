@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using CryptoSmithX.MarketData.Connectors.Market;
 
 namespace CryptoSmithX.MarketData.Connectors.Kraken;
@@ -45,7 +46,104 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
         new("depth", "rest,ws"),
         new("candles", "rest"),
         new("funding", "rest"),
+        new("trades", "ws"),
+        new("book", "ws"),
+        new("open_interest", "rest"),
+        new("liquidations", "rest"),
+        new("spec_versions", "rest"),
     ];
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _ws?.DrainTrades() ?? [];
+
+    public bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame)
+    {
+        if (_ws is not null && _ws.TryGetBookFrame(exchangeSymbol, levels, out frame))
+        {
+            return true;
+        }
+
+        frame = null!;
+        return false;
+    }
+
+
+    /// <summary>Kraken's analytics open-interest series — the one venue of the four that aggregates
+    /// OI into real OHLC per bucket rather than a single point, so all four numeric columns of
+    /// open_interest_history are filled. No quote notional: the series is in contract units only.</summary>
+    public async Task<IReadOnlyList<OpenInterestBucket>> GetOpenInterestHistoryAsync(
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        var response = await _client.GetAnalyticsAsync(
+            exchangeSymbol, "open-interest", from.ToUnixTimeSeconds(), to.ToUnixTimeSeconds(),
+            AnalyticsBucketSeconds, ct);
+
+        var list = new List<OpenInterestBucket>(response.Result.Timestamp.Count);
+        for (var i = 0; i < response.Result.Timestamp.Count && i < response.Result.Data.Count; i++)
+        {
+            var ohlc = response.Result.Data[i];
+            if (ohlc.ValueKind != JsonValueKind.Array || ohlc.GetArrayLength() < 4)
+            {
+                continue;
+            }
+
+            var values = new double[4];
+            var readable = true;
+            for (var j = 0; j < 4; j++)
+            {
+                if (!double.TryParse(ohlc[j].GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out values[j]))
+                {
+                    readable = false;
+                    break;
+                }
+            }
+
+            if (!readable)
+            {
+                continue;
+            }
+
+            list.Add(new OpenInterestBucket(
+                exchangeSymbol, AnalyticsBucketSeconds,
+                DateTimeOffset.FromUnixTimeSeconds(response.Result.Timestamp[i]),
+                Open: values[0], High: values[1], Low: values[2], Close: values[3],
+                Quote: null, Source: "analytics"));
+        }
+
+        return list;
+    }
+
+    /// <summary>Kraken's analytics liquidation-volume series: one number per bucket, in contract
+    /// (base) units — the venue's own aggregate, which is what liquidation_volume_history is for.
+    /// This is also why this venue needs no liquidation socket channel: its tape already marks
+    /// liquidations individually, and the bucketed total comes from here.</summary>
+    public async Task<IReadOnlyList<LiquidationBucket>> GetLiquidationVolumeAsync(
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        var response = await _client.GetAnalyticsAsync(
+            exchangeSymbol, "liquidation-volume", from.ToUnixTimeSeconds(), to.ToUnixTimeSeconds(),
+            AnalyticsBucketSeconds, ct);
+
+        var list = new List<LiquidationBucket>(response.Result.Timestamp.Count);
+        for (var i = 0; i < response.Result.Timestamp.Count && i < response.Result.Data.Count; i++)
+        {
+            if (!double.TryParse(response.Result.Data[i].GetString(), NumberStyles.Float,
+                    CultureInfo.InvariantCulture, out var volume) || volume < 0)
+            {
+                continue;
+            }
+
+            list.Add(new LiquidationBucket(
+                exchangeSymbol, AnalyticsBucketSeconds,
+                DateTimeOffset.FromUnixTimeSeconds(response.Result.Timestamp[i]),
+                volume, VolumeUnit: "base"));
+        }
+
+        return list;
+    }
+
+    /// <summary>The bucket both analytics series are asked for. Hourly, matching this venue's own
+    /// funding interval — the natural grain for a series nobody reads at second resolution.</summary>
+    private const int AnalyticsBucketSeconds = 3600;
 
     public async Task<IReadOnlyList<Instrument>> GetInstrumentsAsync(CancellationToken ct)
     {

@@ -41,6 +41,13 @@ public sealed class HyperliquidWsFeed : IHyperliquidLiveFeed
     private readonly MarketCache<(BookTop Top, Depth? Depth)> _cache;
     private readonly MarketCache<AssetContext> _contexts;
     private readonly CandleCache _candles = new();
+    private readonly EventBuffer<TradeEvent> _trades = new();
+
+    /// <summary>The raw levels of the last l2Book frame per coin. Hyperliquid is the one venue with
+    /// no maintained book of its own — every frame IS a whole top-of-book snapshot, so the levels
+    /// were computed into bands and dropped in the same method. book_topn needs them, so they are
+    /// now kept exactly as long as any other cached market state.</summary>
+    private readonly MarketCache<BookFrame> _frames;
     private readonly TimeProvider _clock;
     private readonly ILogger _log;
     private readonly TimeSpan _staleAfter;
@@ -61,6 +68,7 @@ public sealed class HyperliquidWsFeed : IHyperliquidLiveFeed
         _conn = new WsConnection(wsUrl, loggers.CreateLogger("Hyperliquid.Ws.Conn"), clock);
         _cache = new MarketCache<(BookTop, Depth?)>(clock);
         _contexts = new MarketCache<AssetContext>(clock);
+        _frames = new MarketCache<BookFrame>(clock);
         _staleAfter = staleAfter;
         _crosscheckInterval = crosscheckInterval;
         _driftBps = driftBps;
@@ -196,6 +204,9 @@ public sealed class HyperliquidWsFeed : IHyperliquidLiveFeed
                 case "candle":
                     HandleCandle(data);
                     break;
+                case "trades":
+                    HandleTrades(data);
+                    break;
             }
         }
     }
@@ -214,6 +225,78 @@ public sealed class HyperliquidWsFeed : IHyperliquidLiveFeed
         {
             _cache.Set(msg.Coin, (top, depth));
         }
+
+        // The same frame kept whole, for book_topn. Hyperliquid publishes no sequence number of its
+        // own, so the frame's own millisecond stands in — it is monotonic per coin on this feed and
+        // is what the primary key needs to separate two frames sharing an instant.
+        var frame = HyperliquidBookMath.ToFrame(msg.Coin, new HlL2Book { Levels = msg.Levels }, at, msg.Time);
+        if (frame is not null)
+        {
+            _frames.Set(msg.Coin, frame);
+        }
+    }
+
+    /// <summary>One <c>trades</c> frame: <c>{"channel":"trades","data":[{coin,side,px,sz,time,hash,tid}]}</c>,
+    /// confirmed live. <c>side</c> is the AGGRESSOR's side in Hyperliquid's own notation — "B" buy,
+    /// "A" sell. <c>tid</c> is the venue's trade id; trade_type stays NULL, the tape does not mark
+    /// liquidations.</summary>
+    private void HandleTrades(JsonElement data)
+    {
+        if (data.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var row in data.EnumerateArray())
+        {
+            if (!row.TryGetProperty("coin", out var coinEl) || coinEl.GetString() is not { } coin
+                || !row.TryGetProperty("time", out var timeEl) || !timeEl.TryGetInt64(out var ms)
+                || !row.TryGetProperty("tid", out var tidEl))
+            {
+                continue;
+            }
+
+            if (!TryParseDecimalString(row, "px", out var price) || !TryParseDecimalString(row, "sz", out var qty)
+                || price <= 0 || qty <= 0)
+            {
+                continue;
+            }
+
+            var side = row.TryGetProperty("side", out var sideEl) && sideEl.GetString() == "B" ? "buy" : "sell";
+            var uid = tidEl.ValueKind == JsonValueKind.Number
+                ? tidEl.GetRawText()
+                : tidEl.GetString() ?? "";
+            if (uid.Length == 0)
+            {
+                continue;
+            }
+
+            _trades.Add(new TradeEvent(
+                coin, DateTimeOffset.FromUnixTimeMilliseconds(ms), uid, Seq: null, price, qty, side,
+                TradeType: null));
+        }
+    }
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _trades.Drain();
+
+    public bool TryGetBookFrame(string symbol, int levels, out BookFrame frame)
+    {
+        if (!Healthy || !_frames.TryGet(symbol, _staleAfter, out var cached))
+        {
+            frame = null!;
+            return false;
+        }
+
+        frame = cached.Levels == levels ? cached : cached with { Levels = levels };
+        return true;
+    }
+
+    private static bool TryParseDecimalString(JsonElement obj, string property, out double value)
+    {
+        value = 0;
+        return obj.TryGetProperty(property, out var el)
+            && double.TryParse(el.GetString(), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out value);
     }
 
     /// <summary><c>data</c> is <c>{"coin":"BTC","ctx":{...}}</c> — captured live, see
@@ -385,6 +468,7 @@ public sealed class HyperliquidWsFeed : IHyperliquidLiveFeed
         await SendSubscriptionAsync(method, new { type = "l2Book", coin }, ct);
         await SendSubscriptionAsync(method, new { type = "activeAssetCtx", coin }, ct);
         await SendSubscriptionAsync(method, new { type = "candle", coin, interval = "1m" }, ct);
+        await SendSubscriptionAsync(method, new { type = "trades", coin }, ct);
     }
 
     private Task SendSubscriptionAsync(string method, object subscription, CancellationToken ct) =>

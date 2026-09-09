@@ -176,3 +176,15 @@ internal sealed record BinanceDepth
     public List<string[]>? Bids { get; init; }
     public List<string[]>? Asks { get; init; }
 }
+
+/// <summary>One row of <c>/futures/data/openInterestHist</c>, captured live. <c>sumOpenInterest</c>
+/// is in base units and <c>sumOpenInterestValue</c> the same interest in quote notional — the pair
+/// open_interest_history stores as oi_close and oi_quote. There is no OHLC here: the venue publishes
+/// one point per bucket, so oi_open/high/low stay NULL.</summary>
+internal sealed record BinanceOpenInterestHistRow
+{
+    public string Symbol { get; init; } = "";
+    public string SumOpenInterest { get; init; } = "0";
+    public string SumOpenInterestValue { get; init; } = "0";
+    public long Timestamp { get; init; }
+}

@@ -23,6 +23,10 @@ public sealed class KrakenWsFeed : IKrakenLiveFeed
     private readonly KrakenFuturesClient _client;
     private readonly MarketCache<Ticker> _tickers;
     private readonly KrakenBookBuilder _books;
+
+    /// <summary>Kraken's <c>trade</c> feed carries a <c>type</c> per trade, which is why this venue
+    /// needs no separate liquidation channel: a liquidation IS a trade here, marked as one.</summary>
+    private readonly EventBuffer<TradeEvent> _trades = new();
     private readonly TimeProvider _clock;
     private readonly ILogger _log;
     private readonly TimeSpan _staleAfter;
@@ -161,6 +165,22 @@ public sealed class KrakenWsFeed : IKrakenLiveFeed
                 case "book":
                     HandleDelta(root);
                     break;
+                case "trade":
+                    HandleTrade(root);
+                    break;
+                case "trade_snapshot":
+                    // The backlog the venue replays on subscribe. Taken like any other trade: the
+                    // primary key is (instrument, event_time, venue_uid), so a trade already stored
+                    // from a previous connection conflicts and is skipped rather than duplicated.
+                    if (root.TryGetProperty("trades", out var backlog) && backlog.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var t in backlog.EnumerateArray())
+                        {
+                            HandleTrade(t);
+                        }
+                    }
+
+                    break;
             }
         }
     }
@@ -198,6 +218,47 @@ public sealed class KrakenWsFeed : IKrakenLiveFeed
                 ? DateTimeOffset.FromUnixTimeMilliseconds(t.NextFundingRateTime) : null,
             Volume24hBase: t.Volume));
     }
+
+    /// <summary>One <c>trade</c> frame: <c>{product_id, uid, side, type, time, qty, price, seq}</c>,
+    /// confirmed live. <c>type</c> is what makes this venue's liquidations free — no separate
+    /// channel exists or is needed, a liquidation arrives here marked as one.</summary>
+    private void HandleTrade(JsonElement root)
+    {
+        if (!root.TryGetProperty("product_id", out var pidEl) || pidEl.GetString() is not { } productId
+            || !productId.StartsWith(PerpPrefix, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (!root.TryGetProperty("uid", out var uidEl) || uidEl.GetString() is not { } uid
+            || !root.TryGetProperty("time", out var timeEl) || !timeEl.TryGetInt64(out var ms)
+            || !root.TryGetProperty("price", out var priceEl) || !priceEl.TryGetDouble(out var price)
+            || !root.TryGetProperty("qty", out var qtyEl) || !qtyEl.TryGetDouble(out var qty)
+            || !root.TryGetProperty("side", out var sideEl) || sideEl.GetString() is not { } side)
+        {
+            return;
+        }
+
+        if (price <= 0 || qty <= 0)
+        {
+            // Both columns are CHECK > 0; a zero-qty frame is not a trade we can store as one.
+            return;
+        }
+
+        long? seq = root.TryGetProperty("seq", out var seqEl) && seqEl.TryGetInt64(out var s) ? s : null;
+        var type = TradeTypes.Normalize(
+            root.TryGetProperty("type", out var typeEl) ? typeEl.GetString() : null);
+
+        _trades.Add(new TradeEvent(
+            productId, DateTimeOffset.FromUnixTimeMilliseconds(ms), uid, seq, price, qty, side, type));
+    }
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _trades.Drain();
+
+    public long TradesDropped => _trades.Dropped;
+
+    public bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame) =>
+        _books.TryGetFrame(exchangeSymbol, levels, out frame);
 
     private void HandleSnapshot(JsonElement root)
     {
@@ -326,7 +387,7 @@ public sealed class KrakenWsFeed : IKrakenLiveFeed
             return;
         }
 
-        foreach (var feed in new[] { "ticker", "book" })
+        foreach (var feed in new[] { "ticker", "book", "trade" })
         {
             for (var i = 0; i < symbols.Count; i += 200)
             {
