@@ -41,18 +41,55 @@
         @foreach (var r in Model.Rows)
         {
             <div class="v2-row">
-                <span class="v2-listing">
+                @{ var strip = StripModel.Build(r); }
+                @* a-venue / a-strip — ХУКИ ПЕРВОЙ СТРАНИЦЫ, а не её оформление: возрасты на обеих
+                   двигает один studio-ages.js, и второй экземпляр этих часов был бы вторым местом,
+                   где правило 2 однажды разойдётся с Freshness.cs. Оформление своё, из v2-*. *@
+                <span class="v2-listing a-venue">
                     <span class="v2-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em></span>
                     <span class="v2-symbol">
                         @r.Row.Symbol
                         <em>@(r.Row.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(r.Row.ContractMultiplier, 0))</em>
                     </span>
-                    @* Ages live here, one clock per call — a figure's age is a fact about the call
-                       that wrote it, not about the cell it landed in. *@
-                    <span class="v2-ages">
-                        Price @Format.ShortAge(r.Ages.PriceSeconds)
-                        @if (r.Ages.DepthSeconds is not null) { <text>· Depth @Format.ShortAge(r.Ages.DepthSeconds)</text> }
-                        @if (r.Ages.OpenInterestSeconds is not null) { <text>· OI @Format.ShortAge(r.Ages.OpenInterestSeconds)</text> }
+
+                    @* Три вызова стоят на ОДНОЙ рампе, каждый по своей доле СВОЕГО окна: цена
+                       ждёт 30 с, свип 30–120 с, открытый интерес 300 с. Поэтому три близких
+                       возраста расходятся по полоске в три разных места — в этом её смысл, а
+                       прозой «Price 4s · Depth 2m · OI 3m» его не было вовсе. *@
+                    <span class="v2-strip a-strip">
+                        @if (strip.Placed.Count > 0)
+                        {
+                            <i class="a-strip-span" style="left:@StripModel.Pct(strip.SpanFrom);width:@strip.SpanWidth"></i>
+                            foreach (var call in strip.Placed)
+                            {
+                                <i class="a-strip-tick@(call.Position >= 1 ? " a-strip-tick--spent" : "")"
+                                   style="left:@StripModel.Pct(call.Position)"
+                                   data-at="@call.InstantMs"
+                                   data-win="@call.WindowSeconds?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"
+                                   title="@call.Label"></i>
+                            }
+                        }
+                    </span>
+
+                    @* Концы НАЗЫВАЮТ вызов, стоящий на каждом конце рампы, — выбранный по его
+                       доле своего окна, той же арифметикой, что расставила метки. Слот под △
+                       занят всегда и пуст, пока сказать нечего: иначе знак въезжал бы в строку
+                       и толкал слова влево на своём кегле. *@
+                    <span class="v2-strip-ends a-strip-ends">
+                        <span data-fresh title="@StripModel.EndTitle(strip.LeastSpent, StripModel.LeastSpentLabel)"><span class="a-lab">@(strip.Degraded ? "" : StripModel.EndLabel(strip.LeastSpent))</span> <span class="a-tok">@(strip.Degraded ? "" : StripModel.EndToken(strip.LeastSpent))</span></span>
+                        <span data-old class="@(strip.MostSpentPastWindow ? "a-spent" : "")"
+                              title="@StripModel.EndTitle(strip.MostSpent, StripModel.MostSpentLabel)"><i class="a-tri">@(strip.MostSpentPastWindow ? Format.PastWindowMark : "")</i><span class="a-lab">@(strip.Degraded ? StripModel.DegradedText : StripModel.EndLabel(strip.MostSpent))</span> <span class="a-tok">@(strip.Degraded ? "" : StripModel.EndToken(strip.MostSpent))</span></span>
+                    </span>
+
+                    <span class="v2-ages a-strip-calls">
+                        @foreach (var call in strip.Calls)
+                        {
+                            <span class="@(call.PastWindow ? "a-spent" : "")"
+                                  data-label="@call.Label"
+                                  data-at="@call.InstantMs"
+                                  data-win="@call.WindowSeconds?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"
+                                  ><span class="a-lab">@call.Label</span> <span class="a-tok">@Format.ShortAge(call.AgeSeconds)</span></span>
+                        }
                     </span>
                 </span>
 

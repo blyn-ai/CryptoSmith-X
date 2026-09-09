@@ -1,3 +1,11 @@
+/* ── Токены ──────────────────────────────────────────────────────────────────
+   Их здесь НЕТ. Три копии одного и того же набора переменных лежали в этом файле, пока страница
+   ещё и линковала ds/styles.css — то есть четыре источника одной истины, из которых три молча
+   разойдутся с четвёртым в тот день, когда кто-нибудь поправит одну.
+
+   Значения были сверены перед удалением: 156 переменных, ноль расхождений с ds/tokens/*. Дневной
+   и ночной наборы приходят из ds/tokens/colors.css и остальных, ночь — тем же [data-theme="night"].
+   Здесь остаётся только то, чего в системе нет: раскладка этой страницы. */
 /* CSX Studio v2 — оформление второй версии страницы актива.
 
    Выгружено из макета дизайнера (asset-page.static.html) и положено сюда целиком.
@@ -42,106 +50,7 @@
    Arena is the day theme (:root). Night is [data-theme="night"] — same token set at
    different luminance, magenta still the accent. Green and bronze are CALL colours here,
    not money colours: this surface states no P&L, so nothing on it means profit or loss. */
-:root{
-/* ── surfaces ── */
---surface-page:#FFDFAF;--surface-card:#FFF3DE;--surface-sunken:#FFE7C4;--surface-band:#FFF3DE;
---surface-overlay:rgba(30,20,8,.42);
 
-/* ── text ── */
---text-heading:#1E1408;--text-body:#3A2A16;--text-muted:#6B5230;--text-faint:#7A5F3C;
---text-data:#1E1408;--text-zero:#7A5F3C;--text-unmeasured:#8C6E44;--eyebrow:#6B5230;
---text-on-action:#FFF3DE;
-
-/* ── brand: acid is the fill rung, deep green the text rung, magenta the accent ── */
---brand:#8BFF6B;--brand-deep:#2F5A00;--brand-text:#2F5A00;
---accent:#B0007F;--action-primary:#B0007F;--action-primary-hover:#1E1408;
---link:#B0007F;--link-hover:#1E1408;
-
-/* ── the three calls, as fills and as inks ── */
---call-ticker:#B0007F;--call-oi:#2F5A00;--call-depth:#8A5A12;
---band-ticker:#B0007F;--band-oi:#2F5A00;--band-depth:#8A5A12;
---band-ink:#FFF3DE;--band-ink-dark:#1E1408;
---tint-ticker:transparent;--tint-oi:rgba(47,90,0,.035);--tint-depth:rgba(138,90,18,.05);
-
-/* ── comparative bars: a figure against the largest venue on screen ── */
---bar-ticker:rgba(176,0,127,.55);--bar-oi:#2F5A00;
---bar-depth-bid:rgba(138,90,18,.85);--bar-depth-ask:rgba(201,168,106,.9);
-
-/* ── hourly lines: half strength normally, full where the series ran ── */
---spark-ticker:rgba(176,0,127,.55);--spark-ticker-hot:#B0007F;
---spark-oi:rgba(47,90,0,.55);--spark-oi-hot:#2F5A00;
---spark-depth:rgba(138,90,18,.55);--spark-depth-hot:#8A5A12;
-
-/* ── freshness: a scale, not a state. Green where a call just landed, magenta where spent ── */
---age-scale:linear-gradient(90deg,#8BFF6B,#B0007F); /* @kind color */
---age-fresh:#8BFF6B;--age-spent:#B0007F;
---state-stale:#FF4BD8;--state-hold-ink:#B0007F;--state-running:#1E1408;--state-stopped:rgba(30,20,8,.35);
-
-/* ── candles: direction is not a result, so it is not the money palette ── */
---candle-up:#3F8F14;--candle-down:#B0007F;
-
-/* ── marks ── */
-/* Verdict marks. A wash, not a fill: the chip has to be readable at 9px, and a saturated
-   ground eats the word. BEST and WORST are computed across the venues on screen, so they are
-   the one framed thing in the table that is not a control — and they do not fade with the
-   row, because a verdict is not read off the call the row is waiting on. */
---tag-best-bg:rgba(139,255,107,.5);--tag-best-ink:#2A4E00;
---tag-worst-bg:rgba(176,0,127,.14);--tag-worst-ink:#8E0066;
---tag-tight:#2F5A00;--tag-wide:#8E0066;
---kind-spot:#2F5A00;--kind-perp:#B0007F;
-
-/* ── borders. A border means STATE or CONTROL; categorical labels wear none. ── */
---border-hairline:rgba(30,20,8,.14);--border-card:rgba(30,20,8,.26);--border-strong:#B0007F;
---border-input:rgba(30,20,8,.34);
---tint-neutral:rgba(30,20,8,.09);--tint-brand:rgba(176,0,127,.08);
-
-/* ── the sheet: a 4 px raster under the card, never through a panel ── */
---dot-pattern:radial-gradient(rgba(30,20,8,.06) 1px,transparent 1px); /* @kind color */
---dot-size:4px; /* @kind spacing */
-}
-
-[data-theme="night"]{
---surface-page:#0D0B08;--surface-card:#17130D;--surface-sunken:#0A0806;--surface-band:#17130D;
---surface-overlay:rgba(0,0,0,.6);
-
---text-heading:#FFDFAF;--text-body:#E6C89B;--text-muted:#C2A57B;--text-faint:#A88E66;
---text-data:#FFDFAF;--text-zero:#A88E66;--text-unmeasured:#8F7A57;--eyebrow:#C2A57B;
---text-on-action:#0D0B08;
-
---brand:#8BFF6B;--brand-deep:#8BFF6B;--brand-text:#8BFF6B;
---accent:#FF4BD8;--action-primary:#B0007F;--action-primary-hover:#FFDFAF;
---link:#FF4BD8;--link-hover:#FFDFAF;
-
---call-ticker:#FF4BD8;--call-oi:#8BFF6B;--call-depth:#C9A86A;
---band-ticker:#B0007F;--band-oi:#3F8F14;--band-depth:#8A5A12;
---band-ink:#FFDFAF;--band-ink-dark:#0D0B08;
---tint-ticker:transparent;--tint-oi:rgba(139,255,107,.06);--tint-depth:rgba(201,168,106,.07);
-
---bar-ticker:rgba(255,75,216,.55);--bar-oi:#8BFF6B;
---bar-depth-bid:rgba(201,168,106,.85);--bar-depth-ask:rgba(201,168,106,.4);
-
---spark-ticker:rgba(255,75,216,.5);--spark-ticker-hot:#FF4BD8;
---spark-oi:rgba(139,255,107,.5);--spark-oi-hot:#8BFF6B;
---spark-depth:rgba(201,168,106,.5);--spark-depth-hot:#C9A86A;
-
---age-scale:linear-gradient(90deg,#8BFF6B,#FF4BD8); /* @kind color */
---age-fresh:#8BFF6B;--age-spent:#FF4BD8;
---state-stale:#FF4BD8;--state-hold-ink:#FF4BD8;--state-running:#FFDFAF;--state-stopped:rgba(255,223,175,.3);
-
---candle-up:#8BFF6B;--candle-down:#FF4BD8;
-
---tag-best-bg:rgba(139,255,107,.22);--tag-best-ink:#8BFF6B;
---tag-worst-bg:rgba(255,75,216,.18);--tag-worst-ink:#FF4BD8;
---tag-tight:#8BFF6B;--tag-wide:#FF4BD8;
---kind-spot:#C2A57B;--kind-perp:#FF4BD8;
-
---border-hairline:rgba(255,223,175,.16);--border-card:rgba(255,223,175,.3);--border-strong:#FF4BD8;
---border-input:rgba(255,223,175,.36);
---tint-neutral:rgba(255,223,175,.1);--tint-brand:rgba(255,75,216,.12);
-
---dot-pattern:radial-gradient(rgba(255,223,175,.07) 1px,transparent 1px); /* @kind color */
---dot-size:4px; /* @kind spacing */
-}
 
 /* CSX Arena — type. Three faces, three jobs:
    Anton = display (the statement line, panel titles) — condensed caps.
@@ -151,93 +60,15 @@
    The table runs small on purpose: 12px figures, 9px eyebrows, 8.5px ages. That ladder is
    what lets twenty columns of a venue comparison sit on one desktop screen without a
    scrollbar, and it is why the ages are metadata-sized — they describe the figures. */
-:root{
---font-display:'Anton','Arial Narrow','Helvetica Neue',sans-serif;
---font-body:'Space Grotesk','Helvetica Neue',Arial,sans-serif;
---font-mono:'DM Mono',ui-monospace,Menlo,monospace;
---font-heading:var(--font-display);
-
-/* ── sizes ── */
---fs-age:8.5px; /* @kind font */--fs-eyebrow:9px; /* @kind font */--fs-micro:10px; /* @kind font */
---fs-caption:11px; /* @kind font */--fs-data:12px; /* @kind font */--fs-meta:13px; /* @kind font */
---fs-body:14px; /* @kind font */--fs-ui:14px; /* @kind font */--fs-h3:18px; /* @kind font */
---fs-h2:21px; /* @kind font */--fs-h1:26px; /* @kind font */--fs-statement:32px; /* @kind font */
-
-/* ── weights ── */
---fw-light:300; /* @kind font */--fw-regular:400; /* @kind font */--fw-medium:500; /* @kind font */
---fw-semibold:600; /* @kind font */--fw-bold:700; /* @kind font */
-
-/* ── line heights ── */
---lh-flat:1; /* @kind font */--lh-h1:1.05; /* @kind font */--lh-mono:1.45; /* @kind font */
---lh-body:1.55; /* @kind font */
-
-/* ── tracking. Categorical labels sit at .17em: that spacing is what makes an unframed
-      label read as a label rather than as stray text. ── */
---track-h1:.005em; /* @kind font */--track-eyebrow:.18em; /* @kind font */
---track-label:.17em; /* @kind font */--track-badge:.14em; /* @kind font */
---track-age:.02em; /* @kind font */--track-num:0em; /* @kind font */
-
-/* ── measures ── */
---measure-note:52ch; /* @kind spacing */--measure-legend:44ch; /* @kind spacing */
-}
 
 /* CSX Arena — spacing, density, layout. This surface is a comparison table first: the
    density is set by "twenty fields per venue, seven venues, one desktop screen". */
-:root{
---space-1:4px; /* @kind spacing */--space-2:6px; /* @kind spacing */--space-3:8px; /* @kind spacing */
---space-4:10px; /* @kind spacing */--space-5:12px; /* @kind spacing */--space-6:14px; /* @kind spacing */
---space-7:18px; /* @kind spacing */--space-8:22px; /* @kind spacing */--space-9:26px; /* @kind spacing */
---space-10:34px; /* @kind spacing */--space-11:44px; /* @kind spacing */--space-12:60px; /* @kind spacing */
-
-/* ── table density ── */
---row-h:66px; /* @kind spacing */
---row-eyebrow-h:34px; /* @kind spacing */
---row-band-h:24px; /* @kind spacing */
---pad-cell:8px 10px; /* @kind spacing */
---pad-panel:12px 18px; /* @kind spacing */
---gap-cell:5px; /* @kind spacing */--gap-inline:4px; /* @kind spacing */
---gap-block:10px; /* @kind spacing */--gap-grid:14px; /* @kind spacing */
-
-/* ── the cell's own furniture ── */
---slot-mark:12px; /* @kind spacing */
---spark-w:60px; /* @kind spacing */--spark-h:11px; /* @kind spacing */
---bar-w:60px; /* @kind spacing */--bar-h:3px; /* @kind spacing */
---mirror-w:88px; /* @kind spacing */--mirror-h:4px; /* @kind spacing */
---age-slot-w:66px; /* @kind spacing */
---strip-w:134px; /* @kind spacing */--strip-h:3px; /* @kind spacing */
---dot:9px; /* @kind spacing */
-
-/* ── layout ── */
---page-max:1920px; /* @kind spacing */
---chart-h:212px; /* @kind spacing */
---control-h:32px; /* @kind spacing */--tap-min:44px; /* @kind spacing */
-}
 
 /* CSX Arena — radii, borders, shadows, motion.
    Zero radius everywhere; no shadow, no glow, no glass, no gradient — except the one
    gradient that IS data: the freshness scale (--age-scale). Nothing moves for decoration.
    The only thing on this surface that changes on its own is an age, and it changes because
    it is a clock. */
-:root{
---radius-xs:0px;--radius-sm:0px;--radius-md:0px;--radius-lg:0px;--radius-circle:50%;
---radius-panel:0px;--radius-control:0px;
-
---hairline:1px solid var(--border-hairline); /* @kind other */
---panel-border:1px solid var(--border-card); /* @kind other */
-
---shadow-none:none; /* @kind shadow */--shadow-panel:none; /* @kind shadow */
-
---focus-ring:2px solid var(--accent); /* @kind other */
-
-/* ── the fade ramp: a figure at full strength when its call lands, a ghost at the end of
-      its window. Front-loaded — the first seconds cost little, the last cost a lot. ── */
---fade-floor:.15; /* @kind other */--fade-exponent:.4; /* @kind other */
-
-/* ── motion: colour transitions only ── */
---dur-fast:120ms; /* @kind other */--dur:180ms; /* @kind other */
---ease:linear; /* @kind other */
---transition-color:color var(--dur-fast) var(--ease),background-color var(--dur-fast) var(--ease); /* @kind other */
-}
 
 /* CSX Arena — the reset the surface assumes. */
 *,*::before,*::after{box-sizing:border-box}
@@ -295,106 +126,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    Arena is the day theme (:root). Night is [data-theme="night"] — same token set at
    different luminance, magenta still the accent. Green and bronze are CALL colours here,
    not money colours: this surface states no P&L, so nothing on it means profit or loss. */
-:root{
-/* ── surfaces ── */
---surface-page:#FFDFAF;--surface-card:#FFF3DE;--surface-sunken:#FFE7C4;--surface-band:#FFF3DE;
---surface-overlay:rgba(30,20,8,.42);
 
-/* ── text ── */
---text-heading:#1E1408;--text-body:#3A2A16;--text-muted:#6B5230;--text-faint:#7A5F3C;
---text-data:#1E1408;--text-zero:#7A5F3C;--text-unmeasured:#8C6E44;--eyebrow:#6B5230;
---text-on-action:#FFF3DE;
-
-/* ── brand: acid is the fill rung, deep green the text rung, magenta the accent ── */
---brand:#8BFF6B;--brand-deep:#2F5A00;--brand-text:#2F5A00;
---accent:#B0007F;--action-primary:#B0007F;--action-primary-hover:#1E1408;
---link:#B0007F;--link-hover:#1E1408;
-
-/* ── the three calls, as fills and as inks ── */
---call-ticker:#B0007F;--call-oi:#2F5A00;--call-depth:#8A5A12;
---band-ticker:#B0007F;--band-oi:#2F5A00;--band-depth:#8A5A12;
---band-ink:#FFF3DE;--band-ink-dark:#1E1408;
---tint-ticker:transparent;--tint-oi:rgba(47,90,0,.035);--tint-depth:rgba(138,90,18,.05);
-
-/* ── comparative bars: a figure against the largest venue on screen ── */
---bar-ticker:rgba(176,0,127,.55);--bar-oi:#2F5A00;
---bar-depth-bid:rgba(138,90,18,.85);--bar-depth-ask:rgba(201,168,106,.9);
-
-/* ── hourly lines: half strength normally, full where the series ran ── */
---spark-ticker:rgba(176,0,127,.55);--spark-ticker-hot:#B0007F;
---spark-oi:rgba(47,90,0,.55);--spark-oi-hot:#2F5A00;
---spark-depth:rgba(138,90,18,.55);--spark-depth-hot:#8A5A12;
-
-/* ── freshness: a scale, not a state. Green where a call just landed, magenta where spent ── */
---age-scale:linear-gradient(90deg,#8BFF6B,#B0007F); /* @kind color */
---age-fresh:#8BFF6B;--age-spent:#B0007F;
---state-stale:#FF4BD8;--state-hold-ink:#B0007F;--state-running:#1E1408;--state-stopped:rgba(30,20,8,.35);
-
-/* ── candles: direction is not a result, so it is not the money palette ── */
---candle-up:#3F8F14;--candle-down:#B0007F;
-
-/* ── marks ── */
-/* Verdict marks. A wash, not a fill: the chip has to be readable at 9px, and a saturated
-   ground eats the word. BEST and WORST are computed across the venues on screen, so they are
-   the one framed thing in the table that is not a control — and they do not fade with the
-   row, because a verdict is not read off the call the row is waiting on. */
---tag-best-bg:rgba(139,255,107,.5);--tag-best-ink:#2A4E00;
---tag-worst-bg:rgba(176,0,127,.14);--tag-worst-ink:#8E0066;
---tag-tight:#2F5A00;--tag-wide:#8E0066;
---kind-spot:#2F5A00;--kind-perp:#B0007F;
-
-/* ── borders. A border means STATE or CONTROL; categorical labels wear none. ── */
---border-hairline:rgba(30,20,8,.14);--border-card:rgba(30,20,8,.26);--border-strong:#B0007F;
---border-input:rgba(30,20,8,.34);
---tint-neutral:rgba(30,20,8,.09);--tint-brand:rgba(176,0,127,.08);
-
-/* ── the sheet: a 4 px raster under the card, never through a panel ── */
---dot-pattern:radial-gradient(rgba(30,20,8,.06) 1px,transparent 1px); /* @kind color */
---dot-size:4px; /* @kind spacing */
-}
-
-[data-theme="night"]{
---surface-page:#0D0B08;--surface-card:#17130D;--surface-sunken:#0A0806;--surface-band:#17130D;
---surface-overlay:rgba(0,0,0,.6);
-
---text-heading:#FFDFAF;--text-body:#E6C89B;--text-muted:#C2A57B;--text-faint:#A88E66;
---text-data:#FFDFAF;--text-zero:#A88E66;--text-unmeasured:#8F7A57;--eyebrow:#C2A57B;
---text-on-action:#0D0B08;
-
---brand:#8BFF6B;--brand-deep:#8BFF6B;--brand-text:#8BFF6B;
---accent:#FF4BD8;--action-primary:#B0007F;--action-primary-hover:#FFDFAF;
---link:#FF4BD8;--link-hover:#FFDFAF;
-
---call-ticker:#FF4BD8;--call-oi:#8BFF6B;--call-depth:#C9A86A;
---band-ticker:#B0007F;--band-oi:#3F8F14;--band-depth:#8A5A12;
---band-ink:#FFDFAF;--band-ink-dark:#0D0B08;
---tint-ticker:transparent;--tint-oi:rgba(139,255,107,.06);--tint-depth:rgba(201,168,106,.07);
-
---bar-ticker:rgba(255,75,216,.55);--bar-oi:#8BFF6B;
---bar-depth-bid:rgba(201,168,106,.85);--bar-depth-ask:rgba(201,168,106,.4);
-
---spark-ticker:rgba(255,75,216,.5);--spark-ticker-hot:#FF4BD8;
---spark-oi:rgba(139,255,107,.5);--spark-oi-hot:#8BFF6B;
---spark-depth:rgba(201,168,106,.5);--spark-depth-hot:#C9A86A;
-
---age-scale:linear-gradient(90deg,#8BFF6B,#FF4BD8); /* @kind color */
---age-fresh:#8BFF6B;--age-spent:#FF4BD8;
---state-stale:#FF4BD8;--state-hold-ink:#FF4BD8;--state-running:#FFDFAF;--state-stopped:rgba(255,223,175,.3);
-
---candle-up:#8BFF6B;--candle-down:#FF4BD8;
-
---tag-best-bg:rgba(139,255,107,.22);--tag-best-ink:#8BFF6B;
---tag-worst-bg:rgba(255,75,216,.18);--tag-worst-ink:#FF4BD8;
---tag-tight:#8BFF6B;--tag-wide:#FF4BD8;
---kind-spot:#C2A57B;--kind-perp:#FF4BD8;
-
---border-hairline:rgba(255,223,175,.16);--border-card:rgba(255,223,175,.3);--border-strong:#FF4BD8;
---border-input:rgba(255,223,175,.36);
---tint-neutral:rgba(255,223,175,.1);--tint-brand:rgba(255,75,216,.12);
-
---dot-pattern:radial-gradient(rgba(255,223,175,.07) 1px,transparent 1px); /* @kind color */
---dot-size:4px; /* @kind spacing */
-}
 
 /* CSX Arena — type. Three faces, three jobs:
    Anton = display (the statement line, panel titles) — condensed caps.
@@ -404,93 +136,15 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    The table runs small on purpose: 12px figures, 9px eyebrows, 8.5px ages. That ladder is
    what lets twenty columns of a venue comparison sit on one desktop screen without a
    scrollbar, and it is why the ages are metadata-sized — they describe the figures. */
-:root{
---font-display:'Anton','Arial Narrow','Helvetica Neue',sans-serif;
---font-body:'Space Grotesk','Helvetica Neue',Arial,sans-serif;
---font-mono:'DM Mono',ui-monospace,Menlo,monospace;
---font-heading:var(--font-display);
-
-/* ── sizes ── */
---fs-age:8.5px; /* @kind font */--fs-eyebrow:9px; /* @kind font */--fs-micro:10px; /* @kind font */
---fs-caption:11px; /* @kind font */--fs-data:12px; /* @kind font */--fs-meta:13px; /* @kind font */
---fs-body:14px; /* @kind font */--fs-ui:14px; /* @kind font */--fs-h3:18px; /* @kind font */
---fs-h2:21px; /* @kind font */--fs-h1:26px; /* @kind font */--fs-statement:32px; /* @kind font */
-
-/* ── weights ── */
---fw-light:300; /* @kind font */--fw-regular:400; /* @kind font */--fw-medium:500; /* @kind font */
---fw-semibold:600; /* @kind font */--fw-bold:700; /* @kind font */
-
-/* ── line heights ── */
---lh-flat:1; /* @kind font */--lh-h1:1.05; /* @kind font */--lh-mono:1.45; /* @kind font */
---lh-body:1.55; /* @kind font */
-
-/* ── tracking. Categorical labels sit at .17em: that spacing is what makes an unframed
-      label read as a label rather than as stray text. ── */
---track-h1:.005em; /* @kind font */--track-eyebrow:.18em; /* @kind font */
---track-label:.17em; /* @kind font */--track-badge:.14em; /* @kind font */
---track-age:.02em; /* @kind font */--track-num:0em; /* @kind font */
-
-/* ── measures ── */
---measure-note:52ch; /* @kind spacing */--measure-legend:44ch; /* @kind spacing */
-}
 
 /* CSX Arena — spacing, density, layout. This surface is a comparison table first: the
    density is set by "twenty fields per venue, seven venues, one desktop screen". */
-:root{
---space-1:4px; /* @kind spacing */--space-2:6px; /* @kind spacing */--space-3:8px; /* @kind spacing */
---space-4:10px; /* @kind spacing */--space-5:12px; /* @kind spacing */--space-6:14px; /* @kind spacing */
---space-7:18px; /* @kind spacing */--space-8:22px; /* @kind spacing */--space-9:26px; /* @kind spacing */
---space-10:34px; /* @kind spacing */--space-11:44px; /* @kind spacing */--space-12:60px; /* @kind spacing */
-
-/* ── table density ── */
---row-h:66px; /* @kind spacing */
---row-eyebrow-h:34px; /* @kind spacing */
---row-band-h:24px; /* @kind spacing */
---pad-cell:8px 10px; /* @kind spacing */
---pad-panel:12px 18px; /* @kind spacing */
---gap-cell:5px; /* @kind spacing */--gap-inline:4px; /* @kind spacing */
---gap-block:10px; /* @kind spacing */--gap-grid:14px; /* @kind spacing */
-
-/* ── the cell's own furniture ── */
---slot-mark:12px; /* @kind spacing */
---spark-w:60px; /* @kind spacing */--spark-h:11px; /* @kind spacing */
---bar-w:60px; /* @kind spacing */--bar-h:3px; /* @kind spacing */
---mirror-w:88px; /* @kind spacing */--mirror-h:4px; /* @kind spacing */
---age-slot-w:66px; /* @kind spacing */
---strip-w:134px; /* @kind spacing */--strip-h:3px; /* @kind spacing */
---dot:9px; /* @kind spacing */
-
-/* ── layout ── */
---page-max:1920px; /* @kind spacing */
---chart-h:212px; /* @kind spacing */
---control-h:32px; /* @kind spacing */--tap-min:44px; /* @kind spacing */
-}
 
 /* CSX Arena — radii, borders, shadows, motion.
    Zero radius everywhere; no shadow, no glow, no glass, no gradient — except the one
    gradient that IS data: the freshness scale (--age-scale). Nothing moves for decoration.
    The only thing on this surface that changes on its own is an age, and it changes because
    it is a clock. */
-:root{
---radius-xs:0px;--radius-sm:0px;--radius-md:0px;--radius-lg:0px;--radius-circle:50%;
---radius-panel:0px;--radius-control:0px;
-
---hairline:1px solid var(--border-hairline); /* @kind other */
---panel-border:1px solid var(--border-card); /* @kind other */
-
---shadow-none:none; /* @kind shadow */--shadow-panel:none; /* @kind shadow */
-
---focus-ring:2px solid var(--accent); /* @kind other */
-
-/* ── the fade ramp: a figure at full strength when its call lands, a ghost at the end of
-      its window. Front-loaded — the first seconds cost little, the last cost a lot. ── */
---fade-floor:.15; /* @kind other */--fade-exponent:.4; /* @kind other */
-
-/* ── motion: colour transitions only ── */
---dur-fast:120ms; /* @kind other */--dur:180ms; /* @kind other */
---ease:linear; /* @kind other */
---transition-color:color var(--dur-fast) var(--ease),background-color var(--dur-fast) var(--ease); /* @kind other */
-}
 
 /* CSX Arena — the reset the surface assumes. */
 *,*::before,*::after{box-sizing:border-box}
@@ -533,7 +187,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-back,.v2-toggle{display:inline-flex;align-items:center;height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);background:transparent;cursor:pointer;
   font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-heading)}
 .v2-back:hover,.v2-toggle:hover{border-color:var(--border-strong);color:var(--brand-text)}
-.v2-toggle[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--text-on-action)}
+.v2-toggle[aria-pressed="true"]{background:var(--text-data);border-color:var(--text-data);color:var(--surface-page)}
 .v2-note{font:400 var(--fs-caption)/1.4 var(--font-mono);color:var(--text-muted)}
 
 .v2-band{margin:0 var(--space-7) var(--space-6);background:var(--surface-card);border:1px solid var(--border-card)}
@@ -545,7 +199,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-hrow,.v2-row{display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(var(--cols),minmax(110px,1fr));border-bottom:1px solid var(--border-hairline)}
 .v2-hrow{background:var(--surface-sunken)}
 .v2-hcell{display:flex;flex-direction:column;gap:3px;padding:7px 10px 8px;border-left:1px solid var(--border-hairline);border-top:2px solid var(--border-hairline)}
-.v2-hcell[data-tone="openinterest"]{border-top-color:var(--call-oi,var(--brand))}
+.v2-hcell[data-tone="openinterest"]{border-top-color:var(--call-oi)}
 .v2-hcell[data-tone="depth"]{border-top-color:var(--call-depth,var(--text-faint))}
 .v2-hcell--listing{border-left:0;justify-content:flex-end;font:500 9px/1.2 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--eyebrow)}
 .v2-hrow{display:flex;align-items:baseline;justify-content:space-between;gap:6px;width:100%}
@@ -564,7 +218,24 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-plat{font:400 var(--fs-meta)/1.2 var(--font-body);color:var(--text-heading)}
 .v2-plat em,.v2-symbol em{font-style:normal;font:500 8.5px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin-left:5px}
 .v2-symbol{font:400 var(--fs-data)/1.2 var(--font-mono);color:var(--text-data);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.v2-ages{font:400 8.5px/1.3 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint)}
+/* ── Свежесть строки ─────────────────────────────────────────────────────────
+   ОДИН градиент на весь продукт, и он — данные, а не украшение: метка каждого вызова стоит по
+   его доле СВОЕГО окна, поэтому «4 с» цены и «4 с» открытого интереса оказываются в разных
+   местах полоски. Раньше здесь стояла проза «Price 4s · Depth 2m · OI 3m», в которой это
+   различие не выражалось никак. */
+.v2-strip{position:relative;display:block;width:100%;height:var(--bar-h);
+  background:linear-gradient(90deg,var(--money-up,#2F5A00),var(--accent))}
+.v2-strip .a-strip-span{position:absolute;top:0;height:100%;background:var(--tint-neutral)}
+.v2-strip .a-strip-tick{position:absolute;top:-2px;width:1px;height:calc(100% + 4px);
+  background:var(--text-data);transform:translateX(-.5px)}
+.v2-strip .a-strip-tick--spent{background:var(--accent)}
+.v2-strip-ends{display:flex;justify-content:space-between;gap:var(--space-3);
+  font:400 8.5px/1.2 var(--font-mono);letter-spacing:var(--track-age);color:var(--text-faint)}
+.v2-strip-ends .a-tri{font-style:normal;display:inline-block;width:1ch}
+.v2-strip-ends .a-spent{color:var(--accent)}
+.v2-ages{display:flex;flex-wrap:nowrap;gap:var(--space-3);font:400 8.5px/1.3 var(--font-mono);
+  letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);white-space:nowrap}
+.v2-ages .a-spent{color:var(--accent)}
 
 .v2-cell{display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding:10px;border-left:1px solid var(--border-hairline);min-width:0}
 .v2-fig{font:400 var(--fs-body)/1.1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
@@ -583,8 +254,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-field:hover em{color:var(--text-muted)}
 .v2-figsub{font:400 9px/1.2 var(--font-mono);color:var(--text-faint)}
 .v2-bar{display:block;width:100%;height:3px;background:var(--tint-neutral)}
-.v2-bar i{display:block;height:100%;background:var(--brand)}
-.v2-bar[data-tone="openinterest"] i{background:var(--call-oi,var(--brand))}
+/* Цвет бара — ЦВЕТ ВЫЗОВА, который его написал (правило 5), а не бренд. Кислотный зелёный
+   значит «открытый интерес»; на спреде и обороте он значил бы только «бар». */
+.v2-bar i{display:block;height:100%;background:var(--bar-ticker)}
+.v2-bar[data-tone="openinterest"] i{background:var(--bar-oi)}
+.v2-bar[data-tone="depth"] i{background:var(--bar-depth-bid)}
 .v2-bar[data-tone="depth"] i{background:var(--call-depth,var(--text-muted))}
 .v2-fields{display:flex;flex-direction:column;gap:2px;width:100%;margin-top:4px;padding-top:5px;border-top:1px solid var(--border-hairline)}
 .v2-field{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
@@ -596,13 +270,16 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-foot{display:flex;gap:var(--space-5);padding:var(--space-5) var(--space-7);font:400 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-muted)}
 
 /* ── шапка: вердикт и тумблеры ──────────────────────────────────────────────── */
-.v2-verdict{font-family:var(--font-display);font-size:var(--fs-h1);line-height:var(--lh-h1);text-transform:uppercase;color:var(--brand-text)}
+/* Вторая фраза заголовка — находка, и она акцентная. Курсив снят: гарнитура заголовка идёт
+   капсом, наклонного начертания у неё нет, и браузер рисовал бы поддельный. */
+.v2-title h1 em{font-style:normal;color:var(--accent)}
 /* INK / PAPER. Кнопка, а не тумблер: у неё не состояние, а действие — она называет, куда
    переключит, и это видно по самой странице, как только переключила. */
 .v2-ink{height:var(--control-h);padding:0 var(--space-5);background:transparent;
   border:1px solid var(--border-input);color:var(--text-body);cursor:pointer;
   font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase}
-.v2-ink:hover{color:var(--accent,var(--brand-text));border-color:var(--border-strong)}
+.v2-ink:hover{color:var(--accent);border-color:var(--border-strong)}
+.v2-ink[hidden]{display:none}
 
 /* Живой поток: кнопка и слово о его состоянии стоят одной группой, потому что читаются вместе —
    «включено» без «и вот что сейчас происходит» на этой странице ничего не значит. */
@@ -615,8 +292,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-switch i::after{content:"";position:absolute;top:1px;left:1px;width:10px;height:10px;background:var(--text-faint);transition:left 120ms linear,background-color 120ms linear}
 .v2-switch em{font-style:normal;font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-heading)}
 .v2-switch[aria-pressed="true"]{border-color:var(--border-strong)}
-.v2-switch[aria-pressed="true"] i{background:var(--brand);border-color:var(--brand)}
-.v2-switch[aria-pressed="true"] i::after{left:13px;background:var(--text-on-action)}
+.v2-switch[aria-pressed="true"] i,.v2-switch[aria-checked="true"] i{background:var(--text-data);border-color:var(--text-data)}
+.v2-switch[aria-pressed="true"] i::after,.v2-switch[aria-checked="true"] i::after{left:13px;background:var(--surface-page)}
 .v2-switch[aria-pressed="true"] em{color:var(--brand-text)}
 /* Выключенный и неподключённый: видно, что он есть, и видно, что он не работает. */
 .v2-switch--dead{cursor:not-allowed;opacity:.5}
@@ -639,7 +316,10 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-cutpick{height:var(--control-h);padding:0 12px;border:1px solid var(--border-input);background:transparent;cursor:pointer;
   font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-heading)}
 .v2-cutpick:hover{border-color:var(--border-strong);color:var(--brand-text)}
-.v2-cutpick[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--text-on-action)}
+/* НАЖАТОЕ — ЧЕРНИЛА. Кислотный зелёный на этой странице занят: он значит вызов открытого
+   интереса (правило 5) и живёт ровно в трёх местах (правило 6) — линейка над шапкой, заливка
+   BEST, знак бренда. Восемь кислотных плашек «выбрано» отнимали смысл у всех трёх. */
+.v2-cutpick[aria-pressed="true"]{background:var(--text-data);border-color:var(--text-data);color:var(--surface-page)}
 
 .v2-nows{padding:var(--space-4) var(--space-7)}
 .v2-now{display:grid;grid-template-columns:minmax(180px,1fr) minmax(120px,auto) 3fr minmax(120px,auto);align-items:center;gap:var(--space-5);padding:6px 0;border-bottom:1px solid var(--border-hairline)}
@@ -648,7 +328,9 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-now-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--text-muted)}
 .v2-now-val{text-align:right;font:400 var(--fs-body)/1.1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
 .v2-now-bar{display:block;height:8px;background:var(--tint-neutral)}
-.v2-now-bar i{display:block;height:100%;background:var(--brand)}
+.v2-now-bar i{display:block;height:100%;background:var(--bar-ticker)}
+.v2-nows[data-cut="oi"] .v2-now-bar i,.v2-nows[data-cut="liquidations"] .v2-now-bar i{background:var(--bar-oi)}
+.v2-nows[data-cut="depth25"] .v2-now-bar i{background:var(--bar-depth-bid)}
 .v2-now-note{font:400 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-faint)}
 
 .v2-cuts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--space-4);padding:var(--space-4) var(--space-7)}
@@ -663,7 +345,9 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-cut-plat{font:400 var(--fs-meta)/1.2 var(--font-body);color:var(--text-heading)}
 .v2-cut-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--brand-text);margin-left:6px}
 .v2-chart{height:150px}
-.v2-line{display:block;width:100%;height:64px;color:var(--brand)}
+.v2-line{display:block;width:100%;height:64px;color:var(--spark-ticker)}
+.v2-cuts[data-cut="oi"] .v2-line,.v2-cuts[data-cut="liquidations"] .v2-line{color:var(--spark-oi)}
+.v2-cuts[data-cut="depth25"] .v2-line{color:var(--spark-depth)}
 .v2-empty{margin:0;padding:var(--space-4) 0;font:400 var(--fs-caption)/1.5 var(--font-mono);color:var(--text-muted)}
 .v2-empty--inline{padding:0}
 
@@ -694,8 +378,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
   border:1px solid var(--border-input)}
 .v2-toggle .v2-toggle-knob::before{content:"";display:block;width:14px;height:14px;margin:2px;
   background:var(--text-faint);transition:transform 120ms linear,background-color 120ms linear}
-.v2-toggle[aria-checked="true"] .v2-toggle-knob{background:var(--brand);border-color:var(--brand)}
-.v2-toggle[aria-checked="true"] .v2-toggle-knob::before{transform:translateX(20px);background:var(--text-on-action)}
+.v2-toggle[aria-checked="true"] .v2-toggle-knob{background:var(--text-data);border-color:var(--text-data)}
+.v2-toggle[aria-checked="true"] .v2-toggle-knob::before{transform:translateX(20px);background:var(--surface-page)}
 .v2-tape-head,.v2-tape-row{display:grid;grid-template-columns:110px 1fr 60px 1fr 1fr 1.2fr;gap:var(--space-4);align-items:baseline;padding:4px 0}
 .v2-tape-head{font:500 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow);border-bottom:1px solid var(--border-hairline)}
 .v2-tape-row{font:400 var(--fs-data)/1.3 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);border-bottom:1px solid var(--border-hairline)}

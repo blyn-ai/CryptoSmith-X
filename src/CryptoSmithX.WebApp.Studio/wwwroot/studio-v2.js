@@ -190,33 +190,3 @@
     }
   });
 })();
-
-
-
-/* INK / PAPER.
-
-   Набор токенов ночи лежит в этом файле стилей с первого дня и до сих пор ничем не включался.
-   Выбор держится в localStorage и применяется В <head> ДО ОТРИСОВКИ (см. встроенный скрипт в
-   разметке): включить тему отсюда, снизу страницы, значило бы показать светлый экран и мигнуть
-   тёмным — ровно то, ради чего тему и переключают, в обратную сторону. */
-(function () {
-  var btn = document.getElementById('ink');
-  if (!btn) { return; }
-
-  function label() {
-    btn.textContent = document.documentElement.getAttribute('data-theme') === 'night' ? 'Paper' : 'Ink';
-  }
-
-  btn.addEventListener('click', function () {
-    var night = document.documentElement.getAttribute('data-theme') === 'night';
-    if (night) {
-      document.documentElement.removeAttribute('data-theme');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'night');
-    }
-    try { window.localStorage.setItem('csx-theme', night ? 'paper' : 'night'); } catch (e) { /* приватное окно */ }
-    label();
-  });
-
-  label();
-})();

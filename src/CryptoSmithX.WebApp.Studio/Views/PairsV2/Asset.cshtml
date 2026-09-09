@@ -54,20 +54,36 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=11">
+    <link rel="stylesheet" href="~/studio-v2.css?v=12">
 
-    @* Тема применяется ДО первой отрисовки и поэтому здесь, а не в studio-v2.js внизу страницы:
+    @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
-       ночь и включают, в обратную сторону. Четыре строки в разметке дешевле этого мигания. *@
+       ночь и включают, в обратную сторону.
+
+       КЛЮЧ ТОТ ЖЕ, ЧТО У ПЕРВОЙ СТРАНИЦЫ (csx-studio-theme), и логика та же: выбор читателя, а
+       если его нет — системная настройка. Свой ключ означал бы, что переход со списка пар на
+       эту страницу переключает свет. *@
     <script>
-        try {
-            if (window.localStorage.getItem('csx-theme') === 'night') {
-                document.documentElement.setAttribute('data-theme', 'night');
-            }
-        } catch (e) { /* приватное окно: страница остаётся светлой, и это рабочий исход */ }
+        (function () {
+            try {
+                var stored = localStorage.getItem('csx-studio-theme');
+                var night = stored ? stored === 'night'
+                    : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (night) { document.documentElement.setAttribute('data-theme', 'night'); }
+            } catch (e) { /* приватное окно отказывает в хранилище — дневной набор рабочий ответ */ }
+        })();
     </script>
 </head>
-<body class="v2">
+@*
+    Три постоянных затухания едут с сервера, а не переписываются в JavaScript второй раз: это
+    правило 2 дизайн-системы, оно уже лежит в Freshness.cs, и копия в файле, который не собирает
+    ни один CI, — ровно та форма ошибки, которая у этого проекта уже была.
+*@
+<body class="v2 a-sheet"
+      data-now="@Model.RenderedAt.ToUnixTimeMilliseconds()"
+      data-fade-floor="@Freshness.Floor.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+      data-fade-exponent="@Freshness.Exponent.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+      data-degraded-windows="@Freshness.DegradedWindows">
 
 @* ── шапка ─────────────────────────────────────────────────────────────────── *@
 <header class="v2-head">
@@ -80,11 +96,12 @@
 </header>
 
 <div class="v2-title">
-    <h1>@Model.Listings listings quote @Model.BaseFamily.</h1>
-    @if (behind > 0)
-    {
-        <span class="v2-verdict">@behind @(behind == 1 ? "call is" : "calls are") behind @(behind == 1 ? "its window" : "their windows").</span>
-    }
+    @* ЗАГОЛОВОК НАЗЫВАЕТ НАХОДКУ, а не пересчитывает строки. «Five listings quote ADA.» — это
+       оглавление таблицы, которая и так ниже; вторая фраза — то, ради чего страницу открыли:
+       что именно с этими пятью не так прямо сейчас. Считает её Statement.Verdict — тот же код,
+       что и на первой странице, и он же обновляется живым потоком через data-statement-verdict. *@
+    <h1>@Model.Listings listings quote @Model.BaseFamily.
+        <em data-statement-verdict>@Statement.Verdict(Model.Rows)</em></h1>
     <span class="v2-meta">
         @Model.PlatformCount platforms · @perp perp · @spot spot ·
         @fieldsEach fields each · @figures figures · @books books · @series series
@@ -94,11 +111,10 @@
 <div class="v2-controls">
     <a class="v2-back" href="~/">Back to list</a>
 
-    @* Ночь — тот же набор токенов при другом свете, он лежит в этом же файле стилей с самого
-       начала и до сих пор ничем не включался. Подпись называет, КУДА переключит, а не где вы
-       сейчас: «Ink» на светлой странице. Выбор переживает переход по ссылкам — иначе список
-       пар и страница актива светили бы по-разному в одном сеансе. *@
-    <button type="button" id="ink" class="v2-ink">Ink</button>
+    @* Ночь. Кнопка та же, что на первой странице, и обработчик у неё тот же — в studio-ages.js:
+       две копии переключателя темы означали бы два ключа хранилища и страницы, светящие
+       по-разному в одном сеансе. Приходит скрытой: со скриптами наотрез она бы ничего не делала. *@
+    <button type="button" id="a-ink" class="v2-ink" hidden>Ink</button>
 
     @* LIVE, и теперь за ним поток. Хуки — те же, что у первой страницы (.a-liverow, #a-live,
        .a-switch-label, #a-live-note): у этих двух страниц ОДИН клиент живого потока, потому что
@@ -453,7 +469,8 @@
     <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
     <script src="~/studio-candles.js?v=5"></script>
 }
+<script src="~/studio-ages.js?v=4"></script>
 <script src="~/studio-live.js?v=2"></script>
-<script src="~/studio-v2.js?v=7"></script>
+<script src="~/studio-v2.js?v=8"></script>
 </body>
 </html>
