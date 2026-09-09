@@ -54,7 +54,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=15">
+    <link rel="stylesheet" href="~/studio-v2.css?v=17">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -136,9 +136,30 @@
         <i></i><em>Expand all · @figures figures</em>
     </button>
 
+    @* ── Телефон ─────────────────────────────────────────────────────────────
+       На 390 px таблица семи групп на пять площадок — это 950 px сетки, то есть горизонтальная
+       прокрутка поверх вертикальной и ни одного сравнения, которое можно сделать глазами.
+
+       Два режима, и по умолчанию — СРАВНЕНИЕ ОДНОГО ПОЛЯ: одна метрика, все листинги, отсортированы,
+       с барами. Это тот же вопрос, ради которого страница сделана, только заданный по одному полю
+       за раз, потому что больше на ладонь не помещается честно. Второй режим — карточка на листинг,
+       когда читателя интересует одна площадка целиком. *@
+    <button type="button" id="m-mode" class="v2-switch v2-mobile-only" aria-pressed="false">
+        <i></i><em>By listing</em>
+    </button>
+
     <span class="v2-note">
         A snapshot, @Format.ShortAge(oldest) old. Nothing here is hidden except what you folded.
     </span>
+
+    @* Что ниже — списком, чтобы под сгибом не было сюрпризов. *@
+    <nav class="v2-toc v2-mobile-only" aria-label="Bands on this page">
+        <a href="#band-table">1 Every figure</a>
+        <a href="#band-now">2 Now</a>
+        <a href="#band-time">3 Over time</a>
+        <a href="#band-tape">4 The tape</a>
+        <a href="#band-trust">5 What is behind</a>
+    </nav>
 </div>
 
 <partial name="_V2Table" model="Model" />
@@ -170,7 +191,7 @@
 <partial name="_V2Now" model="Model" />
 
 @* ── полоса 3: во времени, по площадкам ──────────────────────────────────────── *@
-<section class="v2-band">
+<section class="v2-band" id="band-time">
     <div class="v2-band-head">
         <span class="csx-eyebrow v2-band-no">3 · Over time, across venues</span>
         <span class="csx-eyebrow v2-band-sub"><span id="cut-time-sub">@cuts[0].Name · @cuts[0].Unit</span>
@@ -222,24 +243,61 @@
             }
             else
             {
+                @* Каждая линия НОРМИРОВАНА ПО СЕБЕ — иначе площадка с втрое большей книгой сплющила
+                   бы остальные в прямые, — и именно поэтому у неё обязаны быть подписаны концы:
+                   без них линия говорит только «росло/падало», а на вопрос «с чего и до чего» не
+                   отвечает вовсе. Под полосой — общие минимум и максимум среза по всем площадкам,
+                   то, чего отдельная линия сказать не может. *@
+                var drawn = new List<string>();
+                var missing = new List<string>();
+                foreach (var r in Model.Rows)
+                {
+                    var vals = V2Cuts.Series(r, c);
+                    if (Format.SparkPath(vals, 260, 64) is null)
+                    {
+                        missing.Add(r.Row.ExchangeName + " " + r.Row.Symbol);
+                    }
+                }
+
                 foreach (var r in Model.Rows)
                 {
                     var vals = V2Cuts.Series(r, c);
                     var path = Format.SparkPath(vals, 260, 64);
+                    if (path is null)
+                    {
+                        continue;
+                    }
+
+                    var seen = vals.Where(v => v is not null).Select(v => v!.Value).ToList();
+                    var first = seen[0];
+                    var last = seen[^1];
                     <div class="v2-cut">
                         <span class="v2-cut-plat">@r.Row.ExchangeName <b>@r.Row.Symbol</b></span>
-                        @if (path is null)
-                        {
-                            <p class="v2-empty v2-empty--inline">Not measured on this venue.</p>
-                        }
-                        else
-                        {
-                            <svg class="v2-line" viewBox="0 0 260 64" preserveAspectRatio="none" aria-hidden="true">
-                                <path d="@path" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke" />
-                            </svg>
-                        }
+                        <svg class="v2-line" viewBox="0 0 260 64" preserveAspectRatio="none" aria-hidden="true">
+                            <path d="@path" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                        </svg>
+                        <span class="v2-cut-scale" title="this line is scaled to its own low and high: @Format.Num(seen.Min(), c.Decimals) … @Format.Num(seen.Max(), c.Decimals)">
+                            <span>@Format.Num(first, c.Decimals)</span>
+                            <em>@(last > first ? "▲" : last < first ? "▼" : "=")</em>
+                            <span>@Format.Num(last, c.Decimals)</span>
+                        </span>
                     </div>
                 }
+
+                @* Одной строкой снизу, а не по разу на площадку: пять одинаковых абзацев «Not
+                   measured on this venue.» занимают пять клеток сетки и говорят одно. *@
+                var all = Model.Rows
+                    .SelectMany(r => V2Cuts.Series(r, c))
+                    .Where(v => v is not null)
+                    .Select(v => v!.Value)
+                    .ToList();
+                <p class="v2-legend v2-cuts-foot">
+                    Across every listing drawn: @Format.Num(all.Min(), c.Decimals) … @Format.Num(all.Max(), c.Decimals) @c.Unit.
+                    @if (missing.Count > 0)
+                    {
+                        <text>Not measured: @string.Join(", ", missing).</text>
+                    }
+                </p>
             }
         </div>
     }
@@ -476,6 +534,6 @@
 }
 <script src="~/studio-ages.js?v=4"></script>
 <script src="~/studio-live.js?v=3"></script>
-<script src="~/studio-v2.js?v=9"></script>
+<script src="~/studio-v2.js?v=10"></script>
 </body>
 </html>

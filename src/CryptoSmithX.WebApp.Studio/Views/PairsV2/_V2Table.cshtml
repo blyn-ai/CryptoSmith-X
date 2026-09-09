@@ -97,7 +97,7 @@
                 {
                     Model.Stress.TryGetValue(r.Row.InstrumentId, out var stress);
                     var head = g.Headline is { } col ? V2Cells.Headline(r, col) : V2Cells.Headline(r, g, stress);
-                    <span class="v2-cell" data-group="@g.Key">
+                    <span class="v2-cell" data-group="@g.Key" data-label="@g.Name" data-unit="@g.Unit">
                         <span class="v2-fig @(head.Value is null ? "v2-fig--none" : "")">@head.Text</span>
                         @if (head.Sub is not null)
                         {

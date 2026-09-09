@@ -226,3 +226,33 @@
   document.addEventListener('pointerover', function (e) { light(keyOf(e.target)); });
   document.addEventListener('focusin', function (e) { light(keyOf(e.target)); });
 })();
+
+/* Режим на телефоне.
+
+   По умолчанию — сравнение одного поля: на 390 px таблица семи групп на пять площадок это 950 px
+   сетки, то есть горизонтальная прокрутка поверх вертикальной и ни одного сравнения, которое
+   можно сделать глазами. Переключатель отдаёт карточку на листинг, когда нужна одна площадка
+   целиком. Выбор держится в этой вкладке и не переживает её: это ответ на «как я сейчас держу
+   телефон», а не настройка. */
+(function () {
+  var btn = document.getElementById('m-mode');
+  if (!btn) { return; }
+
+  var label = btn.querySelector('em');
+
+  function set(listing) {
+    if (listing) {
+      document.body.setAttribute('data-mobile-mode', 'listing');
+    } else {
+      document.body.removeAttribute('data-mobile-mode');
+    }
+    btn.setAttribute('aria-pressed', listing ? 'true' : 'false');
+    if (label) { label.textContent = listing ? 'By listing' : 'Compare one field'; }
+  }
+
+  btn.addEventListener('click', function () {
+    set(btn.getAttribute('aria-pressed') !== 'true');
+  });
+
+  set(false);
+})();

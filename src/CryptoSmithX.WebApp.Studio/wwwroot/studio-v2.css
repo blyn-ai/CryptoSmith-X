@@ -386,6 +386,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-cut-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--brand-text);margin-left:6px}
 .v2-chart{height:150px}
 .v2-line{display:block;width:100%;height:64px;color:var(--spark-ticker)}
+/* Концы линии — числами. Линия без шкалы отвечает на «росло или падало» и молчит на «с чего». */
+.v2-cut-scale{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3);
+  font:400 var(--fs-micro)/1.2 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-faint)}
+.v2-cut-scale em{font-style:normal;color:var(--text-muted)}
+.v2-cuts-foot{grid-column:1/-1}
 .v2-cuts[data-cut="oi"] .v2-line,.v2-cuts[data-cut="liquidations"] .v2-line{color:var(--spark-oi)}
 .v2-cuts[data-cut="depth25"] .v2-line{color:var(--spark-depth)}
 .v2-empty{margin:0;padding:var(--space-4) 0;font:400 var(--fs-caption)/1.5 var(--font-mono);color:var(--text-muted)}
@@ -479,3 +484,70 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-reach-where{text-align:right;font:400 var(--fs-data)/1.4 var(--font-mono)}
 .v2-reach-where a{color:var(--brand-text);text-decoration:none;border-bottom:1px solid var(--border-hairline)}
 .v2-reach-where a:hover{border-bottom-color:currentColor}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   390 px
+
+   Таблица семи групп на пять площадок — это 950 px сетки. На ладони она давала горизонтальную
+   прокрутку поверх вертикальной, то есть ни одного сравнения, которое можно сделать глазами:
+   колонка, которую сравниваешь, и строка, из которой она, одновременно на экран не помещались.
+
+   Два режима вместо одной сплющенной таблицы. По умолчанию — СРАВНЕНИЕ ОДНОГО ПОЛЯ: полоса 2 и
+   есть ровно это (одна метрика, все листинги, отсортированы, с барами), поэтому она ведёт, а
+   полоса 1 убрана; переключатель отдаёт карточку на листинг, когда нужна одна площадка целиком.
+   ══════════════════════════════════════════════════════════════════════════════ */
+.v2-mobile-only{display:none}
+
+@media (max-width:767px){
+  .v2-mobile-only{display:inline-flex}
+  .v2-toc{display:flex;flex-wrap:wrap;gap:var(--space-3) var(--space-4);width:100%;
+    font:500 var(--fs-micro)/1.4 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase}
+  .v2-toc a{color:var(--text-muted);text-decoration:none;border-bottom:1px solid var(--border-hairline)}
+
+  .v2-head,.v2-title,.v2-controls,.v2-cutbar,.v2-band-head{padding-left:var(--space-5);padding-right:var(--space-5)}
+  .v2-title h1{font-size:calc(var(--fs-h1) * .62);line-height:1.05}
+
+  /* Селектор среза ведёт обе полосы и на телефоне ведёт ещё и полосу 1 — прокручивается
+     сам, а не тянет за собой страницу. */
+  .v2-cutpicks{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:var(--space-3);
+    padding-bottom:2px;-webkit-overflow-scrolling:touch}
+  .v2-cutpick{flex:none}
+
+  /* ── Режим по умолчанию: сравнение одного поля ── */
+  body:not([data-mobile-mode="listing"]) #band-table{display:none}
+
+  /* ── Режим «карточка на листинг» ── */
+  body[data-mobile-mode="listing"] .v2-grid{display:block}
+  body[data-mobile-mode="listing"] .v2-hrow{display:none}
+  body[data-mobile-mode="listing"] .v2-row{display:block;padding-bottom:var(--space-4)}
+  body[data-mobile-mode="listing"] .v2-listing{padding:var(--space-4) var(--space-5) var(--space-3)}
+  body[data-mobile-mode="listing"] .v2-cell{flex-direction:row;align-items:center;
+    justify-content:space-between;flex-wrap:wrap;gap:var(--space-3);
+    min-height:44px;padding:0 var(--space-5);border-left:0;
+    border-top:1px solid var(--border-hairline)}
+  /* Подпись группы переезжает в клетку: шапки над карточкой нет, и число без имени — не число. */
+  body[data-mobile-mode="listing"] .v2-cell::before{content:attr(data-label);
+    font:500 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-label);
+    text-transform:uppercase;color:var(--eyebrow);margin-right:auto}
+  body[data-mobile-mode="listing"] .v2-bar,
+  body[data-mobile-mode="listing"] .v2-spark{flex-basis:100%}
+  body[data-mobile-mode="listing"] .v2-fields{flex-basis:100%;margin-bottom:var(--space-3)}
+
+  /* Полоса 2 ведёт: книги в одну колонку, бары во всю ширину. */
+  .v2-nows--books{grid-template-columns:1fr}
+  .v2-now{grid-template-columns:1fr;gap:2px;padding:var(--space-3) 0}
+
+  /* Полоса 3: одна линия на экран. */
+  .v2-cuts{grid-template-columns:1fr}
+
+  /* Широкое — прокручивается ВНУТРИ себя, а не тянет страницу. Правило одно на все три. */
+  .v2-cov,.v2-tape{overflow-x:auto}
+  .v2-cov{grid-template-columns:minmax(96px,auto) repeat(var(--vcols),minmax(44px,1fr));min-width:0}
+  .v2-tape-head,.v2-tape-row{grid-template-columns:78px 1fr 44px 1fr 1fr;gap:var(--space-3)}
+  .v2-tape-head span:last-child,.v2-tape-row .v2-kind{display:none}
+
+  /* Списки в две строки вместо четырёх колонок. */
+  .v2-gap,.v2-reach-row{grid-template-columns:1fr auto;gap:2px var(--space-3)}
+  .v2-gap-why,.v2-reach-what{grid-column:1/-1}
+  .v2-reach-where{text-align:left}
+}
