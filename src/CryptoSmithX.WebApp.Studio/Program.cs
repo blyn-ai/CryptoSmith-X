@@ -222,6 +222,14 @@ app.MapControllerRoute(
     @"v2/{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}",
     new { controller = "PairsV2", action = "Asset" });
 
+// Лента этого актива отдельно: /studio/v2/PEPE/tape. Выше страницы по той же причине, по
+// которой страница выше парного маршрута: три сегмента, и без этого правила «v2/PEPE/tape»
+// разобрался бы как что-то другое.
+app.MapControllerRoute(
+    "asset-v2-tape",
+    @"v2/{baseFamily:regex(^[A-Za-z0-9][A-Za-z0-9_-]*\z):maxlength(16)}/tape",
+    new { controller = "PairsV2", action = "Tape" });
+
 // The live stream for one asset: /studio/live/PEPE. ABOVE the two-segment route below, and that
 // is load-bearing rather than tidy. "live/PEPE" is two segments, so the pair route reads it as the
 // pair "live / PEPE" and answers 302 to /studio/live — which is exactly what shipped in 886859a:

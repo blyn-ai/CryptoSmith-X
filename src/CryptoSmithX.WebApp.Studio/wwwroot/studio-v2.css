@@ -645,6 +645,19 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 
 /* ── полоса 4: лента ────────────────────────────────────────────────────────── */
 .v2-tape{padding:0 var(--space-7) var(--space-4)}
+
+/* FOLLOW у ленты. Тумблер дизайнера — 40×20 с квадратной шашкой, отдельный от .v2-switch:
+   тот носит подпись внутри себя, а этот — рядом, потому что подпись общая для полосы. */
+.v2-follow{margin-left:auto;display:inline-flex;align-items:center;gap:var(--space-3)}
+.v2-follow label{font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);
+  text-transform:uppercase;color:var(--text-body)}
+.v2-toggle{padding:0;background:none;border:none;cursor:pointer;line-height:0}
+.v2-toggle .v2-toggle-knob{display:block;width:40px;height:20px;background:transparent;
+  border:1px solid var(--border-input)}
+.v2-toggle .v2-toggle-knob::before{content:"";display:block;width:14px;height:14px;margin:2px;
+  background:var(--text-faint);transition:transform 120ms linear,background-color 120ms linear}
+.v2-toggle[aria-checked="true"] .v2-toggle-knob{background:var(--brand);border-color:var(--brand)}
+.v2-toggle[aria-checked="true"] .v2-toggle-knob::before{transform:translateX(20px);background:var(--text-on-action)}
 .v2-tape-head,.v2-tape-row{display:grid;grid-template-columns:110px 1fr 60px 1fr 1fr 1.2fr;gap:var(--space-4);align-items:baseline;padding:4px 0}
 .v2-tape-head{font:500 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow);border-bottom:1px solid var(--border-hairline)}
 .v2-tape-row{font:400 var(--fs-data)/1.3 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);border-bottom:1px solid var(--border-hairline)}
@@ -665,6 +678,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
   background:color-mix(in srgb, var(--money-up,#2F5A00) var(--held,0%), var(--surface-sunken))}
 .v2-cov-cell--none{background:var(--surface-sunken);color:var(--text-unmeasured)}
 
+/* Подпись шкалы. Полоса — тот же градиент, что несут клетки, иначе легенда объясняет не то. */
+.v2-cov-key{display:flex;align-items:center;gap:10px;padding:0 var(--space-7) var(--space-4)}
+.v2-cov-key span:not(.v2-cov-ramp){font:400 var(--fs-micro)/1 var(--font-mono);color:var(--text-faint)}
+.v2-cov-ramp{flex:1;height:6px;background:linear-gradient(90deg,var(--surface-sunken),var(--money-up,#2F5A00))}
+
 .v2-gaps{display:flex;flex-direction:column;gap:4px;padding:var(--space-4) var(--space-7) var(--space-5);border-top:1px solid var(--border-hairline)}
 .v2-gap{display:grid;grid-template-columns:minmax(160px,1fr) 70px 2fr minmax(160px,auto);gap:var(--space-4);align-items:baseline;padding:3px 0}
 .v2-gap-what{font:400 var(--fs-data)/1.3 var(--font-mono);color:var(--text-heading)}
@@ -672,3 +690,18 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-gap-state--open{color:var(--brand-text)}
 .v2-gap-why{font:400 var(--fs-caption)/1.4 var(--font-body);color:var(--text-muted)}
 .v2-gap-when{font:400 var(--fs-micro)/1.2 var(--font-mono);color:var(--text-faint);text-align:right}
+
+
+/* ── что ещё есть у этого актива ─────────────────────────────────────────────
+   Три колонки: набор, что по нему лежит для этого актива, и куда за этим идти. Правая
+   колонка — ссылка, а не подпись: полоса перечисляет то, что на странице УЖЕ есть, и
+   перечисление без перехода заставляло бы искать глазами. */
+.v2-reach{display:flex;flex-direction:column;gap:4px;padding:var(--space-4) var(--space-7) var(--space-5);
+  border-top:1px solid var(--border-hairline)}
+.v2-reach-row{display:grid;grid-template-columns:minmax(150px,auto) minmax(0,1fr) minmax(150px,auto);
+  gap:var(--space-4);align-items:baseline;padding:3px 0}
+.v2-reach-name{font:400 var(--fs-data)/1.4 var(--font-mono);color:var(--text-heading)}
+.v2-reach-what{font:400 var(--fs-caption)/1.4 var(--font-body);color:var(--text-muted)}
+.v2-reach-where{text-align:right;font:400 var(--fs-data)/1.4 var(--font-mono)}
+.v2-reach-where a{color:var(--brand-text);text-decoration:none;border-bottom:1px solid var(--border-hairline)}
+.v2-reach-where a:hover{border-bottom-color:currentColor}

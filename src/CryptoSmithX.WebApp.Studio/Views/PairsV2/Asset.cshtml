@@ -54,7 +54,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=4">
+    <link rel="stylesheet" href="~/studio-v2.css?v=5">
 </head>
 <body class="v2">
 
@@ -182,7 +182,7 @@
    В первом наброске селектор висел только на нижней, а верхняя была прибита к глубине — из-за
    этого они читались как две несвязанные вещи, и вопрос «почему книги не меняются, когда я
    выбираю открытый интерес» оставался без ответа. *@
-<div class="v2-cutbar">
+<div class="v2-cutbar" id="band-cuts">
     <span class="csx-eyebrow v2-cutbar-label">One field, two views</span>
     <span class="csx-eyebrow v2-cutbar-sub">Bands 2 and 3 answer the same choice: how it stands now, and how it got there</span>
     <span class="v2-cutpicks">
@@ -195,7 +195,7 @@
 </div>
 
 @* ── полоса 2: сейчас, по площадкам ──────────────────────────────────────────── *@
-<section class="v2-band">
+<section class="v2-band" id="band-now">
     <div class="v2-band-head">
         <span class="csx-eyebrow v2-band-no">2 · Now, across venues</span>
         <span class="csx-eyebrow v2-band-sub" id="cut-now-sub">every figure carried to one unit before the bar is drawn</span>
@@ -345,27 +345,40 @@
 
 
 @* ── полоса 4: лента ────────────────────────────────────────────────────────── *@
-<section class="v2-band">
+<section class="v2-band" id="band-tape">
     <div class="v2-band-head">
         <span class="csx-eyebrow v2-band-no">4 · The tape</span>
         <span class="csx-eyebrow v2-band-sub">the last @Model.Tape.Count fills across every listing of this asset</span>
+        @* Тумблер, за которым что-то стоит. Лента — единственное на странице, что живёт само,
+           поэтому она и единственное, что имеет смысл опрашивать: включённый FOLLOW раз в пять
+           секунд просит те же восемнадцать сделок и подставляет их на место. Выключенный —
+           оставляет то, что вы читаете, ровно там, где оно есть. *@
+        <span class="v2-follow">
+            <button type="button" id="tape-follow" class="v2-toggle" role="switch" aria-checked="false"
+                    data-url="@Url.Action("Tape", "PairsV2", new { baseFamily = Model.BaseFamily })"
+                    title="ask the venues for this asset's fills every five seconds and keep the newest at the top">
+                <span class="v2-toggle-knob"></span>
+            </button>
+            <label for="tape-follow">Follow</label>
+        </span>
     </div>
 
-    @if (Model.Tape.Count == 0)
-    {
-        <p class="v2-empty" style="padding:var(--space-4) var(--space-7)">
-            No fills recorded in the last hour. The trades dataset is collected per venue — an empty
-            tape here is either a quiet asset or a venue whose trades are switched off, and band 5
-            below says which.
-        </p>
-    }
-    else
-    {
-        <div class="v2-tape">
-            <div class="v2-tape-head">
-                <span>Time</span><span>Venue</span><span>Side</span>
-                <span class="v2-r">Price</span><span class="v2-r">Size</span><span>Kind</span>
-            </div>
+    <div class="v2-tape">
+        <div class="v2-tape-head">
+            <span>Time</span><span>Venue</span><span>Side</span>
+            <span class="v2-r">Price</span><span class="v2-r">Size</span><span>Kind</span>
+        </div>
+        @* Тело ленты отдельным узлом: FOLLOW заменяет ЕГО, а не полосу, поэтому шапка,
+           заголовок и подпись под лентой остаются на месте между опросами. *@
+        <div class="v2-tape-body" id="tape-body">
+            @if (Model.Tape.Count == 0)
+            {
+                <p class="v2-empty">
+                    No fills recorded in the last hour. The trades dataset is collected per venue — an
+                    empty tape here is either a quiet asset or a venue whose trades are switched off,
+                    and band 5 below says which.
+                </p>
+            }
             @foreach (var t in Model.Tape)
             {
                 var owner = Model.Rows.FirstOrDefault(r => r.Row.InstrumentId == t.InstrumentId);
@@ -381,16 +394,16 @@
                 </div>
             }
         </div>
-        <p class="v2-legend">
-            The tape is the one thing on this page that moves on its own, because a tape is a tape.
-            Three fills can carry one millisecond between them and they are three rows, not one.
-            Everything else changes when a pass lands.
-        </p>
-    }
+    </div>
+    <p class="v2-legend">
+        The tape is the one thing on this page that moves on its own, because a tape is a tape.
+        Three fills can carry one millisecond between them and they are three rows, not one.
+        Everything else changes when a pass lands.
+    </p>
 </section>
 
 @* ── полоса 5: что стоит за цифрами ─────────────────────────────────────────── *@
-<section class="v2-band">
+<section class="v2-band" id="band-trust">
     <div class="v2-band-head">
         <span class="csx-eyebrow v2-band-no">5 · What is behind the figures</span>
         <span class="csx-eyebrow v2-band-sub">coverage per dataset · one colour, one metric, one axis of venues ·
@@ -433,6 +446,13 @@
                 }
             }
         </div>
+        @* Шкала подписана, иначе насыщенность клетки — просто оттенок. Полоса рисуется теми же
+           двумя цветами, что и клетки, поэтому её концы можно приложить к сетке глазами. *@
+        <div class="v2-cov-key">
+            <span>0 %</span>
+            <span class="v2-cov-ramp"></span>
+            <span>100 % of the window held</span>
+        </div>
     }
 
     <div class="v2-gaps">
@@ -452,6 +472,77 @@
                     <span class="v2-gap-when">@Format.UtcClock(g.GapStart) → @(g.GapEnd is null ? "open" : Format.UtcClock(g.GapEnd))</span>
                 </div>
             }
+        }
+    </div>
+
+    @* ── что ещё есть у этого актива ───────────────────────────────────────────
+       Список НЕ каталог наборов, а перепись того, что для ЭТОГО актива лежит в базе прямо
+       сейчас: строки собраны из тех же значений, что нарисованы выше, и ни одна не утверждает
+       больше того, что страница уже показала. Набор, у которого для актива ничего нет, так и
+       написан — «ничего», а не пропущен: разница между «не собираем» и «собираем, но пусто»
+       и есть половина смысла этой полосы. *@
+    @{
+        var listings = Model.Rows.Count;
+        var withCandles = Model.Rows.Count(r => r.Candles.Present > 0);
+        var bars = Model.Rows.Sum(r => r.Candles.Present);
+        var withFunding = Model.Rows.Count(r => r.Metrics.Funding.Any(f => f is not null));
+        var fundingNow = Model.Rows.Count(r => r.Row.FundingRate is not null);
+        var bookLevels = Model.Books.Values.Select(b => (int)b.Levels).DefaultIfEmpty(0).Max();
+        var newestBook = Model.Books.Values.Select(b => (DateTime?)b.ObservedAt).DefaultIfEmpty(null).Max();
+        var tapeVenues = Model.Tape.Select(t => t.InstrumentId).Distinct().Count();
+        var stressVenues = Model.Stress.Count;
+        var stressTotal = Model.Stress.Values.Sum(x => x.Volume);
+        var openGaps = Model.Gaps.Count(g => g.GapEnd is null);
+
+        // (заголовок, что реально лежит, куда смотреть, якорь, срез)
+        var reach = new (string Name, string What, string Where, string Href, string? Cut)[]
+        {
+            ("Candles",
+             withCandles == 0
+                 ? "nothing stored for this asset yet"
+                 : $"{bars} hourly bars over {withCandles} of {listings} listings, one scale per quote asset",
+             "The cut → Price", "#band-cuts", "price"),
+
+            ("Funding history",
+             withFunding == 0
+                 ? (fundingNow == 0 ? "no listing here publishes funding" : "a rate now, but no hourly history kept yet")
+                 : $"hourly rates on {withFunding} of {listings} listings, each at that venue's own interval",
+             "The cut → Funding", "#band-cuts", "funding"),
+
+            ("Level book",
+             Model.Books.Count == 0
+                 ? "no frame in the last ten minutes"
+                 : $"{bookLevels} levels a side on {Model.Books.Count} of {listings} listings, newest {Format.UtcClock(newestBook)}",
+             "Band 2", "#band-now", null),
+
+            ("Trades",
+             Model.Tape.Count == 0
+                 ? "no fill in the last hour"
+                 : $"every fill with taker side and venue clock — {Model.Tape.Count} shown from {tapeVenues} listings",
+             "Band 4", "#band-tape", null),
+
+            ("Liquidations",
+             stressVenues == 0
+                 ? "nothing forced out on these venues in the last day"
+                 : $"five-minute buckets on {stressVenues} of {listings} listings, {Format.Num(stressTotal, 0)} in the newest",
+             "Band 1 → Stress", "#band-table", null),
+
+            ("Coverage & gaps",
+             datasets.Count == 0
+                 ? "no coverage written for this asset in the last day"
+                 : $"{datasets.Count} datasets tracked, {Model.Gaps.Count} breaks recorded, {openGaps} still open",
+             "Band 5", "#band-trust", null),
+        };
+    }
+    <div class="v2-reach">
+        <span class="csx-eyebrow">Everything else this asset has</span>
+        @foreach (var e in reach)
+        {
+            <div class="v2-reach-row">
+                <span class="v2-reach-name">@e.Name</span>
+                <span class="v2-reach-what">@e.What</span>
+                <span class="v2-reach-where"><a href="@e.Href" data-goto-cut="@e.Cut">@e.Where</a></span>
+            </div>
         }
     </div>
 </section>
@@ -477,6 +568,6 @@
     <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
     <script src="~/studio-candles.js?v=5"></script>
 }
-<script src="~/studio-v2.js?v=3"></script>
+<script src="~/studio-v2.js?v=4"></script>
 </body>
 </html>
