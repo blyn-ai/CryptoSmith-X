@@ -29,11 +29,13 @@ public sealed class BinanceUsdmMarketDataTests
         IBinanceOpenInterestFeed? oi = null,
         FixtureHandler? handler = null,
         IBinanceLiveFeed? ws = null,
+        IBinanceMarketFeed? marketFeed = null,
         TimeProvider? clock = null) =>
         new(new BinanceUsdmClient(new HttpClient(handler ?? new FixtureHandler()), BaseUrl),
             oi ?? StubOpenInterestFeed.ForEverything(),
-            ws,
-            clock ?? new FakeTimeProvider(Now));
+            ws: ws,
+            marketFeed: marketFeed,
+            clock: clock ?? new FakeTimeProvider(Now));
 
     // ── Discovery: scope ─────────────────────────────────────────────────
     [Fact]
@@ -328,14 +330,14 @@ public sealed class BinanceUsdmMarketDataTests
 
     // ── Capabilities ─────────────────────────────────────────────────────
     [Fact]
-    public void Only_depth_is_declared_over_two_transports()
+    public void Depth_snapshot_and_candles_are_declared_over_two_transports()
     {
         var capabilities = Adapter().Capabilities.ToDictionary(c => c.DatasetCode, c => c.TransportsUs, StringComparer.Ordinal);
 
         Assert.Equal("rest,ws", capabilities["depth"]);
-        Assert.Equal("rest", capabilities["snapshot"]);
+        Assert.Equal("rest,ws", capabilities["snapshot"]);
         Assert.Equal("rest", capabilities["discovery"]);
-        Assert.Equal("rest", capabilities["candles"]);
+        Assert.Equal("rest,ws", capabilities["candles"]);
         Assert.Equal("rest", capabilities["funding"]);
     }
 

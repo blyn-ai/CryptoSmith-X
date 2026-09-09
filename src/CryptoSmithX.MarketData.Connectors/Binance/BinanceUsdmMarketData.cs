@@ -15,24 +15,28 @@ namespace CryptoSmithX.MarketData.Connectors.Binance;
 ///
 /// WHAT IS CHEAP HERE AND WHAT IS NOT. Binance meters a per-IP budget in WEIGHT, 2400 per minute, and
 /// charges wildly different amounts per endpoint, so the usual instinct — count requests — misreads
-/// this venue badly in both directions. The whole-venue snapshot is three batched calls costing 55
-/// weight together (bookTicker 5 + premiumIndex 10 + ticker/24hr 40), which is a full picture of ~570
-/// perpetuals several times a minute. Against that, TWO datasets have no batched form at all and are
-/// the entire cost of this adapter: open interest (weight 1 per symbol, no batch — HTTP 400 without
-/// one, verified live) and the order book. Open interest is served from a background cycle
-/// (<see cref="BinanceOpenInterestFeed"/>) rather than one blocking call per symbol per tick. The
-/// order book is WS-first with a REST fallback whenever a feed is wired (<see cref="BinanceWsFeed"/>).
+/// this venue badly in both directions. The whole-venue snapshot was three batched REST calls costing
+/// 55 weight together (bookTicker 5 + premiumIndex 10 + ticker/24hr 40); two of those three — mark,
+/// index, funding, last price, turnover — are now WS-first via <see cref="IBinanceMarketFeed"/>
+/// (<see cref="BinanceMarketWsFeed"/>, <c>/market/stream</c>), leaving a healthy pass at 5 weight
+/// (bookTicker only — no WS bid/ask source exists, see that interface's remarks). Open interest still
+/// has no batched form at all (weight 1 per symbol, no batch — HTTP 400 without one, verified live)
+/// and is served from a background cycle (<see cref="BinanceOpenInterestFeed"/>) rather than one
+/// blocking call per symbol per tick. The order book is WS-first with a REST fallback whenever a feed
+/// is wired (<see cref="BinanceWsFeed"/>, <c>/public/stream</c> — a THIRD, separate connection from
+/// the market feed, per that class's own remarks on why the two cannot share a socket).
 ///
 /// A symbol missing from any one of the merged sources — no top of book this round, no mark price, no
-/// 24 h row, no open-interest sample yet — is omitted from the ticker batch entirely. Its snapshot row
-/// then ages honestly instead of being written with a fabricated field, which is the same rule WEEX's
-/// adapter applies for the same reason.
+/// 24 h row, no open-interest sample yet — is omitted from the ticker batch entirely, in both the WS
+/// and the REST branch. Its snapshot row then ages honestly instead of being written with a
+/// fabricated field, which is the same rule WEEX's adapter applies for the same reason.
 /// </summary>
 public sealed class BinanceUsdmMarketData : IExchangeMarketData
 {
     private readonly BinanceUsdmClient _client;
     private readonly IBinanceOpenInterestFeed _openInterest;
     private readonly IBinanceLiveFeed? _ws;
+    private readonly IBinanceMarketFeed? _marketFeed;
     private readonly TimeProvider _clock;
     private readonly ILogger _log;
 
@@ -45,29 +49,33 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
         BinanceUsdmClient client,
         IBinanceOpenInterestFeed openInterest,
         IBinanceLiveFeed? ws = null,
+        IBinanceMarketFeed? marketFeed = null,
         TimeProvider? clock = null,
         ILogger? log = null)
     {
         _client = client;
         _openInterest = openInterest;
         _ws = ws;
+        _marketFeed = marketFeed;
         _clock = clock ?? TimeProvider.System;
         _log = log ?? NullLogger.Instance;
     }
 
     public string SegmentCode => "binance-usdm";
 
-    // Depth is WS-first with a REST fallback whenever a feed is wired (see the ctor); it is honest to
-    // declare both regardless of whether _ws happens to be null right now, since that is a config
-    // fact (ws_url set or not), not a per-request coin flip. Everything else says 'rest' because it
-    // is REST — see IBinanceLiveFeed for why the snapshot deliberately stays there even though the
-    // venue does stream it.
+    // Depth is WS-first with a REST fallback whenever _ws is wired; snapshot is WS-first (mark,
+    // index, funding, last price, turnover) with a REST fallback whenever _marketFeed is wired —
+    // bid/ask stay REST regardless, since neither socket carries a book on this venue's second
+    // connection (see IBinanceMarketFeed). Both are declared regardless of whether the feed happens
+    // to be null right now: that is a config fact (ws_url / market-stream URL set or not), not a
+    // per-request coin flip. Candles are WS-first the same way. Open interest and discovery stay
+    // 'rest' — no channel on either socket carries them.
     public IReadOnlyList<DatasetCapability> Capabilities { get; } =
     [
         new("discovery", "rest"),
-        new("snapshot", "rest"),
+        new("snapshot", "rest,ws"),
         new("depth", "rest,ws"),
-        new("candles", "rest"),
+        new("candles", "rest,ws"),
         new("funding", "rest"),
     ];
 
@@ -133,10 +141,53 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
 
     public async Task<IReadOnlyList<Ticker>> GetTickersAsync(CancellationToken ct)
     {
-        // Three batched calls, 55 weight for the whole venue. Order does not matter; they are
-        // sequential rather than concurrent because the venue ceiling is shared and a burst of three
-        // buys nothing at this cadence.
+        // bookTicker (weight 5) is fetched unconditionally, WS-healthy or not: no WS source of
+        // bid/ask exists on this venue's second socket (see IBinanceMarketFeed's class remarks) —
+        // !ticker@arr and !markPrice@arr@1s carry last price, turnover, mark, index and funding, but
+        // neither carries a book. Rebuilding bid/ask from the maintained depth book would be a real
+        // capability this venue's REST path already answers cheaply, not a gap this phase closes.
         var books = await _client.GetBookTickersAsync(ct);
+
+        // WS first, whole-batch — same ternary Kraken's ticker cache uses. When healthy this
+        // replaces BOTH remaining REST calls (premiumIndex weight 10, ticker/24hr weight 40): the
+        // pass costs 5 weight instead of 55.
+        if (_marketFeed is not null && _marketFeed.TryGetFreshContexts(out var contexts))
+        {
+            var booksBySymbol = books.ToDictionary(b => b.Symbol, StringComparer.Ordinal);
+            var wsList = new List<Ticker>(contexts.Count);
+            foreach (var c in contexts)
+            {
+                if (!booksBySymbol.TryGetValue(c.Symbol, out var b))
+                {
+                    continue;   // no book-ticker row this round
+                }
+
+                if (!_openInterest.TryGet(c.Symbol, out var wsOi, out var wsOiAt))
+                {
+                    continue;
+                }
+
+                wsList.Add(new Ticker(
+                    ExchangeSymbol: c.Symbol,
+                    ReceivedAt: c.At,
+                    LastPrice: c.LastPrice,
+                    BidPrice: Parse(b.BidPrice),
+                    AskPrice: Parse(b.AskPrice),
+                    BidSize: Parse(b.BidQty),
+                    AskSize: Parse(b.AskQty),
+                    MarkPrice: c.MarkPrice,
+                    IndexPrice: c.IndexPrice,
+                    FundingRate: c.FundingRate,
+                    Turnover24h: c.Turnover24h,
+                    OpenInterest: wsOi,
+                    OpenInterestAt: wsOiAt,
+                    Depth: null));
+            }
+
+            return wsList;
+        }
+
+        // Degraded / no WS: the two remaining batched calls, exactly as before.
         var premiums = await _client.GetPremiumIndexAsync(ct);
         var stats = await _client.GetTicker24hAsync(ct);
 
@@ -210,6 +261,14 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
     public async Task<IReadOnlyList<Candle>> GetCandles1mAsync(
         string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
+        // WS first: the whole range from the live kline_1m cache, or nothing — a partial answer
+        // would look identical to a symbol that simply traded flat, so CandleCache refuses it
+        // itself; see IBinanceMarketFeed.TryGetCandles1m.
+        if (_marketFeed is not null && _marketFeed.TryGetCandles1m(exchangeSymbol, from, to, out var live))
+        {
+            return live;
+        }
+
         var rows = await _client.GetKlines1mAsync(
             exchangeSymbol, from.ToUnixTimeMilliseconds(), to.ToUnixTimeMilliseconds(), ct);
 

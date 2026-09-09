@@ -671,8 +671,19 @@ public sealed class ExchangeWorker : BackgroundService
             ws.Start(ct);
         }
 
+        // A separate connection from the one above, on purpose: verified live that /public/stream
+        // and /market/stream each answer silence for the other's streams, so ticker/candles cannot
+        // share a socket with depth on this venue. Started independently — one URL missing (or one
+        // feed failing to start) must not stop the other.
+        BinanceMarketWsFeed? marketFeed = null;
+        if (!string.IsNullOrWhiteSpace(config.MarketWsUrl))
+        {
+            marketFeed = new BinanceMarketWsFeed(config.MarketWsUrl, client, _loggers, _clock);
+            marketFeed.Start(ct);
+        }
+
         return new BinanceUsdmMarketData(
-            client, openInterest, ws, _clock, _loggers.CreateLogger("Binance.Usdm"));
+            client, openInterest, ws, marketFeed, _clock, _loggers.CreateLogger("Binance.Usdm"));
     }
 
     /// <summary>Await tasks, swallowing the cancellation that a normal stop raises.</summary>

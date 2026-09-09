@@ -91,6 +91,7 @@ public sealed class DbSettings
                    base_url     as "BaseUrl",
                    charts_url   as "ChartsUrl",
                    ws_url       as "WsUrl",
+                   market_ws_url as "MarketWsUrl",
                    quote_assets as "QuoteAssets",
                    blacklist    as "Blacklist",
                    status       as "Status"
@@ -151,6 +152,15 @@ public sealed record ExchangeConfig
     public string? BaseUrl { get; init; }
     public string? ChartsUrl { get; init; }
     public string? WsUrl { get; init; }
+
+    /// <summary>Binance's SECOND socket (<c>/market/stream</c>: ticker, mark price, candles) — a
+    /// separate URL from <see cref="WsUrl"/> (<c>/public/stream</c>: depth) because the venue routes
+    /// them to different paths and a stream on the wrong one is acknowledged and then silent forever
+    /// (0037, <see cref="Connectors.Binance.BinanceMarketWsFeed"/>). Null for every other venue —
+    /// nothing else in this schema needs a second socket, and it stays that way rather than
+    /// generalising to "extra WS URLs" for a need only one venue has today.</summary>
+    public string? MarketWsUrl { get; init; }
+
     public string[] QuoteAssets { get; init; } = [];
     public string[] Blacklist { get; init; } = [];
     public string Status { get; init; } = "";
