@@ -49,7 +49,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@title · CryptoSmith X</title>
     <link rel="stylesheet" href="~/ds/styles.css">
-    <link rel="stylesheet" href="~/studio-v2.css">
+    @* ?v= — не украшение. Cloudflare кеширует статику этого домена, и без версии в адресе
+       страница получает старый файл: правки вёрстки уехали на тест, а браузеру пришёл CSS
+       трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
+       текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
+       ловила studio-live.js. Поднимать при каждой правке файла. *@
+    <link rel="stylesheet" href="~/studio-v2.css?v=3">
 </head>
 <body class="v2">
 
