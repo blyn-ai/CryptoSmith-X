@@ -218,7 +218,10 @@ public static class V2Cells
     /// цены, мы ещё не видели ни на одной площадке.</summary>
     private const double ReachCeilingBps = 5000;
 
-    private static V2Cell Reach(BookFrame? book)
+    /// <summary>Public because BAND 2 PRINTS THE SAME SENTENCE under its ladder. It said "reach
+    /// not measured" for a listing whose band-1 cell read ±18 bps — one page, one book, two
+    /// answers — because the two were computed from different sources.</summary>
+    public static V2Cell Reach(BookFrame? book)
     {
         if (book is null || book.BidPx.Length == 0 || book.AskPx.Length == 0)
         {

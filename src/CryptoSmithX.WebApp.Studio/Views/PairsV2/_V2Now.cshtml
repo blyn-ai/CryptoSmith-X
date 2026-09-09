@@ -58,15 +58,11 @@
                                 }
                             </span>
                             <span class="v2-book-note">
-                                @* Ноль здесь НЕ НАБЛЮДЕНИЕ (правило 8): «книга видна до ±0 bps»
-                                   не бывает — это значит, что досягаемость не посчитана. И берётся
-                                   она только если правдоподобна: ±108 734 bps — это тысяча
-                                   процентов от середины, то есть мусор, а не глубокая книга. *@
-                                @{
-                                    var reach = Math.Max(r.Row.BookReachBid ?? 0, r.Row.BookReachAsk ?? 0);
-                                    var sane = reach > 0 && reach <= 10000;
-                                }
-                                @(sane ? "seen to ±" + Format.Num(reach, 0) + " bps" : "reach not measured")
+                                @* ТО ЖЕ ЧИСЛО, что печатает клетка Book reach в полосе 1, из
+                                   одного места: полоса 2 говорила «reach not measured» там, где
+                                   полоса 1 писала ±18 bps — одна книга, одна страница, два ответа. *@
+                                @{ var reach = V2Cells.Reach(bk); }
+                                @(reach.Value is null ? "reach not measured" : "seen to " + reach.Text)
                                 · @(bidShown == held && askShown == held
                                       ? $"{held} levels a side"
                                       : $"{Math.Max(bidShown, askShown)} of {held} levels a side drawn")

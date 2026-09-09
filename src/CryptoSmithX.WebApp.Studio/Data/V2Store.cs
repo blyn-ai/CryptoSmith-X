@@ -86,21 +86,40 @@ public static class V2Store
             return [];
         }
 
+        // A CEILING PER LISTING, not the newest N outright.
+        //
+        // Outright, one busy venue owns the tape: on ADA all eighteen rows were WEEX, and the other
+        // four listings were not absent from the market — they were absent from the page. That is
+        // the band failing at exactly the thing it exists for, because a tape of one venue is a
+        // tape you could have read on that venue.
+        //
+        // The ceiling is a share of the limit rather than a fixed number, so an asset listed twice
+        // and an asset listed seven times both fill the same eighteen rows. Below the ceiling
+        // nothing is held back: a venue with two fills in the hour shows two, and the quiet venue
+        // reads as quiet rather than as trimmed.
+        var perListing = Math.Max(3, (int)Math.Ceiling((double)limit / ids.Count));
+
         var rows = await conn.QueryAsync<TapeRow>(new CommandDefinition(
             """
-            select t.exchange_instrument_id as "InstrumentId",
-                   t.event_time            as "EventTime",
-                   t.price::double precision as "Price",
-                   t.qty::double precision   as "Qty",
-                   t.taker_side            as "TakerSide",
-                   t.trade_type            as "TradeType"
-              from trade t
-             where t.exchange_instrument_id = any(@ids)
-               and t.event_time > now() - interval '1 hour'
-             order by t.event_time desc
+            select x."InstrumentId", x."EventTime", x."Price", x."Qty", x."TakerSide", x."TradeType"
+              from (
+                    select t.exchange_instrument_id   as "InstrumentId",
+                           t.event_time               as "EventTime",
+                           t.price::double precision  as "Price",
+                           t.qty::double precision    as "Qty",
+                           t.taker_side               as "TakerSide",
+                           t.trade_type               as "TradeType",
+                           row_number() over (partition by t.exchange_instrument_id
+                                              order by t.event_time desc) as rn
+                      from trade t
+                     where t.exchange_instrument_id = any(@ids)
+                       and t.event_time > now() - interval '1 hour'
+                   ) x
+             where x.rn <= @perListing
+             order by x."EventTime" desc
              limit @limit
             """,
-            new { ids = ids.ToArray(), limit }, cancellationToken: ct));
+            new { ids = ids.ToArray(), limit, perListing }, cancellationToken: ct));
 
         return rows.ToList();
     }
