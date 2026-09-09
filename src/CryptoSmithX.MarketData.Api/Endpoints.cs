@@ -150,7 +150,30 @@ public static class Endpoints
             """,
             new { exchange, status, symbols = wanted },
             cancellationToken: ct));
-        return Results.Ok(rows);
+
+        if (!withRaw)
+        {
+            return Results.Ok(rows);
+        }
+
+        // jsonb arrives from Npgsql as a string, and returning it as one would make `raw` a quoted
+        // blob the caller has to parse a second time. Re-materialised as an element so the venue's
+        // own document is part of this document.
+        var materialised = new List<Dictionary<string, object?>>();
+        foreach (var row in rows)
+        {
+            var copy = new Dictionary<string, object?>(StringComparer.Ordinal);
+            foreach (var (key, value) in (IDictionary<string, object>)row)
+            {
+                copy[key] = key == "raw" && value is string json
+                    ? System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json)
+                    : value;
+            }
+
+            materialised.Add(copy);
+        }
+
+        return Results.Ok(materialised);
     }
 
     /// <summary>
