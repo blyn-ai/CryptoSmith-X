@@ -23,7 +23,7 @@
                    на всю таблицу; здесь раскрытие ещё и по группам, и вешать оба смысла на
                    один клик значило бы, что предсказать, что случится, нельзя. Имя раскрывает
                    группу на месте, каретка уводит полосы 2 и 3 на это поле. *@
-                <span class="v2-hcell" data-group="@g.Key" data-tone="@g.Tone.ToString().ToLowerInvariant()">
+                <span class="v2-hcell @(g.Cut == "price" ? "is-cut" : "")" data-group="@g.Key" data-cut="@g.Cut" data-tone="@g.Tone.ToString().ToLowerInvariant()">
                     <span class="v2-hrow">
                         @if (g.Fields.Count > 0)
                         {
@@ -39,6 +39,7 @@
                         {
                             <button type="button" class="v2-caret" data-goto-cut="@g.Cut"
                                     aria-pressed="@(g.Cut == "price" ? "true" : "false")"
+                                    aria-label="Show @g.Name now and over time, and sort by it"
                                     title="Show this field now and over time, across every listing">↓</button>
                         }
                     </span>
@@ -49,7 +50,13 @@
 
         @foreach (var r in Model.Rows)
         {
-            <div class="v2-row">
+            @* Значения всех срезов едут СО СТРОКОЙ: выбор среза — один клик, а не переход, и
+               сортировка не должна за ним ходить на сервер. Пустое значение уезжает вниз в обе
+               стороны: «не измерено» не хуже и не лучше, его просто не с чем сравнивать. *@
+            var sorts = string.Join(" ", V2Cuts.All.Select(c =>
+                $"data-sort-{c.Key}=\"{V2Cuts.Now(r, c)?.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}\""));
+
+            <div class="v2-row" @Html.Raw(sorts)>
                 @{ var strip = StripModel.Build(r); }
                 @* a-venue / a-strip — ХУКИ ПЕРВОЙ СТРАНИЦЫ, а не её оформление: возрасты на обеих
                    двигает один studio-ages.js, и второй экземпляр этих часов был бы вторым местом,
@@ -117,7 +124,10 @@
                            чего она сказать не может: насколько худший из них прошёл своё окно, и
                            какой именно он. Отношение не зажимается по единице: три окна и
                            двенадцать окон назад должны читаться по-разному. *@
-                        <span class="v2-fig @(strip.MostSpent is null ? "v2-fig--none" : "")">
+                        @* ЦВЕТ ПО СВЕЖЕСТИ, и это единственное число на странице, которое красится
+                           состоянием, а не вызовом: оно И ЕСТЬ состояние. Зелёное — внутри своего
+                           окна, акцентное — за ним. *@
+                        <span class="v2-fig @(strip.MostSpent is null ? "v2-fig--none" : strip.MostSpentPastWindow ? "v2-fig--late" : "v2-fig--fresh")">
                             @(strip.MostSpent is null ? "—" : Format.SpacedAge(strip.MostSpent.AgeSeconds))
                         </span>
                         <span class="v2-figsub">
@@ -157,6 +167,17 @@
                                     if (part.Mark is { } m) { <b class="v2-mark v2-mark--@m.Class">@m.Word</b> }
                                     <span>@part.Text</span>
                                 }
+                            </span>
+                        }
+                        @* У стресса бар есть, хотя ранга нет: единица агрегата у площадок разная,
+                           поэтому сравнивать их местами нельзя, а показать, насколько эта цифра
+                           велика для ЭТОЙ площадки за сутки, — можно и нужно. Шкала своя, по
+                           странице, и подпись под цифрой называет единицу. *@
+                        @if (g.Key == "stress" && stress is not null)
+                        {
+                            var peak = Model.Stress.Values.Select(x => (double?)x.Volume).DefaultIfEmpty(null).Max();
+                            <span class="v2-bar" data-tone="ticker">
+                                <i style="width:@Format.BarWidth(stress.Volume, peak)"></i>
                             </span>
                         }
                         @if (head.BarColumn is { } bc && head.Bar is not null)

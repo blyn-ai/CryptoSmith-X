@@ -119,12 +119,22 @@
                 }
                 else
                 {
-                    foreach (var r in Model.Rows.OrderByDescending(r => V2Cuts.Now(r, c) ?? double.MinValue))
+                    @* ЛУЧШИЙ СВЕРХУ, а не «по убыванию всегда»: у спреда лучший — наименьший, и
+                       порядок по убыванию ставил худшую площадку первой строкой в том самом
+                       списке, где ответ — это первая строка. *@
+                    var ordered = c.HighIsBest
+                        ? Model.Rows.OrderByDescending(x => V2Cuts.Now(x, c) ?? double.MinValue)
+                        : Model.Rows.OrderBy(x => V2Cuts.Now(x, c) ?? double.MaxValue);
+
+                    foreach (var r in ordered)
                     {
                         var v = V2Cuts.Now(r, c);
                         <div class="v2-now">
                             <span class="v2-now-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em> <b>@r.Row.Symbol</b></span>
-                            <span class="v2-now-val @(v is null ? "v2-fig--none" : "")">@(v is null ? "—" : Format.Num(v, c.Decimals))</span>
+                            @* Значение С ЕДИНИЦЕЙ: голое «6.01» в строке про спред — число, про
+                               которое надо помнить, чем его мерили, и которое легко сравнить с
+                               соседним срезом по ошибке. *@
+                            <span class="v2-now-val @(v is null ? "v2-fig--none" : "")">@(v is null ? "—" : Format.Num(v, c.Decimals) + " " + c.Short)</span>
                             @* У ГЛУБИНЫ СТОРОНА — ЭТО ОТВЕТ. Один бар на сумму сторон складывает
                                бид с аском и теряет наклон книги, ради которого на глубину и
                                смотрят: 200 к бида против 40 к аска и 120 к против 120 к дают
@@ -147,9 +157,20 @@
                             {
                                 <span class="v2-now-bar"><i style="width:@Format.BarWidth(v, maxNow)"></i></span>
                             }
-                            @* Единица названа ОДИН раз, в шапке полосы: пять одинаковых «base
-                               units» под пятью барами — это пять раз одно и то же в колонке, по
-                               которой глаз идёт сравнивать числа. *@
+                            @* Справа — на каком основании строка сравнима с соседними, и возраст
+                               вызова, который её написал. Строка полосы 2 была единственной цифрой
+                               на странице без возраста. *@
+                            <span class="v2-now-note">@r.Row.QuoteAsset @(c.Key == "depth25" ? "book" : "figures") · every listing comparable</span>
+                            @{
+                                (string Label, double? Seconds, double? Window) age = c.Key switch
+                                {
+                                    "depth25" => ("Depth", r.Ages.DepthSeconds, r.Windows.DepthSeconds),
+                                    "oi" => ("OI", r.Ages.OpenInterestSeconds, r.Windows.OpenInterestSeconds),
+                                    _ => ("Price", r.Ages.PriceSeconds, r.Windows.PriceSeconds),
+                                };
+                                var late = Freshness.PastWindow(age.Seconds, age.Window);
+                            }
+                            <span class="v2-now-age @(late ? "v2-now-age--late" : "")">@(late ? Format.PastWindowMark : "") @age.Label @Format.SpacedAge(age.Seconds)</span>
                         </div>
                     }
                 }

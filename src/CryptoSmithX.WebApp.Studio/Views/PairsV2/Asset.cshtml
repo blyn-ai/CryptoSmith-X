@@ -54,7 +54,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=22">
+    <link rel="stylesheet" href="~/studio-v2.css?v=24">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -310,6 +310,11 @@
 </section>
 
 
+@* ── полосы 4 и 5 рядом ──────────────────────────────────────────────────────
+   Лента узкая и длинная, покрытие широкое и низкое; поставленные друг под друга, они гнали
+   страницу вниз и разводили два ответа на один вопрос «чему тут верить» на два экрана. *@
+<div class="v2-pair">
+
 @* ── полоса 4: лента ────────────────────────────────────────────────────────── *@
 <section class="v2-band" id="band-tape">
     <div class="v2-band-head">
@@ -370,7 +375,9 @@
                 var kind = t.TradeType ?? "fill";
                 var loud = kind is "liquidation" or "partial_liquidation" or "termination";
                 <div class="v2-tape-row @(loud ? "v2-tape-row--loud" : "")" data-venue="@t.InstrumentId">
-                    <span>@t.EventTime.ToString("HH:mm:ss.fff")</span>
+                    @* mm:ss.mmm: час в ленте, покрывающей последний час, — три знака, одинаковые во всех
+                       восемнадцати строках. *@
+                    <span>@t.EventTime.ToString("mm:ss.fff")</span>
                     <span>@(owner?.Row.ExchangeName ?? "—")</span>
                     <span class="v2-side v2-side--@t.TakerSide">@t.TakerSide</span>
                     <span class="v2-r">@Format.Num(t.Price, 6)</span>
@@ -405,11 +412,13 @@
         <span class="v2-cov-corner"></span>
         @foreach (var r in Model.Rows)
         {
-            <span class="v2-cov-vh">@r.Row.ExchangeName<em>@r.Row.Symbol</em></span>
+            @* Одной строкой: площадка и котировка. Символ инструмента здесь второй строкой занимал
+               столько же места, сколько сама сетка, и ни на один вопрос этой полосы не отвечал. *@
+            <span class="v2-cov-vh">@r.Row.ExchangeName<em>@r.Row.QuoteAsset</em></span>
         }
         @foreach (var d in V2Coverage.Datasets)
         {
-            <span class="v2-cov-dh" title="@d.Draws">@d.Label</span>
+            <span class="v2-cov-dh" title="@d.Draws">@Names.Dataset(d.Code)</span>
             @foreach (var r in Model.Rows)
             {
                 @* Четыре вида «ничего», и это четыре разных факта: доля окна · измеренный ноль ·
@@ -455,7 +464,10 @@
             foreach (var g in lines)
             {
                 <div class="v2-gap">
-                    <span class="v2-gap-what">@g.SegmentCode · @g.Collector</span>
+                    @* ПО-ЧЕЛОВЕЧЕСКИ, а не первичными ключами: «binance-usdm · candles_index» — это наши
+                       коды, и читателю, чтобы прочесть фразу о разрыве, пришлось бы сперва выучить
+                       нашу схему. *@
+                    <span class="v2-gap-what">@Names.Segment(g.SegmentCode) · @Names.Dataset(g.Collector)</span>
                     <span class="v2-gap-state @(g.Open ? "v2-gap-state--open" : "")">@(g.Open ? "open" : "closed")</span>
                     @* ГОЛОС СТРАНИЦЫ, а не текст драйвера. Здесь печаталось `cause — detail`
                        дословно из строки, то есть `NpgsqlException: Failed to connect to
@@ -543,6 +555,8 @@
     </div>
 </section>
 
+</div>
+
 <footer class="v2-foot">
     <span>Not investment advice · Own funds only</span>
     @*
@@ -565,6 +579,6 @@
 }
 <script src="~/studio-ages.js?v=5"></script>
 <script src="~/studio-live.js?v=3"></script>
-<script src="~/studio-v2.js?v=11"></script>
+<script src="~/studio-v2.js?v=12"></script>
 </body>
 </html>

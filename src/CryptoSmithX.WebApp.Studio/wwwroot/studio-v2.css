@@ -256,6 +256,20 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-cell{display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding:10px;border-left:1px solid var(--border-hairline);min-width:0}
 .v2-fig{font:400 var(--fs-body)/1.1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
 .v2-fig--none{color:var(--text-unmeasured)}
+/* Возраст худшего вызова — единственное число, которое красится СОСТОЯНИЕМ, потому что оно и
+   есть состояние: внутри окна или за ним. */
+.v2-fig--fresh{color:var(--candle-up)}
+.v2-fig--late{color:var(--accent)}
+.v2-cell[data-group="trust"] .v2-window i{background:var(--candle-up)}
+.v2-cell[data-group="trust"] .v2-window--spent i{background:var(--accent)}
+
+/* Колонка выбранного поля: шапка акцентом. */
+.v2-hcell.is-cut .v2-gtoggle,.v2-hcell.is-cut .v2-caret{color:var(--accent)}
+.v2-hcell.is-cut{border-top-color:var(--accent)}
+
+/* Пара цен держится в одну строку даже с марками: перенос делал из одной величины две. */
+.v2-cell[data-group="price"] .v2-fig{white-space:nowrap}
+.v2-cell[data-group="price"] .v2-mark{margin-right:2px;padding:1px 2px}
 
 /* Наведение. Три состояния, как на макете, и все три — чистый :hover, без скрипта: строка
    поднимается на подложку, а число под курсором получает подсветку с выносом в 3px, чтобы
@@ -403,7 +417,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-cutpick[aria-pressed="true"]{background:var(--tag-worst-bg);border-color:var(--accent);color:var(--accent)}
 
 .v2-nows{padding:var(--space-4) var(--space-7)}
-.v2-now{display:grid;grid-template-columns:minmax(180px,1fr) minmax(120px,auto) 3fr minmax(120px,auto);align-items:center;gap:var(--space-5);padding:6px 0;border-bottom:1px solid var(--border-hairline)}
+/* Строка полосы 2: площадка · значение · бар · на каком основании сравнима · возраст. */
+.v2-now-note{font:400 var(--fs-micro)/1.3 var(--font-mono);color:var(--text-faint);text-align:right}
+.v2-now-age{font:400 var(--fs-age)/1.3 var(--font-mono);color:var(--text-faint);text-align:right;white-space:nowrap}
+.v2-now-age--late{color:var(--accent)}
+.v2-now{display:grid;grid-template-columns:minmax(160px,1fr) minmax(110px,auto) minmax(0,3fr) minmax(150px,auto) minmax(96px,auto);align-items:center;gap:var(--space-5);padding:6px 0;border-bottom:1px solid var(--border-hairline)}
 .v2-now-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading);min-width:0}
 .v2-now-plat em{font-style:normal;font:500 8.5px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin:0 5px}
 .v2-now-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--text-muted)}
@@ -487,6 +505,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-book-note{font:400 var(--fs-micro)/1.3 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-faint)}
 
 /* ── полоса 4: лента ────────────────────────────────────────────────────────── */
+/* 40 / 60. Лента узкая по природе — шесть колонок, — а покрытие широкое: венцы по горизонтали.
+   Друг под другом они разводили два ответа на один вопрос по двум экранам. */
+.v2-pair{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,6fr);gap:var(--space-7);align-items:start}
+@media (max-width:1279px){.v2-pair{grid-template-columns:minmax(0,1fr)}}
+
 .v2-tape{padding:0 var(--space-7) var(--space-4)}
 
 /* FOLLOW у ленты. Тумблер дизайнера — 40×20 с квадратной шашкой, отдельный от .v2-switch:
@@ -501,7 +524,9 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
   background:var(--text-faint);transition:transform 120ms linear,background-color 120ms linear}
 .v2-toggle[aria-checked="true"] .v2-toggle-knob{background:var(--text-data);border-color:var(--text-data)}
 .v2-toggle[aria-checked="true"] .v2-toggle-knob::before{transform:translateX(20px);background:var(--surface-page)}
-.v2-tape-head,.v2-tape-row{display:grid;grid-template-columns:110px 1fr 60px 1fr 1fr 1.2fr;gap:var(--space-4);align-items:baseline;padding:4px 0}
+/* Колонки по содержимому, а не растянутые на всю полосу: между временем и ценой стояли
+   провалы в полэкрана, и глаз терял строку по дороге. */
+.v2-tape-head,.v2-tape-row{display:grid;grid-template-columns:86px minmax(0,1fr) 44px minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr);gap:var(--space-4);align-items:baseline;padding:4px 0}
 .v2-tape-head{font:500 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow);border-bottom:1px solid var(--border-hairline)}
 .v2-tape-row{font:400 var(--fs-data)/1.3 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);border-bottom:1px solid var(--border-hairline)}
 .v2-tape-row--loud{background:var(--tint-down,rgba(163,43,53,.08))}
@@ -513,8 +538,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* ── полоса 5: покрытие и пробелы ───────────────────────────────────────────── */
 .v2-cov{display:grid;grid-template-columns:minmax(140px,auto) repeat(var(--vcols),1fr);gap:2px;padding:var(--space-4) var(--space-7)}
 .v2-cov-corner{}
-.v2-cov-vh{display:flex;flex-direction:column;font:500 var(--fs-micro)/1.3 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow);text-align:center}
-.v2-cov-vh em{font-style:normal;font-size:8px;color:var(--text-faint);text-transform:none;letter-spacing:0}
+.v2-cov-vh{display:flex;flex-direction:row;justify-content:center;gap:4px;font:500 var(--fs-micro)/1.3 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow);text-align:center}
+.v2-cov-vh em{font-style:normal;color:var(--text-faint);letter-spacing:0}
 .v2-cov-dh{display:flex;align-items:center;font:500 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted)}
 /* Одна метрика — одна шкала. Насыщенность несёт долю удержанного окна и ничего больше. */
 .v2-cov-cell{display:flex;align-items:center;justify-content:center;padding:6px 0;font:400 var(--fs-data)/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);

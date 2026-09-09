@@ -67,6 +67,22 @@ public static class V2Cuts
     }
 }
 
-public sealed record V2Cut(string Key, string Name, string Unit, V2CutSource Source, PairColumn? Column, int Decimals);
+public sealed record V2Cut(string Key, string Name, string Unit, V2CutSource Source, PairColumn? Column, int Decimals)
+{
+    /// <summary>
+    /// Which end of this field is the good one, and therefore which way the table sorts when it is
+    /// the chosen cut.
+    ///
+    /// A spread is the one that runs the other way — tight is best — and it is the field a reader is
+    /// most likely to sort by, so getting it backwards would put the worst venue on top of the one
+    /// list where the answer is the first row.
+    /// </summary>
+    public bool HighIsBest => Key != "spread";
+
+    /// <summary>The unit as it stands beside ONE figure — "bps", not "bps · hourly, 24 h". The long
+    /// form names the band; this one names the number, and a number on this page is never printed
+    /// without the unit it was measured in.</summary>
+    public string Short => Unit.Split('\u00B7', ',')[0].Trim();
+}
 
 public enum V2CutSource { None, Candles, Spread, Depth25, OpenInterest, Funding, Liquidations }

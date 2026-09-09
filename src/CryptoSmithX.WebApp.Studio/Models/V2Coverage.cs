@@ -86,20 +86,20 @@ public static class V2Coverage
         if (mode is null)
         {
             return new CoverageCellView(CoverageState.Unknown, 0,
-                $"{dataset.Label}: nothing has been decided for this venue");
+                $"{Names.Dataset(dataset.Code)}: nothing has been decided for this venue");
         }
 
         if (mode != "collect")
         {
             return new CoverageCellView(CoverageState.NotCollected, 0,
-                $"{dataset.Label}: not collected on this venue — this is not a gap in our data, "
+                $"{Names.Dataset(dataset.Code)}: not collected on this venue — this is not a gap in our data, "
                 + "it is a dataset we do not take from here");
         }
 
         if (!dataset.Tracked)
         {
             return new CoverageCellView(CoverageState.NotTracked, 0,
-                $"{dataset.Label}: collected as the venue speaks, not over a requested window — "
+                $"{Names.Dataset(dataset.Code)}: collected as the venue speaks, not over a requested window — "
                 + "there is no share of a window to hold. Its freshness is the age in band 1.");
         }
 
@@ -109,13 +109,13 @@ public static class V2Coverage
         if (held is null)
         {
             return new CoverageCellView(CoverageState.Unknown, 0,
-                $"{dataset.Label}: collected here, and nothing was asked for in the last 24 h");
+                $"{Names.Dataset(dataset.Code)}: collected here, and nothing was asked for in the last 24 h");
         }
 
         return held.PercentHeld == 0
             ? new CoverageCellView(CoverageState.Empty, 0,
-                $"{dataset.Label}: asked for, and none of the last 24 h is held")
+                $"{Names.Dataset(dataset.Code)}: asked for, and none of the last 24 h is held")
             : new CoverageCellView(CoverageState.Held, held.PercentHeld,
-                $"{dataset.Label}: {held.PercentHeld}% of the last 24 h held");
+                $"{Names.Dataset(dataset.Code)}: {held.PercentHeld}% of the last 24 h held");
     }
 }

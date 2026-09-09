@@ -147,7 +147,7 @@ public sealed class PairsV2Controller : LivePageController
         return Json(tape.Select(t => new
         {
             listing = t.InstrumentId,
-            at = t.EventTime.ToString("HH:mm:ss.fff"),
+            at = t.EventTime.ToString("mm:ss.fff"),
             venue = venues.TryGetValue(t.InstrumentId, out var name) ? name : "—",
             side = t.TakerSide,
             price = Format.Num(t.Price, 6),

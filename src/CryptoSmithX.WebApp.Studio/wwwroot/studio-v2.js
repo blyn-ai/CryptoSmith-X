@@ -65,6 +65,33 @@
   var picks = document.querySelectorAll('.v2-cutpick');
   if (!picks.length) { return; }
 
+  // Таблица сортируется по ВЫБРАННОМУ полю, и это не украшение: полоса 2 ниже уже стоит
+  // отсортированной, и таблица над ней, идущая в другом порядке, заставляет искать одну и ту же
+  // площадку дважды. Пустое значение уезжает вниз в обе стороны — «не измерено» не хуже и не
+  // лучше, его не с чем сравнивать.
+  var ASC = { spread: true };
+
+  function sort(key) {
+    var grid = document.querySelector('.v2-grid');
+    if (!grid) { return; }
+
+    var rows = Array.prototype.slice.call(grid.querySelectorAll('.v2-row'));
+    if (rows.length < 2) { return; }
+
+    var asc = ASC[key] === true;
+    rows.sort(function (a, b) {
+      var x = parseFloat(a.getAttribute('data-sort-' + key));
+      var y = parseFloat(b.getAttribute('data-sort-' + key));
+      var xn = isNaN(x), yn = isNaN(y);
+      if (xn && yn) { return 0; }
+      if (xn) { return 1; }
+      if (yn) { return -1; }
+      return asc ? x - y : y - x;
+    });
+
+    rows.forEach(function (r) { grid.appendChild(r); });
+  }
+
   function show(key) {
     document.querySelectorAll('.v2-nows, .v2-cuts').forEach(function (el) {
       el.hidden = el.getAttribute('data-cut') !== key;
@@ -77,6 +104,12 @@
     document.querySelectorAll('.v2-caret[data-goto-cut]').forEach(function (c) {
       c.setAttribute('aria-pressed', c.getAttribute('data-goto-cut') === key ? 'true' : 'false');
     });
+    // Колонка выбранного поля помечена в шапке таблицы. Стрелка, которая только приглашает и
+    // никогда не говорит «вы здесь», — половина контрола.
+    document.querySelectorAll('.v2-hcell[data-cut]').forEach(function (h) {
+      h.classList.toggle('is-cut', h.getAttribute('data-cut') === key);
+    });
+    sort(key);
     // Заголовок и подписи обеих полос называют ВЫБРАННОЕ поле. Без этого селектор менял
     // содержимое, а шапка над ним продолжала описывать книги — то есть подпись противоречила
     // тому, что под ней нарисовано.
