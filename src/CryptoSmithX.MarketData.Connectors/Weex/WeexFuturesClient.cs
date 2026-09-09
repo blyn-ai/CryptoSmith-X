@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using CryptoSmithX.MarketData.Connectors.Pacing;
+using CryptoSmithX.MarketData.Connectors.Http;
 
 namespace CryptoSmithX.MarketData.Connectors.Weex;
 
@@ -13,7 +14,11 @@ namespace CryptoSmithX.MarketData.Connectors.Weex;
 /// </summary>
 public sealed class WeexFuturesClient
 {
-    private static readonly HttpClient Shared = new();
+    // Configured centrally — gzip and a pool lifetime that survives this codebase's own pass
+    // cadence, neither of which a bare `new HttpClient()` carries; see VenueHttp's own doc
+    // comment for what each one measured. One instance shared across all four venue clients:
+    // SocketsHttpHandler already pools per origin, so this is one settings object, not one pool.
+    private static readonly HttpClient Shared = VenueHttp.Shared;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient _http;
