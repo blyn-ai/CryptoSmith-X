@@ -146,6 +146,15 @@ public sealed class DepthCollector
         var bid50 = new double?[fetched.Count];
         var ask50 = new double?[fetched.Count];
         var at = new DateTimeOffset[fetched.Count];
+        // depth_ref/book_reach: on WEEX, Binance and Hyperliquid this pass is the ONLY source —
+        // their ticker never carries a Depth (SnapshotCollector's own upsert always writes NULL for
+        // these two there, deferring to whatever this statement last wrote). Phase 4 item 2
+        // (plans/prompt-collect-everything.md) added these to Ticker/SnapshotCollector for the
+        // venues whose ticker DOES carry depth (Kraken WS) but missed this collector, which is the
+        // only writer for the other three — found live on test, not from re-reading the diff.
+        var depthRef = new double?[fetched.Count];
+        var reachBid = new double?[fetched.Count];
+        var reachAsk = new double?[fetched.Count];
 
         var i = 0;
         foreach (var (id, depth) in fetched)
@@ -158,6 +167,9 @@ public sealed class DepthCollector
             bid50[i] = depth.Bid50Bps;
             ask50[i] = depth.Ask50Bps;
             at[i] = depth.At;
+            depthRef[i] = depth.Mid;
+            reachBid[i] = depth.ReachBidBps;
+            reachAsk[i] = depth.ReachAskBps;
             i++;
         }
 
@@ -169,9 +181,12 @@ public sealed class DepthCollector
                 depth_bid_10bps = v.bid10, depth_ask_10bps = v.ask10,
                 depth_bid_25bps = v.bid25, depth_ask_25bps = v.ask25,
                 depth_bid_50bps = v.bid50, depth_ask_50bps = v.ask50,
-                depth_at        = v.at
-            from unnest(@ids, @bid10, @ask10, @bid25, @ask25, @bid50, @ask50, @at)
-                as v(id, bid10, ask10, bid25, ask25, bid50, ask50, at)
+                depth_at        = v.at,
+                depth_ref       = v.depth_ref,
+                book_reach_bid  = v.reach_bid,
+                book_reach_ask  = v.reach_ask
+            from unnest(@ids, @bid10, @ask10, @bid25, @ask25, @bid50, @ask50, @at, @depth_ref, @reach_bid, @reach_ask)
+                as v(id, bid10, ask10, bid25, ask25, bid50, ask50, at, depth_ref, reach_bid, reach_ask)
             where m.exchange_instrument_id = v.id
             """,
             conn);
@@ -184,6 +199,9 @@ public sealed class DepthCollector
         cmd.Parameters.AddWithValue("bid50", bid50);
         cmd.Parameters.AddWithValue("ask50", ask50);
         cmd.Parameters.AddWithValue("at", at);
+        cmd.Parameters.AddWithValue("depth_ref", depthRef);
+        cmd.Parameters.AddWithValue("reach_bid", reachBid);
+        cmd.Parameters.AddWithValue("reach_ask", reachAsk);
 
         return await cmd.ExecuteNonQueryAsync(ct);
     }
