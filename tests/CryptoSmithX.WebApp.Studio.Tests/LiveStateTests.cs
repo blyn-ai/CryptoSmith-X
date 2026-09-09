@@ -53,21 +53,20 @@ public sealed class LiveStateTests
     }
 
     [Fact]
-    public void A_push_reorders_and_nothing_else()
+    public void A_push_changes_figures_and_never_the_order()
     {
         var js = Read("studio-v2.js");
 
-        // Re-sorting on every push was the other half of the flicker: an unconditional appendChild
-        // for every row, plus a resize telling the chart library to re-measure a width that had not
-        // moved. The sort compares first, and the resize belongs to a click.
-        var handler = Regex.Match(js, @"document\.addEventListener\('csx-studio-live'[\s\S]{0,400}?\}\);");
-        Assert.True(handler.Success);
-        Assert.DoesNotContain("dispatchEvent(new Event('resize'))", handler.Value, StringComparison.Ordinal);
+        // The order answers the question a click asked, and holds until the next click. Re-sorting
+        // on every push moved rows past each other every few seconds — measured as 28 layout shifts
+        // in fourteen seconds and all of the remaining CLS, with row heights never changing once.
+        // A table that re-sorts under the reader answers nothing: by the time the eye reaches the
+        // second row, the first one has moved.
+        Assert.DoesNotContain("csx-studio-live", js, StringComparison.Ordinal);
 
-        // And it reorders by STYLE. studio-live.js matches children by index, so moving a row in
-        // the DOM makes the next push rewrite every row with another venue's data — measured on the
-        // live page as a swap every 0.3 s, 718 attribute writes and 407 node insertions in fourteen
-        // seconds, which is what a reader calls "the table blinks".
+        // And when a click does sort, it reorders by STYLE. studio-live.js matches children by
+        // index, so moving a row in the DOM would make the next push rewrite every row with another
+        // venue's data.
         Assert.Contains("r.style.order = want", js, StringComparison.Ordinal);
         Assert.DoesNotContain("grid.appendChild(r)", js, StringComparison.Ordinal);
         Assert.Contains("if (!quiet) { window.dispatchEvent(new Event('resize')); }", js, StringComparison.Ordinal);
