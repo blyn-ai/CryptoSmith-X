@@ -1,5 +1,6 @@
-// The live button: the one thing on this page that opens a connection, and it opens none until it
-// is pressed.
+// The live button: the one thing on this page that opens a connection. It opens one on load —
+// the page arrives already streaming — and the button is what LEAVES that state, not what enters
+// it; see the bottom of this file for where that first open happens and why.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // WHAT ARRIVES
@@ -174,6 +175,15 @@
   });
 
   button.hidden = false;
+
+  // Opens on arrival rather than waiting for a click: the reader came to a market page, and a page
+  // that has to be told to be live is a page that reads as static by default, which this one no
+  // longer is. Routed through the same click handler's logic (wanted + setPressed + open) so there
+  // is exactly one path that starts a stream, not two that have to be kept in sync — a real EventSource
+  // failure still degrades through the same SAY.gaveUp / SAY.full messages a manual start would.
+  wanted = true;
+  setPressed(true);
+  open();
 
   // ── Patching ──
   // Ported from the admin console's live.js, which has run this shape for a while. It patches nodes

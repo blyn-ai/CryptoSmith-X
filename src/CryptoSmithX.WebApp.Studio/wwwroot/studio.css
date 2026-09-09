@@ -119,6 +119,13 @@
   color: var(--text-heading);
 }
 
+/* The wordmark is a link to the pair list (the default route, /studio itself) — the one way back
+   from a pair page that was not "press the browser's own back button". Styled to read as the mark
+   it already was, not as a new link on the page: no underline, no accent on hover, same ink. A
+   reader who already knows what a site logo does gets exactly that; nothing new to learn. */
+a.a-wordmark { text-decoration: none; }
+a.a-wordmark:hover { color: var(--text-heading); }
+
 .a-head-right {
   margin-left: auto;
   display: flex;
@@ -1653,6 +1660,18 @@
    signal arriving. The page's one moving thing is an age, and a control that blinked while data
    changed would be the interface claiming a liveliness the figures have to claim for themselves. */
 .a-btn[aria-pressed="true"] { color: var(--accent); border-color: var(--border-strong); }
+
+/* THE LIVE BUTTON ALONE GETS A FILL, and the reason is the default changed under it. A page that
+   opens already streaming needs its one toggle to read as a STATE at a glance, not as a label a
+   reader has to stop and parse — off is the quiet, bordered .a-btn above; on is solid. Still no
+   pulse and no dot: a fill does not move, and the rule above still governs every other toggle,
+   including this one while it is off. */
+#a-live[aria-pressed="true"] {
+  background: var(--action-primary);
+  color: var(--text-on-action);
+  border-color: var(--action-primary);
+}
+#a-live[aria-pressed="true"]:hover { color: var(--text-on-action); border-color: var(--action-primary-hover); }
 
 /* ── The live control ── */
 
