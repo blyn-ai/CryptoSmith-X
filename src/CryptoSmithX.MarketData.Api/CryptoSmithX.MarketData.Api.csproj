@@ -14,4 +14,7 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.1" />
     <PackageReference Include="Sentry.AspNetCore" Version="6.9.0" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="CryptoSmithX.MarketData.Api.Tests" />
+  </ItemGroup>
 </Project>

@@ -236,7 +236,7 @@ public static class HistoryEndpoints
 
     /// <summary>The keyset predicate and ordering shared by the flat endpoints. Written once because
     /// a page that sorts differently from the way it resumes silently drops rows.</summary>
-    private const string KeysetTail =
+    internal const string KeysetTail =
         """
            and (@cursorAt::timestamptz is null
                 or (t.{0}, i.exchange_symbol, {1}) > (@cursorAt, @cursorSymbol, @cursorTie))
@@ -244,8 +244,29 @@ public static class HistoryEndpoints
          limit @limit
         """;
 
-    private static string Keyset(string timeColumn, string tiebreak) =>
-        string.Format(System.Globalization.CultureInfo.InvariantCulture, KeysetTail, timeColumn, tiebreak);
+    /// <summary>
+    /// The tiebreak for a table whose primary key already makes (instant, symbol) unique.
+    ///
+    /// CAST, not a bare ''. Postgres refuses a bare string constant in ORDER BY — 42601,
+    /// "non-integer constant in ORDER BY" — and it refused it in production, not in a test: a query
+    /// assembled from strings is invisible to the compiler, and the three endpoints that used a
+    /// constant tiebreak all returned 500 while the five with a real column were fine.
+    /// </summary>
+    internal const string NoTiebreak = "''::text";
+
+    /// <summary>Internal so the shape can be asserted without a database; see
+    /// <c>KeysetSqlTests</c>.</summary>
+    internal static string Keyset(string timeColumn, string tiebreak)
+    {
+        // A bare quoted literal is the one input that produces SQL Postgres will reject, so it is
+        // corrected here rather than trusted to every call site.
+        if (tiebreak.Trim() == "''")
+        {
+            tiebreak = NoTiebreak;
+        }
+
+        return string.Format(System.Globalization.CultureInfo.InvariantCulture, KeysetTail, timeColumn, tiebreak);
+    }
 
     private static object CursorArgs(Ctx ctx) => new
     {
@@ -282,7 +303,7 @@ public static class HistoryEndpoints
                  where i.segment_code = @exchange
                    and i.exchange_symbol = any(@symbols)
                    and t.received_at >= @from and t.received_at < @to
-                """ + Keyset("received_at", "''"),
+                """ + Keyset("received_at", NoTiebreak),
                 CursorArgs(ctx), cancellationToken: ct))).ToList();
 
         var items = rows.ConvertAll(r => new TickerRow(
@@ -312,7 +333,7 @@ public static class HistoryEndpoints
                  where i.segment_code = @exchange
                    and i.exchange_symbol = any(@symbols)
                    and t.funding_time >= @from and t.funding_time < @to
-                """ + Keyset("funding_time", "''"),
+                """ + Keyset("funding_time", NoTiebreak),
                 CursorArgs(ctx), cancellationToken: ct))).ToList();
 
         var items = rows.ConvertAll(r => new FundingRow(Utc(r.Utc), r.Symbol, r.Rate, r.Interval, null));
@@ -414,7 +435,7 @@ public static class HistoryEndpoints
                    and i.exchange_symbol = any(@symbols)
                    and t.received_at >= @from and t.received_at < @to
                    and t.depth_at is not null
-                """ + Keyset("received_at", "''"),
+                """ + Keyset("received_at", NoTiebreak),
                 CursorArgs(ctx), cancellationToken: ct))).ToList();
 
         var items = rows.ConvertAll(r =>
