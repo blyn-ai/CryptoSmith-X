@@ -10,12 +10,26 @@
         <span class="csx-eyebrow v2-band-no">2 · <span id="cut-now-title">The books</span></span>
         <span class="csx-eyebrow v2-band-sub" id="cut-now-sub">@bookNote</span>
         <span class="csx-eyebrow v2-band-unit" id="cut-now-unit">@cuts[0].Unit</span>
+        @* Сколько книг в ряд — выбор читателя: пять карточек на 1920 читаются, на ноутбуке нет,
+           а на одну колонку раскрытая книга становится настоящим стаканом. Кнопка задаёт ПОТОЛОК,
+           а не число: минимальная ширина карточки остаётся в том же правиле, поэтому пять на
+           узком экране честно дадут три. *@
+        <span class="v2-cols" role="group" aria-label="Book columns" data-cols-key="books" data-cols-target=".v2-nows--books">
+            <span class="csx-eyebrow v2-cols-label">Columns</span>
+            @for (var n = 5; n >= 1; n--)
+            {
+                <button type="button" class="v2-cols-btn" data-cols="@n"
+                        title="@(n == 1 ? "1 column" : $"Up to {n} columns")" aria-pressed="false">
+                    <span class="v2-cols-icon" aria-hidden="true">@for (var i = 0; i < n; i++) { <i></i> }</span>
+                </button>
+            }
+        </span>
     </div>
 
     @foreach (var c in cuts)
     {
         var maxNow = Model.Rows.Select(r => V2Cuts.Now(r, c)).Where(v => v is not null).DefaultIfEmpty(null).Max();
-        <div class="v2-nows @(c.Key == "price" ? "v2-nows--books" : "")" data-cut="@c.Key" hidden="@(c.Key == "price" ? null : "hidden")">
+        <div class="v2-nows @(c.Key == "price" ? "v2-nows--books" : "")" data-cols="5" data-cut="@c.Key" hidden="@(c.Key == "price" ? null : "hidden")">
             @if (c.Key == "price")
             {
                 @* Цена «сейчас» — это стакан, а не одно число: книга читается формой, где стена,

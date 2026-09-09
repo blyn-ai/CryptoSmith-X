@@ -326,3 +326,40 @@
   // неотфильтрованным списком.
   document.addEventListener('csx-tape-drawn', apply);
 })();
+
+/* Переключатель числа колонок, один на полосу.
+
+   Контрол знает, чем управляет, из разметки (data-cols-target) — так его можно поставить в любую
+   полосу, где карточек больше одной, не трогая этот файл. Выбор помнится по ключу полосы: на
+   странице их два, и общий ключ означал бы, что книги и графики нельзя разложить по-разному. */
+(function () {
+  document.querySelectorAll('.v2-cols[data-cols-target]').forEach(function (group) {
+    var target = group.getAttribute('data-cols-target');
+    var key = 'csx-v2-cols-' + group.getAttribute('data-cols-key');
+    var band = group.closest('section') || document;
+
+    function set(n, remember) {
+      band.querySelectorAll(target).forEach(function (grid) {
+        grid.setAttribute('data-cols', n);
+      });
+      group.querySelectorAll('.v2-cols-btn').forEach(function (b) {
+        b.setAttribute('aria-pressed', b.getAttribute('data-cols') === n ? 'true' : 'false');
+      });
+      if (remember) {
+        try { window.localStorage.setItem(key, n); } catch (e) { /* приватное окно */ }
+      }
+      // Свечи меряют себя при вставке и после смены ширины сами не пересчитываются.
+      window.dispatchEvent(new Event('resize'));
+    }
+
+    group.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('.v2-cols-btn') : null;
+      if (btn) { set(btn.getAttribute('data-cols'), true); }
+    });
+
+    var first = band.querySelector(target);
+    var stored = null;
+    try { stored = window.localStorage.getItem(key); } catch (e) { /* приватное окно */ }
+    set(stored || (first && first.getAttribute('data-cols')) || '4', false);
+  });
+})();

@@ -54,7 +54,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=25">
+    <link rel="stylesheet" href="~/studio-v2.css?v=26">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -203,13 +203,23 @@
         <span class="csx-eyebrow v2-band-sub">quote asset · hourly candles, 24 h · one scale per quote, time axes tied</span>
         @* Имя поля — справа, как в эталоне: слева стоит то, что верно для полосы всегда, справа
            то, что меняется от клика. Смешанные в одну строку, они читались как одно описание. *@
+        <span class="v2-cols" role="group" aria-label="Chart columns" data-cols-key="charts" data-cols-target=".v2-cuts">
+            <span class="csx-eyebrow v2-cols-label">Columns</span>
+            @for (var n = 5; n >= 1; n--)
+            {
+                <button type="button" class="v2-cols-btn" data-cols="@n"
+                        title="@(n == 1 ? "1 column" : $"Up to {n} columns")" aria-pressed="false">
+                    <span class="v2-cols-icon" aria-hidden="true">@for (var i = 0; i < n; i++) { <i></i> }</span>
+                </button>
+            }
+        </span>
         <span class="csx-eyebrow v2-band-field" id="cut-time-sub">@cuts[0].Name</span>
     </div>
 
     @* Цена рисуется свечами той же вендоренной библиотекой, что и на первой странице, и по тому
        же контракту разметки (.a-chart[data-candles]) — второй рендерер значил бы два разных
        представления одних и тех же баров. Остальные измерения — часовые ряды, они линия. *@
-    <div class="v2-cuts" data-cut="price">
+    <div class="v2-cuts" data-cols="4" data-cut="price">
         @if (drawable.Count == 0)
         {
             <p class="v2-empty">No venue here has two closed bars yet.</p>
@@ -255,7 +265,7 @@
 
     @foreach (var c in cuts.Where(c => c.Source != V2CutSource.Candles))
     {
-        <div class="v2-cuts" data-cut="@c.Key" hidden>
+        <div class="v2-cuts" data-cols="4" data-cut="@c.Key" hidden>
             @{ var any = Model.Rows.Any(r => V2Cuts.Series(r, c).Any(v => v is not null)); }
             @if (!any)
             {
@@ -556,6 +566,6 @@
 }
 <script src="~/studio-ages.js?v=5"></script>
 <script src="~/studio-live.js?v=3"></script>
-<script src="~/studio-v2.js?v=13"></script>
+<script src="~/studio-v2.js?v=14"></script>
 </body>
 </html>

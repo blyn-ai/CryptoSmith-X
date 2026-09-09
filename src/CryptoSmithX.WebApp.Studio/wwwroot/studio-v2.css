@@ -680,3 +680,30 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 
 /* Имя выбранного поля — у правого края шапки полосы 3. */
 .v2-band-field{margin-left:auto;color:var(--accent)}
+
+
+/* ── Сколько колонок ─────────────────────────────────────────────────────────
+   Кнопка задаёт ПОТОЛОК, а не число: минимальная ширина карточки остаётся в том же правиле,
+   поэтому «пять» на ноутбуке честно дадут три, а не пять картинок графика вместо графиков.
+   Поэтому и подпись «up to N», кроме одной колонки — у неё потолка нет.
+
+   Иконка и есть та раскладка, которую просят: по одной палочке на колонку. */
+.v2-cols{margin-left:auto;display:inline-flex;align-items:center;gap:var(--space-3)}
+.v2-cols-label{color:var(--text-faint)}
+.v2-cols-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:20px;
+  padding:0;background:transparent;border:1px solid var(--border-input);cursor:pointer;
+  color:var(--text-muted);transition:color 120ms linear,border-color 120ms linear}
+.v2-cols-btn:hover{color:var(--accent);border-color:var(--border-strong)}
+.v2-cols-btn[aria-pressed="true"]{background:var(--tag-worst-bg);border-color:var(--accent);color:var(--accent)}
+.v2-cols-icon{display:flex;gap:1.5px}
+.v2-cols-icon i{display:block;width:2px;height:10px;background:currentColor}
+.v2-cols-btn[data-cols="1"] .v2-cols-icon i{width:12px}
+.v2-cols-btn[data-cols="2"] .v2-cols-icon i{width:5px}
+.v2-cols-btn[data-cols="3"] .v2-cols-icon i{width:3px}
+
+.v2-nows--books[data-cols="5"],.v2-cuts[data-cols="5"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - 4 * var(--space-4)) / 5)),1fr))}
+.v2-nows--books[data-cols="4"],.v2-cuts[data-cols="4"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - 3 * var(--space-4)) / 4)),1fr))}
+.v2-nows--books[data-cols="3"],.v2-cuts[data-cols="3"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - 2 * var(--space-4)) / 3)),1fr))}
+.v2-nows--books[data-cols="2"],.v2-cuts[data-cols="2"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(240px,(100% - var(--space-4)) / 2)),1fr))}
+/* Одна колонка не берёт минимума: стопка и есть то, ради чего её просят. */
+.v2-nows--books[data-cols="1"],.v2-cuts[data-cols="1"]{grid-template-columns:minmax(0,1fr)}
