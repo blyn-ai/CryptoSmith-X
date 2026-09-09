@@ -29,24 +29,50 @@ public static class V2Store
             return new Dictionary<int, BookFrame>();
         }
 
-        var rows = await conn.QueryAsync<BookFrame>(new CommandDefinition(
+        // Read by hand rather than through Dapper. Npgsql reports a `double precision[]` column
+        // as System.Array — it will not commit to a rank before it has read a value — so Dapper
+        // hunts for a BookFrame(int, DateTime, short, Array, Array, Array, Array) constructor,
+        // finds none, and throws at materialization. GetFieldValue<double[]> asks for the rank.
+        var books = new Dictionary<int, BookFrame>();
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText =
             """
             select distinct on (b.exchange_instrument_id)
-                   b.exchange_instrument_id as "InstrumentId",
-                   b.observed_at            as "ObservedAt",
-                   b.levels                 as "Levels",
-                   b.bid_px::double precision[]  as "BidPx",
-                   b.bid_qty::double precision[] as "BidQty",
-                   b.ask_px::double precision[]  as "AskPx",
-                   b.ask_qty::double precision[] as "AskQty"
+                   b.exchange_instrument_id,
+                   b.observed_at,
+                   b.levels,
+                   b.bid_px::double precision[],
+                   b.bid_qty::double precision[],
+                   b.ask_px::double precision[],
+                   b.ask_qty::double precision[]
               from book_topn b
              where b.exchange_instrument_id = any(@ids)
                and b.observed_at > now() - interval '10 minutes'
              order by b.exchange_instrument_id, b.observed_at desc
-            """,
-            new { ids = ids.ToArray() }, cancellationToken: ct));
+            """;
 
-        return rows.ToDictionary(r => r.InstrumentId);
+        var p = cmd.CreateParameter();
+        p.ParameterName = "ids";
+        p.Value = ids.ToArray();
+        cmd.Parameters.Add(p);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var frame = new BookFrame(
+                reader.GetInt32(0),
+                reader.GetDateTime(1),
+                reader.GetInt16(2),
+                await reader.GetFieldValueAsync<double[]>(3, ct),
+                await reader.GetFieldValueAsync<double[]>(4, ct),
+                await reader.GetFieldValueAsync<double[]>(5, ct),
+                await reader.GetFieldValueAsync<double[]>(6, ct));
+
+            books[frame.InstrumentId] = frame;
+        }
+
+        return books;
     }
 
     /// <summary>The last fills across every listing of the asset, newest first. The tape is the one
