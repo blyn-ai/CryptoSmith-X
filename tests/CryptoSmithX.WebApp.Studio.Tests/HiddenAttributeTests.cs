@@ -74,7 +74,8 @@ public sealed class HiddenAttributeTests
         // and they fail loudly if a refactor renames one out from under it.
         var css = Read("studio-v2.css");
 
-        Assert.Matches(@"\.v2-fields\[hidden\]\s*\{\s*display\s*:\s*none", css);
+        // .v2-fields is gone with the group expansion — every column is a column now — so the two
+        // that remain are the two the cut selector hides.
         Assert.Matches(@"\.v2-cuts\[hidden\]", css);
         Assert.Matches(@"\.v2-nows\[hidden\]", css);
     }

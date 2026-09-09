@@ -24,11 +24,10 @@ public sealed class LiveStateTests
     {
         var js = Read("studio-v2.js");
 
-        Assert.Contains("document.body.setAttribute('data-open'", js, StringComparison.Ordinal);
         Assert.Contains("document.body.setAttribute('data-cut'", js, StringComparison.Ordinal);
         Assert.Contains("document.body.setAttribute('data-cols-'", js, StringComparison.Ordinal);
 
-        // The three ways it used to reach inside a replaceable band.
+        // The ways it used to reach inside a replaceable band.
         Assert.DoesNotContain("fields.hidden = !on", js, StringComparison.Ordinal);
         Assert.DoesNotContain("el.hidden = el.getAttribute('data-cut')", js, StringComparison.Ordinal);
         Assert.DoesNotContain("grid.setAttribute('data-cols'", js, StringComparison.Ordinal);
@@ -39,7 +38,6 @@ public sealed class LiveStateTests
     {
         var css = Read("studio-v2.css");
 
-        Assert.Matches(@"body\[data-open~=""price""\] \.v2-cell\[data-group=""price""\] \.v2-fields\[hidden\]\{display:flex\}", css);
         Assert.Matches(@"body\[data-cut=""oi""\] \.v2-cuts\[data-cut=""oi""\]\{display:grid\}", css);
         Assert.Matches(@"body\[data-cols-charts=""3""\] \.v2-cuts", css);
     }

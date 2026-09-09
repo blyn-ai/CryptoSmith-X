@@ -7,8 +7,7 @@
 
     var perp = Model.Rows.Count(r => r.Row.SegmentKind == "perp");
     var spot = Model.Rows.Count(r => r.Row.SegmentKind == "spot");
-    var groups = V2Groups.All;
-    var fieldsEach = groups.Sum(g => g.Fields.Count);
+    var fieldsEach = V2Columns.All.Count;
 
     // Counted, not claimed. The header prints these and a reader can check every one against what
     // is drawn below — which is the only reason to print them at all.
@@ -54,7 +53,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=35">
+    <link rel="stylesheet" href="~/studio-v2.css?v=36">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -137,9 +136,8 @@
            страница обязана сказать словами, и тогда оно появляется. *@
         <span id="a-live-note" class="v2-livenote"></span>
     </span>
-    <button type="button" id="expand-all" class="v2-switch" aria-pressed="false">
-        <i></i><em>Expand all · @figures figures</em>
-    </button>
+    @* EXPAND ALL убран вместе с раскрытием: все двадцать две колонки видны сразу, разворачивать
+       нечего. Кнопка, которой нечего открыть, — обещание, которого не будет. *@
 
     @* ── Телефон ─────────────────────────────────────────────────────────────
        На 390 px таблица семи групп на пять площадок — это 950 px сетки, то есть горизонтальная
@@ -569,6 +567,6 @@
 }
 <script src="~/studio-ages.js?v=5"></script>
 <script src="~/studio-live.js?v=3"></script>
-<script src="~/studio-v2.js?v=17"></script>
+<script src="~/studio-v2.js?v=18"></script>
 </body>
 </html>

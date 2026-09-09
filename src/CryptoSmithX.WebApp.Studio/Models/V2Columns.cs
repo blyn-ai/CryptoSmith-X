@@ -1,0 +1,89 @@
+using CryptoSmithX.WebApp.Studio.Data;
+
+namespace CryptoSmithX.WebApp.Studio.Models;
+
+/// <summary>
+/// Band 1 as a table: every field its own column, all of them visible at once, and the CALL that
+/// wrote them named once in a coloured band across the columns it owns.
+///
+/// <b>Why the order is by call and not by question.</b> The band is the whole point — three sources
+/// answer at three rates and break separately, and which one is behind a figure is the first thing
+/// worth knowing about it. A band can only be drawn across CONSECUTIVE columns, so the columns are
+/// grouped by their call. The seven questions have not gone anywhere; they are how the fields were
+/// chosen, and they are still what the units under the headings say.
+/// </summary>
+public sealed record V2Column(
+    V2Field Field,
+    string Label,
+    CallTone Call,
+    string? Cut = null,
+    bool Spark = false);
+
+public static class V2Columns
+{
+    public static IReadOnlyList<V2Column> All { get; } =
+    [
+        // ── The ticker call: one response carries all of these ──────────────────────────────
+        new(V2Field.Bid, "Bid", CallTone.Ticker, Spark: true),
+        new(V2Field.Ask, "Ask", CallTone.Ticker, Spark: true),
+        new(V2Field.Spread, "Spread bps", CallTone.Ticker, Cut: "spread", Spark: true),
+        new(V2Field.Last, "Last", CallTone.Ticker, Cut: "price", Spark: true),
+        new(V2Field.Mark, "Mark", CallTone.Ticker),
+        new(V2Field.Index, "Index", CallTone.Ticker),
+        new(V2Field.FundingPerDay, "Funding /day", CallTone.Ticker, Cut: "funding", Spark: true),
+        new(V2Field.FundingRate, "Venue rate", CallTone.Ticker),
+        new(V2Field.FundingInterval, "Interval", CallTone.Ticker),
+        new(V2Field.Turnover24h, "Turnover 24h", CallTone.Ticker, Cut: "turnover"),
+        new(V2Field.LiquidationVolume, "Liquidations", CallTone.Ticker, Cut: "liquidations", Spark: true),
+        new(V2Field.LiquidationUnit, "Unit", CallTone.Ticker),
+        new(V2Field.VenueClock, "Venue clock", CallTone.Ticker),
+        new(V2Field.LastTrade, "Last trade", CallTone.Ticker),
+
+        // ── The open-interest call: its own clock, its own cadence ──────────────────────────
+        new(V2Field.OpenInterest, "Open interest", CallTone.OpenInterest, Cut: "oi", Spark: true),
+        new(V2Field.Multiplier, "Multiplier", CallTone.OpenInterest),
+
+        // ── The depth sweep: the slowest of the three, and the one that goes quiet first ────
+        new(V2Field.BidSize, "Bid size", CallTone.Depth),
+        new(V2Field.AskSize, "Ask size", CallTone.Depth),
+        new(V2Field.Depth10, "Depth 10bps", CallTone.Depth),
+        new(V2Field.Depth25, "Depth 25bps", CallTone.Depth, Cut: "depth25", Spark: true),
+        new(V2Field.Depth50, "Depth 50bps", CallTone.Depth),
+        new(V2Field.BookReach, "Book reach", CallTone.Depth),
+    ];
+
+    /// <summary>The bands over the headings: one per call, each as wide as the columns it owns.
+    /// Built from the list rather than written down, so a column moved between calls cannot leave a
+    /// band claiming a figure it did not write.</summary>
+    public static IReadOnlyList<(CallTone Call, string Label, int Span)> Bands { get; } =
+        [.. All
+            .GroupBy(c => c.Call)
+            .Select(g => (g.Key, Label: g.Key switch
+            {
+                CallTone.Ticker => "Ticker call · one response",
+                CallTone.OpenInterest => "OI call",
+                _ => "Depth sweep",
+            }, Span: g.Count()))];
+
+    /// <summary>The hourly history behind a column, where one is kept.</summary>
+    public static IReadOnlyList<double?> Series(VenueRowModel r, V2Column c) => c.Field switch
+    {
+        V2Field.Bid or V2Field.Ask or V2Field.Last => r.Candles.Closes,
+        V2Field.Spread => r.Metrics.Spread,
+        V2Field.FundingPerDay => r.Metrics.Funding,
+        V2Field.OpenInterest => r.Metrics.OpenInterest,
+        V2Field.Depth25 => r.Metrics.Depth25,
+        V2Field.LiquidationVolume => r.Liquidations,
+        _ => [],
+    };
+
+    /// <summary>The age this column carries: the age of the call that wrote it, and never the row's.
+    /// A depth sweep four minutes old under a two-second price is the whole reason the ages are per
+    /// call.</summary>
+    public static (double? Age, double? Window) Freshness(VenueRowModel r, V2Column c) => c.Call switch
+    {
+        CallTone.Depth => (r.Ages.DepthSeconds, r.Windows.DepthSeconds),
+        CallTone.OpenInterest => (r.Ages.OpenInterestSeconds, r.Windows.OpenInterestSeconds),
+        _ => (r.Ages.PriceSeconds, r.Windows.PriceSeconds),
+    };
+}

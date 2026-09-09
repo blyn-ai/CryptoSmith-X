@@ -4,7 +4,6 @@
     // Партиал, а не кусок страницы, потому что ЭТО и есть то, что пересылает живой поток: одна
     // разметка на первую отрисовку и на каждое обновление. Второй экземпляр той же таблицы —
     // ровно тот способ, которым страница начинает расходиться сама с собой через месяц.
-    var groups = V2Groups.All;
 }
 @* ── полоса 1: таблица ─────────────────────────────────────────────────────── *@
 <section class="v2-band" id="band-table" data-live-region="table">
@@ -14,53 +13,57 @@
             sizes and open interest in base units through the venue’s own multiplier</span>
     </div>
 
-    <div class="v2-grid" style="--cols:@(groups.Count)">
+    @* Таблица шире экрана и прокручивается ВНУТРИ СЕБЯ: страница по горизонтали не едет. *@
+    <div class="v2-scroll">
+    <div class="v2-grid" style="--cols:@(V2Columns.All.Count)">
+        @* ── ПОЛОСЫ ВЫЗОВОВ ──────────────────────────────────────────────────────
+           Одна на вызов, шириной в его колонки. Три источника отвечают с разной частотой и
+           ломаются порознь, и какой из них стоит за цифрой — первое, что про неё нужно знать.
+           Полосу можно провести только над ПОДРЯД идущими колонками, поэтому колонки и стоят
+           по вызовам; семь вопросов никуда не делись — по ним поля выбраны, и они же написаны
+           единицами под заголовками. *@
+        <div class="v2-calls">
+            <span></span>
+            @foreach (var b in V2Columns.Bands)
+            {
+                <span class="v2-call" data-tone="@b.Call.ToString().ToLowerInvariant()"
+                      style="grid-column:span @b.Span">@b.Label</span>
+            }
+        </div>
+
         <div class="v2-hrow">
             <span class="v2-hcell v2-hcell--listing">Listing</span>
-            @foreach (var g in groups)
+            @foreach (var c in V2Columns.All)
             {
-                @* ДВА действия — две кнопки. У дизайнера каретка меняет срез, а раскрытие одно
-                   на всю таблицу; здесь раскрытие ещё и по группам, и вешать оба смысла на
-                   один клик значило бы, что предсказать, что случится, нельзя. Имя раскрывает
-                   группу на месте, каретка уводит полосы 2 и 3 на это поле. *@
-                <span class="v2-hcell @(g.Cut == "price" ? "is-cut" : "")" data-group="@g.Key" data-cut="@g.Cut" data-tone="@g.Tone.ToString().ToLowerInvariant()">
-                    <span class="v2-hcell-row">
-                        @if (g.Fields.Count > 0)
-                        {
-                            <button type="button" class="v2-gtoggle" data-group="@g.Key" aria-expanded="false">@g.Name</button>
-                        }
-                        else
-                        {
-                            @* Раскрывать нечего — и кнопка, которая ничего не открывает, хуже
-                               отсутствующей. *@
-                            <span class="v2-gtoggle v2-gtoggle--flat">@g.Name</span>
-                        }
-                        @if (g.Cut is not null)
-                        {
-                            <button type="button" class="v2-caret" data-goto-cut="@g.Cut"
-                                    aria-pressed="@(g.Cut == "price" ? "true" : "false")"
-                                    aria-label="Show @g.Name now and over time, and sort by it"
-                                    title="Show this field now and over time, across every listing">↓</button>
-                        }
-                    </span>
-                    <span class="v2-hunit">@g.Unit</span>
+                <span class="v2-hcell" data-tone="@c.Call.ToString().ToLowerInvariant()"
+                      data-cut="@c.Cut" data-col="@c.Field">
+                    @if (c.Cut is null)
+                    {
+                        <span class="v2-hname">@c.Label</span>
+                    }
+                    else
+                    {
+                        @* Заголовок, у которого есть история, — кнопка: он уводит полосы 2 и 3 на
+                           это поле и сортирует по нему таблицу. У остальных истории нет, и
+                           кнопка обещала бы то, чего не будет. *@
+                        <button type="button" class="v2-hname v2-hname--cut" data-goto-cut="@c.Cut"
+                                aria-pressed="@(c.Cut == "price" ? "true" : "false")"
+                                title="Show @c.Label now and over time, and sort by it">@c.Label<i>↓</i></button>
+                    }
                 </span>
             }
         </div>
 
         @foreach (var r in Model.Rows)
         {
-            @* Значения всех срезов едут СО СТРОКОЙ: выбор среза — один клик, а не переход, и
-               сортировка не должна за ним ходить на сервер. Пустое значение уезжает вниз в обе
-               стороны: «не измерено» не хуже и не лучше, его просто не с чем сравнивать. *@
             var sorts = string.Join(" ", V2Cuts.All.Select(c =>
                 $"data-sort-{c.Key}=\"{V2Cuts.Now(r, c)?.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}\""));
 
+            Model.Stress.TryGetValue(r.Row.InstrumentId, out var stress);
+            Model.Books.TryGetValue(r.Row.InstrumentId, out var book);
+            var strip = StripModel.Build(r);
+
             <div class="v2-row" @Html.Raw(sorts)>
-                @{ var strip = StripModel.Build(r); }
-                @* a-venue / a-strip — ХУКИ ПЕРВОЙ СТРАНИЦЫ, а не её оформление: возрасты на обеих
-                   двигает один studio-ages.js, и второй экземпляр этих часов был бы вторым местом,
-                   где правило 2 однажды разойдётся с Freshness.cs. Оформление своё, из v2-*. *@
                 <span class="v2-listing a-venue">
                     <span class="v2-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em></span>
                     <span class="v2-symbol">
@@ -68,10 +71,9 @@
                         <em>@(r.Row.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(r.Row.ContractMultiplier, 0))</em>
                     </span>
 
-                    @* Три вызова стоят на ОДНОЙ рампе, каждый по своей доле СВОЕГО окна: цена
-                       ждёт 30 с, свип 30–120 с, открытый интерес 300 с. Поэтому три близких
-                       возраста расходятся по полоске в три разных места — в этом её смысл, а
-                       прозой «Price 4s · Depth 2m · OI 3m» его не было вовсе. *@
+                    @* Три вызова на ОДНОЙ рампе, каждый по своей доле СВОЕГО окна: цена ждёт 30 с,
+                       свип 30–120 с, открытый интерес 300 с, поэтому три близких возраста
+                       расходятся по полоске в три разных места. *@
                     <span class="v2-strip a-strip">
                         @if (strip.Placed.Count > 0)
                         {
@@ -87,13 +89,6 @@
                         }
                     </span>
 
-                    @* Концы полоски словами НЕ подписываются: их называет title метки, а строка
-                       под полоской называет все три вызова разом — три уровня про одно и то же
-                       читались как недоделка. Слот остаётся ради одного случая: просроченный
-                       вызов, у которого △ и слово видны всегда (правило 3 — строка возраста не
-                       гаснет никогда). *@
-                    @* Разметка концов остаётся ПОЛНОЙ — её каждый тик переписывает studio-ages.js,
-                       и урезанная тут же собралась бы обратно. Прячет их стиль, а не разметка. *@
                     <span class="v2-strip-ends a-strip-ends">
                         <span data-fresh><span class="a-lab">@(strip.Degraded ? "" : StripModel.EndLabel(strip.LeastSpent))</span> <span class="a-tok">@(strip.Degraded ? "" : StripModel.EndToken(strip.LeastSpent))</span></span>
                         <span data-old class="@(strip.MostSpentPastWindow ? "a-spent" : "")"
@@ -112,154 +107,47 @@
                     </span>
                 </span>
 
-                @foreach (var g in groups)
+                @foreach (var c in V2Columns.All)
                 {
-                    Model.Stress.TryGetValue(r.Row.InstrumentId, out var stress);
-                    Model.Books.TryGetValue(r.Row.InstrumentId, out var book);
+                    var cell = V2Cells.Field(r, c.Field, stress, book);
+                    var column = V2Ranks.ColumnOf(c.Field);
+                    var rank = column is { } rc ? Model.Verdicts.Of(r.Row.InstrumentId, rc) : Verdict.None;
+                    var mark = rank == Verdict.None ? null : V2Ranks.Word(c.Field, rank);
+                    var spark = c.Spark ? Format.SparkPath(V2Columns.Series(r, c), 60, 14) : null;
+                    var age = V2Columns.Freshness(r, c);
 
-                    <span class="v2-cell" data-group="@g.Key" data-label="@g.Name" data-unit="@g.Unit">
-                    @if (g.Key == "trust")
-                    {
-                        @* Полоска в клетке листинга говорит, ГДЕ стоит каждый вызов. Здесь — то,
-                           чего она сказать не может: насколько худший из них прошёл своё окно, и
-                           какой именно он. Отношение не зажимается по единице: три окна и
-                           двенадцать окон назад должны читаться по-разному. *@
-                        @* ЦВЕТ ПО СВЕЖЕСТИ, и это единственное число на странице, которое красится
-                           состоянием, а не вызовом: оно И ЕСТЬ состояние. Зелёное — внутри своего
-                           окна, акцентное — за ним. *@
-                        <span class="v2-fig @(strip.MostSpent is null ? "v2-fig--none" : strip.MostSpentPastWindow ? "v2-fig--late" : "v2-fig--fresh")">
-                            @(strip.MostSpent is null ? "—" : Format.SpacedAge(strip.MostSpent.AgeSeconds))
-                        </span>
-                        <span class="v2-figsub">
-                            @(strip.MostSpent?.Label ?? "no cadence stated") ·
-                            @strip.Calls.Count(c => c.AgeSeconds is not null) calls
-                        </span>
-                        @if (strip.MostSpent?.Spent is { } spent)
-                        {
-                            @* БАР РАСТЁТ В СТОРОНУ ДОВЕРИЯ: он показывает, сколько окна ОСТАЛОСЬ,
-                               а не сколько потрачено. Полный — только что опрошено; пустой — вызов
-                               на границе своего окна. Наоборот было ровно задом наперёд: длинная
-                               полоса означала «верить нечему».
-
-                               Чем это отличается от полоски свежести в клетке листинга: та
-                               РАССТАВЛЯЕТ три вызова внутри одной строки — какой из них где, — и
-                               отвечает на «что именно тут отстало». Эта — одно число на строку,
-                               и читается ВНИЗ по колонке: какой из семи листингов сейчас стоит
-                               доверия меньше остальных. Полоска отвечает поперёк строки, бар —
-                               вдоль колонки. *@
-                            <span class="v2-window @(strip.MostSpentPastWindow ? "v2-window--spent" : "")"
-                                  title="@StripModel.EndTitle(strip.MostSpent, StripModel.MostSpentLabel)">
-                                <i style="width:@StripModel.Pct(Math.Max(0, 1 - Math.Min(1, spent)))"></i>
+                    <span class="v2-cell" data-group="@c.Field" data-tone="@c.Call.ToString().ToLowerInvariant()"
+                          data-label="@c.Label">
+                        @* Марка и число — один блок с одной заливкой под обоими; слово стоит мелко
+                           у головы числа. Число держит свой цвет: покрасить измерение в цвет
+                           суждения о нём значит сказать, что это другая величина. *@
+                        <span class="v2-fig @(cell.Value is null ? "v2-fig--none" : "")">
+                            <span class="v2-part @(mark is null ? "" : "v2-part--" + mark)">
+                                @if (mark is not null) { <i>@mark</i> }
+                                <span>@cell.Text</span>
                             </span>
-                        }
-                    }
-                    else
-                    {
-                        var head = V2Cells.Head(r, g, Model.Verdicts, stress);
-                        @* МАРКА — СЛОВО, а заливка только его фон: цвет на этой странице значит
-                           вызов, написавший цифру (правило 5), поэтому зелёная плашка без слова
-                           читается как «это OI-вызов», а не как «лучший». *@
-                        @* МАРКА И ЧИСЛО — ОДИН БЛОК: заливка идёт под обоими, слово стоит мелко у
-                           головы числа, а не отдельным чипом рядом. Чип на своей строке стоил бы
-                           зарезервированного слота в каждой клетке; так он не стоит ничего и
-                           говорит то же самое. Число сохраняет СВОЙ цвет — красить его в цвет
-                           марки значит красить измерение в цвет суждения о нём. *@
-                        <span class="v2-fig @(head.Big.Any(x => x.Measured) ? "" : "v2-fig--none")">
-                            @for (var i = 0; i < head.Big.Count; i++)
-                            {
-                                var part = head.Big[i];
-                                if (i > 0) { <em>/</em> }
-                                <span class="v2-part @(part.Mark is { } m ? "v2-part--" + m.Class : "")">
-                                    @if (part.Mark is { } mk) { <i>@mk.Word</i> }
-                                    <span>@part.Text</span>
-                                </span>
-                            }
                         </span>
-                        @if (head.Small.Count > 0)
+                        @if (cell.Sub is not null)
                         {
-                            <span class="v2-figsub">
-                                @for (var i = 0; i < head.Small.Count; i++)
-                                {
-                                    var part = head.Small[i];
-                                    if (i > 0) { <em>/</em> }
-                                    <span class="v2-part @(part.Mark is { } m2 ? "v2-part--" + m2.Class : "")">
-                                        @if (part.Mark is { } mk2) { <i>@mk2.Word</i> }
-                                        <span>@part.Text</span>
-                                    </span>
-                                }
-                            </span>
+                            <span class="v2-figsub">@cell.Sub</span>
                         }
-                        @* У стресса бар есть, хотя ранга нет: единица агрегата у площадок разная,
-                           поэтому сравнивать их местами нельзя, а показать, насколько эта цифра
-                           велика для ЭТОЙ площадки за сутки, — можно и нужно. Шкала своя, по
-                           странице, и подпись под цифрой называет единицу. *@
-                        @* Спарклайн — история ТОГО ЖЕ числа, что стоит крупно, за те же сутки,
-                           что рисует полоса 3. Он здесь потому, что свёрнутая таблица —
-                           единственное место, где направление видно у всех площадок сразу. У двух
-                           групп из семи истории нет вовсе, и там остаётся один бар (правило 11). *@
-                        var spark = Format.SparkPath(V2Groups.Spark(r, g), 60, 14);
-
-                        @* БАР И ЛИНИЯ — НА ОДНОЙ СТРОКЕ. Стопкой они добавляли каждой строке
-                           таблицы шестнадцать пикселей пустоты на семь колонок, и таблица, ради
-                           плотности которой всё это и затевалось, стала вдвое выше экрана.
-                           Бар меряет «сколько», линия — «куда»; рядом они не мешают друг другу,
-                           потому что отвечают на разные вопросы и занимают разные половины. *@
-                        <span class="v2-cell-foot">
-                            @if (g.Key == "stress" && stress is not null)
-                            {
-                                var peak = Model.Stress.Values.Select(x => (double?)x.Volume).DefaultIfEmpty(null).Max();
-                                <span class="v2-bar" data-tone="ticker">
-                                    <i style="width:@Format.BarWidth(stress.Volume, peak)"></i>
-                                </span>
-                            }
-                            else if (head.BarColumn is { } bc && head.Bar is not null)
-                            {
-                                <span class="v2-bar" data-tone="@g.Tone.ToString().ToLowerInvariant()">
-                                    <i style="width:@Format.BarWidth(head.Bar, Model.Scales.Of(r.Row.InstrumentId, bc))"></i>
-                                </span>
-                            }
-                            else
-                            {
-                                <span class="v2-bar v2-bar--none"></span>
-                            }
-
-                            @if (spark is not null)
-                            {
-                                <svg class="v2-spark" data-tone="@g.Tone.ToString().ToLowerInvariant()"
-                                     viewBox="0 0 60 14" preserveAspectRatio="none" aria-hidden="true">
-                                    <path d="@spark" fill="none" stroke="currentColor" stroke-width="1"
-                                          vector-effect="non-scaling-stroke" />
-                                </svg>
-                            }
-                        </span>
-
-                        <span class="v2-fields" hidden>
-                            @foreach (var f in g.Fields)
-                            {
-                                var cell = V2Cells.Field(r, f.Field, stress, book);
-
-                                @* РАНГ НА КАЖДОЙ ЦИФРЕ, а не на группе. Verdicts считает его давно
-                                   и по каждой колонке отдельно; до сих пор на второй странице он
-                                   не показывался нигде, то есть «как эта цифра стоит у семи
-                                   площадок» страница считала и молчала.
-
-                                   Заливка ложится на подпись И значение целиком, а не чипом рядом:
-                                   чип — ещё один элемент в строке из двух, а заливка это та же
-                                   строка, только помеченная. Оба конца или ни одного — один BEST
-                                   без WORST не сравнение, а похвала. *@
-                                var column = V2Ranks.ColumnOf(f.Field);
-                                var rank = column is { } rc ? Model.Verdicts.Of(r.Row.InstrumentId, rc) : Verdict.None;
-                                <span class="v2-field @(rank == Verdict.None ? "" : "v2-field--" + V2Ranks.Word(f.Field, rank))"
-                                      title="@(rank == Verdict.None ? null : V2Ranks.Word(f.Field, rank).ToUpperInvariant() + " of the listings this figure can be compared against")">
-                                    <em>@f.Label</em><b class="@(cell.Value is null ? "v2-fig--none" : "")">@cell.Text</b>
-                                </span>
-                            }
-                        </span>
-                    }
+                        @if (spark is not null)
+                        {
+                            <svg class="v2-spark" data-tone="@c.Call.ToString().ToLowerInvariant()"
+                                 viewBox="0 0 60 14" preserveAspectRatio="none" aria-hidden="true">
+                                <path d="@spark" fill="none" stroke="currentColor" stroke-width="1"
+                                      vector-effect="non-scaling-stroke" />
+                            </svg>
+                        }
+                        @* Возраст ВЫЗОВА, написавшего эту клетку, а не строки: свип четырёхминутной
+                           давности под двухсекундной ценой — ровно та причина, по которой часы
+                           здесь считаются по вызовам. *@
+                        <span class="v2-cellage @(Freshness.PastWindow(age.Age, age.Window) ? "v2-cellage--late" : "")">@Format.SpacedAge(age.Age) ago</span>
                     </span>
                 }
             </div>
         }
+    </div>
     </div>
 
     <p class="v2-legend">

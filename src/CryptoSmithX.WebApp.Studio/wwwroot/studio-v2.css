@@ -23,17 +23,6 @@
    the Google CDN below. The product brief for CryptoSmith X requires woff2 in the repo with
    no CDN, so downloading those two is the one open task before this system ships. */
 
-
-
-
-
-
-
-
-
-
-
-
 /* CSX Arena — colour.
 
    The market surface of CryptoSmith X: a public monitor that compares venues. Its palette is
@@ -50,7 +39,6 @@
    Arena is the day theme (:root). Night is [data-theme="night"] — same token set at
    different luminance, magenta still the accent. Green and bronze are CALL colours here,
    not money colours: this surface states no P&L, so nothing on it means profit or loss. */
-
 
 /* CSX Arena — type. Three faces, three jobs:
    Anton = display (the statement line, panel titles) — condensed caps.
@@ -99,17 +87,6 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    the Google CDN below. The product brief for CryptoSmith X requires woff2 in the repo with
    no CDN, so downloading those two is the one open task before this system ships. */
 
-
-
-
-
-
-
-
-
-
-
-
 /* CSX Arena — colour.
 
    The market surface of CryptoSmith X: a public monitor that compares venues. Its palette is
@@ -126,7 +103,6 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    Arena is the day theme (:root). Night is [data-theme="night"] — same token set at
    different luminance, magenta still the accent. Green and bronze are CALL colours here,
    not money colours: this surface states no P&L, so nothing on it means profit or loss. */
-
 
 /* CSX Arena — type. Three faces, three jobs:
    Anton = display (the statement line, panel titles) — condensed caps.
@@ -166,8 +142,6 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .csx-eyebrow{font:var(--fw-medium) var(--fs-eyebrow)/1.2 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow)}
 .csx-sheet{background:var(--surface-page);background-image:var(--dot-pattern);background-size:var(--dot-size) var(--dot-size)}
 
-
-
   html,body{margin:0}
   a{color:var(--link);text-decoration:none}
   a:hover{color:var(--link-hover)}
@@ -202,27 +176,40 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    поток сопоставляет детей по индексу, и любая физическая перестановка строк заставляла его
    переписывать каждую строку данными чужой площадки. */
 .v2-grid{--cols:7;display:flex;flex-direction:column}
-/* ── Ширина колонок ─────────────────────────────────────────────────────────
-   Дорожка на группу отдельной переменной, а не repeat(): раскрытая группа обязана получить
-   место, и взять его она может только у свёрнутых соседей. Восемь полей в клетке шириной 230px
-   не помещаются никак — они налезали друг на друга, — а раскрыта одновременно обычно одна.
+/* ── Сетка полосы 1 ─────────────────────────────────────────────────────────
+   Все колонки видны сразу, обычными колонками таблицы. Раскрытия нет: оно прятало двадцать
+   полей за кликом и разворачивалось либо в высоту, либо поверх соседей.
 
-   Переменные объявлены на :root и переопределяются на <body> по data-open, потому что состояние
-   экрана живёт там: полосу заменяет живой поток, и всё, что задано внутри неё, уезжает. */
-/* На <body>, а не на :root, и не по формальной причине: раскрытие живёт на body (data-open), а
-   переопределить переменную может только правило на ТОМ ЖЕ элементе или ближе к цели. Заодно это
-   не токен — это ширина дорожки этой таблицы, и в ds/tokens ей делать нечего. */
-body{--w-price:minmax(104px,1fr);--w-liquidity:minmax(104px,1fr);--w-positions:minmax(104px,1fr);--w-carry:minmax(104px,1fr);--w-activity:minmax(104px,1fr);--w-stress:minmax(104px,1fr);--w-trust:minmax(104px,1fr)}
-body[data-open~="price"]{--w-price:minmax(300px,3fr)}
-body[data-open~="liquidity"]{--w-liquidity:minmax(300px,3fr)}
-body[data-open~="positions"]{--w-positions:minmax(300px,3fr)}
-body[data-open~="carry"]{--w-carry:minmax(300px,3fr)}
-body[data-open~="activity"]{--w-activity:minmax(300px,3fr)}
-body[data-open~="stress"]{--w-stress:minmax(300px,3fr)}
-body[data-open~="trust"]{--w-trust:minmax(300px,3fr)}
-.v2-hrow,.v2-row{display:grid;grid-template-columns:minmax(150px,1.2fr) var(--w-price) var(--w-liquidity) var(--w-positions) var(--w-carry) var(--w-activity) var(--w-stress) var(--w-trust);border-bottom:1px solid var(--border-hairline)}
+   Таблица шире экрана и прокручивается ВНУТРИ СЕБЯ — страница по горизонтали не едет. */
+.v2-grid{--cols:22;display:flex;flex-direction:column;min-width:max-content}
+.v2-calls,.v2-hrow,.v2-row{display:grid;
+  grid-template-columns:minmax(150px,1.2fr) repeat(var(--cols),minmax(84px,1fr));
+  border-bottom:1px solid var(--border-hairline)}
+
+/* Полоса вызова: сплошной цвет вызова, светлый текст, во всю ширину его колонок. */
+.v2-call{padding:3px var(--space-4);font:500 var(--fs-eyebrow)/1.4 var(--font-mono);
+  letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-on-action);
+  background:var(--call-ticker);white-space:nowrap;overflow:hidden}
+.v2-call[data-tone="openinterest"]{background:var(--call-oi)}
+.v2-call[data-tone="depth"]{background:var(--call-depth)}
+
+.v2-hname{display:inline-flex;align-items:baseline;gap:3px;padding:0;background:none;border:0;
+  font:500 var(--fs-eyebrow)/1.2 var(--font-mono);letter-spacing:var(--track-label);
+  text-transform:uppercase;color:var(--eyebrow);text-align:right;justify-content:flex-end;width:100%}
+.v2-hname--cut{cursor:pointer}
+.v2-hname i{font-style:normal;color:var(--text-unmeasured)}
+.v2-hname--cut[aria-pressed="true"]{color:var(--accent)}
+.v2-hname--cut[aria-pressed="true"] i{color:var(--accent)}
+.v2-hname--cut:hover{color:var(--accent)}
+
+/* Возраст в клетке — возраст ВЫЗОВА, написавшего её. Слот постоянной ширины, чтобы строка не
+   дёргалась на переходе через десяток. */
+.v2-cellage{font:400 var(--fs-age)/1.2 var(--font-mono);font-variant-numeric:tabular-nums;
+  color:var(--text-faint);white-space:nowrap}
+.v2-cellage--late{color:var(--accent)}
+
 .v2-hrow{background:var(--surface-sunken)}
-.v2-hcell{display:flex;flex-direction:column;gap:2px;padding:5px 8px 6px;border-left:1px solid var(--border-hairline);border-top:2px solid var(--border-hairline)}
+.v2-hcell{display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding:5px 8px 6px;border-left:1px solid var(--border-hairline)}
 /* ── Раскраска по ВЫЗОВУ ─────────────────────────────────────────────────────
    Как на первой странице: колонка носит цвет того вызова, который её написал. Тикер, свип
    глубины и открытый интерес отвечают с разной частотой и ломаются порознь, и это первое, что
@@ -233,25 +220,9 @@ body[data-open~="trust"]{--w-trust:minmax(300px,3fr)}
 .v2-hcell[data-tone="depth"]{border-top-color:var(--call-depth);background:var(--tint-depth)}
 .v2-cell[data-group="positions"]{background:var(--tint-oi)}
 .v2-cell[data-group="liquidity"]{background:var(--tint-depth)}
-.v2-hcell[data-tone="ticker"] .v2-gtoggle{color:var(--call-ticker)}
-.v2-hcell[data-tone="openinterest"] .v2-gtoggle{color:var(--call-oi)}
-.v2-hcell[data-tone="depth"] .v2-gtoggle{color:var(--call-depth)}
 .v2-hcell--listing{border-left:0;justify-content:flex-end;font:500 9px/1.2 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--eyebrow)}
-/* ИМЯ, А НЕ ОФОРМЛЕНИЕ, СЛОМАЛО ШАПКУ. Эта строка — имя и каретка ВНУТРИ клетки шапки, и она
-   называлась .v2-hrow, ровно как строка-шапка таблицы двумя правилами выше. Второе правило
-   переопределяло display:grid на flex, шапка переставала быть той же сеткой, что строки, и её
-   подписи разъезжались с колонками. */
-.v2-hcell-row{display:flex;align-items:baseline;justify-content:space-between;gap:6px;width:100%}
-.v2-gtoggle{display:flex;align-items:baseline;justify-content:space-between;gap:6px;width:100%;padding:0;background:none;border:0;cursor:pointer;
-  font:500 9px/1.2 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--text-heading);text-align:left}
-.v2-gtoggle[aria-expanded="true"]{color:var(--brand-text)}
-.v2-caret{padding:0 0 0 4px;background:none;border:0;cursor:pointer;letter-spacing:.14em;color:var(--text-faint);
-  font:inherit;line-height:1}
-.v2-caret:hover{color:var(--brand-text)}
 /* Активной каретка стоит у той группы, чьё поле сейчас в полосах 2 и 3 — иначе стрелка
    означает «сюда можно», но никогда «вы здесь». */
-.v2-caret[aria-pressed="true"]{color:var(--accent,var(--brand-text))}
-.v2-hunit{font:400 8.5px/1.2 var(--font-mono);color:var(--text-faint)}
 
 .v2-listing{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:5px 8px;min-width:0}
 .v2-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading)}
@@ -307,8 +278,6 @@ body[data-open~="trust"]{--w-trust:minmax(300px,3fr)}
 .v2-fig--late{color:var(--accent)}
 
 /* Колонка выбранного поля: шапка акцентом. */
-.v2-hcell.is-cut .v2-gtoggle,.v2-hcell.is-cut .v2-caret{color:var(--accent)}
-.v2-hcell.is-cut{border-top-color:var(--accent)}
 
 /* Пара цен держится в одну строку даже с марками: перенос делал из одной величины две. */
 .v2-cell[data-group="price"] .v2-fig{white-space:nowrap}
@@ -337,27 +306,10 @@ body[data-open~="trust"]{--w-trust:minmax(300px,3fr)}
    цвет — полупрозрачные --spark-*, а не насыщенный вызов. */
 /* Подвал клетки: бар слева во всю оставшуюся ширину, линия справа фиксированной. Стопкой они
    стоили шестнадцать пикселей высоты каждой строке на каждой из семи колонок. */
-.v2-cell-foot{display:flex;align-items:center;gap:var(--space-3);width:100%}
-.v2-cell-foot .v2-bar{flex:1;min-width:0}
-.v2-bar--none{background:transparent}
 .v2-spark{display:block;width:60px;height:14px;flex:none;color:var(--spark-ticker)}
 .v2-spark[data-tone="openinterest"]{color:var(--spark-oi)}
 .v2-spark[data-tone="depth"]{color:var(--spark-depth)}
 /* Раскрытая группа отдаёт место полям: две картинки одного числа в одной клетке спорят. */
-body[data-open~="price"] .v2-cell[data-group="price"] .v2-fields[hidden]{display:flex}
-body[data-open~="price"] .v2-cell[data-group="price"] .v2-spark{display:none}
-body[data-open~="liquidity"] .v2-cell[data-group="liquidity"] .v2-fields[hidden]{display:flex}
-body[data-open~="liquidity"] .v2-cell[data-group="liquidity"] .v2-spark{display:none}
-body[data-open~="positions"] .v2-cell[data-group="positions"] .v2-fields[hidden]{display:flex}
-body[data-open~="positions"] .v2-cell[data-group="positions"] .v2-spark{display:none}
-body[data-open~="carry"] .v2-cell[data-group="carry"] .v2-fields[hidden]{display:flex}
-body[data-open~="carry"] .v2-cell[data-group="carry"] .v2-spark{display:none}
-body[data-open~="activity"] .v2-cell[data-group="activity"] .v2-fields[hidden]{display:flex}
-body[data-open~="activity"] .v2-cell[data-group="activity"] .v2-spark{display:none}
-body[data-open~="stress"] .v2-cell[data-group="stress"] .v2-fields[hidden]{display:flex}
-body[data-open~="stress"] .v2-cell[data-group="stress"] .v2-spark{display:none}
-body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-fields[hidden]{display:flex}
-body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-spark{display:none}
 
 /* ── Ранг цифры ──────────────────────────────────────────────────────────────
    Заливка на всю строку поля — подпись и значение вместе, — а не чип рядом: строка из двух
@@ -366,11 +318,6 @@ body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-spark{display:none}
    сравнение, а не про то, сколько секунд назад пришло это число. */
 /* Заливка расширяется padding'ом с отрицательным margin, а не тенью: теней в системе нет вовсе,
    а 0 0 0 2px и была тенью — просто без размытия. */
-.v2-field--best,.v2-field--tight,.v2-field--worst,.v2-field--wide{padding:1px 2px}
-.v2-field--best,.v2-field--tight{background:var(--tag-best-bg)}
-.v2-field--best em,.v2-field--best b,.v2-field--tight em,.v2-field--tight b{color:var(--tag-best-ink)}
-.v2-field--worst,.v2-field--wide{background:var(--tag-worst-bg)}
-.v2-field--worst em,.v2-field--worst b,.v2-field--wide em,.v2-field--wide b{color:var(--tag-worst-ink)}
 
 /* Марка и число — ОДИН блок с одной заливкой под обоими; слово стоит мелко у головы числа.
    Число держит свой цвет: покрасить измерение в цвет суждения о нём — значит сказать, что
@@ -399,11 +346,7 @@ body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-spark{display:none}
 .v2-window{display:block;width:100%;height:var(--bar-h);background:var(--tint-neutral)}
 .v2-window i{display:block;height:100%;background:var(--candle-up)}
 .v2-window--spent{background:var(--tag-worst-bg)}
-.v2-gtoggle--flat{cursor:default}
 .v2-fig:hover,
-.v2-field:hover{background:var(--tint-brand,var(--surface-sunken));box-shadow:0 0 0 3px var(--tint-brand,var(--surface-sunken));
-  transition:background-color 120ms linear}
-.v2-field:hover em{color:var(--text-muted)}
 .v2-figsub{font:400 9px/1.2 var(--font-mono);color:var(--text-faint)}
 .v2-bar{display:block;width:100%;height:3px;background:var(--tint-neutral)}
 /* Цвет бара — ЦВЕТ ВЫЗОВА, который его написал (правило 5), а не бренд. Кислотный зелёный
@@ -417,13 +360,6 @@ body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-spark{display:none}
    странице как раз вдоволь: семь колонок на 1920 — это километр воздуха. Развёрнутая группа
    теперь раскладывает свои поля колонками внутри своей клетки, то есть «выносит их обратно в
    колонки», не ломая семь вопросов, ради которых группы и заведены. */
-.v2-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:3px var(--space-4);
-  width:100%;margin-top:3px;padding-top:4px;border-top:1px solid var(--border-hairline)}
-.v2-field{display:flex;flex-direction:column;align-items:flex-end;gap:1px;min-width:0;overflow:hidden}
-.v2-field em{font-style:normal;font:500 7.5px/1.15 var(--font-mono);letter-spacing:.1em;
-  text-transform:uppercase;color:var(--text-faint);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-.v2-field b{font-weight:400;font:400 var(--fs-caption)/1.2 var(--font-mono);font-variant-numeric:tabular-nums;
-  color:var(--text-data);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 
 /* ── Шрифт ───────────────────────────────────────────────────────────────────
    МОНОШИРИННЫЙ ВЕЗДЕ. В эталоне --font-body стоит ровно в одном месте — на корне страницы, —
@@ -481,11 +417,7 @@ body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-spark{display:none}
 .v2-switch--dead{cursor:not-allowed;opacity:.5}
 
 /* ── СВОРАЧИВАНИЕ ───────────────────────────────────────────────────────────────
-   Без этой строки группы не сворачивались вовсе: у .v2-fields стоит display:flex,
-   а атрибут [hidden] несёт display:none только из UA-таблицы, которую авторский
-   display перебивает. Атрибут ставился, поля оставались на экране. */
-.v2-fields[hidden]{display:none}
-
+   Без этой строки группы не сворачивались вовсе: у 
 /* ── ГДЕ ЖИВЁТ СОСТОЯНИЕ ЭКРАНА ──────────────────────────────────────────────
    НА <body>, а не на элементах внутри полос. Живой поток заменяет полосы 1 и 2 целиком каждую
    посылку — примерно раз в секунду, — и всё, что скрипт успел поставить внутри них, уезжает
@@ -497,8 +429,6 @@ body[data-open~="trust"] .v2-cell[data-group="trust"] .v2-spark{display:none}
    его потерять, и ставить обратно нечего. */
 
 /* Заголовок группы — самое заметное в шапке колонки, иначе он сливается с единицей. */
-.v2-gtoggle{font-weight:600;font-size:9.5px;color:var(--text-heading)}
-.v2-hunit{opacity:.75}
 
 /* ── селектор измерения и полосы 2–3 ────────────────────────────────────────── */
 .v2-cutbar{display:flex;align-items:center;gap:var(--space-5);flex-wrap:wrap;margin:0 var(--space-7) var(--space-4);padding:var(--space-4) var(--space-7);background:var(--surface-card);border:1px solid var(--border-card)}
@@ -697,7 +627,6 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
 .v2-gap-why{font:400 var(--fs-caption)/1.4 var(--font-mono);color:var(--text-muted)}
 .v2-gap-when{font:400 var(--fs-micro)/1.2 var(--font-mono);color:var(--text-faint);text-align:right}
 
-
 /* ── что ещё есть у этого актива ─────────────────────────────────────────────
    Три колонки: набор, что по нему лежит для этого актива, и куда за этим идти. Правая
    колонка — ссылка, а не подпись: полоса перечисляет то, что на странице УЖЕ есть, и
@@ -758,8 +687,7 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
     text-transform:uppercase;color:var(--eyebrow);margin-right:auto}
   body[data-mobile-mode="listing"] .v2-bar,
   body[data-mobile-mode="listing"] .v2-spark{flex-basis:100%}
-  body[data-mobile-mode="listing"] .v2-fields{flex-basis:100%;margin-bottom:var(--space-3)}
-
+  body[data-mobile-mode="listing"] 
   /* Полоса 2 ведёт: книги в одну колонку, бары во всю ширину. */
   .v2-nows--books{grid-template-columns:1fr}
   .v2-now{grid-template-columns:1fr;gap:2px;padding:var(--space-3) 0}
@@ -779,7 +707,6 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
   .v2-reach-where{text-align:left}
 }
 
-
 /* ── Фильтр ленты по площадке ────────────────────────────────────────────────
    Без него лента бесполезна ровно тогда, когда интересна: одна громкая площадка занимает все
    восемнадцать строк, и остальных четырёх в ленте нет вовсе. */
@@ -797,7 +724,6 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
 
 /* Имя выбранного поля — у правого края шапки полосы 3. */
 .v2-band-field{margin-left:auto;color:var(--accent)}
-
 
 /* ── Сколько колонок ─────────────────────────────────────────────────────────
    Кнопка задаёт ПОТОЛОК, а не число: минимальная ширина карточки остаётся в том же правиле,

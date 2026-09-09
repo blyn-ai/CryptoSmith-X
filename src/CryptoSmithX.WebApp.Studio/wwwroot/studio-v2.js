@@ -5,54 +5,9 @@
 
    Высота строки задаётся самой высокой открытой группой, поэтому открыть одну стоит почти столько
    же места, сколько открыть все — «развернуть всё» здесь не роскошь, а основной режим. */
-(function () {
-  var open = new Set();
-
-  function apply() {
-    // НА <body>, снаружи заменяемых полос: живой поток меняет таблицу целиком, и hidden,
-    // проставленный внутри неё, уезжает вместе с разметкой — группы схлопывались на каждой
-    // посылке, а скрипт открывал их обратно следующим кадром. Показывает состояние CSS.
-    document.body.setAttribute('data-open', Array.from(open).join(' '));
-
-    document.querySelectorAll('.v2-gtoggle[data-group]').forEach(function (el) {
-      el.setAttribute('aria-expanded', open.has(el.getAttribute('data-group')) ? 'true' : 'false');
-    });
-    var all = document.getElementById('expand-all');
-    var total = document.querySelectorAll('.v2-gtoggle').length;
-    if (all) {
-      // Только состояние, подпись не трогаем: у тумблера состояние показывает он сам, а
-      // переписывание надписи на «Collapse all» заставляет читать текст, чтобы понять,
-      // включено сейчас или нет.
-      all.setAttribute('aria-pressed', open.size === total ? 'true' : 'false');
-    }
-  }
-
-  document.querySelectorAll('.v2-gtoggle').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var k = b.getAttribute('data-group');
-      if (open.has(k)) { open.delete(k); } else { open.add(k); }
-      apply();
-    });
-  });
-
-  var all = document.getElementById('expand-all');
-  if (all) {
-    all.addEventListener('click', function () {
-      var keys = Array.prototype.map.call(
-        document.querySelectorAll('.v2-gtoggle'),
-        function (b) { return b.getAttribute('data-group'); });
-      if (open.size === keys.length) { open.clear(); } else { keys.forEach(function (k) { open.add(k); }); }
-      apply();
-    });
-  }
-
-  apply();
-
-  // Восстанавливать после посылки больше нечего: состояние лежит на <body>, снаружи заменяемой
-  // полосы, и показывает его CSS. Осталось одно — aria-expanded на кнопках, которые приехали
-  // новыми вместе с разметкой.
-  document.addEventListener('csx-studio-live', function () { apply(); });
-})();
+/* Раскрытия групп больше нет: все колонки видны сразу, обычными колонками таблицы, и
+   разворачивать нечего. Здесь стоял набор открытых групп, кнопка «развернуть всё» и
+   восстановление их состояния после каждой посылки живого потока. */
 
 /* Выбор измерения: один селектор на полосы 2 и 3.
 

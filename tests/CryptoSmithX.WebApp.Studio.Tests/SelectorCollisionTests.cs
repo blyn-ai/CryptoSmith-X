@@ -25,7 +25,7 @@ public sealed class SelectorCollisionTests
 
         // They share a declaration on purpose: two rules with the same tracks written twice is the
         // same defect one edit away.
-        Assert.Matches(@"\.v2-hrow,\.v2-row\{display:grid;grid-template-columns:", css);
+        Assert.Matches(@"\.v2-calls,\.v2-hrow,\.v2-row\{display:grid;\s*\n?\s*grid-template-columns:", css);
 
         // And nothing else may set `display` on .v2-hrow, whatever it thinks the name means.
         foreach (Match rule in Regex.Matches(css, @"(?m)^([^{@\r\n]*\.v2-hrow[^{\r\n]*)\{([^}]*)\}"))
@@ -43,9 +43,11 @@ public sealed class SelectorCollisionTests
     }
 
     [Fact]
-    public void The_line_inside_a_header_cell_has_a_name_of_its_own()
+    public void The_header_cell_holds_one_thing_and_needs_no_inner_row()
     {
-        Assert.Contains(".v2-hcell-row{display:flex", Read("studio-v2.css"), StringComparison.Ordinal);
-        Assert.Contains("class=\"v2-hcell-row\"", Read("_V2Table.cshtml"), StringComparison.Ordinal);
+        // The collision is gone by construction: a header cell is a label (or the button that
+        // selects its cut) and nothing else, so there is no second line inside it to name.
+        Assert.DoesNotContain("v2-hcell-row", Read("studio-v2.css"), StringComparison.Ordinal);
+        Assert.DoesNotContain("v2-hcell-row", Read("_V2Table.cshtml"), StringComparison.Ordinal);
     }
 }
