@@ -12,26 +12,98 @@ public sealed class VenueGateTests
 {
     private static readonly DateTimeOffset T0 = new(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
 
+    /// <summary>
+    /// The whole reason the ladder became a bucket (plans/prompt-rest-hygiene.md): a round of 32
+    /// parallel callers used to come out spaced 1/rps apart regardless of how many the venue could
+    /// actually take at once, so a 25-symbol sweep had a measured floor of ~0.8 s before a single
+    /// byte of network latency. Burst size is <see cref="VenueGate.MaxConcurrentRequests"/>, so a
+    /// round that fits inside the concurrency ceiling is granted TOGETHER — no clock advance at all
+    /// between the first caller and the last.
+    /// </summary>
     [Fact]
-    public async Task Starts_are_spaced_by_the_rate_ceiling()
+    public async Task A_burst_up_to_the_ceiling_is_granted_together_not_as_a_ladder()
+    {
+        var clock = new FakeTimeProvider(T0);
+        var gate = new VenueGate("weex", requestsPerSecond: 10, maxConcurrentRequests: 32, clock);
+
+        var leases = Enumerable.Range(0, 32)
+            .Select(_ => gate.AcquireAsync(CancellationToken.None).AsTask())
+            .ToArray();
+
+        foreach (var lease in leases)
+        {
+            Assert.True(await Granted(lease), "a burst-sized round must be granted together, not spaced");
+        }
+
+        foreach (var lease in leases)
+        {
+            (await lease).Dispose();
+        }
+    }
+
+    /// <summary>Only once the bucket is spent does pacing reappear, and at exactly the rate the old
+    /// ladder used throughout — 1/rps between one grant and the next.</summary>
+    [Fact]
+    public async Task The_request_after_a_spent_burst_waits_exactly_one_interval()
     {
         var clock = new FakeTimeProvider(T0);
         var gate = new VenueGate("weex", requestsPerSecond: 10, maxConcurrentRequests: 4, clock);
 
-        var first = gate.AcquireAsync(CancellationToken.None).AsTask();
-        Assert.True(await Granted(first), "the first caller has nothing to wait for");
+        var burst = new List<VenueLease>();
+        for (var i = 0; i < 4; i++)
+        {
+            burst.Add(await gate.AcquireAsync(CancellationToken.None));
+        }
 
-        var second = gate.AcquireAsync(CancellationToken.None).AsTask();
-        Assert.True(await StillWaiting(second), "10 req/s means the second start is 100 ms away");
+        // Concurrency slots go back; the bucket itself does not refund on an ordinary dispose.
+        foreach (var lease in burst)
+        {
+            lease.Dispose();
+        }
+
+        var next = gate.AcquireAsync(CancellationToken.None).AsTask();
+        Assert.True(await StillWaiting(next), "the bucket is spent; 10 req/s owes one token in 100 ms");
 
         clock.Advance(TimeSpan.FromMilliseconds(99));
-        Assert.True(await StillWaiting(second), "99 ms is not 100 ms");
+        Assert.True(await StillWaiting(next), "99 ms is not 100 ms");
 
         clock.Advance(TimeSpan.FromMilliseconds(1));
-        Assert.True(await Granted(second));
+        Assert.True(await Granted(next));
+        (await next).Dispose();
+    }
 
-        (await first).Dispose();
-        (await second).Dispose();
+    /// <summary>A bucket left alone refills, and a second burst is granted together exactly as the
+    /// first one was — this is what makes the round REPEATABLE, not a one-off head start.</summary>
+    [Fact]
+    public async Task Tokens_refill_between_bursts_and_a_second_burst_is_also_granted_together()
+    {
+        var clock = new FakeTimeProvider(T0);
+        var gate = new VenueGate("weex", requestsPerSecond: 10, maxConcurrentRequests: 4, clock);
+
+        var first = new List<VenueLease>();
+        for (var i = 0; i < 4; i++)
+        {
+            first.Add(await gate.AcquireAsync(CancellationToken.None));
+        }
+
+        foreach (var lease in first)
+        {
+            lease.Dispose();
+        }
+
+        // The whole bucket back: 4 tokens at 10/s.
+        clock.Advance(TimeSpan.FromMilliseconds(400));
+
+        var second = Enumerable.Range(0, 4).Select(_ => gate.AcquireAsync(CancellationToken.None).AsTask()).ToArray();
+        foreach (var lease in second)
+        {
+            Assert.True(await Granted(lease), "a fully-refilled bucket grants a second burst together too");
+        }
+
+        foreach (var lease in second)
+        {
+            (await lease).Dispose();
+        }
     }
 
     /// <summary>
@@ -132,28 +204,36 @@ public sealed class VenueGateTests
         (await third).Dispose();
     }
 
+    /// <summary>
+    /// Burst size is now the concurrency ceiling (see the class doc comment on VenueGate), so with a
+    /// ceiling of 2 both a held lease and a second caller would fit in the initial burst and neither
+    /// would ever wait — this test would pass for the wrong reason. Concurrency 1 forces the real
+    /// scenario apart into its two separate waits: `held.Dispose()` frees the ONLY semaphore slot
+    /// while leaving the bucket spent, so `abandoned` gets PAST `_slots.WaitAsync` immediately and is
+    /// then stuck in the pacing delay — the exact branch whose catch block this test exists to pin.
+    /// </summary>
     [Fact]
     public async Task A_cancelled_wait_gives_its_slot_back()
     {
         var clock = new FakeTimeProvider(T0);
-        var gate = new VenueGate("weex", requestsPerSecond: 10, maxConcurrentRequests: 2, clock);
+        var gate = new VenueGate("weex", requestsPerSecond: 10, maxConcurrentRequests: 1, clock);
 
         var held = await gate.AcquireAsync(CancellationToken.None);
+        held.Dispose(); // the one concurrency slot is free; the one token is not
 
         using var cts = new CancellationTokenSource();
         var abandoned = gate.AcquireAsync(cts.Token).AsTask();
-        Assert.True(await StillWaiting(abandoned), "it holds the second slot and waits for its paced turn");
+        Assert.True(await StillWaiting(abandoned), "the slot is free but the bucket owes a refill");
 
         await cts.CancelAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => abandoned);
 
-        // A collector stopped mid-wait must not cost the venue a slot forever. `held` is still open,
-        // so this can only be granted if the cancelled caller returned the one it was holding.
+        // A collector stopped mid-wait must not cost the venue its one slot forever: `abandoned` had
+        // already passed the semaphore before being cancelled in the pacing delay, so this can only
+        // be granted if the cancellation's catch block returned it.
         clock.Advance(TimeSpan.FromSeconds(10));
         var next = gate.AcquireAsync(CancellationToken.None).AsTask();
         Assert.True(await Granted(next));
-
-        held.Dispose();
         (await next).Dispose();
     }
 

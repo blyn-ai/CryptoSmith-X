@@ -8,8 +8,22 @@ namespace CryptoSmithX.MarketData.Connectors.Pacing;
 ///
 /// It does two things at once, and they are different guarantees:
 ///
-///   * a RATE ceiling — starts are spaced at least <c>1/requestsPerSecond</c> apart, venue-wide;
-///   * a CONCURRENCY ceiling — at most N requests may be in flight at once.
+///   * a RATE ceiling — a TOKEN BUCKET of <see cref="MaxConcurrentRequests"/> tokens, refilling at
+///     <see cref="RequestsPerSecond"/>, venue-wide;
+///   * a CONCURRENCY ceiling — at most N requests may be in flight at once (the same N as the
+///     bucket's own size — see BURST below for why one number serves both).
+///
+/// BURST, AND WHY THE BUCKET REPLACED A LADDER. This class used to space every start at least
+/// <c>1/requestsPerSecond</c> apart from the one before it, unconditionally — a round of 32 parallel
+/// callers came out as a staircase, one every <c>1/rps</c>, so a 25-symbol sweep had a measured FLOOR
+/// of ~0.8 s before a single byte of network latency, on venues whose own measurements (0036,
+/// plans/collection-policy.md §5) showed they accept a round of 32+ requests landing at once and rate-
+/// limit by a WINDOW, not by evenness. The bucket starts full and a burst that fits in it is granted
+/// together — the whole point of a "32 parallel, no self-inflicted delay" round. Only once the bucket
+/// is spent does the schedule fall back to the old per-request spacing, at exactly the same
+/// <c>1/requestsPerSecond</c> the ladder used. Burst size is <see cref="MaxConcurrentRequests"/>, not
+/// a separate number: a burst wider than the concurrency ceiling could not run at once anyway, so a
+/// second field would only ever equal the first or be a lie.
 ///
 /// The second one is why this class exists at all. Before it, DepthCollector walked instruments one
 /// at a time and paid the venue's network latency once per symbol: on production WEEX a 1005-symbol
@@ -36,11 +50,20 @@ public sealed class VenueGate
     private readonly object _sync = new();
     private readonly SemaphoreSlim _slots;
     private readonly TimeProvider _clock;
-    private readonly TimeSpan _minInterval;
+    private readonly double _rps;
+    private readonly int _burst;
 
-    /// <summary>The instant the next request may START. Every claim moves it forward; nothing else
-    /// decides when a caller runs. Guarded by <see cref="_sync"/>.</summary>
-    private DateTimeOffset _nextStart = DateTimeOffset.MinValue;
+    /// <summary>Tokens currently in the bucket, as a continuous quantity rather than an integer count
+    /// — a claim that cannot be paid in full goes NEGATIVE rather than blocking on a discrete
+    /// counter, and the caller's wait is computed straight from the deficit. This is what lets the
+    /// claim happen before the wait, the same ordering <see cref="AcquireAsync"/>'s predecessor used
+    /// for the identical reason: claiming first turns a queue of waiters into a staircase whatever
+    /// order they happen to wake in, instead of a stampede at whichever instant one of them notices a
+    /// token is free. Guarded by <see cref="_sync"/>; refilled lazily, in <see cref="RefillLocked"/>,
+    /// rather than on a timer nobody would be waiting on anyway.</summary>
+    private double _availableTokens;
+
+    private DateTimeOffset _lastRefill;
 
     private long _penaltyUntilTicks;
 
@@ -54,8 +77,11 @@ public sealed class VenueGate
         RequestsPerSecond = requestsPerSecond;
         MaxConcurrentRequests = maxConcurrentRequests;
         _clock = clock;
-        _minInterval = TimeSpan.FromSeconds(1.0 / requestsPerSecond);
+        _rps = requestsPerSecond;
+        _burst = maxConcurrentRequests;
         _slots = new SemaphoreSlim(maxConcurrentRequests, maxConcurrentRequests);
+        _lastRefill = clock.GetUtcNow();
+        _availableTokens = _burst;
     }
 
     public string VenueCode { get; }
@@ -64,16 +90,14 @@ public sealed class VenueGate
 
     public int MaxConcurrentRequests { get; }
 
-    /// <summary>The gap the rate ceiling puts between two consecutive starts.</summary>
-    public TimeSpan MinInterval => _minInterval;
-
     /// <summary>When the venue's last 429 stops holding us back, for reporting only — the wait itself
-    /// is derived from <see cref="_nextStart"/>, see <see cref="Penalize"/>. default when never hit.</summary>
+    /// is derived from <see cref="_availableTokens"/>, see <see cref="Penalize"/>. default when never
+    /// hit.</summary>
     public DateTimeOffset PenaltyUntil => new(Interlocked.Read(ref _penaltyUntilTicks), TimeSpan.Zero);
 
     /// <summary>
-    /// Waits for a concurrency slot and for this caller's paced turn, then returns the lease that
-    /// holds the slot. Dispose it as soon as the request finishes — a lease held across a second
+    /// Waits for a concurrency slot and for this caller's turn at the bucket, then returns the lease
+    /// that holds the slot. Dispose it as soon as the request finishes — a lease held across a second
     /// acquire is the one way to deadlock this class.
     /// </summary>
     public async ValueTask<VenueLease> AcquireAsync(CancellationToken ct)
@@ -84,13 +108,17 @@ public sealed class VenueGate
             DateTimeOffset start;
             lock (_sync)
             {
-                // Claim the turn BEFORE waiting for it. The obvious alternative — read the schedule,
-                // sleep, then run — hands the same instant to every caller that read it, which is a
-                // stampede exactly where we were trying to be gentle. Claiming first makes the queue
-                // resolve into a staircase whatever order the waiters wake up in.
                 var now = _clock.GetUtcNow();
-                start = _nextStart > now ? _nextStart : now;
-                _nextStart = start + _minInterval;
+                RefillLocked(now);
+
+                // Claim the token BEFORE waiting for it, even into deficit — see the field doc on
+                // _availableTokens for why. A claim that lands while the bucket is at or above zero
+                // pays in full and starts now; one that does not is owed the difference, paid back at
+                // _rps, and that deficit alone is this caller's wait.
+                _availableTokens -= 1;
+                start = _availableTokens >= 0
+                    ? now
+                    : now + TimeSpan.FromSeconds(-_availableTokens / _rps);
             }
 
             var wait = start - _clock.GetUtcNow();
@@ -104,19 +132,38 @@ public sealed class VenueGate
         catch
         {
             // Cancelled while waiting for our turn: the slot must go back, or the venue loses
-            // capacity permanently every time a collector is stopped. The claimed turn is NOT
-            // given back — a gap in the schedule is harmless, a double-booked instant is not.
+            // capacity permanently every time a collector is stopped. The claimed token is NOT
+            // refunded — a bucket that ends up a little emptier than it strictly needed to be is
+            // harmless; crediting it back would let a burst of cancellations refill capacity nobody
+            // is about to spend responsibly.
             _slots.Release();
             throw;
         }
     }
 
+    /// <summary>Brings <see cref="_availableTokens"/> up to date for <paramref name="now"/>, capped at
+    /// <see cref="_burst"/> — a bucket that accrued for an hour of nobody calling must not hand out an
+    /// hour's worth of requests the instant someone does. Caller holds <see cref="_sync"/>.</summary>
+    private void RefillLocked(DateTimeOffset now)
+    {
+        var elapsed = (now - _lastRefill).TotalSeconds;
+        _lastRefill = now;
+        if (elapsed <= 0)
+        {
+            return;
+        }
+
+        _availableTokens = Math.Min(_burst, _availableTokens + (elapsed * _rps));
+    }
+
     /// <summary>
     /// Tells the gate the venue pushed us away (HTTP 429). The cooldown is folded into the same
-    /// schedule every other caller reads, rather than kept as a separate "am I penalised?" branch:
-    /// a second branch is what let the first draft of this class wait out a penalty and then release
-    /// every queued caller at the same millisecond. With one schedule that cannot be expressed —
-    /// the first caller after a penalty starts when it ends, the second one interval later.
+    /// bucket every other caller reads, rather than kept as a separate "am I penalised?" branch: a
+    /// second branch is what let the first draft of this class wait out a penalty and then release
+    /// every queued caller at the same millisecond. Expressed as a token DEFICIT deep enough that the
+    /// next claim's wait is exactly <paramref name="cooldown"/>, so the queue resolves into the same
+    /// staircase a burst draining the bucket naturally would — the caller right after the penalty
+    /// waits the full cooldown, the one after that waits cooldown + 1/rps, and so on.
     /// </summary>
     public void Penalize(TimeSpan cooldown)
     {
@@ -127,19 +174,28 @@ public sealed class VenueGate
 
         lock (_sync)
         {
-            var until = _clock.GetUtcNow() + cooldown;
-            if (until > _nextStart)
-            {
-                _nextStart = until;
+            var now = _clock.GetUtcNow();
+            RefillLocked(now);
 
-                // Inside the same guard as _nextStart, not after it: a second, shorter Penalize
-                // arriving while a longer cooldown is still running must leave BOTH fields alone.
-                // This used to run unconditionally below the guard, so a 60 s Retry-After followed
-                // by a headerless 10 s penalty left the schedule correctly at +60 s while
-                // PenaltyUntil — read straight off _penaltyUntilTicks, with no guard of its own —
-                // was overwritten to +10 s. The reported number and the actual schedule must move
-                // together or the console tells an operator the venue is clear 50 s before it is.
-                Interlocked.Exchange(ref _penaltyUntilTicks, until.UtcTicks);
+            // The deficit that makes ONE claim's wait equal exactly `cooldown`: claiming subtracts
+            // one more token, and a wait of `cooldown` needs the post-claim balance to be
+            // `-cooldown * _rps`. Solving for the PRE-claim balance this call must leave behind:
+            // floor = 1 - cooldown * rps.
+            var floor = 1 - (cooldown.TotalSeconds * _rps);
+
+            // Only ever MORE restrictive than what is already scheduled — a second, shorter penalty
+            // arriving while a longer one is still running must leave the schedule alone. This used
+            // to be an unconditional overwrite in the ladder version and the same bug shape applies
+            // here: a 60 s Retry-After followed by a headerless 10 s penalty must still clear at
+            // +60 s, not snap back to +10 s.
+            if (floor < _availableTokens)
+            {
+                _availableTokens = floor;
+
+                // Inside the same guard, not after it — see the ladder-era comment this one replaces:
+                // the reported number and the actual schedule must move together or the console tells
+                // an operator the venue is clear before it is.
+                Interlocked.Exchange(ref _penaltyUntilTicks, (now + cooldown).UtcTicks);
             }
         }
     }
