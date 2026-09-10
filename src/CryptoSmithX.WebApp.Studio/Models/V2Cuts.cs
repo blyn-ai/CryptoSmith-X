@@ -60,6 +60,16 @@ public static class V2Cuts
             return stress?.Volume;
         }
 
+        // Prompt 2, U-2: band 2 now carries a full FUNDING list — the same /day figure band 1's
+        // "Funding /day" column already normalises (StudioModels.FundingRatePerDay), not a second
+        // computation of it. RankNote stays null for this cut (Verdicts.cs's own reasoning: which
+        // direction is good depends on which side of the trade the reader is on) — a NOW figure
+        // and a rank are different claims, and this list sorts without ever marking a MAX/MIN.
+        if (cut.Source == V2CutSource.Funding)
+        {
+            return r.Row.FundingRatePerDay;
+        }
+
         return cut.Column switch
         {
             PairColumn.Bid => r.Row.BidPrice,
@@ -69,6 +79,43 @@ public static class V2Cuts
             PairColumn.Turnover24h => r.Row.Turnover24h,
             _ => null,
         };
+    }
+
+    /// <summary>Prompt 2, U-1: a figure's share of the population's total, for the three cuts read
+    /// as "how much of the whole this venue holds" — open interest, turnover, liquidations. Null
+    /// where the row has no figure or the population holds nothing measured, which prints as no
+    /// label rather than a false 0 %.</summary>
+    public static double? SharePercent(double? value, IReadOnlyList<double?> population)
+    {
+        if (value is not { } v)
+        {
+            return null;
+        }
+
+        var sum = population.Where(p => p is not null).Sum(p => p!.Value);
+        return sum > 0 ? v / sum * 100 : null;
+    }
+
+    /// <summary>Prompt 2, U-1: which quarter of the SPREAD population this row's figure falls in,
+    /// 1 (tightest) to 4 (widest) — the four-step intensity cell behind the figure, standing in for
+    /// a bar. A bar would draw the WIDEST spread as the biggest shape on the row, and wide is the
+    /// one direction on this page that must never read as the headline. Null (no shading) where
+    /// this row has no figure or the population is empty.</summary>
+    public static int? SpreadQuartile(double? value, IReadOnlyList<double?> population)
+    {
+        if (value is not { } v)
+        {
+            return null;
+        }
+
+        var sorted = population.Where(p => p is not null).Select(p => p!.Value).OrderBy(x => x).ToList();
+        if (sorted.Count == 0)
+        {
+            return null;
+        }
+
+        var frac = (double)sorted.Count(x => x <= v) / sorted.Count;
+        return frac <= 0.25 ? 1 : frac <= 0.5 ? 2 : frac <= 0.75 ? 3 : 4;
     }
 }
 

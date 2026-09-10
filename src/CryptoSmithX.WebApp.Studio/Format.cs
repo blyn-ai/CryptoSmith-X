@@ -290,6 +290,42 @@ public static class Format
     }
 
     /// <summary>
+    /// A figure's share of the largest venue in its group, LINEAR — band 2's per-cut NOW bars
+    /// (Prompt 2, U-1), where the reader is comparing a handful of listings at once rather than
+    /// hunting a thin book buried under a thick one, which is the case <see cref="BarWidth"/>'s
+    /// log scale exists for. A straight share reads truer here: twice the open interest should
+    /// draw twice the bar.
+    /// </summary>
+    public static string LinearBarWidth(double? value, double? max)
+    {
+        if (value is not { } v || max is not { } m || m <= 0 || v < 0)
+        {
+            return "0%";
+        }
+
+        var pct = Math.Min(100.0, v / m * 100.0);
+        return pct.ToString("0.#", CultureInfo.InvariantCulture) + "%";
+    }
+
+    /// <summary>
+    /// Half-width for a bar that diverges from a centre zero line — FUNDING's NOW bar (Prompt 2,
+    /// U-2). Negative figures draw left, positive draw right, and both are measured against the
+    /// same <paramref name="maxAbs"/> (the larger of the population's positive and negative
+    /// extremes) so the two directions are comparable at a glance rather than each scaled to its
+    /// own side's maximum.
+    /// </summary>
+    public static string DivergingBarWidth(double? value, double? maxAbs)
+    {
+        if (value is not { } v || maxAbs is not { } m || m <= 0)
+        {
+            return "0%";
+        }
+
+        var pct = Math.Min(50.0, Math.Abs(v) / m * 50.0);
+        return pct.ToString("0.#", CultureInfo.InvariantCulture) + "%";
+    }
+
+    /// <summary>
     /// The sparkline's geometry, in the user units the path is computed in and the viewBox is
     /// written with.
     ///
@@ -348,6 +384,23 @@ public static class Format
     public static string? SparkPath(
         IReadOnlyList<double?> values, double width = SparkWidth, double height = SparkHeight)
     {
+        var present = values.Where(v => v is { } x && !double.IsNaN(x)).Select(v => v!.Value).ToList();
+        return present.Count < 2 ? null : SparkPathScaled(values, present.Min(), present.Max(), width, height);
+    }
+
+    /// <summary>
+    /// The same line, against a Y range the caller supplies rather than this series' own min/max.
+    ///
+    /// Prompt 2, U-2: FUNDING's band-3 card draws a zero baseline with a range symmetric around
+    /// zero (<c>lo == -hi</c>) shared across every card in the cut, so a venue whose funding never
+    /// left ±0.01 %/d is not stretched to fill the same height as one that swung to ±0.05 %/d, and
+    /// zero always lands at the vertical centre of the plot by construction — <c>(0 - lo)/(hi -
+    /// lo) == 0.5</c> whenever the range is symmetric — so a caller never computes that pixel by
+    /// hand.
+    /// </summary>
+    public static string? SparkPathScaled(
+        IReadOnlyList<double?> values, double lo, double hi, double width = SparkWidth, double height = SparkHeight)
+    {
         if (values.Count < 2)
         {
             return null;
@@ -359,8 +412,6 @@ public static class Format
             return null;
         }
 
-        var lo = present.Min();
-        var hi = present.Max();
         if (hi <= lo)
         {
             // A flat series is a real answer — the price did not move — so it draws as a flat line

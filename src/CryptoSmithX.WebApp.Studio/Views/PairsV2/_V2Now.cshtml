@@ -128,20 +128,7 @@
             {
                 if (maxNow is null)
                 {
-                    @* Причина у пустой полосы РАЗНАЯ, и одна фраза на обе врала бы про вторую:
-                       фандинг не ранжируется в принципе — он назван в интервале каждой площадки;
-                       у остальных срезов колонка есть, просто по этому активу в ней ничего нет. *@
-                    if (c.Source == V2CutSource.Funding)
-                    {
-                        <p class="v2-empty">
-                            @c.Name does not rank in one column across venues — it is stated per venue interval,
-                            and the table normalises it in the cost-of-carry group.
-                        </p>
-                    }
-                    else
-                    {
-                        <p class="v2-empty">No venue here has a figure for @c.Name.</p>
-                    }
+                    <p class="v2-empty">No venue here has a figure for @c.Name.</p>
                 }
                 else
                 {
@@ -158,40 +145,89 @@
                         ? Model.Rows.OrderByDescending(x => NowOf(x) ?? double.MinValue)
                         : Model.Rows.OrderBy(x => NowOf(x) ?? double.MaxValue);
 
+                    // Prompt 2, U-1: "do not use one visualisation for all seven cuts" — the
+                    // population and the two shared scales below are each computed ONCE per cut
+                    // rather than per row, because every row's bar/quartile/share has to be read
+                    // against the same ruler or the column stops meaning anything across rows.
+                    var population = Model.Rows.Select(NowOf).ToList();
+
+                    var depthHalf = c.Key == "depth25"
+                        ? Model.Rows.SelectMany(x => new[] { x.Row.DepthBid25, x.Row.DepthAsk25 })
+                            .Where(x => x is not null).DefaultIfEmpty(null).Max()
+                        : null;
+
+                    var fundingMaxAbs = c.Key == "funding"
+                        ? population.Where(v => v is not null).Select(v => Math.Abs(v!.Value)).DefaultIfEmpty(0).Max()
+                        : 0;
+
                     foreach (var r in ordered)
                     {
                         var v = NowOf(r);
+                        var quartile = c.Key == "spread" ? V2Cuts.SpreadQuartile(v, population) : (int?)null;
                         <div class="v2-now">
                             <span class="v2-now-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em> <b>@r.Row.Symbol</b></span>
                             @* Значение С ЕДИНИЦЕЙ: голое «6.01» в строке про спред — число, про
                                которое надо помнить, чем его мерили, и которое легко сравнить с
-                               соседним срезом по ошибке. *@
-                            <span class="v2-now-val @(v is null ? "v2-fig--none" : "")">@(v is null ? "—" : Format.Num(v, c.Decimals) + " " + c.Short)</span>
-                            @* У ГЛУБИНЫ СТОРОНА — ЭТО ОТВЕТ. Один бар на сумму сторон складывает
-                               бид с аском и теряет наклон книги, ради которого на глубину и
-                               смотрят: 200 к бида против 40 к аска и 120 к против 120 к дают
-                               одинаковый бар и противоположный рынок. Обе половины меряются от
-                               ОДНОГО максимума по странице, иначе они несравнимы между строками. *@
-                            @if (c.Key == "depth25")
-                            {
-                                var half = Model.Rows
-                                    .SelectMany(x => new[] { x.Row.DepthBid25, x.Row.DepthAsk25 })
-                                    .Where(x => x is not null)
-                                    .DefaultIfEmpty(null)
-                                    .Max();
-                                <span class="v2-mirror"
-                                      title="bid @Format.Num(r.Row.DepthBid25, 0) · ask @Format.Num(r.Row.DepthAsk25, 0)">
-                                    <span><i style="width:@Format.BarWidth(r.Row.DepthBid25, half)"></i></span>
-                                    <span><i style="width:@Format.BarWidth(r.Row.DepthAsk25, half)"></i></span>
-                                </span>
-                            }
-                            else if (v is not null)
-                            {
-                                @* P0-5: no track at all for a "—" row — it used to render a bar
-                                   whose fill was 0% wide but whose own rail still drew full width,
-                                   which reads as "measured zero" beside a row that says "—". *@
-                                <span class="v2-now-bar"><i style="width:@Format.BarWidth(v, maxNow)"></i></span>
-                            }
+                               соседним срезом по ошибке. Спред несёт квартиль своей заливки —
+                               "позади фигуры", а не бар: самый широкий спред не должен рисоваться
+                               самой большой фигурой в списке. *@
+                            <span class="v2-now-val @(v is null ? "v2-fig--none" : "")" data-quartile="@quartile">@(v is null ? "—" : (c.Key == "funding" ? Format.SignedPercent(v) : Format.Num(v, c.Decimals) + " " + c.Short))</span>
+                            <span class="v2-now-vis">
+                                @* У ГЛУБИНЫ СТОРОНА — ЭТО ОТВЕТ. Один бар на сумму сторон складывает
+                                   бид с аском и теряет наклон книги, ради которого на глубину и
+                                   смотрят: 200 к бида против 40 к аска и 120 к против 120 к дают
+                                   одинаковый бар и противоположный рынок. Обе половины меряются от
+                                   ОДНОГО максимума по странице, иначе они несравнимы между строками. *@
+                                @if (c.Key == "depth25")
+                                {
+                                    <span class="v2-mirror"
+                                          title="bid @Format.Num(r.Row.DepthBid25, 0) · ask @Format.Num(r.Row.DepthAsk25, 0)">
+                                        <span><i style="width:@Format.LinearBarWidth(r.Row.DepthBid25, depthHalf)"></i></span>
+                                        <span><i style="width:@Format.LinearBarWidth(r.Row.DepthAsk25, depthHalf)"></i></span>
+                                    </span>
+                                }
+                                else if (c.Key == "funding")
+                                {
+                                    @* Расходится от центра, как книга выше: отрицательное растёт
+                                       влево, положительное вправо, оба от одного |максимума|
+                                       среза — иначе +0.03%/д и -0.03%/д не читались бы как
+                                       зеркальные. *@
+                                    if (v is not null)
+                                    {
+                                        <span class="v2-now-diverge" title="@Format.SignedPercent(v) per day">
+                                            <span><i style="width:@(v < 0 ? Format.DivergingBarWidth(v, fundingMaxAbs) : "0%")"></i></span>
+                                            <span><i style="width:@(v > 0 ? Format.DivergingBarWidth(v, fundingMaxAbs) : "0%")"></i></span>
+                                        </span>
+                                    }
+                                }
+                                else if (c.Key != "spread" && v is not null)
+                                {
+                                    @* P0-5: no track at all for a "—" row — it used to render a bar
+                                       whose fill was 0% wide but whose own rail still drew full
+                                       width, which reads as "measured zero" beside a row that says
+                                       "—". Linear, not log (Prompt 2, U-1) — this column reads a
+                                       straight share of the shared maximum. *@
+                                    <span class="v2-now-bar"><i style="width:@Format.LinearBarWidth(v, maxNow)"></i></span>
+                                }
+                            </span>
+                            <span class="v2-now-note">
+                                @if (c.Key == "depth25")
+                                {
+                                    @:bid @Format.Num(r.Row.DepthBid25, 0) · ask @Format.Num(r.Row.DepthAsk25, 0)
+                                }
+                                else if (c.Key == "funding" && r.Row.FundingRate is { } rate && r.Row.FundingIntervalHours is { } hrs)
+                                {
+                                    @:venue rate @Format.SignedPercent(rate, 4) · @hrs h
+                                }
+                                else if (c.Key is "oi" or "turnover" or "liquidations")
+                                {
+                                    var share = V2Cuts.SharePercent(v, population);
+                                    if (share is not null)
+                                    {
+                                        @(Format.Num(share, 0) + "%")
+                                    }
+                                }
+                            </span>
                             @* P0-1: the per-row "USD FIGURES · EVERY LISTING COMPARABLE" sentence is
                                gone — replaced by the one header note set for the whole list
                                (#cut-now-rank, above). Возраст вызова, который написал строку,
