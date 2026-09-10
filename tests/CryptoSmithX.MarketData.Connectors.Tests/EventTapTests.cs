@@ -188,7 +188,13 @@ public sealed class EventTapTests
         Volatile.Write(ref stop, true);
         var written = await writer;
 
-        Assert.Equal(written, buffer.Drain().Count);
+        // Accounted for, not "all present": this writer is unthrottled and a fast runner pushes past
+        // the buffer's own 200k bound, at which point shedding the oldest is the documented, correct
+        // behaviour. What must hold is that subscribing did not lose anything ON TOP of that — every
+        // event written is either still in the buffer or counted as dropped by it.
+        var dropped = buffer.Dropped;
+        Assert.Equal(written, buffer.Drain().Count + dropped);
+
         foreach (var tap in taps)
         {
             tap.Dispose();
