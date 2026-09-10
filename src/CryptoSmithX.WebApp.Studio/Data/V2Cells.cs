@@ -130,7 +130,10 @@ public static class V2Cells
     {
         // Единица агрегата приходит СТРОКОЙ из базы: площадки считают объём ликвидаций
         // по-разному, и подставлять свою единицу значило бы переименовать чужую величину.
-        V2Field.LiquidationVolume => stress is null ? V2Cell.None : new V2Cell(stress.Volume, Format.Num(stress.Volume, 0), null),
+        // Prompt 2.1, W-1: the UNIT column folds into this cell's own sub-line — the same
+        // pattern TURNOVER 24H already uses for its own "USD" sub-line — rather than a column
+        // that printed one word for every row on the page.
+        V2Field.LiquidationVolume => stress is null ? V2Cell.None : new V2Cell(stress.Volume, Format.Num(stress.Volume, 0), stress.Unit),
         V2Field.LiquidationUnit => stress is null ? V2Cell.None : Text(stress.Unit),
 
         // Бид и аск ОТДЕЛЬНЫМИ цифрами, а не только парой под спредом: ранг у них считается по
@@ -139,8 +142,11 @@ public static class V2Cells
         V2Field.Bid => Fig(r.Row.BidPrice, 6),
         V2Field.Ask => Fig(r.Row.AskPrice, 6),
         V2Field.Last => Fig(r.Row.LastPrice, 6),
-        V2Field.Mark => Fig(r.Row.MarkPrice, 8),
-        V2Field.Index => Fig(r.Row.IndexPrice, 8),
+        // Prompt 2.1, W-2: the venue's own tick (Format.PriceDecimals — precisionFor(listing)),
+        // not the raw 8-decimal payload every venue is stored at. "77,355.00000000" printed the
+        // payload's own precision rather than the market's.
+        V2Field.Mark => Fig(r.Row.MarkPrice, Format.PriceDecimals(r.Row)),
+        V2Field.Index => Fig(r.Row.IndexPrice, Format.PriceDecimals(r.Row)),
         V2Field.Spread => Fig(r.Row.SpreadBps, 2),
         // Часы БИРЖИ, а не наши: received_at — это когда МЫ получили кадр.
         V2Field.VenueClock => r.Row.VenueTs is { } vt ? Text(Format.UtcClock(vt)) : V2Cell.None,
@@ -153,7 +159,12 @@ public static class V2Cells
         V2Field.BidSize => Fig(r.Row.BidSize, 0),
         V2Field.AskSize => Fig(r.Row.AskSize, 0),
         V2Field.Depth10 => Fig(Sum(r.Row.DepthBid10, r.Row.DepthAsk10), 0, sub: Pair(r.Row.DepthBid10, r.Row.DepthAsk10, 0)),
-        V2Field.Depth25 => Fig(Sum(r.Row.DepthBid25, r.Row.DepthAsk25), 0, sub: Pair(r.Row.DepthBid25, r.Row.DepthAsk25, 0)),
+        // Prompt 2.1, W-3: DEPTH 10BPS / DEPTH 50BPS fold into this cell's SECOND sub-line —
+        // "10: 25,288 · 50: 1,069,918" — the first sub-line (bid/ask, unchanged) stays the first
+        // fact this cell states, and the two folded bands are named rather than summed, because
+        // "10 + 50" the reader cannot unpick back into the two bands it is not.
+        V2Field.Depth25 => Fig(Sum(r.Row.DepthBid25, r.Row.DepthAsk25), 0, sub: Pair(r.Row.DepthBid25, r.Row.DepthAsk25, 0))
+            with { Sub2 = FoldedDepth(r) },
         V2Field.Depth50 => Fig(Sum(r.Row.DepthBid50, r.Row.DepthAsk50), 0, sub: Pair(r.Row.DepthBid50, r.Row.DepthAsk50, 0)),
         // «Докуда видна книга», обе стороны. Ноль — это измеренный ноль (сторона пуста), и он
         // печатается как 0, а не как прочерк: прочерк значит «не мерили».
@@ -312,6 +323,21 @@ public static class V2Cells
 
     private static string? Pair(double? a, double? b, int decimals) =>
         a is null && b is null ? null : Format.Num(a, decimals) + " / " + Format.Num(b, decimals);
+
+    /// <summary>Prompt 2.1, W-3: "10: 25,288 · 50: 1,069,918" — the two depth bands folded out of
+    /// the table into DEPTH 25BPS's own second sub-line. Null (no second line) where neither band
+    /// has a figure for this row, so an unmeasured venue does not print two dashes to say so.</summary>
+    private static string? FoldedDepth(VenueRowModel r)
+    {
+        var d10 = Sum(r.Row.DepthBid10, r.Row.DepthAsk10);
+        var d50 = Sum(r.Row.DepthBid50, r.Row.DepthAsk50);
+        if (d10 is null && d50 is null)
+        {
+            return null;
+        }
+
+        return "10: " + Format.Num(d10, 0) + " · 50: " + Format.Num(d50, 0);
+    }
 }
 
 /// <summary>One cell: the number it ranks by (null = not measured), what it prints, and the small
@@ -319,4 +345,9 @@ public static class V2Cells
 public sealed record V2Cell(double? Value, string Text, string? Sub)
 {
     public static readonly V2Cell None = new(null, "—", null);
+
+    /// <summary>Prompt 2.1, W-3: a cell's second sub-line — DEPTH 25BPS's folded 10/50bps bands
+    /// today, and nowhere else. An init property rather than a third positional parameter so
+    /// every other <c>new V2Cell(...)</c> call in this file keeps meaning what it already means.</summary>
+    public string? Sub2 { get; init; }
 }

@@ -43,7 +43,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=61">
+    <link rel="stylesheet" href="~/studio-v2.css?v=62">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -593,6 +593,22 @@
                 <div class="v2-disclose" id="coverage-@d.Code" hidden style="grid-column:1/-1"></div>
             }
         }
+        @* Prompt 2.1, W-1: VENUE CLOCK moved here from band 1 — a fact about the VENUE, not
+           about the market, so it reads beside the other per-venue facts this band already
+           states rather than repeating on every row of a table about comparing markets. Drift is
+           the venue's own timestamp less the collector's, for the same tick — a positive number
+           means the venue's clock runs ahead of ours. *@
+        <span class="v2-cov-dh" title="Venue clock minus collector clock, same snapshot">Clock drift</span>
+        @foreach (var r in Model.Rows)
+        {
+            var drift = r.Row.VenueTs is { } vt && r.Row.ReceivedAt is { } rc
+                ? (vt - rc).TotalSeconds
+                : (double?)null;
+            <span class="v2-cov-cell v2-cov-cell--drift @(drift is { } dv && Math.Abs(dv) > 2 ? "v2-cov-cell--drift-late" : "")"
+                  title="@(drift is null ? "not measured" : (drift > 0 ? "+" : "") + Format.Num(drift, 1) + " s")">
+                @(drift is null ? Format.Dash : (drift > 0 ? "+" : "") + Format.Num(drift, 1) + " s")
+            </span>
+        }
     </div>
     @* Шкала подписана И названа окном: голое «84» в клетке — это не процент чего угодно. *@
     <div class="v2-cov-key">
@@ -746,7 +762,7 @@
 @if (V2Band3.Drawable(Model).Count > 0)
 {
     <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
-    <script src="~/studio-candles.js?v=8"></script>
+    <script src="~/studio-candles.js?v=9"></script>
 }
 <script src="~/studio-ages.js?v=7"></script>
 <script src="~/studio-live.js?v=3"></script>

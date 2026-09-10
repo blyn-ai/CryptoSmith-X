@@ -57,8 +57,9 @@ public sealed class ColumnWidthTests
     /// measured on the live page (13 characters of "77,342.000000" came to 109.2px).</summary>
     private const double Char = 8.4;
 
-    /// <summary>What the cell costs around the figure: 8px of padding a side and the 1px rule.</summary>
-    private const int CellChrome = 17;
+    /// <summary>What the cell costs around the figure: 6px of padding a side (Prompt 2.1, W-5 —
+    /// was 8) and the 1px rule.</summary>
+    private const int CellChrome = 13;
 
     [Theory]
     // Цена печатается шагом площадки, и шаг бывает восьмизначным: «77,355.00000000» у BTC.
@@ -68,7 +69,8 @@ public sealed class ColumnWidthTests
     [InlineData(V2Field.Bid, 13)]
     // Оборот за сутки бывает десятизначным: «1,435,887,165» у ENA.
     [InlineData(V2Field.Turnover24h, 13)]
-    [InlineData(V2Field.Depth50, 11)]
+    // Prompt 2.1, W-3: DEPTH 50BPS folded into DEPTH 25BPS's own second sub-line — no longer a
+    // column of its own to measure here.
     public void A_column_holds_the_widest_figure_the_market_prints_and_not_the_one_that_was_open(
         V2Field field, int characters)
     {

@@ -78,23 +78,29 @@ public static class V2Columns
         new(V2Field.Turnover24h, "Turnover", CallTone.Ticker, 128, Cut: "turnover", LabelBreak: "24h"),
         // P0-5 (UX audit): the header names the window, the same way TURNOVER 24H does — the figure
         // is a rolling 24h sum (V2Store.StressAsync), not the "last hour" the column used to read.
+        // Prompt 2.1, W-1: UNIT folded into this cell's own sub-line (V2Cells.cs), VENUE CLOCK
+        // moved to band 5 as a CLOCK DRIFT row (Asset.cshtml) — a column that printed one
+        // constant word, and one that printed a fact about the VENUE rather than the market, on
+        // every row of a table about comparing markets.
         new(V2Field.LiquidationVolume, "Liquidations", CallTone.Ticker, 116, Cut: "liquidations", Spark: true, LabelBreak: "24h"),
-        new(V2Field.LiquidationUnit, "Unit", CallTone.Ticker, 60),
-        // 88 не держало собственного значения этой колонки: "17:20:48Z" в моноширинном — 76px, плюс
-        // поля клетки, и время вылезало влево на соседнюю. Мерено на странице, а не прикинуто.
-        new(V2Field.VenueClock, "Venue clock", CallTone.Ticker, 96),
+
+        // Prompt 2.1, W-1: shown only while at least one row actually has a last-trade figure —
+        // computed at render time from Model.Rows (see the view's own lastTradeHasData), because
+        // this list is built once and cannot see the model itself.
         new(V2Field.LastTrade, "Last trade", CallTone.Ticker, 88),
 
         // ── The open-interest call: its own clock, its own cadence ──────────────────────────
+        // Prompt 2.1, W-1: MULTIPLIER folded into the listing cell (×1, ×10 — _V2Table.cshtml),
+        // the same figure this column repeated on every row.
         new(V2Field.OpenInterest, "Open", CallTone.OpenInterest, 124, Cut: "oi", Spark: true, LabelBreak: "interest"),
-        new(V2Field.Multiplier, "Multiplier", CallTone.OpenInterest, 72),
 
         // ── The depth sweep: the slowest of the three, and the one that goes quiet first ────
         // Bid size / ask size mirrored the same way as bid/ask above.
         new(V2Field.BidSize, "Bid / Ask size", CallTone.Depth, 100, PairedField: V2Field.AskSize),
-        new(V2Field.Depth10, "Depth 10bps", CallTone.Depth, 116),
+        // Prompt 2.1, W-3: DEPTH 10BPS / DEPTH 50BPS fold into this column's own second sub-line
+        // (V2Cells.FoldedDepth) — one live column instead of three, DEPTH 25BPS by default,
+        // still the cut this header opens band 2/3 to.
         new(V2Field.Depth25, "Depth", CallTone.Depth, 116, Cut: "depth25", Spark: true, LabelBreak: "25bps"),
-        new(V2Field.Depth50, "Depth 50bps", CallTone.Depth, 116),
         new(V2Field.BookReach, "Book reach", CallTone.Depth, 100),
     ];
 

@@ -98,8 +98,14 @@
     wickUpColor: v('--candle-up'),
     wickDownColor: v('--candle-down'),
     borderVisible: true,
-    priceLineVisible: false,
-    lastValueVisible: false,
+    // Prompt 2, U-13: the last CLOSE as a right-axis label — the one figure of the four in the
+    // OHLC line above that also earns a permanent mark on the scale itself, because it is the
+    // number every other panel's own close is being read against. The line is --border-hairline,
+    // not either candle ink: a price LEVEL is not a candle direction, and colouring it up/down
+    // would make it look like a verdict on the bar it rests beside rather than an axis mark.
+    priceLineVisible: true,
+    priceLineColor: v('--border-hairline'),
+    lastValueVisible: true,
   });
 
   // ─────────────────────────────────────────────────────────────────────────────────────────────

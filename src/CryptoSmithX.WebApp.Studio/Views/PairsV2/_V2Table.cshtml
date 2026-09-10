@@ -4,6 +4,12 @@
     // Партиал, а не кусок страницы, потому что ЭТО и есть то, что пересылает живой поток: одна
     // разметка на первую отрисовку и на каждое обновление. Второй экземпляр той же таблицы —
     // ровно тот способ, которым страница начинает расходиться сама с собой через месяц.
+
+    // Prompt 2.1, W-1: LAST TRADE stays out of the grid while every row is "—" — computed here,
+    // from the same rows array every render already has, rather than a track this table always
+    // pays for on the one column that is usually empty by construction (Hyperliquid's last_price
+    // is the book's own mid, never a trade).
+    var lastTradeHasData = Model.Rows.Any(r => r.Row.LastTradeAt is not null);
 }
 @* ── полоса 1: таблица ─────────────────────────────────────────────────────── *@
 <section class="v2-band" id="band-table" data-live-region="table">
@@ -39,7 +45,8 @@
             @foreach (var c in V2Columns.All)
             {
                 <span class="v2-hcell" data-tone="@c.Call.ToString().ToLowerInvariant()"
-                      data-cut="@c.Cut" data-col="@c.Field">
+                      data-cut="@c.Cut" data-col="@c.Field"
+                      hidden="@(c.Field == V2Field.LastTrade && !lastTradeHasData ? "hidden" : null)">
                     @{
                         // Prompt 2, U-6: the label wraps after the noun ("SPREAD" over "BPS"),
                         // never wherever the browser happens to break the line — one text node,
@@ -90,7 +97,10 @@
                     <span class="v2-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em></span>
                     <span class="v2-symbol">
                         @r.Row.Symbol
-                        <em>@(r.Row.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(r.Row.ContractMultiplier, 0))</em>
+                        @* Prompt 2.1, W-1 / Prompt 3, N-3: "×1", not "1 : 1" — the MULTIPLIER
+                           column is gone (folded here, its only home now), and ×1 reads as the
+                           same fact in the same three characters every other multiplier uses. *@
+                        <em>×@Format.Num(r.Row.ContractMultiplier, 0)</em>
                     </span>
 
                     @* Три вызова на ОДНОЙ рампе, каждый по своей доле СВОЕГО окна: цена ждёт 30 с,
@@ -178,7 +188,8 @@
                     var late = Freshness.PastWindow(age.Age, age.Window, age.Cadence);
 
                     <span class="v2-cell@(late ? " v2-cell--late" : "")" data-group="@c.Field" data-tone="@c.Call.ToString().ToLowerInvariant()"
-                          data-label="@c.Label">
+                          data-label="@c.Label"
+                          hidden="@(c.Field == V2Field.LastTrade && !lastTradeHasData ? "hidden" : null)">
                         @* Марка и число — один блок с одной заливкой под обоими; слово стоит мелко
                            у головы числа. Число держит свой цвет: покрасить измерение в цвет
                            суждения о нём значит сказать, что это другая величина. *@
@@ -193,6 +204,12 @@
                             @if (cell.Sub is not null)
                             {
                                 <span class="v2-figsub">@cell.Sub</span>
+                            }
+                            @* Prompt 2.1, W-3: DEPTH 25BPS's own second sub-line — the two folded
+                               bands. Two sub-lines max on this page; nothing emits a third. *@
+                            @if (cell.Sub2 is not null)
+                            {
+                                <span class="v2-figsub">@cell.Sub2</span>
                             }
                         }
                         else

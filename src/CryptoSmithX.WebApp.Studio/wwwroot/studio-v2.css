@@ -231,7 +231,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-cellage--late{color:var(--accent)}
 
 .v2-hrow{background:var(--surface-sunken)}
-.v2-hcell{display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding:5px 8px 6px;border-left:1px solid var(--border-hairline)}
+/* Prompt 2.1, W-5: matches .v2-cell's own 6px — a header stays aligned with the column under it. */
+.v2-hcell{display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding:5px 6px 6px;border-left:1px solid var(--border-hairline)}
 /* ── Раскраска по ВЫЗОВУ ─────────────────────────────────────────────────────
    Как на первой странице: колонка носит цвет того вызова, который её написал. Тикер, свип
    глубины и открытый интерес отвечают с разной частотой и ломаются порознь, и это первое, что
@@ -297,7 +298,10 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* Prompt 2, U-3: 4px vertical padding and a 1px stack gap, down from 5/2 — with the age line
    gone from all but a late cell the row no longer needs the slack that line's text used to
    force, and the row track can follow it down. */
-.v2-cell{display:flex;flex-direction:column;align-items:flex-end;gap:1px;padding:4px 8px;
+/* Prompt 2.1, W-5: 6px horizontal, down from 8 — one of the widths that goes toward fitting band
+   1 at 1920px without a horizontal scrollbar. Group-header padding (.v2-hcell above) is
+   unchanged. */
+.v2-cell{display:flex;flex-direction:column;align-items:flex-end;gap:1px;padding:4px 6px;
   border-left:1px solid var(--border-hairline);min-width:0}
 .v2-fig{font:400 var(--fs-body)/1.1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
 .v2-fig--none{color:var(--text-unmeasured)}
@@ -802,6 +806,9 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
 .v2-cov-cell{position:relative;display:flex;align-items:center;justify-content:center;padding:6px 0;
   font:400 var(--fs-data)/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);
   background:color-mix(in srgb, var(--money-up,#2F5A00) var(--held,0%), var(--surface-sunken))}
+/* Prompt 2.1, W-1: CLOCK DRIFT is not a coverage percentage — no --held, so the base rule's own
+   default (0%, flat --surface-sunken) already reads as neutral; only the past-2s ink changes. */
+.v2-cov-cell--drift-late{color:var(--accent)}
 
 /* HELD: the base rule above already is this state (the green scale, nothing else) — the modifier
    exists so the state has a name in the DOM even where it changes nothing. */
