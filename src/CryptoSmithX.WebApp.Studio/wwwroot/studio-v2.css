@@ -60,8 +60,12 @@
 
 /* CSX Arena — the reset the surface assumes. */
 *,*::before,*::after{box-sizing:border-box}
+/* On a screen wider than the page's own cap, html carries the same paper colour so the gutter on
+   either side reads as margin, not as the page stopping short. */
+html{background:var(--surface-page)}
 body{
-  margin:0;
+  max-width:1920px;
+  margin:0 auto;
   background:var(--surface-page);
   background-image:var(--dot-pattern);
   background-size:var(--dot-size) var(--dot-size);
@@ -125,7 +129,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* CSX Arena — the reset the surface assumes. */
 *,*::before,*::after{box-sizing:border-box}
 body{
-  margin:0;
+  max-width:1920px;
+  margin:0 auto;
   background:var(--surface-page);
   background-image:var(--dot-pattern);
   background-size:var(--dot-size) var(--dot-size);
