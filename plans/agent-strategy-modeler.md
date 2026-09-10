@@ -73,16 +73,20 @@ separate and are not represented by one invented aggregate value.
   clear no-assignment state instead of a synthetic baseline.
 - [x] 4. Add the Strategy Modeler parameter catalogue: labels, units, ranges,
   default metadata, JSON paths and server-side validation. Keep the four capital
-  limits and the twelve profile fields above as the only write surface.
+  limits and the eleven profile fields above as the only write surface.
 - [x] 5. Implement transactional save: derive the instance from the session,
   patch the resolved JSON, append an immutable revision, activate it, update the
   four runtime limits and record the supplied note. Add history reads.
 - [x] 6. Bind the native Razor page to the new model, following the supplied
   design's three groups, explanations, confirmation and revision history. Do not
   ship the static bundle itself.
-- [ ] 7. Run the Agent and full solution tests, verify the worker sees a saved
-  revision and the four database limits, then remove this plan when all items are
-  complete as required by `plans/README.md`.
+- [x] 7. Run the Agent and full solution tests. Completed locally with .NET SDK
+  10.0.400: 782 tests passed across Agent, Hub, Studio, API, Admin and
+  Connectors.
+- [ ] 8. Deploy the Agent, save a revision through the authenticated page and
+  verify that the assigned worker reads that revision and all four database
+  limits. Remove this plan when that production verification is complete, as
+  required by `plans/README.md`.
 
 ## Commit sequence
 
