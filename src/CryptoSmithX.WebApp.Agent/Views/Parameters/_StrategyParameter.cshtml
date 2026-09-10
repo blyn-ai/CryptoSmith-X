@@ -19,10 +19,24 @@ else
 </span>
 @if (!Model.IsEnabled)
 {
-    <span class="hint">Disabled by this profile's ATR trailing mode.</span>
+    <span class="hint">Išjungta šio profilio ATR trailing režimu.</span>
 }
 @if (Model.Error is { } error)
 {
     <span class="bad-msg">@error</span>
 }
+<span class="field-scale"><span>← @definition.LowerCaption</span><span>@definition.HigherCaption →</span></span>
+<p class="field-description">@definition.Description</p>
+<p class="field-example">@definition.Example</p>
+<details class="field-details">
+<summary>Išsamiau</summary>
+<div>
+<p>@definition.DetailIntro</p>
+<dl>
+<div><dt>Mažiau</dt><dd>@definition.LowerImpact</dd></div>
+<div><dt>Daugiau</dt><dd>@definition.HigherImpact</dd></div>
+<div><dt>Kaip tai veikia techniškai</dt><dd>@definition.Technical</dd></div>
+</dl>
+</div>
+</details>
 </label>

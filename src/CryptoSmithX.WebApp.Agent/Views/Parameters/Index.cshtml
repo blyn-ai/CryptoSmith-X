@@ -1,15 +1,16 @@
 @using System.Globalization
-@using CryptoSmithX.WebApp.Agent.Data
 @using CryptoSmithX.WebApp.Agent.Models
 @model ParametersViewModel
 @{
-    ViewData["Title"] = "Strategy modeler";
+    ViewData["Title"] = "Strategijos nustatymai";
     ViewData["PageClass"] = "p-params";
 
     string? Err(string key) => Model.Errors.TryGetValue(key, out var message) ? message : null;
     StrategyParameterViewModel Parameter(string id) => Model.StrategyParameters.Single(parameter => parameter.Definition.Id == id);
-    var tradeParameters = new[] { Parameter("markets"), Parameter("volume"), Parameter("spread"), Parameter("longScore"), Parameter("shortScore"), Parameter("btcDrop"), Parameter("btcBars") };
+    var tradeParameters = new[] { Parameter("markets"), Parameter("volume"), Parameter("longScore"), Parameter("shortScore"), Parameter("spread"), Parameter("btcDrop"), Parameter("btcBars") };
     var exitParameters = new[] { Parameter("stop"), Parameter("trail"), Parameter("maxHold"), Parameter("cooldown") };
+    var exposure = Model.Profile.PositionMarginUsd * Model.Profile.Leverage * Model.Profile.MaxOpenPositions;
+    var elevatedRisk = exposure >= 10_000m || Model.Profile.Leverage >= 8m;
 }
 
 <header class="head">
@@ -22,33 +23,26 @@
 <span class="wordmark">CryptoSmith X</span>
 </span>
 <span class="account">
-<span class="who">@User.Identity?.Name · @Model.PublicAlias</span>
-<form method="post" asp-controller="Home" asp-action="Logout">
-<button type="submit" class="logout">Sign out</button>
-</form>
+<span class="who">@User.Identity?.Name</span>
+<form method="post" asp-controller="Home" asp-action="Logout"><button type="submit" class="logout">Atsijungti</button></form>
 </span>
 </header>
 
 <main>
-<section class="modeler-intro" aria-label="Active strategy">
-<div>
-<span class="eyebrow">Strategy modeler</span>
-<h1>@Model.StrategyProfileName</h1>
-<p>Revision @Model.StrategyRevision · @Model.BotInstanceId</p>
+<div class="modeler-heading">
+<h1>Strategijos nustatymai</h1>
+<span class="profile-line"><span>@Model.StrategyProfileName</span><span>Profilis · @Model.BotInstanceId · rev. @Model.StrategyRevision</span></span>
+<p>Viršuje — pinigai ir ekspozicija · žemiau — kaip agresyviai botas elgiasi · apačioje — išėjimo taisyklės.</p>
 </div>
-<span id="status" data-state="saved" data-idle="Database values">Database values</span>
-</section>
 
 @if (Model.JustSaved)
 {
-    <p class="landed" role="status">Saved. New entries use the revision and limits after the workers refresh; open positions are unchanged.</p>
+    <p class="landed" role="status">Išsaugota. Nauji įėjimai naudos šią strategijos reviziją po kito worker atnaujinimo. Jau atidarytos pozicijos nesikeis.</p>
 }
-
 @if (Model.SaveConflict)
 {
-    <p class="refused" role="alert">The strategy changed before this save completed. The current revision is shown below; review it and save again.</p>
+    <p class="refused" role="alert">Strategija pasikeitė, kol buvo atidarytas šis puslapis. Žemiau rodoma dabartinė revizija — peržiūrėk ir išsaugok dar kartą.</p>
 }
-
 @if (Err("strategy") is { } strategyError)
 {
     <p class="refused" role="alert">@strategyError</p>
@@ -57,83 +51,62 @@
 <form id="limits" method="post" asp-action="Save" class="modeler-form">
 <input type="hidden" name="strategyProfileId" value="@Model.StrategyProfileId">
 <input type="hidden" name="strategyRevision" value="@Model.StrategyRevision">
+<input type="hidden" name="changeNote" id="change-note">
 
-<section class="panel modeler-group">
-<div class="panel-head">
-<span class="eyebrow">Capital and limits</span>
-<span class="group-detail">New entries</span>
+<section class="modeler-section">
+<div class="section-heading"><span>1</span><h2>Kapitalas ir limitai</h2><span>Redaguojama</span></div>
+<div class="modeler-grid">
+@foreach (var limit in Model.RuntimeLimits)
+{
+    <partial name="_RuntimeLimit" model="limit" />
+}
 </div>
-<div class="group-fields">
-<label class="field @(Err(TradeProfileKeys.PositionMarginUsd) is null ? null : "bad")">
-<span class="label">Position margin</span>
-<span class="affix"><input type="number" name="positionMarginUsd" inputmode="decimal" min="0.01" step="0.01" required value="@Model.Profile.PositionMarginUsd.ToString(CultureInfo.InvariantCulture)"><span class="unit">USD</span></span>
-<span class="hint">Your own margin on one new trade. Notional = margin × leverage.</span>
-@if (Err(TradeProfileKeys.PositionMarginUsd) is { } marginError) { <span class="bad-msg">@marginError</span> }
-</label>
-<label class="field @(Err(TradeProfileKeys.Leverage) is null ? null : "bad")">
-<span class="label">Leverage</span>
-<span class="affix"><input type="number" name="leverage" inputmode="decimal" min="1" max="10" step="0.1" required value="@Model.Profile.Leverage.ToString(CultureInfo.InvariantCulture)"><span class="unit">x</span></span>
-<span class="hint">1 to 10. Applies only to new trades.</span>
-@if (Err(TradeProfileKeys.Leverage) is { } leverageError) { <span class="bad-msg">@leverageError</span> }
-</label>
-<label class="field @(Err(TradeProfileKeys.MaxOpenPositions) is null ? null : "bad")">
-<span class="label">Maximum open positions</span>
-<input type="number" name="maxOpenPositions" inputmode="numeric" min="1" max="20" step="1" required value="@Model.Profile.MaxOpenPositions">
-@if (Err(TradeProfileKeys.MaxOpenPositions) is { } positionsError) { <span class="bad-msg">@positionsError</span> }
-</label>
-<label class="field @(Err(TradeProfileKeys.MaxOpenPositionsPerGroup) is null ? null : "bad")">
-<span class="label">Maximum positions per group</span>
-<input type="number" name="maxOpenPositionsPerGroup" inputmode="numeric" min="1" max="20" step="1" required value="@Model.Profile.MaxOpenPositionsPerGroup">
-<span class="hint">Cannot exceed the total maximum.</span>
-@if (Err(TradeProfileKeys.MaxOpenPositionsPerGroup) is { } groupError) { <span class="bad-msg">@groupError</span> }
-</label>
+<div class="risk-panel @(elevatedRisk ? "elevated" : null)" data-risk-panel>
+<span><span>Rizikos lygis</span><strong data-risk-level>@(elevatedRisk ? "Padidintas" : "Įprastas")</strong></span>
+<p data-risk-text>@Model.Profile.PositionMarginUsd.ToString("0.##", CultureInfo.InvariantCulture) USD × @Model.Profile.Leverage.ToString("0.#", CultureInfo.InvariantCulture) svertas × iki @Model.Profile.MaxOpenPositions pozicijų gali reikšti iki @exposure.ToString("0.##", CultureInfo.InvariantCulture) USD bendros ekspozicijos rinkoje.</p>
 </div>
 </section>
 
-<section class="panel modeler-group">
-<div class="panel-head">
-<span class="eyebrow">Market selection and entries</span>
-<span class="group-detail">Profile revision</span>
-</div>
-<div class="group-fields">
+<section class="modeler-section">
+<div class="section-heading"><span>2</span><h2>Prekybos elgsena</h2><span>Redaguojama</span></div>
+<p class="section-note">Šie nustatymai keičia tik naujų sandorių atranką. Sudėtinės taisyklės, turinčios kelias ribas, rodomos atskirai.</p>
+<div class="modeler-grid">
 @foreach (var parameter in tradeParameters)
 {
     <partial name="_StrategyParameter" model="parameter" />
 }
 <div class="read-only-card">
-<span class="label">Anti-chase zone</span>
-<span class="read-only-value">Preserved by the active profile</span>
-<span class="hint">The component thresholds remain separate. This page does not hide them behind one invented number.</span>
+<span class="label">Vėlyvo įėjimo apsauga</span>
+<span class="read-only-value">Sudėtinė taisyklė</span>
+<p>Botas tikrina kelias ribas, kad neįeitų į jau per toli nuėjusią kainą.</p>
+<p class="field-example">Šios ribos išlieka strategijos profilyje ir šiame ekrane jų nesujungiame į vieną išgalvotą skaičių.</p>
 </div>
 </div>
 </section>
 
-<section class="panel modeler-group">
-<div class="panel-head">
-<span class="eyebrow">Position exits</span>
-<span class="group-detail">Profile revision</span>
-</div>
-<div class="group-fields">
+<section class="modeler-section">
+<div class="section-heading"><span>3</span><h2>Rizika ir išėjimas</h2><span>Redaguojama</span></div>
+<div class="modeler-grid">
 @foreach (var parameter in exitParameters)
 {
     <partial name="_StrategyParameter" model="parameter" />
 }
-<label class="field @(Err("changeNote") is null ? null : "bad")">
-<span class="label">Revision note</span>
-<textarea name="changeNote" maxlength="1000" rows="3" placeholder="Why this revision is being saved"></textarea>
-<span class="hint">Recorded with the immutable profile revision.</span>
-@if (Err("changeNote") is { } noteError) { <span class="bad-msg">@noteError</span> }
-</label>
 </div>
-<div class="group-actions"><button type="submit" class="save">Save revision</button></div>
+</section>
+
+<section class="sticky-save">
+<span id="status" data-state="saved" data-idle="Išsaugota">Išsaugota</span>
+<button type="submit" class="save">Išsaugoti</button>
+<p>Pakeitimai bus taikomi naujoms pozicijoms. Jau atidarytos pozicijos nesikeis.</p>
 </section>
 </form>
 
-<section class="panel revision-history">
-<div class="panel-head"><span class="eyebrow">Recent revisions</span></div>
+<section class="modeler-section revision-history" id="revision-history">
+<div class="section-heading"><span>4</span><h2>Išsaugoti nustatymai</h2><span>Tik peržiūrai</span></div>
+<p class="section-intro">Kiekvienas išsaugojimas sukuria nekintamą strategijos reviziją.</p>
 @if (Model.RevisionHistory.Count == 0)
 {
-    <p class="empty">No revision history is available.</p>
+    <p class="empty">Kol kas nėra išsaugotų strategijos revizijų.</p>
 }
 else
 {
@@ -141,7 +114,7 @@ else
     @foreach (var revision in Model.RevisionHistory)
     {
         <li>
-            <span>Revision @revision.Revision</span>
+            <span>Revizija @revision.Revision</span>
             <time datetime="@revision.CreatedAt.ToUniversalTime().ToString("O")">@revision.CreatedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm") UTC</time>
             @if (!string.IsNullOrWhiteSpace(revision.ChangeNote)) { <p>@revision.ChangeNote</p> }
         </li>
@@ -150,19 +123,21 @@ else
 }
 </section>
 
-<p class="compliance">Not investment advice · Own funds only</p>
+<p class="compliance">Ne investavimo rekomendacija · Tik nuosavos lėšos</p>
 
 <dialog id="confirm" class="confirm" aria-labelledby="confirm-title">
 <form method="dialog">
-<p class="confirm-eyebrow" id="confirm-title">Save revision @(@Model.StrategyRevision + 1)?</p>
+<p class="confirm-eyebrow" id="confirm-title">Išsaugoti nustatymus</p>
+<p class="confirm-caption">Bus sukurta strategijos revizija @(@Model.StrategyRevision + 1).</p>
 <dl class="confirm-list">
-<div><dt>Position margin</dt><dd data-for="positionMarginUsd"></dd></div>
-<div><dt>Leverage</dt><dd data-for="leverage"></dd></div>
-<div><dt>Maximum open positions</dt><dd data-for="maxOpenPositions"></dd></div>
-<div><dt>Maximum per group</dt><dd data-for="maxOpenPositionsPerGroup"></dd></div>
+<div><dt>Pozicijos marža</dt><dd data-for="positionMarginUsd"></dd></div>
+<div><dt>Svertas</dt><dd data-for="leverage"></dd></div>
+<div><dt>Daugiausia atvirų pozicijų</dt><dd data-for="maxOpenPositions"></dd></div>
+<div><dt>Daugiausia vienoje grupėje</dt><dd data-for="maxOpenPositionsPerGroup"></dd></div>
 </dl>
-<p class="confirm-note">This appends one strategy revision and updates the four limits together. It affects new entries only.</p>
-<div class="confirm-actions"><button type="submit" value="cancel" class="confirm-no">Cancel</button><button type="submit" value="save" class="confirm-yes">Save</button></div>
+<label class="dialog-note"><span>Pastabos</span><textarea id="revision-note" maxlength="1000" rows="3" placeholder="Pvz. mažesnis svertas savaitgaliui"></textarea><small>Neprivaloma. Padeda vėliau atpažinti, kodėl taip nustatei.</small></label>
+<p class="confirm-note">Pakeitimai bus taikomi naujoms pozicijoms. Jau atidarytos pozicijos nesikeis.</p>
+<div class="confirm-actions"><button type="submit" value="cancel" class="confirm-no">Atšaukti</button><button type="submit" value="save" class="confirm-yes">Išsaugoti</button></div>
 </form>
 </dialog>
 </main>

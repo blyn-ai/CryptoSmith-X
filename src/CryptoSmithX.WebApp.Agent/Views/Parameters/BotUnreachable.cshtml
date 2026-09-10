@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "Bot unreachable";
+    ViewData["Title"] = "Botas nepasiekiamas";
     ViewData["PageClass"] = "p-params";
 }
 
@@ -15,7 +15,7 @@
 <span class="account">
 <span class="who">@User.Identity?.Name</span>
 <form method="post" asp-controller="Home" asp-action="Logout">
-<button type="submit" class="logout">Sign out</button>
+<button type="submit" class="logout">Atsijungti</button>
 </form>
 </span>
 </header>
@@ -23,11 +23,11 @@
 <main>
 <section class="panel">
 <div class="panel-head">
-<span class="eyebrow">Trading limits</span>
+<span class="eyebrow">Strategijos nustatymai</span>
 </div>
 @* Deliberately not an empty form. A form nobody could save is an invitation to type numbers
    into nothing, and this account genuinely owns no bot instance rather than owning one with
    no values. *@
-<p class="note-source" style="margin:14px 12px">The bot’s database cannot be reached from here right now, so these values cannot be read or changed. Nothing has been altered. /agent/health says which of the two databases is down.</p>
+<p class="note-source" style="margin:14px 12px">Boto duomenų bazė šiuo metu nepasiekiama, todėl šių reikšmių negalima perskaityti ar pakeisti. Niekas nepakeista. /agent/health parodo, kuri iš dviejų duomenų bazių nepasiekiama.</p>
 </section>
 </main>

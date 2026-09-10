@@ -15,10 +15,10 @@
   if (!form) { return; }
 
   if (status) {
-    var idle = status.dataset.idle || 'Saved';
+    var idle = status.dataset.idle || 'Išsaugota';
     form.addEventListener('input', function () {
       status.dataset.state = 'dirty';
-      status.textContent = 'Unsaved changes';
+      status.textContent = 'Neišsaugoti pakeitimai';
     });
     // pageshow rather than load: coming back with the Back button restores the fields from the
     // browser's cache, and a status left reading "Saving…" from the visit before would be a lie
@@ -32,6 +32,37 @@
   if (!dialog || typeof dialog.showModal !== 'function') { return; }
 
   var confirmed = false;
+  var note = document.getElementById('revision-note');
+  var noteTarget = document.getElementById('change-note');
+  var riskPanel = document.querySelector('[data-risk-panel]');
+  var riskLevel = document.querySelector('[data-risk-level]');
+  var riskText = document.querySelector('[data-risk-text]');
+
+  function numberValue(name) {
+    var field = form.elements[name];
+    return field ? Number(field.value) : NaN;
+  }
+
+  function updateRisk() {
+    if (!riskPanel || !riskLevel || !riskText) { return; }
+    var margin = numberValue('positionMarginUsd');
+    var leverage = numberValue('leverage');
+    var positions = numberValue('maxOpenPositions');
+    if (!Number.isFinite(margin) || !Number.isFinite(leverage) || !Number.isFinite(positions)) {
+      riskLevel.textContent = '—';
+      riskText.textContent = 'Užpildyk visus laukus, kad būtų galima suskaičiuoti bendrą ekspoziciją.';
+      riskPanel.classList.remove('elevated');
+      return;
+    }
+    var exposure = margin * leverage * positions;
+    var elevated = exposure >= 10000 || leverage >= 8;
+    riskLevel.textContent = elevated ? 'Padidintas' : 'Įprastas';
+    riskText.textContent = margin.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' USD × ' + leverage.toLocaleString('en-US', { maximumFractionDigits: 1 }) + ' svertas × iki ' + positions.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' pozicijų gali reikšti iki ' + exposure.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' USD bendros ekspozicijos rinkoje.';
+    riskPanel.classList.toggle('elevated', elevated);
+  }
+
+  updateRisk();
+  form.addEventListener('input', updateRisk);
 
   form.addEventListener('submit', function (e) {
     if (confirmed) { return; }
@@ -52,7 +83,8 @@
   dialog.addEventListener('close', function () {
     if (dialog.returnValue !== 'save') { return; }
     confirmed = true;
-    if (status) { status.dataset.state = 'saving'; status.textContent = 'Saving…'; }
+    if (noteTarget) { noteTarget.value = note ? note.value : ''; }
+    if (status) { status.dataset.state = 'saving'; status.textContent = 'Saugoma…'; }
     // requestSubmit, not submit(): submit() skips the submit event AND the submit button, and this
     // form has no name on its button to lose — but it also skips validation, and one day it will.
     if (typeof form.requestSubmit === 'function') { form.requestSubmit(); } else { form.submit(); }
