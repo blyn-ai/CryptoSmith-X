@@ -131,8 +131,13 @@ public sealed class PairsV2Controller : LivePageController
         // href is this action's own real address, and without the header it renders the full page.
         if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
         {
-            var head = await RenderPartialAsync("~/Views/PairsV2/_V2Band3Head.cshtml", model);
-            var cuts = await RenderPartialAsync("~/Views/PairsV2/_V2Band3Cuts.cshtml", model);
+            // Plain name, not a ~/ path: RenderPartialAsync calls ViewEngine.FindView, which
+            // resolves by the CONTROLLER-RELATIVE convention (the same one <partial name="..."/>
+            // uses) rather than by path — exactly how _V2Table/_V2Now are already named for the
+            // live-push loop above. A ~/Views/... path is what GetView wants, not FindView, and
+            // fails there with "not found" even though the file is real.
+            var head = await RenderPartialAsync("_V2Band3Head", model);
+            var cuts = await RenderPartialAsync("_V2Band3Cuts", model);
             var url = Url.RouteUrl("asset-v2", new
             {
                 controller = "PairsV2", action = "Asset", baseFamily,
