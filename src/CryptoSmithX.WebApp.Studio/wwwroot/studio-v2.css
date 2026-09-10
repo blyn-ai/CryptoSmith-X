@@ -267,18 +267,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* Метка, съехавшая за край шкалы, рисуется цветом карточки: она стоит на потраченном конце
    градиента, и чернильная там читалась бы как измерение, а не как край. */
 .v2-strip .a-strip-tick--spent{background:var(--surface-card)}
-/* Возраст в этой клетке сказан ДВАЖДЫ, а не трижды: полоска расставляет вызовы, строка под ней
-   называет все три. Концы полоски молчат — их называет title метки, — и открывают рот только
-   когда вызов просрочен: △ и слово видны всегда (правило 3, строка возраста не гаснет). */
-.v2-strip-ends{display:flex;justify-content:flex-end;gap:var(--space-3);
-  font:400 8.5px/1.2 var(--font-mono);letter-spacing:var(--track-age);color:var(--text-faint)}
-.v2-strip-ends [data-fresh]{display:none}
-.v2-strip-ends [data-old] .a-lab,.v2-strip-ends [data-old] .a-tok{display:none}
-.v2-strip-ends [data-old].a-spent .a-lab,.v2-strip-ends [data-old].a-spent .a-tok{display:inline}
-.v2-strip-ends .a-tri{font-style:normal;display:inline-block;width:1ch}
-.v2-strip-ends .a-spent{color:var(--accent)}
-/* Смешанный регистр и разделители точками: «Price 6 s · Depth 13 s · OI 45 s». Капс здесь
-   превращал три подписи в три аббревиатуры, а пробел перед единицей съедался вместе с ним. */
+/* P0-3 removed the fresh/old summary line (.v2-strip-ends) — it named one call's age a second
+   time, on top of the full three-call line below, which already names all three and already
+   marks the late one (.v2-ages .a-spent). Смешанный регистр и разделители точками: «Price 6 s ·
+   Depth 13 s · OI 45 s». Капс здесь превращал три подписи в три аббревиатуры, а пробел перед
+   единицей съедался вместе с ним. */
 .v2-ages{display:flex;flex-wrap:nowrap;gap:var(--space-3);font:400 var(--fs-age)/1.4 var(--font-mono);
   color:var(--text-faint);white-space:nowrap}
 .v2-ages > span + span::before{content:"·";margin-right:var(--space-3);color:var(--text-unmeasured)}
@@ -287,7 +280,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    чем «10 s»: строка дёргалась раз в секунду в каждой из пяти строк таблицы. Измерено — 18
    сдвигов раскладки за четырнадцать секунд, CLS 0.048, и это ровно то мелкое дрожание, которое
    остаётся после всех крупных починок. Первая страница решает это тем же способом. */
-.v2-ages .a-tok,.v2-strip-ends .a-tok{display:inline-block;min-width:4ch;text-align:right;
+.v2-ages .a-tok{display:inline-block;min-width:4ch;text-align:right;
   font-variant-numeric:tabular-nums}
 
 /* ПЛОТНО. Ради плотности эта таблица и устроена как таблица; десять пикселей полей на семь
@@ -365,6 +358,15 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-cell,.v2-hcell{transition:background-color 120ms linear}
 .v2-cell.is-col,.v2-hcell.is-col{background:color-mix(in srgb,var(--text-data) 8%,transparent);
   box-shadow:inset 1px 0 0 var(--border-hairline),inset -1px 0 0 var(--border-hairline)}
+
+/* P0-4 (UX audit): one predicate for "late" — Freshness.PastWindow, the same one the age text
+   under the figure already used for its own magenta — now also draws a 2px rule on the cell
+   itself. box-shadow, not border: the cell's own border-left stays 1px in both states (.v2-cell
+   already declares it), so a cell going late never shifts the figure inside it or its neighbour.
+   Combined with .is-col explicitly, because two rules that each set the whole box-shadow property
+   would have one silently overwrite the other instead of drawing both. */
+.v2-cell--late{box-shadow:inset 2px 0 0 0 var(--accent)}
+.v2-cell--late.is-col{box-shadow:inset 2px 0 0 0 var(--accent),inset -1px 0 0 var(--border-hairline)}
 
 /* ── Спарклайн в свёрнутой клетке ───────────────────────────────────────────── */
 /* Справка о направлении, а не второй главный объект: вдвое короче, прижат вправо под цифру,

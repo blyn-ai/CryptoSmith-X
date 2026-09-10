@@ -43,7 +43,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=45">
+    <link rel="stylesheet" href="~/studio-v2.css?v=46">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -96,7 +96,15 @@
     @* ЗАГОЛОВОК НАЗЫВАЕТ НАХОДКУ, а не пересчитывает строки. «Five listings quote ADA.» — это
        оглавление таблицы, которая и так ниже; вторая фраза — то, ради чего страницу открыли:
        что именно с этими пятью не так прямо сейчас. Считает её Statement.Verdict — тот же код,
-       что и на первой странице, и он же обновляется живым потоком через data-statement-verdict. *@
+       что и на первой странице.
+       data-statement-verdict НЕ ПЕРЕПИСЫВАЕТСЯ живым потоком — .v2-title лежит снаружи и
+       #band-table, и #band-now, единственных [data-live-region] на этой странице (studio-live.js
+       патчит только их). Комментарий здесь раньше утверждал обратное; это было неверно. Сама фраза
+       пересчитывается заново при каждой полной перезагрузке страницы — P0-4 (UX audit) просил
+       живой, дебаунсенный пересчёт на клиенте, и это осталось не сделано в этом заходе: тот же
+       массив, Statement.LateCalls, уже разделён между заголовком, клеткой (V2Cells.cs) и списком
+       пробелов ниже — не хватает только тикающего клиента, который бы звал его каждую секунду,
+       как studio-ages.js уже делает для возрастов. *@
     <h1>@Model.Listings listings quote @Model.BaseFamily.
         <em data-statement-verdict>@Statement.Verdict(Model.Rows)</em></h1>
     <span class="v2-meta">
@@ -482,6 +490,18 @@
         @{
             var lines = GapLine.Fold(Model.Gaps);
 
+            // P0-4 (UX audit): the SAME array the H1 counts and band 1's cell rule marks — a call
+            // past its own window right now gets a synthetic OPEN row here too, so a reader who
+            // reads the headline, then the table, then this list, sees one fact told three times
+            // rather than three numbers that might not agree. StripCall.Label ("Price"/"Depth"/
+            // "OI") maps onto the matrix's dataset codes for data-cell — Depth IS r.Ages.DepthSeconds,
+            // the same clock V2Coverage.Cell reads for the "book" dataset's own LIVE/STALE state.
+            var lateCalls = Statement.LateCalls(Model.Rows);
+            string LateDataset(string label) => label switch
+            {
+                "Price" => "snapshot", "Depth" => "book", "OI" => "open_interest", _ => label.ToLowerInvariant(),
+            };
+
             @* NEVER — третье состояние, и оно не разрыв: набор, которого у площадки не бывает,
                ничего не терял. Берётся из матрицы наборов, а не из журнала обрывов, потому что
                в журнале его и не может быть. *@
@@ -492,12 +512,22 @@
                 .Distinct()
                 .ToList();
         }
-        @if (lines.Count == 0 && never.Count == 0)
+        @if (lines.Count == 0 && never.Count == 0 && lateCalls.Count == 0)
         {
             <p class="v2-empty v2-empty--inline">Nothing has broken on these venues in the last day.</p>
         }
         else
         {
+            foreach (var late in lateCalls)
+            {
+                <div class="v2-gap" data-cell="@late.Row.Row.SegmentCode:@LateDataset(late.Call.Label)">
+                    <span class="v2-gap-what">@late.Row.Row.ExchangeName · @late.Call.Label</span>
+                    <span class="v2-gap-state v2-gap-state--open">open</span>
+                    <span class="v2-gap-why">Past its window</span>
+                    <span class="v2-gap-when">open @Format.SpacedAge(late.Call.AgeSeconds)</span>
+                </div>
+            }
+
             foreach (var g in lines)
             {
                 @* P0-3: the matrix key is by DATASET code, and a gap row's own Collector is the

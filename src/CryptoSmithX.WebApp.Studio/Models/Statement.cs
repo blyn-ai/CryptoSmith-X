@@ -85,13 +85,13 @@ public static class Statement
             return n == 1 ? OneFeedDegraded : FeedsDegraded(n);
         }
 
-        // Counted, not ranked. The sentence used to pick the oldest call and print its age, which
-        // made the headline a clock; what the reader needs from the largest type on the page is
-        // which of the four states the page is in, and the age of every one of these calls is
-        // already printed under the figure it dates.
-        var late = strips
-            .SelectMany(s => s.Calls)
-            .Count(c => c.PastWindow && c.AgeSeconds is not null);
+        // P0-4 (UX audit): the count IS the array — LateCalls, below — rather than a second
+        // Count(...) that could drift from what band 5's gap list and band 1's per-cell rule are
+        // showing for the exact same instant. Counted, not ranked: the sentence used to pick the
+        // oldest call and print its age, which made the headline a clock; what the reader needs
+        // from the largest type on the page is which of the four states the page is in, and the
+        // age of every one of these calls is already printed under the figure it dates.
+        var late = LateCalls(rows).Count;
 
         if (late > 0)
         {
@@ -110,6 +110,20 @@ public static class Statement
 
         return landed.All(c => c.WindowSeconds is null) ? NoCadence : InsideTheWindow;
     }
+
+    /// <summary>
+    /// P0-4 (UX audit): every call on the page that is past its own window, right now — the ONE
+    /// array <see cref="Verdict"/>'s count, band 1's per-cell rule (V2Cells.cs), and band 5's
+    /// synthetic OPEN gap rows (V2Coverage / Asset.cshtml) all read, so the three can never
+    /// disagree about which calls are late or how many there are. <see cref="Freshness.PastWindow"/>
+    /// is the one predicate underneath all three; this is that predicate walked once over the
+    /// whole page and handed back as data instead of a count.
+    /// </summary>
+    public static IReadOnlyList<(VenueRowModel Row, StripCall Call)> LateCalls(IReadOnlyList<VenueRowModel> rows) =>
+        rows.SelectMany(r => StripModel.Build(r).Calls
+                .Where(c => c.PastWindow && c.AgeSeconds is not null)
+                .Select(c => (Row: r, Call: c)))
+            .ToList();
 
     /// <summary>
     /// Order books quoting this pair — distinct SEGMENTS, which is what the pair list means by

@@ -99,12 +99,11 @@
                         }
                     </span>
 
-                    <span class="v2-strip-ends a-strip-ends">
-                        <span data-fresh><span class="a-lab">@(strip.Degraded ? "" : StripModel.EndLabel(strip.LeastSpent))</span> <span class="a-tok">@(strip.Degraded ? "" : StripModel.EndToken(strip.LeastSpent))</span></span>
-                        <span data-old class="@(strip.MostSpentPastWindow ? "a-spent" : "")"
-                              title="@StripModel.EndTitle(strip.MostSpent, StripModel.MostSpentLabel)"><i class="a-tri">@(strip.MostSpentPastWindow ? Format.PastWindowMark : "")</i><span class="a-lab">@(strip.Degraded ? StripModel.DegradedText : StripModel.EndLabel(strip.MostSpent))</span> <span class="a-tok">@(strip.Degraded ? "" : StripModel.EndToken(strip.MostSpent))</span></span>
-                    </span>
-
+                    @* P0-4 (UX audit): the fresh/old summary line is gone — it said one call's age
+                       TWICE (once here, once again below in the full three-call line), and the
+                       △ on it duplicated the strip's own tick and the full line's own magenta.
+                       The strip places the three calls; the line below names all three, and the
+                       late one is already magenta there (.v2-ages .a-spent, unchanged). *@
                     <span class="v2-ages a-strip-calls">
                         @foreach (var call in strip.Calls)
                         {
@@ -144,7 +143,13 @@
                     }
                     var pairQuoteRule = pairMark is not null && c.PairedField is { } pf2 && V2Ranks.IsQuoteScoped(pf2);
 
-                    <span class="v2-cell" data-group="@c.Field" data-tone="@c.Call.ToString().ToLowerInvariant()"
+                    // P0-4: one predicate — Freshness.PastWindow, the same one the age text below
+                    // already uses for its own magenta (.v2-cellage--late) — now also marks the
+                    // cell itself, so the H1 count, this rule and the age's own colour can never
+                    // read as three different opinions about whether the same call is late.
+                    var late = Freshness.PastWindow(age.Age, age.Window);
+
+                    <span class="v2-cell@(late ? " v2-cell--late" : "")" data-group="@c.Field" data-tone="@c.Call.ToString().ToLowerInvariant()"
                           data-label="@c.Label">
                         @* Марка и число — один блок с одной заливкой под обоими; слово стоит мелко
                            у головы числа. Число держит свой цвет: покрасить измерение в цвет
