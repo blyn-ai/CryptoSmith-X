@@ -43,7 +43,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=42">
+    <link rel="stylesheet" href="~/studio-v2.css?v=43">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -177,6 +177,7 @@
                     data-note="@(c.Key == "price" ? bookNote : c.Unit)"
                     data-series="@c.Name · @c.Unit"
                     data-unit="@(c.Key == "depth25" ? "base units · bid ◂ ▸ ask, one scale" : c.Unit)"
+                    data-rank-note="@c.RankNote"
                     aria-pressed="@(c.Key == "price" ? "true" : "false")">@c.Name</button>
         }
     </span>
@@ -550,7 +551,7 @@
 }
 <script src="~/studio-ages.js?v=5"></script>
 <script src="~/studio-live.js?v=3"></script>
-<script src="~/studio-v2.js?v=19"></script>
+<script src="~/studio-v2.js?v=20"></script>
 <script src="~/studio-disclose.js?v=2"></script>
 <script src="~/studio-v2-band3.js?v=1"></script>
 </body>

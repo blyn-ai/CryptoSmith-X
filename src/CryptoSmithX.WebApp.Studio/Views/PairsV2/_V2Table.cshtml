@@ -67,7 +67,12 @@
                 @* B2: the listing cell opens the instrument's identity/limits/status/spec — the
                    same on-click-once-then-toggle mechanism A1–A4 use (studio-disclose.js), which
                    this page now also loads. *@
+                @* P0-1: data-quote drives the 3px quote-group rule (studio-v2.css) — the same
+                   attribute the chips below carry when their own rank was computed inside this
+                   quote asset, so a reader can trace a BEST chip's colour back to the row it
+                   belongs to. *@
                 <span class="v2-listing a-venue" role="button" tabindex="0" aria-expanded="false"
+                      data-quote="@r.Row.QuoteAsset"
                       data-disclose-url="@Url.Action("InstrumentDetail", "PairsV2", new { instrumentId = r.Row.InstrumentId })"
                       data-disclose-target="instrument-@r.Row.InstrumentId">
                     <span class="v2-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em></span>
@@ -118,6 +123,10 @@
                     var column = V2Ranks.ColumnOf(c.Field);
                     var rank = column is { } rc ? Model.Verdicts.Of(r.Row.InstrumentId, rc) : Verdict.None;
                     var mark = rank == Verdict.None ? null : V2Ranks.Word(c.Field, rank);
+                    // P0-1: only a chip whose rank was computed INSIDE this listing's quote asset
+                    // gets the group rule — a WholePair chip (sizes, OI, spread, book reach) ranked
+                    // across every quote on the page and the rule would misname the comparison.
+                    var quoteRule = mark is not null && V2Ranks.IsQuoteScoped(c.Field);
                     var spark = c.Spark ? Format.SparkPath(V2Columns.Series(r, c), 60, 14) : null;
                     var age = V2Columns.Freshness(r, c);
 
@@ -133,6 +142,7 @@
                         var pairRank = pairColumn is { } prc ? Model.Verdicts.Of(r.Row.InstrumentId, prc) : Verdict.None;
                         pairMark = pairRank == Verdict.None ? null : V2Ranks.Word(pf, pairRank);
                     }
+                    var pairQuoteRule = pairMark is not null && c.PairedField is { } pf2 && V2Ranks.IsQuoteScoped(pf2);
 
                     <span class="v2-cell" data-group="@c.Field" data-tone="@c.Call.ToString().ToLowerInvariant()"
                           data-label="@c.Label">
@@ -142,7 +152,8 @@
                         @if (c.PairedField is null)
                         {
                             <span class="v2-fig @(cell.Value is null ? "v2-fig--none" : "")">
-                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark)">
+                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark)"
+                                      data-quote="@(quoteRule ? r.Row.QuoteAsset : null)">
                                     @if (mark is not null) { <i>@mark</i> }
                                     <span>@cell.Text</span>
                                 </span>
@@ -159,11 +170,13 @@
                                side by side: each still carries its OWN rank, and one venue can
                                hold the best bid and the worst ask at once. *@
                             <span class="v2-fig v2-fig--pair">
-                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark) @(cell.Value is null ? "v2-fig--none" : "")">
+                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark) @(cell.Value is null ? "v2-fig--none" : "")"
+                                      data-quote="@(quoteRule ? r.Row.QuoteAsset : null)">
                                     @if (mark is not null) { <i>@mark</i> }
                                     <span>@cell.Text</span>
                                 </span>
-                                <span class="v2-part @(pairMark is null ? "" : "v2-part--" + pairMark) @(pairCell.Value is null ? "v2-fig--none" : "")">
+                                <span class="v2-part @(pairMark is null ? "" : "v2-part--" + pairMark) @(pairCell.Value is null ? "v2-fig--none" : "")"
+                                      data-quote="@(pairQuoteRule ? r.Row.QuoteAsset : null)">
                                     @if (pairMark is not null) { <i>@pairMark</i> }
                                     <span>@pairCell.Text</span>
                                 </span>
@@ -189,11 +202,14 @@
     </div>
     </div>
 
+    @* P0-1 / P0-5 (UX audit): this paragraph replaces the old one, which claimed a bar REPLACES the
+       BEST chip — false; both exist, on different columns, for different reasons. The sentence
+       this file needs to keep true from here on is the one below, not the one that used to be
+       here. *@
     <p class="v2-legend">
-        A bar is the figure against the largest listing in the same unit, log-scaled — it replaces the
-        BEST chip, which could not tell a book a hundred times larger from one a hair larger.
-        <b>—</b> is not measured and never a zero; a spot book says so once, in words, instead of five
-        empty columns. Ages live in the listing cell, one clock per call, because a figure’s age is a
-        fact about the call that wrote it and not about the cell.
+        Chips on prices and turnover rank inside a quote — the rule on the chip is the quote. Chips
+        on bps and base units rank across every listing.
+        <b>—</b> is not measured and never a zero. A late call is a magenta rule on its cells, one
+        clock per call in the listing cell.
     </p>
 </section>

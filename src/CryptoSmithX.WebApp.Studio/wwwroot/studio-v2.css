@@ -230,6 +230,24 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* Активной каретка стоит у той группы, чьё поле сейчас в полосах 2 и 3 — иначе стрелка
    означает «сюда можно», но никогда «вы здесь». */
 
+/* ── Quote group (P0-1, UX audit prompt 1) ──────────────────────────────────
+   USD, USDT and USDC used to fold into one ranking population and, on this page, into one
+   colourless row: nothing said a USDC ask and a USD bid were different markets until the chip on
+   one of them lied about it. A 3px inset rule — never a border, so it moves nothing — on the
+   listing cell, every NOW row, every book/candle card, and on every chip whose OWN rank was
+   computed inside that exact quote asset (V2Ranks.IsQuoteScoped), names the population without
+   adding a word: a reader can trace a BEST chip's colour straight back to the row it belongs to.
+
+   Inline color-mix() rather than three new custom properties: this file deliberately keeps zero
+   tokens of its own (see the header above — three duplicated copies of ds/tokens/* is the bug
+   this file was rewritten to stop being able to have again), so the three tints are derived
+   inline, from tokens the design system already ships and already themes for ink/paper. Muted on
+   purpose — none of the three is the accent (magenta, worst) or the brand fill (acid, best). */
+[data-quote]{box-shadow:inset 3px 0 0 0 var(--text-faint)}
+[data-quote="USD"]{box-shadow:inset 3px 0 0 0 var(--text-heading)}
+[data-quote="USDT"]{box-shadow:inset 3px 0 0 0 var(--call-depth)}
+[data-quote="USDC"]{box-shadow:inset 3px 0 0 0 color-mix(in srgb, var(--call-depth) 55%, var(--text-heading) 45%)}
+
 .v2-listing{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:5px 8px;min-width:0}
 .v2-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading)}
 .v2-plat em,.v2-symbol em{font-style:normal;font:500 8.5px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin-left:5px}
@@ -772,6 +790,10 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
 
 /* Единица среза — один раз, в шапке полосы 2. */
 .v2-band-unit{color:var(--text-faint)}
+
+/* P0-1: какую популяцию ранжирует текущий срез — тоже один раз, в шапке, а не строкой на
+   каждый ряд. Пусто на funding, у которого популяции нет вовсе. */
+.v2-band-rank{margin-left:auto;color:var(--text-faint)}
 
 /* Имя выбранного поля — у правого края шапки полосы 3. */
 .v2-band-field{margin-left:auto;color:var(--accent)}

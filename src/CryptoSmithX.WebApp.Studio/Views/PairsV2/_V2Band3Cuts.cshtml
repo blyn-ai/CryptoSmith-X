@@ -37,7 +37,7 @@ else
         // the chart library's own crosshair wiring, which this pass does not add).
         var lastTitle = last is null ? null
             : $"source: {last.Source ?? "—"} · updated_at: {Format.Utc(last.UpdatedAt)}";
-        <div class="v2-cut">
+        <div class="v2-cut" data-quote="@r.Row.QuoteAsset">
             @* Площадка дисплейным начертанием, символ — акцентным моно, и OHLC последнего
                закрытого часа справа: график отвечает на «как шло», а на «чем кончилось»
                по пикселям не отвечает никто. *@

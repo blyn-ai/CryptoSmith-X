@@ -29,7 +29,7 @@ public sealed class VerdictScopeTests
     }
 
     [Fact]
-    public void Inside_one_quote_family_both_ends_are_marked()
+    public void Inside_one_quote_asset_both_ends_are_marked()
     {
         var rows = new[]
         {
@@ -44,6 +44,28 @@ public sealed class VerdictScopeTests
         // The lone USD row has nothing to be ranked against and stays unmarked, rather than being
         // called the best USD bid on the strength of being the only one.
         Assert.Equal(Verdict.None, v.Of(3, PairColumn.Turnover24h));
+    }
+
+    /// <summary>
+    /// UX audit P0-1: USD, USDT and USDC used to fold into one ranking population
+    /// (VerdictScope.PerQuoteFamily) on the argument that the three move within a few basis points
+    /// of each other. That argument is still true and still recorded on PerQuoteFamily's own doc —
+    /// it was the CHIP that was wrong to rely on it silently: a USDC ask beat a USD bid on the page,
+    /// under a chip that says BEST with no unit attached. Every quote-denominated column now ranks
+    /// inside the exact quote asset (PerQuoteAsset) instead.
+    /// </summary>
+    [Fact]
+    public void A_price_never_ranks_against_a_different_quote_asset_even_inside_the_same_family()
+    {
+        var rows = new[]
+        {
+            Rows.Venue(1, quote: "USD", turnover: 100_000),
+            Rows.Venue(2, quote: "USDC", turnover: 200_000)
+        };
+
+        var v = Verdicts.Compute(Rows.Live(rows));
+        Assert.Equal(Verdict.None, v.Of(1, PairColumn.Turnover24h));
+        Assert.Equal(Verdict.None, v.Of(2, PairColumn.Turnover24h));
     }
 
     [Fact]
@@ -768,31 +790,32 @@ public sealed class VerdictScopeTests
     {
         var reading = Prose("Pair.cshtml");
 
-        // THE RULE WAS NOT MOVED, IT WAS REWRITTEN, AND THE REWRITE WAS FALSE — twice now, which is
-        // why this test reads the prose against the specs instead of against itself. The first
-        // version said flatly "They rank only rows quoting in the same asset", which was wrong for
-        // the three WholePair columns it named. The entry has since changed again: bid and ask are
-        // not ranked at all, and what is quote-scoped ranks per FAMILY rather than per code.
+        // THE RULE WAS NOT MOVED, IT WAS REWRITTEN, AND THE REWRITE WAS FALSE — three times now,
+        // which is why this test reads the prose against the specs instead of against itself. The
+        // first version said flatly "They rank only rows quoting in the same asset", wrong for the
+        // three WholePair columns it named. The second scoped the quote-denominated columns per
+        // FAMILY rather than per code. UX audit P0-1 found that wrong too: a USDC ask outranked a
+        // USD bid, on the one page that exists to show the two are not the same market.
         Assert.DoesNotContain(
             "They rank only rows quoting in the same asset", reading, StringComparison.Ordinal);
 
         Assert.Contains(
             "anything priced in the quote currency ranks only against rows quoting in the same",
             reading, StringComparison.Ordinal);
-        Assert.Contains("FAMILY", reading, StringComparison.Ordinal);
+        Assert.Contains("QUOTE ASSET", reading, StringComparison.Ordinal);
         Assert.Contains(
             "which makes them one measurement, so they rank across every row on the page",
             reading, StringComparison.Ordinal);
 
         // Checked against the specs, not against itself: a column moving between these lists makes
         // this test fail beside the sentence that would have started lying.
-        foreach (var perFamily in new[]
+        foreach (var perQuoteAsset in new[]
         {
             PairColumn.Bid, PairColumn.Ask, PairColumn.Turnover24h,
             PairColumn.Depth10, PairColumn.Depth25, PairColumn.Depth50
         })
         {
-            Assert.Equal(VerdictScope.PerQuoteFamily, Verdicts.Scope(perFamily));
+            Assert.Equal(VerdictScope.PerQuoteAsset, Verdicts.Scope(perQuoteAsset));
         }
 
         foreach (var wholePair in new[]

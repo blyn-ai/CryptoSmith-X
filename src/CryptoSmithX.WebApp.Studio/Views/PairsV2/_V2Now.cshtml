@@ -10,6 +10,10 @@
         <span class="csx-eyebrow v2-band-no">2 · <span id="cut-now-title">The books</span></span>
         <span class="csx-eyebrow v2-band-sub" id="cut-now-sub">@bookNote</span>
         <span class="csx-eyebrow v2-band-unit" id="cut-now-unit">@cuts[0].Unit</span>
+        @* P0-1: one note for the whole list rather than a repeated sentence on every row — set once
+           per cut, from the button that chose it (data-rank-note), same mechanism as title/sub/unit
+           above. Empty on funding, which is not ranked in any scope. *@
+        <span class="csx-eyebrow v2-band-rank" id="cut-now-rank">@cuts[0].RankNote</span>
         @* Сколько книг в ряд — выбор читателя: пять карточек на 1920 читаются, на ноутбуке нет,
            а на одну колонку раскрытая книга становится настоящим стаканом. Кнопка задаёт ПОТОЛОК,
            а не число: минимальная ширина карточки остаётся в том же правиле, поэтому пять на
@@ -36,7 +40,7 @@
                    где дыра, симметрична ли она. Двадцать пять уровней цифрами не читает никто. *@
                 foreach (var r in Model.Rows)
                 {
-                    <div class="v2-book">
+                    <div class="v2-book" data-quote="@r.Row.QuoteAsset">
                         <span class="v2-book-plat">@r.Row.ExchangeName <b>@r.Row.Symbol</b>
                             <em>@(r.Row.SpreadBps is { } sp ? Format.Num(sp, 1) + " bps" : "—")</em></span>
                         @if (!Model.Books.TryGetValue(r.Row.InstrumentId, out var bk) || bk.BidPx.Length == 0)
@@ -143,7 +147,7 @@
                     foreach (var r in ordered)
                     {
                         var v = V2Cuts.Now(r, c);
-                        <div class="v2-now">
+                        <div class="v2-now" data-quote="@r.Row.QuoteAsset">
                             <span class="v2-now-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em> <b>@r.Row.Symbol</b></span>
                             @* Значение С ЕДИНИЦЕЙ: голое «6.01» в строке про спред — число, про
                                которое надо помнить, чем его мерили, и которое легко сравнить с
@@ -171,10 +175,10 @@
                             {
                                 <span class="v2-now-bar"><i style="width:@Format.BarWidth(v, maxNow)"></i></span>
                             }
-                            @* Справа — на каком основании строка сравнима с соседними, и возраст
-                               вызова, который её написал. Строка полосы 2 была единственной цифрой
-                               на странице без возраста. *@
-                            <span class="v2-now-note">@r.Row.QuoteAsset @(c.Key == "depth25" ? "book" : "figures") · every listing comparable</span>
+                            @* P0-1: the per-row "USD FIGURES · EVERY LISTING COMPARABLE" sentence is
+                               gone — replaced by the 3px quote-group rule on the row (v2-now, below)
+                               plus the one header note set for the whole list (#cut-now-rank,
+                               above). Возраст вызова, который написал строку, остаётся. *@
                             @{
                                 (string Label, double? Seconds, double? Window) age = c.Key switch
                                 {

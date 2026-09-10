@@ -83,6 +83,26 @@ public sealed record V2Cut(string Key, string Name, string Unit, V2CutSource Sou
     /// form names the band; this one names the number, and a number on this page is never printed
     /// without the unit it was measured in.</summary>
     public string Short => Unit.Split('\u00B7', ',')[0].Trim();
+
+    /// <summary>
+    /// P0-1: which population band 2's NOW list ranks this cut's rows against, read from
+    /// <see cref="Verdicts.Scope"/> rather than restated \u2014 a column moved between scopes there
+    /// changes this note in the same edit instead of needing a second one found by hand.
+    ///
+    /// Null for funding: it is not ranked in any scope, ever (Verdicts.cs's own reasoning \u2014 which
+    /// direction is good depends on which side of the trade the reader is on), so there is no
+    /// population to name. Liquidations carries no PairColumn (it is ranked by closed hour, not by
+    /// a Verdicts spec) but is base-unit and comparable across every venue the same way sizes and
+    /// open interest are, so it reads the same as the WholePair columns.
+    /// </summary>
+    public string? RankNote => Key switch
+    {
+        "funding" => null,
+        "liquidations" => "RANKED ACROSS ALL LISTINGS",
+        _ => Column is { } c && Verdicts.Scope(c) == VerdictScope.PerQuoteAsset
+            ? "RANKED INSIDE EACH QUOTE"
+            : "RANKED ACROSS ALL LISTINGS",
+    };
 }
 
 public enum V2CutSource { None, Candles, Spread, Depth25, OpenInterest, Funding, Liquidations }

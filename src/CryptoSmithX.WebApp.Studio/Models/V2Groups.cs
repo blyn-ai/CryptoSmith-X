@@ -128,6 +128,16 @@ public static class V2Ranks
         _ => null,
     };
 
+    /// <summary>
+    /// P0-1: whether this field's chip was ranked inside the listing's own quote asset — the
+    /// population the audit finding calls "inside quote group" — rather than across every listing
+    /// on the page regardless of currency. Read from <see cref="Verdicts.Scope"/>, the one place
+    /// that decides it, so a column moved between scopes there changes both the ranking and this
+    /// flag in the same edit.
+    /// </summary>
+    public static bool IsQuoteScoped(V2Field f) =>
+        ColumnOf(f) is { } column && Verdicts.Scope(column) == VerdictScope.PerQuoteAsset;
+
     /// <summary>The word the spread column uses for the same two ranks. Every other column says
     /// BEST and WORST; on a spread "best" is a width, and the reader reads TIGHT faster than they
     /// translate.</summary>

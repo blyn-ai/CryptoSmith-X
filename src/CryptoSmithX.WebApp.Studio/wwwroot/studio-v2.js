@@ -89,6 +89,10 @@
       if (series) { series.textContent = pick.getAttribute('data-series'); }
       var unit = document.getElementById('cut-now-unit');
       if (unit) { unit.textContent = pick.getAttribute('data-unit'); }
+      // P0-1: which population this cut ranks against — set from the button, same as the three
+      // above, so it can never say something the table is not actually doing.
+      var rank = document.getElementById('cut-now-rank');
+      if (rank) { rank.textContent = pick.getAttribute('data-rank-note') || ''; }
     }
 
     // Свечи меряют себя при вставке; если их полоса была скрыта в этот момент, ширина вышла

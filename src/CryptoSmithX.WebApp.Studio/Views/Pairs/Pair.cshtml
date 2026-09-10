@@ -445,7 +445,13 @@
                    ranked across every row on the page regardless of quote. A reader following the
                    old text read an acid BEST on open interest as "largest USDT book" when it means
                    "largest book on the page", which is the scope error this entry exists to
-                   prevent, made by the entry. *@
+                   prevent, made by the entry.
+                   UX AUDIT P0-1: the scope narrowed from PerQuoteFamily to PerQuoteAsset — USD,
+                   USDT and USDC no longer fold into one ranking population. The family registry
+                   this paragraph used to describe (still real, still what the pair board folds
+                   listings by) was never the right population for a chip that says BEST with no
+                   unit on it: a USDC ask beat a USD bid under that chip, on the one page built
+                   specifically to show the two side by side as NOT the same market. *@
                 <span class="a-term-name">Best / worst</span>
                 <span class="a-term-body">
                     The two ends of one column across the venues compared here: the highest bid, the
@@ -455,13 +461,13 @@
                     of the bid column are two neighbours rather than two different markets, while the
                     ends of the depth column are usually multiples apart. Which rows are compared is decided per column, not per page:
                     anything priced in the quote currency ranks only against rows quoting in the same
-                    FAMILY — USD, USDT and USDC are one, by a registry an operator edits and never by
-                    matching names — because those currencies move within basis points of each other
-                    while the depth they measure differs between venues by multiples; a quote outside
-                    the family is a different claim and is not ranked against it. The two sizes and
+                    QUOTE ASSET — USD, USDT and USDC are three separate populations here, however
+                    close they trade, because a chip that says BEST with no unit attached is a claim
+                    about ONE market and not about three that happen to move together; a different
+                    quote asset is a different claim and is not ranked against it. The two sizes and
                     open interest are in base units through the venue's own contract multiplier,
                     which makes them one measurement, so they rank across every row on the page. A
-                    chip names the family it won in whenever the page holds more than one.
+                    chip names the quote asset it won in whenever the page holds more than one.
                 </span>
             </div>
 

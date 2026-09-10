@@ -197,40 +197,48 @@ public static class Verdicts
 
     private static readonly Spec[] Specs =
     [
-        // Prices rank again, per quote family like every other figure denominated in the quote.
-        // They were briefly unranked on the argument that venues quote within a few basis points and
-        // the winner changes every second — true, and not the page's call to make. A column the
-        // reader can see is a column the reader may want ranked, and the freshness model already
-        // says how much to trust it: the chip carries the age of the call that wrote it and
-        // withdraws when that call goes degraded. Marking the ends of a narrow spread is not the
-        // same as claiming the spread is wide.
-        new(PairColumn.Bid, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Price,
+        // P0-1 (UX audit, prompt 1): every quantity denominated in the quote asset ranks INSIDE
+        // that exact quote asset now — PerQuoteAsset, not PerQuoteFamily. PerQuoteFamily folds USD,
+        // USDT and USDC into one group by the registry, on the argument (still true, and still
+        // recorded on VerdictScope.PerQuoteFamily's own doc) that the three move within a few basis
+        // points of each other. The audit's finding is that this is not the page's call to make
+        // silently on a chip that says BEST/WORST with no unit attached: a USDC ask beat a USD bid
+        // on UNI, on a page where the two are shown side by side specifically so the reader can see
+        // they are not the same market. The fold itself is unchanged (the board still folds
+        // USD/USDT/USDC into one asset page) — only the chip's comparison population narrows to
+        // match what the chip actually claims.
+        new(PairColumn.Bid, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Price,
             r => Shown(r.BidPrice, Format.PriceDecimals(r))),
-        new(PairColumn.Ask, VerdictScope.PerQuoteFamily, HighIsBest: false, Call.Price,
+        new(PairColumn.Ask, VerdictScope.PerQuoteAsset, HighIsBest: false, Call.Price,
             r => Shown(r.AskPrice, Format.PriceDecimals(r))),
 
-        // A notional in the quote asset, so it ranks inside the quote's family — same argument as
-        // the depth bands below, and it would be incoherent for turnover to rank by a narrower rule
-        // than the depth sitting four columns to its right.
-        new(PairColumn.Turnover24h, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Price,
+        // A notional in the quote asset — same reasoning as bid/ask above.
+        new(PairColumn.Turnover24h, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Price,
             r => Shown(r.Turnover24h, 0)),
 
-        // Depth bands are notional sums in the quote asset (0001 on depth_bid_10bps), so they carry
-        // the currency with them and rank inside its FAMILY. Each SIDE is rounded before the sum, because
-        // each side is a printed number: two rows showing the same two figures must sum to the same
-        // total, and rounding the sum instead could separate them by one unit the reader cannot see.
-        new(PairColumn.Depth10, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Depth,
+        // Depth bands are notional SUMS in the quote asset (0001's own comment on
+        // depth_bid_10bps: "Сумма notional в quote_asset"), not base units — the audit prompt's own
+        // summary table mislabels these as base-unit whole-population figures, but the schema they
+        // are read from says otherwise, and treating them as currency-free would reopen exactly the
+        // USD-vs-USDC comparison this finding exists to close, one column to the right of the ask
+        // it was reported on. Kept at the same PerQuoteAsset scope as bid/ask/turnover for that
+        // reason — internal consistency with the finding's own stated rule ("any other field
+        // expressed in the quote asset"), not with its example table. Each SIDE is rounded before
+        // the sum, because each side is a printed number: two rows showing the same two figures
+        // must sum to the same total, and rounding the sum instead could separate them by one unit
+        // the reader cannot see.
+        new(PairColumn.Depth10, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Depth,
             r => ShownDepth(r.DepthBid10, r.DepthAsk10)),
-        new(PairColumn.Depth25, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Depth,
+        new(PairColumn.Depth25, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Depth,
             r => ShownDepth(r.DepthBid25, r.DepthAsk25)),
-        new(PairColumn.Depth50, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Depth,
+        new(PairColumn.Depth50, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Depth,
             r => ShownDepth(r.DepthBid50, r.DepthAsk50)),
 
         // Each half on its own, rounded the same way the sum's halves are rounded, so a reader
         // adding the two printed numbers gets the printed total and the three marks agree.
-        new(PairColumn.Depth25Bid, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Depth,
+        new(PairColumn.Depth25Bid, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Depth,
             r => Shown(r.DepthBid25, 0)),
-        new(PairColumn.Depth25Ask, VerdictScope.PerQuoteFamily, HighIsBest: true, Call.Depth,
+        new(PairColumn.Depth25Ask, VerdictScope.PerQuoteAsset, HighIsBest: true, Call.Depth,
             r => Shown(r.DepthAsk25, 0)),
 
         // Quote-free, so the whole page competes. Three decimals, which is what the cell prints.
