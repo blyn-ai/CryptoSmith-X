@@ -182,7 +182,14 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    Таблица шире экрана и прокручивается ВНУТРИ СЕБЯ — страница по горизонтали не едет. */
 /* ПРОКРУТКА ЖИВЁТ ЗДЕСЬ, а не на странице. Правило было и его съела моя же чистка мёртвых
    правил после отказа от групп — страница поехала вбок на два экрана. */
-.v2-scroll{overflow-x:auto}
+.v2-scroll{overflow-x:auto;position:relative}
+/* Prompt 2, U-5: the right-edge shadow, toggled by studio-v2.js as the reader scrolls — a
+   gradient into the band's own paper colour so it reads as an edge, not a stain, and never a
+   token of its own (see the header above). Fades on the way in and out so it never looks like a
+   layout jump when it appears. */
+.v2-scroll::after{content:"";position:absolute;top:0;right:0;bottom:0;width:24px;pointer-events:none;
+  background:linear-gradient(to left, var(--surface-card), transparent);opacity:0;transition:opacity 120ms linear}
+.v2-scroll[data-scroll-more]::after{opacity:1}
 
 /* ДОРОЖКИ ФИКСИРОВАННОЙ ШИРИНЫ, а не 1fr при min-width:max-content. С max-content ширина
    колонки бралась из самого длинного содержимого, и любое изменение текста — возраст раз в
@@ -202,11 +209,20 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-hname{display:inline-flex;align-items:baseline;gap:3px;padding:0;background:none;border:0;
   font:500 var(--fs-eyebrow)/1.2 var(--font-mono);letter-spacing:var(--track-label);
   text-transform:uppercase;color:var(--eyebrow);text-align:right;justify-content:flex-end;width:100%}
-.v2-hname--cut{cursor:pointer}
+/* Prompt 2, U-6: the second line ("BPS" under "SPREAD") lives in its own span rather than as a
+   bare <br> in .v2-hname's flex box — a <br> as a direct flex child is not a line break at all,
+   flex items are laid out on one axis regardless of what the markup between them says. */
+.v2-hname-text{text-align:right}
 .v2-hname i{font-style:normal;color:var(--text-unmeasured)}
-.v2-hname--cut[aria-pressed="true"]{color:var(--accent)}
-.v2-hname--cut[aria-pressed="true"] i{color:var(--accent)}
-.v2-hname--cut:hover{color:var(--accent)}
+/* Prompt 2, U-6: the ↓ glyph is gone (this table does not sort — studio-v2.js's sort() has had
+   no live selector to reach since the header became a button), and a 2px border-bottom, always
+   reserved and normally transparent, is what lets the selected/hover states change STYLE and
+   COLOR without ever changing the row's height. Selected is solid --accent, matching the colour
+   .v2-cutpick's own selected state uses; hover is dotted --text-faint — a hint, not a claim that
+   this header is the one currently chosen. */
+.v2-hname--cut{cursor:pointer;border-bottom:2px solid transparent}
+.v2-hname--cut[aria-pressed="true"]{color:var(--accent);border-bottom-style:solid;border-bottom-color:var(--accent)}
+.v2-hname--cut:hover{border-bottom-style:dotted;border-bottom-color:var(--text-faint)}
 
 /* Возраст в клетке — возраст ВЫЗОВА, написавшего её. Слот постоянной ширины, чтобы строка не
    дёргалась на переходе через десяток. */
@@ -226,11 +242,22 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-hcell[data-tone="depth"]{border-top-color:var(--call-depth);background:var(--tint-depth)}
 .v2-cell[data-group="positions"]{background:var(--tint-oi)}
 .v2-cell[data-group="liquidity"]{background:var(--tint-depth)}
-.v2-hcell--listing{border-left:0;justify-content:flex-end;font:500 9px/1.2 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--eyebrow)}
+/* Prompt 2, U-5: the listing column stays put while the other twenty scroll under it — the one
+   thing a reader needs on screen to know WHICH row a figure belongs to once bid/ask has scrolled
+   out of view. Its own background (the row's, or the header row's) has to be opaque and travel
+   with it, or the columns sliding underneath would show through. */
+.v2-hcell--listing{position:sticky;left:0;z-index:2;background:var(--surface-sunken);
+  border-left:0;border-right:1px solid var(--border-hairline);
+  justify-content:flex-end;font:500 9px/1.2 var(--font-mono);letter-spacing:.17em;text-transform:uppercase;color:var(--eyebrow)}
 /* Активной каретка стоит у той группы, чьё поле сейчас в полосах 2 и 3 — иначе стрелка
    означает «сюда можно», но никогда «вы здесь». */
 
-.v2-listing{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:5px 8px;min-width:0}
+.v2-listing{position:sticky;left:0;z-index:1;background:var(--surface-card);
+  border-right:1px solid var(--border-hairline);
+  display:flex;flex-direction:column;justify-content:center;gap:3px;padding:5px 8px;min-width:0}
+/* The row's own hover wash (.v2-row:hover, below) has to reach the sticky cell too, or the
+   listing column would sit un-tinted beside a row that has visibly changed colour. */
+.v2-row:hover .v2-listing{background:var(--surface-sunken)}
 .v2-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading)}
 .v2-plat em,.v2-symbol em{font-style:normal;font:500 8.5px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin-left:5px}
 .v2-symbol{font:400 var(--fs-data)/1.2 var(--font-mono);color:var(--text-data);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -267,7 +294,10 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 
 /* ПЛОТНО. Ради плотности эта таблица и устроена как таблица; десять пикселей полей на семь
    колонок и пять строк — это экран пустоты вокруг цифр, ради которых сюда пришли. */
-.v2-cell{display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding:5px 8px;
+/* Prompt 2, U-3: 4px vertical padding and a 1px stack gap, down from 5/2 — with the age line
+   gone from all but a late cell the row no longer needs the slack that line's text used to
+   force, and the row track can follow it down. */
+.v2-cell{display:flex;flex-direction:column;align-items:flex-end;gap:1px;padding:4px 8px;
   border-left:1px solid var(--border-hairline);min-width:0}
 .v2-fig{font:400 var(--fs-body)/1.1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data)}
 .v2-fig--none{color:var(--text-unmeasured)}

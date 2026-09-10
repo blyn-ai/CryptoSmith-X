@@ -37,18 +37,31 @@
             {
                 <span class="v2-hcell" data-tone="@c.Call.ToString().ToLowerInvariant()"
                       data-cut="@c.Cut" data-col="@c.Field">
+                    @{
+                        // Prompt 2, U-6: the label wraps after the noun ("SPREAD" over "BPS"),
+                        // never wherever the browser happens to break the line — one text node,
+                        // one <br>, wrapped in its own span so the break works normally inside a
+                        // flex container (.v2-hname is display:inline-flex; a <br> as a direct
+                        // flex child is not a line break at all).
+                        var fullLabel = c.LabelBreak is null ? c.Label : c.Label + " " + c.LabelBreak;
+                    }
                     @if (c.Cut is null)
                     {
-                        <span class="v2-hname">@c.Label</span>
+                        <span class="v2-hname">
+                            <span class="v2-hname-text">@c.Label@if (c.LabelBreak is not null) { <br /> @c.LabelBreak }</span>
+                        </span>
                     }
                     else
                     {
                         @* Заголовок, у которого есть история, — кнопка: он уводит полосы 2 и 3 на
-                           это поле и сортирует по нему таблицу. У остальных истории нет, и
-                           кнопка обещала бы то, чего не будет. *@
+                           это поле. Таблица по нему не сортирует (studio-v2.js's own sort() has no
+                           live selector to reach any more — Prompt 2, U-6), поэтому заголовок
+                           этого больше не обещает: ни стрелки, ни слова "sort by it" в title. *@
                         <button type="button" class="v2-hname v2-hname--cut" data-goto-cut="@c.Cut"
                                 aria-pressed="@(c.Cut == "price" ? "true" : "false")"
-                                title="Show @c.Label now and over time, and sort by it">@c.Label<i>↓</i></button>
+                                title="Show @fullLabel now and over time">
+                            <span class="v2-hname-text">@c.Label@if (c.LabelBreak is not null) { <br /> @c.LabelBreak }</span>
+                        </button>
                     }
                 </span>
             }

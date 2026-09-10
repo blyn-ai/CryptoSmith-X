@@ -355,3 +355,33 @@
     set(stored || (first && first.getAttribute('data-cols')) || '4', false);
   });
 })();
+/* Тень у правого края полосы 1 (Prompt 2, U-5).
+
+   Сама колонка липнет CSS'ом (position:sticky) — этому файлу нужно только сказать, есть ли ещё
+   что прокручивать. Порог в один пиксель против дробного scrollWidth/clientWidth: без него тень
+   иногда не гасла на последнем пикселе прокрутки — сравнение "<" против почти равных чисел с
+   плавающей точкой то было true, то false в зависимости от округления браузера.
+
+   ResizeObserver, а не подписка на событие живого потока: этому файлу вообще нельзя знать о нём
+   (см. A_push_changes_figures_and_never_the_order) — не потому что этой тени тот же тест не
+   касается впрямую, а потому что правило для файла простое и его не стоит дырявить ради одного
+   удобного случая. Наблюдатель ширины ловит ЛЮБУЮ смену scrollWidth — саму посылку, смену числа
+   колонок где-то ещё, — без явной подписки на конкретное имя события. */
+(function () {
+  var scroll = document.querySelector('.v2-scroll');
+  if (!scroll) { return; }
+
+  function update() {
+    var more = scroll.scrollWidth - scroll.clientWidth > 1 && scroll.scrollLeft < scroll.scrollWidth - scroll.clientWidth - 1;
+    if (more) { scroll.setAttribute('data-scroll-more', ''); }
+    else { scroll.removeAttribute('data-scroll-more'); }
+  }
+
+  scroll.addEventListener('scroll', update, { passive: true });
+  if (window.ResizeObserver) {
+    new ResizeObserver(update).observe(scroll);
+  } else {
+    window.addEventListener('resize', update);
+  }
+  update();
+})();
