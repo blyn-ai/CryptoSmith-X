@@ -422,9 +422,11 @@
   } else {
     window.addEventListener('resize', update);
   }
-  // requestAnimationFrame, not a bare call: this script runs synchronously mid-parse, before the
-  // browser has necessarily laid the grid's own max-content width out yet, and a first check made
-  // too early reads scrollWidth === clientWidth and never sets the shadow until the reader's
-  // first scroll or resize.
+  // Both a rAF and a 'load' listener, not one: this script runs synchronously mid-parse, before
+  // the browser has necessarily laid the grid's own max-content width out yet, so a bare call
+  // made too early reads scrollWidth === clientWidth and never sets the shadow until the reader's
+  // first scroll or resize. rAF is the fast path on a visible tab; 'load' is the one that still
+  // fires on a tab opened in the background, where a rendering pass can be deferred past rAF.
   requestAnimationFrame(update);
+  window.addEventListener('load', update);
 })();
