@@ -62,15 +62,13 @@ public sealed class ParametersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Save(
-        decimal? positionMarginUsd,
-        decimal? leverage,
-        int? maxOpenPositions,
-        int? maxOpenPositionsPerGroup,
-        CancellationToken ct)
+    public async Task<IActionResult> Save(ParametersSaveRequest request, CancellationToken ct)
     {
         var posted = new PostedProfile(
-            positionMarginUsd, leverage, maxOpenPositions, maxOpenPositionsPerGroup);
+            request.PositionMarginUsd,
+            request.Leverage,
+            request.MaxOpenPositions,
+            request.MaxOpenPositionsPerGroup);
 
         try
         {
@@ -90,16 +88,43 @@ public sealed class ParametersController : Controller
                 return View("NoStrategyProfile");
             }
 
-            var errors = Validate(posted);
+            var errors = Validate(request, strategy);
+            if (request.StrategyProfileId != strategy.ProfileId || request.StrategyRevision != strategy.Revision)
+            {
+                errors["strategy"] = "The strategy changed while this page was open. Review the current revision before saving.";
+            }
+
             if (errors.Count > 0)
             {
-                var model = await BuildAsync(conn, owner, strategy, errors, justSaved: false, posted, ct);
+                var model = await BuildAsync(conn, owner, strategy, errors, justSaved: false, request, ct);
                 return model is null ? View("RuntimeLimitsUnavailable") : View(nameof(Index), model);
             }
 
             var profile = new TradeProfile(
-                positionMarginUsd!.Value, leverage!.Value, maxOpenPositions!.Value, maxOpenPositionsPerGroup!.Value);
-            await TradeProfileStore.SaveAsync(conn, owner.BotInstanceId, profile, ct);
+                request.PositionMarginUsd!.Value,
+                request.Leverage!.Value,
+                request.MaxOpenPositions!.Value,
+                request.MaxOpenPositionsPerGroup!.Value);
+            var values = StrategyParameterCatalog.All
+                .Where(definition => StrategyParameterCatalog.IsEnabled(
+                    definition,
+                    StrategyProfileStore.ResolveValues(strategy)))
+                .ToDictionary(
+                    definition => definition.Id,
+                    definition => request.Parameters[definition.Id]!.Value,
+                    StringComparer.Ordinal);
+            await StrategyProfileStore.SaveAsync(
+                conn,
+                owner.BotInstanceId,
+                strategy,
+                new StrategyProfileSave(profile, values, request.ChangeNote, User.Identity?.Name ?? string.Empty),
+                ct);
+        }
+        catch (StrategyProfileConflictException e)
+        {
+            _log.LogInformation(e, "the strategy profile changed before {Username} could save it", User.Identity?.Name);
+            TempData["SaveConflict"] = true;
+            return RedirectToAction(nameof(Index));
         }
         catch (NpgsqlException e)
         {
@@ -120,7 +145,7 @@ public sealed class ParametersController : Controller
         ActiveStrategyProfile strategy,
         IReadOnlyDictionary<string, string>? errors,
         bool justSaved,
-        PostedProfile? posted,
+        ParametersSaveRequest? posted,
         CancellationToken ct)
     {
         var overrides = await TradeProfileStore.LoadAsync(connection, owner.BotInstanceId, ct);
@@ -152,16 +177,30 @@ public sealed class ParametersController : Controller
             };
         }
 
+        var values = StrategyProfileStore.ResolveValues(strategy);
+        var parameters = StrategyParameterCatalog.All
+            .Select(definition => new StrategyParameterViewModel(
+                definition,
+                posted?.Parameters.GetValueOrDefault(definition.Id) ?? StrategyParameterCatalog.Read(definition, values),
+                StrategyParameterCatalog.IsEnabled(definition, values),
+                errors?.GetValueOrDefault(definition.Id)))
+            .ToList();
+        var history = await StrategyProfileStore.LoadHistoryAsync(connection, strategy.ProfileId, 8, ct);
+
         return new ParametersViewModel
         {
             BotInstanceId = owner.BotInstanceId,
             PublicAlias = owner.PublicAlias,
             StrategyProfileName = strategy.ProfileName,
             StrategyRevision = strategy.Revision,
+            StrategyProfileId = strategy.ProfileId,
             Profile = profile,
             LastWritten = lastWritten,
+            StrategyParameters = parameters,
+            RevisionHistory = history,
             Errors = errors ?? new Dictionary<string, string>(StringComparer.Ordinal),
             JustSaved = justSaved || TempData["JustSaved"] is true,
+            SaveConflict = TempData["SaveConflict"] is true,
         };
     }
 
@@ -169,8 +208,13 @@ public sealed class ParametersController : Controller
     /// The same four rules the fields carry, checked again on the server. Null means the field was
     /// not a number at all — an empty box, or letters — and is refused rather than read as zero.
     /// </summary>
-    private static Dictionary<string, string> Validate(PostedProfile p)
+    private static Dictionary<string, string> Validate(ParametersSaveRequest request, ActiveStrategyProfile strategy)
     {
+        var p = new PostedProfile(
+            request.PositionMarginUsd,
+            request.Leverage,
+            request.MaxOpenPositions,
+            request.MaxOpenPositionsPerGroup);
         var errors = new Dictionary<string, string>(StringComparer.Ordinal);
 
         if (p.PositionMarginUsd is not { } margin || margin <= 0)
@@ -196,6 +240,35 @@ public sealed class ParametersController : Controller
         {
             // Only when the total itself is valid: two complaints about one mistake is one too many.
             errors[TradeProfileKeys.MaxOpenPositionsPerGroup] = "Cannot exceed the total maximum";
+        }
+
+        if (request.ChangeNote?.Length > 1_000)
+        {
+            errors["changeNote"] = "A strategy note cannot exceed 1000 characters";
+        }
+
+        var values = StrategyProfileStore.ResolveValues(strategy);
+        foreach (var definition in StrategyParameterCatalog.All)
+        {
+            if (!StrategyParameterCatalog.IsEnabled(definition, values))
+            {
+                continue;
+            }
+
+            if (!request.Parameters.TryGetValue(definition.Id, out var value) || value is null)
+            {
+                errors[definition.Id] = "Must be a number";
+                continue;
+            }
+
+            try
+            {
+                StrategyParameterCatalog.Write(definition, values, value.Value);
+            }
+            catch (ArgumentException e)
+            {
+                errors[definition.Id] = e.Message;
+            }
         }
 
         return errors;

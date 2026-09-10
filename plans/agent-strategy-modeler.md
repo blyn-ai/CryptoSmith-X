@@ -77,7 +77,7 @@ separate and are not represented by one invented aggregate value.
 - [x] 5. Implement transactional save: derive the instance from the session,
   patch the resolved JSON, append an immutable revision, activate it, update the
   four runtime limits and record the supplied note. Add history reads.
-- [ ] 6. Bind the native Razor page to the new model, following the supplied
+- [x] 6. Bind the native Razor page to the new model, following the supplied
   design's three groups, explanations, confirmation and revision history. Do not
   ship the static bundle itself.
 - [ ] 7. Run the Agent and full solution tests, verify the worker sees a saved

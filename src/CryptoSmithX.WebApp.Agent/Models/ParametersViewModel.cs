@@ -14,11 +14,17 @@ public sealed class ParametersViewModel
 
     public required int StrategyRevision { get; init; }
 
-    /// <summary>The values in the fields — an override where one exists, the deployed baseline otherwise.</summary>
+    public required Guid StrategyProfileId { get; init; }
+
+    /// <summary>The four runtime limits stored for this bot instance.</summary>
     public required TradeProfile Profile { get; init; }
 
     /// <summary>When the overrides were last written, or null if there are none.</summary>
     public DateTimeOffset? LastWritten { get; init; }
+
+    public required IReadOnlyList<StrategyParameterViewModel> StrategyParameters { get; init; }
+
+    public required IReadOnlyList<StrategyProfileRevision> RevisionHistory { get; init; }
 
     /// <summary>Field name → message. Empty when nothing was refused.</summary>
     public IReadOnlyDictionary<string, string> Errors { get; init; } =
@@ -27,4 +33,12 @@ public sealed class ParametersViewModel
     /// <summary>True immediately after a successful save, so the screen can say the write landed.</summary>
     public bool JustSaved { get; init; }
 
+    public bool SaveConflict { get; init; }
+
 }
+
+public sealed record StrategyParameterViewModel(
+    StrategyParameterDefinition Definition,
+    decimal Value,
+    bool IsEnabled,
+    string? Error);

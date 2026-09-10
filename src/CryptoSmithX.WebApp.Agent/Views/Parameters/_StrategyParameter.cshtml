@@ -1,0 +1,28 @@
+@using System.Globalization
+@using CryptoSmithX.WebApp.Agent.Models
+@model StrategyParameterViewModel
+@{
+    var definition = Model.Definition;
+}
+<label class="field @(Model.Error is null ? null : "bad") @(Model.IsEnabled ? null : "disabled")">
+<span class="label">@definition.Label</span>
+<span class="affix">
+@if (Model.IsEnabled)
+{
+    <input type="number" name="Parameters[@definition.Id]" inputmode="decimal" min="@definition.Minimum.ToString(CultureInfo.InvariantCulture)" max="@definition.Maximum.ToString(CultureInfo.InvariantCulture)" step="@definition.Step.ToString(CultureInfo.InvariantCulture)" required value="@definition.Format(Model.Value)">
+}
+else
+{
+    <input type="number" disabled value="@definition.Format(Model.Value)">
+}
+<span class="unit">@definition.Unit</span>
+</span>
+@if (!Model.IsEnabled)
+{
+    <span class="hint">Disabled by this profile's ATR trailing mode.</span>
+}
+@if (Model.Error is { } error)
+{
+    <span class="bad-msg">@error</span>
+}
+</label>

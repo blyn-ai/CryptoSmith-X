@@ -1,11 +1,15 @@
+@using System.Globalization
 @using CryptoSmithX.WebApp.Agent.Data
-@model CryptoSmithX.WebApp.Agent.Models.ParametersViewModel
+@using CryptoSmithX.WebApp.Agent.Models
+@model ParametersViewModel
 @{
-    ViewData["Title"] = "Trading parameters";
+    ViewData["Title"] = "Strategy modeler";
     ViewData["PageClass"] = "p-params";
 
-    string? Err(string key) => Model.Errors.TryGetValue(key, out var m) ? m : null;
-    const string source = "Database values";
+    string? Err(string key) => Model.Errors.TryGetValue(key, out var message) ? message : null;
+    StrategyParameterViewModel Parameter(string id) => Model.StrategyParameters.Single(parameter => parameter.Definition.Id == id);
+    var tradeParameters = new[] { Parameter("markets"), Parameter("volume"), Parameter("spread"), Parameter("longScore"), Parameter("shortScore"), Parameter("btcDrop"), Parameter("btcBars") };
+    var exitParameters = new[] { Parameter("stop"), Parameter("trail"), Parameter("maxHold"), Parameter("cooldown") };
 }
 
 <header class="head">
@@ -18,9 +22,7 @@
 <span class="wordmark">CryptoSmith X</span>
 </span>
 <span class="account">
-<span class="who">@User.Identity?.Name · @Model.PublicAlias · @Model.BotInstanceId</span>
-@* A post, not a link. Signing out changes state, and a GET that changes state is one link
-   prefetch away from signing people out for them. *@
+<span class="who">@User.Identity?.Name · @Model.PublicAlias</span>
 <form method="post" asp-controller="Home" asp-action="Logout">
 <button type="submit" class="logout">Sign out</button>
 </form>
@@ -28,99 +30,141 @@
 </header>
 
 <main>
-<section class="panel">
-<div class="panel-head">
-<span class="eyebrow">Trading limits</span>
-<span id="status" data-state="saved" data-idle="@source">@source</span>
+<section class="modeler-intro" aria-label="Active strategy">
+<div>
+<span class="eyebrow">Strategy modeler</span>
+<h1>@Model.StrategyProfileName</h1>
+<p>Revision @Model.StrategyRevision · @Model.BotInstanceId</p>
 </div>
+<span id="status" data-state="saved" data-idle="Database values">Database values</span>
+</section>
 
 @if (Model.JustSaved)
 {
-    @* Says what actually happens next, because "Saved" alone invites the two questions this
-       screen otherwise leaves open: does anything need restarting, and does it touch what is
-       already open. It does not, and it does not. *@
-    <p class="landed" role="status">Saved. Both workers pick it up within about ten seconds — new entries only, open positions unchanged.</p>
+    <p class="landed" role="status">Saved. New entries use the revision and limits after the workers refresh; open positions are unchanged.</p>
 }
 
-<p class="note-source">Active strategy: @Model.StrategyProfileName revision @Model.StrategyRevision. All displayed limits come from the bot database.</p>
+@if (Model.SaveConflict)
+{
+    <p class="refused" role="alert">The strategy changed before this save completed. The current revision is shown below; review it and save again.</p>
+}
 
-<form id="limits" method="post" asp-action="Save">
+@if (Err("strategy") is { } strategyError)
+{
+    <p class="refused" role="alert">@strategyError</p>
+}
+
+<form id="limits" method="post" asp-action="Save" class="modeler-form">
+<input type="hidden" name="strategyProfileId" value="@Model.StrategyProfileId">
+<input type="hidden" name="strategyRevision" value="@Model.StrategyRevision">
+
+<section class="panel modeler-group">
+<div class="panel-head">
+<span class="eyebrow">Capital and limits</span>
+<span class="group-detail">New entries</span>
+</div>
+<div class="group-fields">
 <label class="field @(Err(TradeProfileKeys.PositionMarginUsd) is null ? null : "bad")">
-<span class="labelrow">
 <span class="label">Position margin</span>
-</span>
-<span class="affix">
-<input type="number" name="positionMarginUsd" inputmode="decimal" min="0.01" step="0.01" required
-       value="@Model.Profile.PositionMarginUsd.ToString(System.Globalization.CultureInfo.InvariantCulture)">
-<span class="unit">USD</span>
-</span>
+<span class="affix"><input type="number" name="positionMarginUsd" inputmode="decimal" min="0.01" step="0.01" required value="@Model.Profile.PositionMarginUsd.ToString(CultureInfo.InvariantCulture)"><span class="unit">USD</span></span>
 <span class="hint">Your own margin on one new trade. Notional = margin × leverage.</span>
-@if (Err(TradeProfileKeys.PositionMarginUsd) is { } e1) { <span class="bad-msg">@e1</span> }
+@if (Err(TradeProfileKeys.PositionMarginUsd) is { } marginError) { <span class="bad-msg">@marginError</span> }
 </label>
-
 <label class="field @(Err(TradeProfileKeys.Leverage) is null ? null : "bad")">
-<span class="labelrow">
 <span class="label">Leverage</span>
-</span>
-<span class="affix">
-<input type="number" name="leverage" inputmode="decimal" min="1" max="10" step="0.1" required
-       value="@Model.Profile.Leverage.ToString(System.Globalization.CultureInfo.InvariantCulture)">
-<span class="unit">x</span>
-</span>
-<span class="hint">1 to 10. Applies to new trades only.</span>
-@if (Err(TradeProfileKeys.Leverage) is { } e2) { <span class="bad-msg">@e2</span> }
+<span class="affix"><input type="number" name="leverage" inputmode="decimal" min="1" max="10" step="0.1" required value="@Model.Profile.Leverage.ToString(CultureInfo.InvariantCulture)"><span class="unit">x</span></span>
+<span class="hint">1 to 10. Applies only to new trades.</span>
+@if (Err(TradeProfileKeys.Leverage) is { } leverageError) { <span class="bad-msg">@leverageError</span> }
 </label>
-
 <label class="field @(Err(TradeProfileKeys.MaxOpenPositions) is null ? null : "bad")">
-<span class="labelrow">
 <span class="label">Maximum open positions</span>
-</span>
-<input type="number" name="maxOpenPositions" inputmode="numeric" min="1" max="20" step="1" required
-       value="@Model.Profile.MaxOpenPositions">
-<span class="hint">1 to 20, across everything at once.</span>
-@if (Err(TradeProfileKeys.MaxOpenPositions) is { } e3) { <span class="bad-msg">@e3</span> }
+<input type="number" name="maxOpenPositions" inputmode="numeric" min="1" max="20" step="1" required value="@Model.Profile.MaxOpenPositions">
+@if (Err(TradeProfileKeys.MaxOpenPositions) is { } positionsError) { <span class="bad-msg">@positionsError</span> }
 </label>
-
 <label class="field @(Err(TradeProfileKeys.MaxOpenPositionsPerGroup) is null ? null : "bad")">
-<span class="labelrow">
 <span class="label">Maximum positions per group</span>
-</span>
-<input type="number" name="maxOpenPositionsPerGroup" inputmode="numeric" min="1" max="20" step="1" required
-       value="@Model.Profile.MaxOpenPositionsPerGroup">
-<span class="hint">In one correlation group. Cannot exceed the total above.</span>
-@if (Err(TradeProfileKeys.MaxOpenPositionsPerGroup) is { } e4) { <span class="bad-msg">@e4</span> }
+<input type="number" name="maxOpenPositionsPerGroup" inputmode="numeric" min="1" max="20" step="1" required value="@Model.Profile.MaxOpenPositionsPerGroup">
+<span class="hint">Cannot exceed the total maximum.</span>
+@if (Err(TradeProfileKeys.MaxOpenPositionsPerGroup) is { } groupError) { <span class="bad-msg">@groupError</span> }
 </label>
+</div>
+</section>
 
-<button type="submit" class="save">Save</button>
+<section class="panel modeler-group">
+<div class="panel-head">
+<span class="eyebrow">Market selection and entries</span>
+<span class="group-detail">Profile revision</span>
+</div>
+<div class="group-fields">
+@foreach (var parameter in tradeParameters)
+{
+    <partial name="_StrategyParameter" model="parameter" />
+}
+<div class="read-only-card">
+<span class="label">Anti-chase zone</span>
+<span class="read-only-value">Preserved by the active profile</span>
+<span class="hint">The component thresholds remain separate. This page does not hide them behind one invented number.</span>
+</div>
+</div>
+</section>
+
+<section class="panel modeler-group">
+<div class="panel-head">
+<span class="eyebrow">Position exits</span>
+<span class="group-detail">Profile revision</span>
+</div>
+<div class="group-fields">
+@foreach (var parameter in exitParameters)
+{
+    <partial name="_StrategyParameter" model="parameter" />
+}
+<label class="field @(Err("changeNote") is null ? null : "bad")">
+<span class="label">Revision note</span>
+<textarea name="changeNote" maxlength="1000" rows="3" placeholder="Why this revision is being saved"></textarea>
+<span class="hint">Recorded with the immutable profile revision.</span>
+@if (Err("changeNote") is { } noteError) { <span class="bad-msg">@noteError</span> }
+</label>
+</div>
+<div class="group-actions"><button type="submit" class="save">Save revision</button></div>
+</section>
 </form>
 
-@* The confirmation. A <dialog>, not a window.confirm: this has to show the four numbers that are
-   about to become the bot's, and the browser's own box cannot. Opened by intercepting submit, so
-   with scripting off the form still posts and the server still validates — the dialog is a guard
-   in front of a working form, never the only way through it. *@
+<section class="panel revision-history">
+<div class="panel-head"><span class="eyebrow">Recent revisions</span></div>
+@if (Model.RevisionHistory.Count == 0)
+{
+    <p class="empty">No revision history is available.</p>
+}
+else
+{
+    <ol>
+    @foreach (var revision in Model.RevisionHistory)
+    {
+        <li>
+            <span>Revision @revision.Revision</span>
+            <time datetime="@revision.CreatedAt.ToUniversalTime().ToString("O")">@revision.CreatedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm") UTC</time>
+            @if (!string.IsNullOrWhiteSpace(revision.ChangeNote)) { <p>@revision.ChangeNote</p> }
+        </li>
+    }
+    </ol>
+}
+</section>
+
+<p class="compliance">Not investment advice · Own funds only</p>
+
 <dialog id="confirm" class="confirm" aria-labelledby="confirm-title">
 <form method="dialog">
-<p class="confirm-eyebrow" id="confirm-title">Save to @Model.BotInstanceId?</p>
+<p class="confirm-eyebrow" id="confirm-title">Save revision @(@Model.StrategyRevision + 1)?</p>
 <dl class="confirm-list">
 <div><dt>Position margin</dt><dd data-for="positionMarginUsd"></dd></div>
 <div><dt>Leverage</dt><dd data-for="leverage"></dd></div>
 <div><dt>Maximum open positions</dt><dd data-for="maxOpenPositions"></dd></div>
 <div><dt>Maximum per group</dt><dd data-for="maxOpenPositionsPerGroup"></dd></div>
 </dl>
-<p class="confirm-note">Live for new entries within about ten seconds. Open positions are not changed.</p>
-<div class="confirm-actions">
-<button type="submit" value="cancel" class="confirm-no">Cancel</button>
-<button type="submit" value="save" class="confirm-yes">Yes, save</button>
-</div>
+<p class="confirm-note">This appends one strategy revision and updates the four limits together. It affects new entries only.</p>
+<div class="confirm-actions"><button type="submit" value="cancel" class="confirm-no">Cancel</button><button type="submit" value="save" class="confirm-yes">Save</button></div>
 </form>
 </dialog>
-</section>
-
-@if (Model.LastWritten is { } written)
-{
-    <p class="compliance">Last written @written.ToUniversalTime().ToString("yyyy-MM-dd HH:mm") UTC</p>
-}
-<p class="compliance">Not investment advice · Own funds only</p>
 </main>
 
 @section Scripts {

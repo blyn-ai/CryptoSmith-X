@@ -91,7 +91,7 @@ body{min-height:100vh;display:flex;flex-direction:column;
   color:var(--text-heading);transition:var(--transition-color)}
 .p-params .logout:hover{border-color:var(--border-strong);color:var(--brand-text)}
 
-.p-params main{flex:1;width:100%;max-width:560px;margin:0 auto;padding:14px 14px 40px;display:flex;flex-direction:column;gap:12px}
+.p-params main{flex:1;width:100%;max-width:920px;margin:0 auto;padding:24px 14px 40px;display:flex;flex-direction:column;gap:12px}
 .p-params .panel{background:var(--surface-card);border:1px solid var(--border-card)}
 .p-params .panel-head{padding:var(--pad-panel-head);background:var(--surface-sunken);border-bottom:1px solid var(--border-hairline);
   display:flex;align-items:baseline;justify-content:space-between;gap:10px}
@@ -131,6 +131,33 @@ body{min-height:100vh;display:flex;flex-direction:column;
 /* The one thing on this screen that IS a system state after a write: amber, the kit's colour for
    held-back risk, never the money green — nothing here made or lost anything. */
 .p-params .landed{margin:12px 12px 0;padding:9px 10px;background:var(--tint-hold);border:1px solid var(--border-hold);font-family:var(--font-mono);font-size:var(--fs-data);line-height:1.4;letter-spacing:.02em;color:var(--state-hold-ink)}
+.p-params .refused{margin:12px 0 0;padding:9px 10px;background:var(--tint-hold);border:1px solid var(--border-hold);font-family:var(--font-mono);font-size:var(--fs-data);line-height:1.4;letter-spacing:.02em;color:var(--state-hold-ink)}
+
+/* ── strategy modeler ── */
+.p-params .modeler-intro{display:flex;align-items:end;justify-content:space-between;gap:14px;padding:4px 0 2px}
+.p-params .modeler-intro h1{margin:5px 0 4px;font-family:var(--font-display);font-size:23px;line-height:1;letter-spacing:.02em;text-transform:uppercase;color:var(--text-heading)}
+.p-params .modeler-intro p,.p-params .group-detail{margin:0;font-family:var(--font-mono);font-size:var(--fs-micro);line-height:1.3;letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted)}
+.p-params .modeler-intro #status{flex:none;text-align:right}
+.p-params .modeler-form{padding:0;gap:12px}
+.p-params .modeler-group .group-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:14px 12px}
+.p-params .modeler-group .group-actions{padding:0 12px 14px}
+.p-params .field.disabled{opacity:.58}
+.p-params textarea{width:100%;resize:vertical;min-height:76px;padding:9px 10px;background:var(--surface-sunken);border:1px solid var(--border-input);border-radius:var(--radius-control);outline:none;font-family:var(--font-mono);font-size:14px;line-height:1.4;color:var(--text-data)}
+.p-params textarea:focus{border-color:var(--border-strong)}
+.p-params .read-only-card{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--border-hairline);background:var(--tint-neutral)}
+.p-params .read-only-value{font-family:var(--font-mono);font-size:var(--fs-data);line-height:1.3;color:var(--text-data)}
+.p-params .revision-history ol{list-style:none;margin:0;padding:0}
+.p-params .revision-history li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:11px 12px;border-top:1px solid var(--border-hairline);font-family:var(--font-mono);font-size:var(--fs-data);line-height:1.35;color:var(--text-data)}
+.p-params .revision-history time{font-size:var(--fs-micro);color:var(--text-muted);white-space:nowrap}
+.p-params .revision-history p{grid-column:1 / -1;margin:2px 0 0;color:var(--text-muted)}
+.p-params .empty{margin:0;padding:12px;font-size:var(--fs-meta);color:var(--text-muted)}
+
+@media (max-width:520px){
+  .p-params .modeler-group .group-fields{grid-template-columns:1fr}
+  .p-params .modeler-intro{align-items:start;flex-direction:column}
+  .p-params .modeler-intro #status{text-align:left}
+  .p-params .revision-history li{grid-template-columns:1fr}
+}
 
 /* ── the save confirmation ── */
 /* Square, opaque, no shadow: the kit allows none, and a modal that glows would be the only lit
