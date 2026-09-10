@@ -65,7 +65,9 @@ public static class V2Columns
         new(V2Field.Index, "Index", CallTone.Ticker, 144),
         new(V2Field.FundingPerDay, "Funding /day", CallTone.Ticker, 96, Cut: "funding", Spark: true),
         new(V2Field.FundingRate, "Venue rate", CallTone.Ticker, 96),
-        new(V2Field.FundingInterval, "Interval", CallTone.Ticker, 64),
+        // Не цифра, а подпись под ней: «next 18:00:00Z» переносится, и её вторая строка — девять
+        // знаков мелкого моно, 49px — в 47px не влезала и текла на соседнюю колонку.
+        new(V2Field.FundingInterval, "Interval", CallTone.Ticker, 68),
         // «1,435,887,165» у ENA — тринадцать знаков: девяти цифр, на которые эта колонка была
         // рассчитана, рынку хватает не всегда.
         new(V2Field.Turnover24h, "Turnover 24h", CallTone.Ticker, 128, Cut: "turnover"),
