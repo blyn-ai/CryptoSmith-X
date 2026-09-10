@@ -91,7 +91,7 @@ public sealed class ParametersController : Controller
             var errors = Validate(request, strategy);
             if (request.StrategyProfileId != strategy.ProfileId || request.StrategyRevision != strategy.Revision)
             {
-                errors["strategy"] = "The strategy changed while this page was open. Review the current revision before saving.";
+                errors["strategy"] = "Strategija pasikeitė, kol buvo atidarytas šis puslapis. Prieš išsaugant peržiūrėk dabartinę reviziją.";
             }
 
             if (errors.Count > 0)
@@ -178,6 +178,7 @@ public sealed class ParametersController : Controller
         }
 
         var values = StrategyProfileStore.ResolveValues(strategy);
+        var runtimeLimits = BuildRuntimeLimits(profile, errors);
         var parameters = StrategyParameterCatalog.All
             .Select(definition => new StrategyParameterViewModel(
                 definition,
@@ -196,6 +197,7 @@ public sealed class ParametersController : Controller
             StrategyProfileId = strategy.ProfileId,
             Profile = profile,
             LastWritten = lastWritten,
+            RuntimeLimits = runtimeLimits,
             StrategyParameters = parameters,
             RevisionHistory = history,
             Errors = errors ?? new Dictionary<string, string>(StringComparer.Ordinal),
@@ -219,32 +221,32 @@ public sealed class ParametersController : Controller
 
         if (p.PositionMarginUsd is not { } margin || margin <= 0)
         {
-            errors[TradeProfileKeys.PositionMarginUsd] = "Must be a number greater than zero";
+            errors[TradeProfileKeys.PositionMarginUsd] = "Įvesk skaičių, didesnį už nulį";
         }
 
         if (p.Leverage is not { } lev || lev < 1 || lev > 10)
         {
-            errors[TradeProfileKeys.Leverage] = "Must be between 1 and 10";
+            errors[TradeProfileKeys.Leverage] = "Leistina reikšmė nuo 1 iki 10";
         }
 
         if (p.MaxOpenPositions is not { } max || max < 1 || max > 20)
         {
-            errors[TradeProfileKeys.MaxOpenPositions] = "Must be a whole number between 1 and 20";
+            errors[TradeProfileKeys.MaxOpenPositions] = "Įvesk sveiką skaičių nuo 1 iki 20";
         }
 
         if (p.MaxOpenPositionsPerGroup is not { } group || group < 1 || group > 20)
         {
-            errors[TradeProfileKeys.MaxOpenPositionsPerGroup] = "Must be a whole number between 1 and 20";
+            errors[TradeProfileKeys.MaxOpenPositionsPerGroup] = "Įvesk sveiką skaičių nuo 1 iki 20";
         }
         else if (p.MaxOpenPositions is { } total && group > total)
         {
             // Only when the total itself is valid: two complaints about one mistake is one too many.
-            errors[TradeProfileKeys.MaxOpenPositionsPerGroup] = "Cannot exceed the total maximum";
+            errors[TradeProfileKeys.MaxOpenPositionsPerGroup] = "Negali viršyti bendro pozicijų limito";
         }
 
         if (request.ChangeNote?.Length > 1_000)
         {
-            errors["changeNote"] = "A strategy note cannot exceed 1000 characters";
+            errors["changeNote"] = "Strategijos pastaba negali būti ilgesnė nei 1000 simbolių";
         }
 
         var values = StrategyProfileStore.ResolveValues(strategy);
@@ -257,7 +259,7 @@ public sealed class ParametersController : Controller
 
             if (!request.Parameters.TryGetValue(definition.Id, out var value) || value is null)
             {
-                errors[definition.Id] = "Must be a number";
+                errors[definition.Id] = "Įvesk skaičių";
                 continue;
             }
 
@@ -265,14 +267,96 @@ public sealed class ParametersController : Controller
             {
                 StrategyParameterCatalog.Write(definition, values, value.Value);
             }
-            catch (ArgumentException e)
+            catch (ArgumentException)
             {
-                errors[definition.Id] = e.Message;
+                errors[definition.Id] = "Reikšmė nepatenka į leidžiamą ribą";
             }
         }
 
         return errors;
     }
+
+    private static IReadOnlyList<RuntimeLimitViewModel> BuildRuntimeLimits(
+        TradeProfile profile,
+        IReadOnlyDictionary<string, string>? errors) =>
+    [
+        new(
+            TradeProfileKeys.PositionMarginUsd,
+            "positionMarginUsd",
+            "Pozicijos marža",
+            "USD",
+            profile.PositionMarginUsd,
+            0.01m,
+            5_000m,
+            0.01m,
+            2,
+            "Kiek savo pinigų skiri vienai pozicijai.",
+            $"Pvz. {profile.PositionMarginUsd:0.##} USD × {profile.Leverage:0.#} svertas = {profile.PositionMarginUsd * profile.Leverage:0.##} USD pozicija.",
+            "Mažiau vienam sandoriui",
+            "Daugiau vienam sandoriui",
+            "Tai tavo pinigų dalis, kurią botas skiria vienam sandoriui. Su svertu ji virsta didesne pozicija rinkoje.",
+            "Vienas sandoris rizikuos mažesne suma, bet ir uždirbs mažiau.",
+            "Vienas sandoris taps svarbesnis — didesnis ir pelnas, ir galimas nuostolis.",
+            "Pozicijos dydis skaičiuojamas kaip marža × svertas / įėjimo kaina, apvalinant pagal biržos kiekio žingsnį.",
+            errors?.GetValueOrDefault(TradeProfileKeys.PositionMarginUsd)),
+        new(
+            TradeProfileKeys.Leverage,
+            "leverage",
+            "Svertas",
+            "×",
+            profile.Leverage,
+            1m,
+            10m,
+            0.1m,
+            1,
+            "Padidina ir galimą pelną, ir nuostolį.",
+            $"Pvz. su {profile.PositionMarginUsd:0.##} USD ir {profile.Leverage:0.#}× valdai {profile.PositionMarginUsd * profile.Leverage:0.##} USD poziciją.",
+            "Mažiau rizikos",
+            "Daugiau rizikos",
+            "Svertas padidina poziciją, neprašydamas daugiau tavo pinigų. Kartu jis tiek pat kartų padidina ir nuostolį.",
+            "Pozicija mažesnė, kaina turi nueiti toliau, kad rezultatas būtų juntamas.",
+            "Pozicija didesnė — greičiau uždirbsi ir greičiau pasieksi stop loss.",
+            "Svertas nustatomas biržos pusėje prieš įėjimą. Stop loss atstumas ATR vienetais nesikeičia, o nuostolis pinigais auga proporcingai.",
+            errors?.GetValueOrDefault(TradeProfileKeys.Leverage)),
+        new(
+            TradeProfileKeys.MaxOpenPositions,
+            "maxOpenPositions",
+            "Daugiausia atvirų pozicijų",
+            "poz.",
+            profile.MaxOpenPositions,
+            1m,
+            20m,
+            1m,
+            0,
+            "Kiek sandorių botas gali laikyti vienu metu.",
+            $"Pvz. jei jau atidarytos {profile.MaxOpenPositions} pozicijos, naujos neatidarys.",
+            "Mažiau pozicijų",
+            "Daugiau pozicijų",
+            "Riba, kiek sandorių botas gali laikyti tuo pačiu metu.",
+            "Mažiau vienu metu veikiančių sandorių — ramesnė, bet lėtesnė prekyba.",
+            "Daugiau sandorių vienu metu — didesnė bendra ekspozicija rinkoje.",
+            "Tikrinama prieš kiekvieną įėjimą: pasiekus ribą signalas atmetamas ir įrašomas į ciklo žurnalą.",
+            errors?.GetValueOrDefault(TradeProfileKeys.MaxOpenPositions)),
+        new(
+            TradeProfileKeys.MaxOpenPositionsPerGroup,
+            "maxOpenPositionsPerGroup",
+            "Daugiausia pozicijų vienoje grupėje",
+            "poz.",
+            profile.MaxOpenPositionsPerGroup,
+            1m,
+            20m,
+            1m,
+            0,
+            "Neleidžia per daug statyti ant panašiai judančių rinkų.",
+            $"Pvz. jei grupėje jau yra {profile.MaxOpenPositionsPerGroup} pozicijos, kitą botas praleis.",
+            "Labiau paskirstyta",
+            "Didesnė koncentracija",
+            "Panašiai judančios rinkos suskirstytos į grupes. Riba neleidžia visų pinigų sudėti į tą patį judesį.",
+            "Rizika labiau paskirstyta tarp skirtingų rinkų.",
+            "Leidžiama stipriau susitelkti į vieną rinkos temą.",
+            "Grupė priskiriama pagal koreliacijos žemėlapį ir tikrinama kartu su bendra atvirų pozicijų riba.",
+            errors?.GetValueOrDefault(TradeProfileKeys.MaxOpenPositionsPerGroup)),
+    ];
 
     private sealed record PostedProfile(
         decimal? PositionMarginUsd, decimal? Leverage, int? MaxOpenPositions, int? MaxOpenPositionsPerGroup);

@@ -22,6 +22,8 @@ public sealed class ParametersViewModel
     /// <summary>When the overrides were last written, or null if there are none.</summary>
     public DateTimeOffset? LastWritten { get; init; }
 
+    public required IReadOnlyList<RuntimeLimitViewModel> RuntimeLimits { get; init; }
+
     public required IReadOnlyList<StrategyParameterViewModel> StrategyParameters { get; init; }
 
     public required IReadOnlyList<StrategyProfileRevision> RevisionHistory { get; init; }
@@ -41,4 +43,24 @@ public sealed record StrategyParameterViewModel(
     StrategyParameterDefinition Definition,
     decimal Value,
     bool IsEnabled,
+    string? Error);
+
+public sealed record RuntimeLimitViewModel(
+    string Key,
+    string BindingName,
+    string Label,
+    string Unit,
+    decimal Value,
+    decimal Minimum,
+    decimal Maximum,
+    decimal Step,
+    int DecimalPlaces,
+    string Description,
+    string Example,
+    string LowerCaption,
+    string HigherCaption,
+    string DetailIntro,
+    string LowerImpact,
+    string HigherImpact,
+    string Technical,
     string? Error);
