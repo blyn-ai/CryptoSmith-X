@@ -126,7 +126,13 @@
                     var quoteRule = mark is not null && V2Ranks.IsQuoteScoped(c.Field);
                     var markText = rank == Verdict.None ? null : V2Ranks.Mark(c.Field, rank);
                     var markTitle = rank == Verdict.None ? null : V2Ranks.Title(c.Field, rank, quoteRule, r.Row.QuoteAsset);
-                    var spark = c.Spark ? Format.SparkPath(V2Columns.Series(r, c), 60, 14) : null;
+                    // Prompt 2, U-4: a sparkline under eight points is two or three dots joined by
+                    // a guess, not a shape — the slot stays empty rather than draw a line the
+                    // reader would read as trend from noise.
+                    var series = V2Columns.Series(r, c);
+                    var spark = c.Spark && series.Count(v => v is not null) >= 8
+                        ? Format.SparkPath(series, 60, 14)
+                        : null;
                     var age = V2Columns.Freshness(r, c);
 
                     // B1: a paired column (bid/ask, bid size/ask size) carries a second field's
@@ -192,16 +198,30 @@
                         }
                         @if (spark is not null)
                         {
-                            <svg class="v2-spark" data-tone="@c.Call.ToString().ToLowerInvariant()"
-                                 viewBox="0 0 60 14" preserveAspectRatio="none" aria-hidden="true">
+                            @* Prompt 2, U-4: 56×12, one weight, one ink — --text-faint for the
+                               line whichever call wrote the column, a 2px dot in --text-heading
+                               marking the current value, no fill. The call's own colour still
+                               names the column via the band and the header rule; the sparkline's
+                               job is only shape. *@
+                            var dot = Format.SparkLastPoint(series, 56, 12);
+                            <svg class="v2-spark" viewBox="0 0 56 12" preserveAspectRatio="none" aria-hidden="true">
                                 <path d="@spark" fill="none" stroke="currentColor" stroke-width="1"
                                       vector-effect="non-scaling-stroke" />
+                                @if (dot is { } d)
+                                {
+                                    <circle cx="@d.X.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)"
+                                            cy="@d.Y.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)"
+                                            r="1" fill="var(--text-heading)" stroke="none" />
+                                }
                             </svg>
                         }
-                        @* Возраст ВЫЗОВА, написавшего эту клетку, а не строки: свип четырёхминутной
-                           давности под двухсекундной ценой — ровно та причина, по которой часы
-                           здесь считаются по вызовам. *@
-                        <span class="v2-cellage @(late ? "v2-cellage--late" : "")">@Format.SpacedAge(age.Age) ago</span>
+                        @* Prompt 2, U-3: the age line is gone except where it is the one thing
+                           worth saying — a call past its own window. A fresh call's age is
+                           already the strip in the listing cell; repeating it, in the same faint
+                           ink, on every one of twenty cells a row was the line this removes. The
+                           slot stays reserved (same height late or not) so a row never grows the
+                           moment one cell in it goes stale. *@
+                        <span class="v2-cellage @(late ? "v2-cellage--late" : "")">@(late ? Format.SpacedAge(age.Age) + " ago" : "")</span>
                     </span>
                 }
             </div>

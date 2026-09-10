@@ -361,9 +361,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    цвет — полупрозрачные --spark-*, а не насыщенный вызов. */
 /* Подвал клетки: бар слева во всю оставшуюся ширину, линия справа фиксированной. Стопкой они
    стоили шестнадцать пикселей высоты каждой строке на каждой из семи колонок. */
-.v2-spark{display:block;width:60px;height:14px;flex:none;color:var(--spark-ticker)}
-.v2-spark[data-tone="openinterest"]{color:var(--spark-oi)}
-.v2-spark[data-tone="depth"]{color:var(--spark-depth)}
+/* Prompt 2, U-4: one weight, one ink for every column's sparkline — the call's own colour
+   already names the column (the band above, the header's border-top); a second copy of it on a
+   1px line 56px wide was too small to read as anything but noise, so the line is --text-faint
+   everywhere now and only the shape is the sparkline's own job. */
+.v2-spark{display:block;width:56px;height:12px;flex:none;color:var(--text-faint)}
 /* Раскрытая группа отдаёт место полям: две картинки одного числа в одной клетке спорят. */
 
 /* ── Ранг цифры ──────────────────────────────────────────────────────────────

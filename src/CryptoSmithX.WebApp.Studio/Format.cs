@@ -445,4 +445,49 @@ public static class Format
 
         return segmentPoints > 0 ? string.Join(" ", parts) : null;
     }
+
+    /// <summary>
+    /// Where the LAST held value of a sparkline sits, in the same coordinate space
+    /// <see cref="SparkPath"/> draws in — Prompt 2, U-4's 2 px ink dot marking the current value,
+    /// so a reader can find "now" on a line with no axis without re-deriving the same lo/hi and
+    /// x-step the path itself used. Null under the same conditions <see cref="SparkPath"/> returns
+    /// null: fewer than two held points.
+    /// </summary>
+    public static (double X, double Y)? SparkLastPoint(
+        IReadOnlyList<double?> values, double width = SparkWidth, double height = SparkHeight)
+    {
+        var present = values.Where(v => v is { } x && !double.IsNaN(x)).Select(v => v!.Value).ToList();
+        if (present.Count < 2)
+        {
+            return null;
+        }
+
+        var lo = present.Min();
+        var hi = present.Max();
+        if (hi <= lo)
+        {
+            var pad = Math.Abs(hi) * 0.02;
+            hi += pad > 0 ? pad : 1;
+            lo -= pad > 0 ? pad : 1;
+        }
+
+        var lastIndex = -1;
+        for (var i = values.Count - 1; i >= 0; i--)
+        {
+            if (values[i] is { } v && !double.IsNaN(v))
+            {
+                lastIndex = i;
+                break;
+            }
+        }
+
+        if (lastIndex < 0)
+        {
+            return null;
+        }
+
+        var x = SparkX(lastIndex, values.Count, width);
+        var y = (height - 1.5) - ((values[lastIndex]!.Value - lo) / (hi - lo)) * (height - 3);
+        return (x, y);
+    }
 }

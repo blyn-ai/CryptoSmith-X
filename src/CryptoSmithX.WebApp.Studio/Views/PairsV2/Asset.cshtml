@@ -43,7 +43,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=56">
+    <link rel="stylesheet" href="~/studio-v2.css?v=57">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -252,23 +252,44 @@
                    бы остальные в прямые, — и именно поэтому у неё обязаны быть подписаны концы:
                    без них линия говорит только «росло/падало», а на вопрос «с чего и до чего» не
                    отвечает вовсе. Под полосой — общие минимум и максимум среза по всем площадкам,
-                   то, чего отдельная линия сказать не может. *@
+                   то, чего отдельная линия сказать не может. FUNDING — исключение (Prompt 2, U-2):
+                   ноль значит что-то одно на каждой площадке, поэтому её ось общая и симметричная
+                   относительно нуля, а не своя на каждую линию. *@
+                var fundingMaxAbs = c.Key == "funding"
+                    ? Model.Rows.SelectMany(r => V2Cuts.Series(r, c)).Where(v => v is not null)
+                        .Select(v => Math.Abs(v!.Value)).DefaultIfEmpty(0).Max()
+                    : 0;
+
+                // Prompt 2, U-9: band 3's cards follow band 2's own order for this cut — the same
+                // NOW figure, the same direction (c.HighIsBest) — so a reader who just read band 2
+                // top-to-bottom finds the same venue first here. Band 1 is unaffected; only this
+                // band's row order changes.
+                double? NowOf(VenueRowModel x)
+                {
+                    Model.Stress.TryGetValue(x.Row.InstrumentId, out var s);
+                    return V2Cuts.Now(x, c, s);
+                }
+
+                var orderedRows = c.HighIsBest
+                    ? Model.Rows.OrderByDescending(x => NowOf(x) ?? double.MinValue).ToList()
+                    : Model.Rows.OrderBy(x => NowOf(x) ?? double.MaxValue).ToList();
+
                 var drawn = new List<string>();
                 var missing = new List<string>();
-                foreach (var r in Model.Rows)
+                foreach (var r in orderedRows)
                 {
                     var vals = V2Cuts.Series(r, c);
-                    if (Format.SparkPath(vals, 260, 64) is null)
+                    if (vals.Count(v => v is not null) == 0)
                     {
                         missing.Add(r.Row.ExchangeName + " " + r.Row.Symbol);
                     }
                 }
 
-                foreach (var r in Model.Rows)
+                foreach (var r in orderedRows)
                 {
                     var vals = V2Cuts.Series(r, c);
-                    var path = Format.SparkPath(vals, 260, 64);
-                    if (path is null)
+                    var held = vals.Count(v => v is not null);
+                    if (held == 0)
                     {
                         continue;
                     }
@@ -277,11 +298,15 @@
                     var first = seen[0];
                     var last = seen[^1];
 
-                    @* Дельта за окно и сколько часов из двадцати четырёх мы вообще держим: линия
-                       говорит, как шло, и молчит о том, на скольких часах она построена. Двадцать
-                       четыре точки и шесть — это две очень разные линии одинакового вида. *@
-                    var delta = first == 0 ? (double?)null : (last - first) / Math.Abs(first) * 100;
-                    var held = vals.Count(v => v is not null);
+                    // Prompt 2, U-4: below eight held points a line is two or three dots joined by
+                    // a guess, not a shape — "Same rule applies to the sparkline cards in band 3".
+                    // The card still renders (figure and footer only), and the hatch that normally
+                    // covers only the un-held HEAD of the axis covers the whole plot instead.
+                    var thin = held < 8;
+
+                    string? path = thin ? null : c.Key == "funding"
+                        ? Format.SparkPathScaled(vals, -fundingMaxAbs, fundingMaxAbs, 260, 64)
+                        : Format.SparkPath(vals, 260, 64);
 
                     // P0-2: the same "last point's own age" disclosure the candle cards carry,
                     // read off the SAME window list (r.Metrics.Windows) the line itself is drawn
@@ -302,8 +327,8 @@
                     // ширины считает шаг как 260/n, а линия ставит точки с шагом 259/(n-1), и
                     // штриховка каждый раз не доходила до первой точки на несколько единиц.
                     var hatchIndex = vals.ToList().FindIndex(v => v is not null);
-                    var hatchWidth = hatchIndex > 0 && vals.Count > 1
-                        ? Format.SparkX(hatchIndex, vals.Count, 260) : 0;
+                    var hatchWidth = thin ? 260
+                        : hatchIndex > 0 && vals.Count > 1 ? Format.SparkX(hatchIndex, vals.Count, 260) : 0;
                     <div class="v2-cut@(stale ? " v2-cut--stale" : "")">
                         <span class="v2-cut-plat"><b>@r.Row.ExchangeName</b> <em>@r.Row.Symbol</em></span>
                         <svg class="v2-line" viewBox="0 0 260 64" preserveAspectRatio="none" aria-hidden="true">
@@ -317,17 +342,51 @@
                                 <rect x="0" y="0" width="@hatchWidth.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" height="64"
                                       fill="url(#v2-hatch-@r.Row.InstrumentId-@c.Key)" />
                             }
-                            @* Заливка под линией — та же кривая, замкнутая по нижнему краю: она
-                               не добавляет данных, но даёт линии вес, которого у волоска в один
-                               пиксель на светлом фоне нет. *@
-                            <path d="@(path) L 260 64 L 0 64 Z" fill="currentColor" fill-opacity=".12" stroke="none" />
-                            <path d="@path" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                            @if (path is not null && c.Key == "funding")
+                            {
+                                @* Prompt 2, U-2: zero baseline plus a sign-split fill. lo = -max,
+                                   hi = +max is symmetric by construction, so zero always lands at
+                                   y=32 (SparkPathScaled's own doc) — the same closed shape (curve
+                                   to baseline), clipped to the upper and lower half in turn, is
+                                   exactly "green where the curve is above zero, magenta where it
+                                   is below" without splitting the path itself. *@
+                                <defs>
+                                    <clipPath id="v2-fundup-@r.Row.InstrumentId-@c.Key"><rect x="0" y="0" width="260" height="32" /></clipPath>
+                                    <clipPath id="v2-funddown-@r.Row.InstrumentId-@c.Key"><rect x="0" y="32" width="260" height="32" /></clipPath>
+                                </defs>
+                                <line x1="0" y1="32" x2="260" y2="32" stroke="var(--border-hairline)" stroke-width="1" vector-effect="non-scaling-stroke" />
+                                <path d="@(path) L 260 32 L 0 32 Z" fill="var(--candle-up)" fill-opacity=".25" stroke="none" clip-path="url(#v2-fundup-@r.Row.InstrumentId-@c.Key)" />
+                                <path d="@(path) L 260 32 L 0 32 Z" fill="var(--candle-down)" fill-opacity=".25" stroke="none" clip-path="url(#v2-funddown-@r.Row.InstrumentId-@c.Key)" />
+                                <path d="@path" fill="none" stroke="var(--text-heading)" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                            }
+                            else if (path is not null)
+                            {
+                                @* Заливка под линией — та же кривая, замкнутая по нижнему краю:
+                                   она не добавляет данных, но даёт линии вес, которого у волоска в
+                                   один пиксель на светлом фоне нет. *@
+                                <path d="@(path) L 260 64 L 0 64 Z" fill="currentColor" fill-opacity=".12" stroke="none" />
+                                <path d="@path" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                            }
                         </svg>
                         <span class="v2-cut-scale">
                             <span>@Format.Num(last, c.Decimals) @c.Short</span>
-                            <span class="@(delta is > 0 ? "v2-delta--up" : delta is < 0 ? "v2-delta--down" : "")">
-                                @(delta is null ? "" : (delta > 0 ? "+" : "") + Format.Num(delta, 1) + "%")
-                            </span>
+                            @if (c.Key == "funding")
+                            {
+                                // Prompt 2, U-2: absolute change over the held window in bp/day,
+                                // sign-coloured — not the percentage delta every other cut shows,
+                                // which reads oddly beside a figure that is already signed.
+                                var changeBpd = thin ? (double?)null : (last - first) * 10000;
+                                <span class="@(changeBpd is > 0 ? "v2-delta--up" : changeBpd is < 0 ? "v2-delta--down" : "")">
+                                    @(changeBpd is null ? "" : (changeBpd > 0 ? "+" : "") + Format.Num(changeBpd, 1) + " bp/d")
+                                </span>
+                            }
+                            else
+                            {
+                                var delta = thin || first == 0 ? (double?)null : (last - first) / Math.Abs(first) * 100;
+                                <span class="@(delta is > 0 ? "v2-delta--up" : delta is < 0 ? "v2-delta--down" : "")">
+                                    @(delta is null ? "" : (delta > 0 ? "+" : "") + Format.Num(delta, 1) + "%")
+                                </span>
+                            }
                         </span>
                         <span class="v2-cut-age">
                             @if (lastWindow is { } lw2)

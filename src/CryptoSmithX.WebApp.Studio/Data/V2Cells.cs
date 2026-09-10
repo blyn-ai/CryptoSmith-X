@@ -213,7 +213,10 @@ public static class V2Cells
             return V2Cell.None;
         }
 
-        return new V2Cell(rate, Format.SignedPercent(rate * (24.0 / hours), 4), "per day · " + hours + " h interval");
+        // Prompt 2, U-3: shortened from "per day · N h interval" — with the age line gone from
+        // every cell but a late one, this sub-line is the tallest thing most cells hold, and
+        // "interval" was the word that pushed a wide venue's cell onto a third line.
+        return new V2Cell(rate, Format.SignedPercent(rate * (24.0 / hours), 4), "per day · " + hours + " h");
     }
 
     private static V2Cell Pct(double? v) =>
