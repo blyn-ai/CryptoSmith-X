@@ -586,9 +586,16 @@ public sealed class DesignSystemTests
     /// must be edited — a bump is now two lines in two files, and the second one is a test whose
     /// failure names the file. That converts a silent omission into a red build, which is the part
     /// that was missing; it does not convert it into an impossibility.
+    ///
+    /// The other way to lose: fetch the NEW version's URL before the deploy has converged. The edge
+    /// caches what the origin still has — the old file, now pinned under the new key — and the bump
+    /// is spent without ever having served the new file. studio-ages.js?v=6 shipped exactly that
+    /// way and the page it belonged to ran the previous script for half an hour. So a deploy is
+    /// probed with a throwaway query (?probe=…), never with the real ?v=, and a version that was
+    /// touched before its deploy landed is burnt: bump past it rather than wait it out.
     /// </summary>
     [Theory]
-    [InlineData("studio-ages.js", 6)]
+    [InlineData("studio-ages.js", 7)]
     [InlineData("studio-candles.js", 6)]
     [InlineData("studio-live.js", 3)]
     public void A_script_tag_carries_the_version_its_file_has_earned(string file, int expected)
