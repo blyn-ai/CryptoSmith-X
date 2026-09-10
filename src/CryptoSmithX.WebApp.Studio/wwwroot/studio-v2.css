@@ -291,6 +291,39 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-fig--pair .v2-part{align-self:flex-start}
 .v2-fig--pair .v2-part+.v2-part{align-self:flex-end}
 
+/* B2: the listing cell's disclosure — instrument identity, limits, status and spec version,
+   opened under the row it belongs to (plan rule 4: no modal, no new screen). Its own small
+   vocabulary rather than the first page's .a-disclose-* — this page loads studio-v2.css only, not
+   studio.css, so those classes would reach it unstyled. */
+/* .v2-grid is a flex column (each row its own CSS grid, stacked), so a plain flex child here
+   already stretches to the full table width — no grid-column span needed. */
+.v2-disclose{padding:var(--space-6);border-top:1px solid var(--border-hairline);
+  background:var(--surface-sunken)}
+.v2-disclose[hidden]{display:none}
+
+.v2-disclose-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--space-7)}
+.v2-disclose-grid h3{margin-bottom:var(--space-3)}
+.v2-disclose-grid section{display:flex;flex-direction:column;gap:var(--space-3);min-width:0}
+
+.v2-disclose-table{width:100%;font:400 var(--fs-age)/1.3 var(--font-mono);color:var(--text-data)}
+.v2-disclose-table th,.v2-disclose-table td{padding:2px 0;text-align:left;vertical-align:top}
+.v2-disclose-table th{color:var(--text-faint);font-weight:400;padding-right:var(--space-4);white-space:nowrap}
+
+.v2-disclose-note{font:400 var(--fs-age)/1.4 var(--font-mono);color:var(--text-faint)}
+.v2-disclose-dim{margin-left:4px;color:var(--text-faint)}
+
+.v2-disclose-raw{margin-top:var(--space-2)}
+.v2-disclose-raw summary{cursor:pointer;color:var(--text-faint);font:500 var(--fs-micro)/1.2 var(--font-mono);
+  letter-spacing:var(--track-eyebrow);text-transform:uppercase}
+.v2-disclose-raw pre{margin-top:var(--space-2);padding:var(--space-3);max-height:240px;overflow:auto;
+  font:400 11px/1.4 var(--font-mono);white-space:pre;background:var(--surface);
+  border:1px solid var(--border-hairline)}
+
+/* The trigger — the whole listing block stays clickable, and gets a hover/expanded tell so it
+   reads as one rather than as inert text next to the strip it already had. */
+.v2-listing{cursor:pointer}
+.v2-listing[aria-expanded="true"] .v2-plat{color:var(--accent)}
+
 /* Колонка выбранного поля: шапка акцентом. */
 
 /* Пара цен держится в одну строку даже с марками: перенос делал из одной величины две. */

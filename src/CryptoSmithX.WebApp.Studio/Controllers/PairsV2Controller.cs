@@ -138,6 +138,24 @@ public sealed class PairsV2Controller : LivePageController
     /// query rather than the page's whole load; the fills themselves are read fresh, because a
     /// cached tape is a tape that has stopped.
     /// </summary>
+    /// <summary>
+    /// B2: the listing cell's disclosure — one instrument's identity, limits, status and the open
+    /// version of its typed spec. Fetched on click, like A2/A3 on the pair board, because a spec has
+    /// no call and no age; it does not belong in the same live-pushed payload as the figures that do.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> InstrumentDetail(int instrumentId, CancellationToken ct)
+    {
+        var detail = await _cache.GetAsync("instrument-detail:" + instrumentId,
+            async token =>
+            {
+                await using var conn = await _db.OpenAsync(token);
+                return await InstrumentDetailStore.DetailAsync(conn, instrumentId, token);
+            }, ct);
+
+        return detail is null ? NotFound() : PartialView("~/Views/PairsV2/_InstrumentDetail.cshtml", detail);
+    }
+
     [HttpGet]
     public async Task<IActionResult> Tape(string baseFamily, CancellationToken ct)
     {

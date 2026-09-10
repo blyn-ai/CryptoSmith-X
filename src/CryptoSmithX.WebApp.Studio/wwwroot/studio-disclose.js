@@ -1,21 +1,24 @@
-/* Раскрытие на месте — общий механизм для полосы площадок (A1/A2) и карточки актива (A3/A4).
+/* Раскрытие на месте — общий механизм для полосы площадок (A1/A2), карточки актива (A3/A4) и
+   теперь ячейки листинга на второй странице (B2).
 
-   Ни один готовый паттерн раскрытия в этом приложении уже не существует: строка про «a group
-   opens in place» на второй странице актива — текст без реализации, разворачивать там больше
-   нечего, все колонки видны сразу (см. studio-v2.js). Этот файл — не переиспользование, а
-   единственная реализация того, что раньше только обещали.
+   Ни один готовый паттерн раскрытия в этом приложении уже не существовал: строка про «a group
+   opens in place» на второй странице актива была текстом без реализации. Этот файл — единственная
+   реализация того, что раньше только обещали.
 
    Панель подгружается ОДИН РАЗ, при первом клике, и после этого просто прячется/показывается —
-   не перезапрашивается. Данные под ней (режим сбора, состояние коллекторов, реестр алиасов) не
-   двигаются внутри одного захода на страницу быстрее, чем сама страница целиком, так что повторный
-   запрос не покупает свежести, только лишний раунд-трип.
+   не перезапрашивается. Данные под ней (режим сбора, состояние коллекторов, реестр алиасов, спека
+   инструмента) не двигаются внутри одного захода на страницу быстрее, чем сама страница целиком,
+   так что повторный запрос не покупает свежести, только лишний раунд-трип.
+
+   СЛУШАТЕЛЬ ДЕЛЕГИРОВАН, А НЕ ПОВЕШЕН НА КАЖДЫЙ ТРИГГЕР. Полоса 1 второй страницы — один из живых
+   регионов (LiveRegions): каждый проход коллектора заменяет всю таблицу целиком, включая любые
+   триггеры внутри неё. Слушатель, повешенный на конкретный элемент при загрузке скрипта, перестаёт
+   срабатывать молча в тот момент, когда этот элемент заменён, — один слушатель на document переживает
+   любое число замен.
 
    Без скрипта ссылка просто ведёт на partial напрямую — data-disclose-url всегда настоящий URL,
    не якорь. */
 (function () {
-  var triggers = document.querySelectorAll('[data-disclose-url]');
-  if (!triggers.length) { return; }
-
   function panelOf(trigger) {
     var id = trigger.getAttribute('data-disclose-target');
     return id ? document.getElementById(id) : null;
@@ -48,14 +51,34 @@
     trigger.setAttribute('aria-expanded', 'false');
   }
 
-  triggers.forEach(function (trigger) {
+  function toggle(trigger) {
     var panel = panelOf(trigger);
     if (!panel) { return; }
+    if (panel.hidden) { open(trigger, panel); } else { close(trigger, panel); }
+  }
 
+  // Стартовое состояние для того, что уже на странице при загрузке скрипта — не обязательно для
+  // работы (делегированный слушатель ниже всё равно откроет любой триггер), но так экран читалки
+  // знает «свёрнуто» ДО первого клика, а не только после.
+  document.querySelectorAll('[data-disclose-url]').forEach(function (trigger) {
     trigger.setAttribute('aria-expanded', 'false');
-    trigger.addEventListener('click', function (e) {
-      e.preventDefault();
-      if (panel.hidden) { open(trigger, panel); } else { close(trigger, panel); }
-    });
+  });
+
+  document.addEventListener('click', function (e) {
+    var trigger = e.target.closest('[data-disclose-url]');
+    if (!trigger) { return; }
+    e.preventDefault();
+    toggle(trigger);
+  });
+
+  // Клавиатура — только для триггеров, у которых нет своей нативной активации (кнопка/ссылка уже
+  // шлют click по Enter/Space сами; вызвать toggle() ещё раз для них значило бы открыть и тут же
+  // закрыть панель).
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') { return; }
+    var trigger = e.target.closest('[data-disclose-url]');
+    if (!trigger || trigger.tagName === 'BUTTON' || trigger.tagName === 'A') { return; }
+    e.preventDefault();
+    toggle(trigger);
   });
 })();

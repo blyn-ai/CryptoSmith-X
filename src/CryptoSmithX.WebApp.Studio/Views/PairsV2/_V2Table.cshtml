@@ -64,7 +64,12 @@
             var strip = StripModel.Build(r);
 
             <div class="v2-row" @Html.Raw(sorts)>
-                <span class="v2-listing a-venue">
+                @* B2: the listing cell opens the instrument's identity/limits/status/spec — the
+                   same on-click-once-then-toggle mechanism A1–A4 use (studio-disclose.js), which
+                   this page now also loads. *@
+                <span class="v2-listing a-venue" role="button" tabindex="0" aria-expanded="false"
+                      data-disclose-url="@Url.Action("InstrumentDetail", "PairsV2", new { instrumentId = r.Row.InstrumentId })"
+                      data-disclose-target="instrument-@r.Row.InstrumentId">
                     <span class="v2-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em></span>
                     <span class="v2-symbol">
                         @r.Row.Symbol
@@ -179,6 +184,7 @@
                     </span>
                 }
             </div>
+            <div class="v2-disclose" id="instrument-@r.Row.InstrumentId" hidden></div>
         }
     </div>
     </div>

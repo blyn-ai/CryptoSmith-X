@@ -1,0 +1,90 @@
+@model CryptoSmithX.WebApp.Studio.Models.InstrumentDetail
+@{
+    var now = DateTime.UtcNow;
+    static string AgeOf(DateTime now, DateTime? at) =>
+        at is null ? "—" : Format.SpacedAge((now - at.Value).TotalSeconds) + " ago";
+}
+
+<div class="v2-disclose-grid">
+    <section>
+        <h3 class="csx-eyebrow">Who this is · exchange_instrument</h3>
+        <table class="v2-disclose-table">
+            <tbody>
+                <tr><th>Base, as the venue spells it</th><td>@Model.Identity.BaseAssetRaw</td></tr>
+                <tr><th>Quote, as the venue spells it</th><td>@Model.Identity.QuoteAssetRaw</td></tr>
+                <tr><th>Contract multiplier</th>
+                    <td>@(Model.Identity.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(Model.Identity.ContractMultiplier, 0))</td></tr>
+                <tr><th title="When the contract listed on the venue, by the venue's own account">Listed on the venue</th>
+                    <td>@(Model.Identity.ListedAt is { } la ? Format.Utc(la) : "—")</td></tr>
+                <tr><th title="When discovery first saw this instrument">First seen by us</th>
+                    <td>@Format.Utc(Model.Identity.FirstSeenAt)</td></tr>
+            </tbody>
+        </table>
+        <p class="v2-disclose-note">
+            The raw base/quote spellings are the input to alias resolution — asset_alias turns them
+            into the canonical asset this row is filed under everywhere else on this page. Where
+            listed and first-seen differ, the gap is discovery's own polling interval, not an error
+            in either clock.
+        </p>
+    </section>
+
+    <section>
+        <h3 class="csx-eyebrow">Limits · exchange_instrument</h3>
+        <table class="v2-disclose-table">
+            <tbody>
+                <tr><th>Price step</th><td>@Format.Num(Model.Limits.PriceStep, 8)</td></tr>
+                <tr><th>Quantity step</th><td>@Format.Num(Model.Limits.QtyStep, 8)</td></tr>
+                <tr><th>Minimum quantity</th><td>@Format.Num(Model.Limits.MinQty, 8)</td></tr>
+                <tr><th>Minimum notional</th><td>@(Model.Limits.MinNotional is { } mn ? Format.Num(mn, 2) : "—")</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h3 class="csx-eyebrow">Status · exchange_instrument</h3>
+        <table class="v2-disclose-table">
+            <tbody>
+                <tr><th>Status</th>
+                    <td>@Model.Status.Status
+                        <span class="v2-disclose-dim" title="@Format.Utc(Model.Status.StatusChangedAt)">changed @AgeOf(now, Model.Status.StatusChangedAt)</span></td></tr>
+                <tr><th>Collect</th>
+                    <td>@(Model.Status.Collect ? "collecting" : "waiting for an operator")</td></tr>
+                <tr><th title="Written only at INSERT — a discovery pass never revisits it">Decided</th>
+                    <td title="@(Model.Status.ChangedAt is { } ca ? Format.Utc(ca) : "never changed")">@AgeOf(now, Model.Status.ChangedAt)
+                        @(Model.Status.ChangedBy is { } by ? " · " + by : "")</td></tr>
+                <tr><th>Note</th><td>@(Model.Status.CollectNote ?? "—")</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h3 class="csx-eyebrow">Spec version · instrument_spec</h3>
+        @if (Model.Spec is null)
+        {
+            <p class="v2-disclose-note">No typed spec version recorded for this instrument —
+                discovery has not written one since 0031. The limits above are still the venue's
+                current ones, just not versioned.</p>
+        }
+        else
+        {
+            var s = Model.Spec;
+            <table class="v2-disclose-table">
+                <tbody>
+                    <tr><th>Valid from</th><td>@Format.Utc(s.ValidFrom)</td></tr>
+                    <tr><th title="NULL = this version is in effect">Valid to</th><td>@(s.ValidTo is { } vt ? Format.Utc(vt) : "in effect")</td></tr>
+                    <tr><th title="Last time discovery confirmed the same values">Last confirmed</th>
+                        <td title="@Format.Utc(s.LastSeenAt)">@AgeOf(now, s.LastSeenAt)</td></tr>
+                    <tr><th title="When the venue actually changed the contract, entered by hand where known">Venue changed it</th>
+                        <td>@(s.VenueEffectiveAt is { } vea ? Format.Utc(vea) : "not recorded")</td></tr>
+                    <tr><th>Funding interval source</th><td>@(s.FundingIntervalSource ?? "not recorded")</td></tr>
+                    <tr><th>Spec hash</th><td>@s.SpecHash</td></tr>
+                    <tr><th>Written by</th><td>@s.WrittenBy</td></tr>
+                </tbody>
+            </table>
+            <details class="v2-disclose-raw">
+                <summary class="csx-eyebrow">Raw venue document</summary>
+                <pre>@s.RawJson</pre>
+            </details>
+        }
+    </section>
+</div>
