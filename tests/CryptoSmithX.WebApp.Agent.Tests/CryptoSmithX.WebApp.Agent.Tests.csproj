@@ -11,4 +11,20 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CryptoSmithX.WebApp.Agent\CryptoSmithX.WebApp.Agent.csproj" />
   </ItemGroup>
+
+  <!-- Разметка и лист стилей читаются тестом как ФАЙЛЫ: правило «спрятанному атрибутом нужна
+       пара [hidden]» проверяется только так, компилятору оно не видно. -->
+  <ItemGroup>
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Agent\wwwroot\agent.css"
+             Link="surface\agent.css" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Agent\Views\Parameters\Index.cshtml"
+             Link="surface\Index.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Agent\Views\Parameters\_Field.cshtml"
+             Link="surface\_Field.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Agent\Views\Shared\_Layout.cshtml"
+             Link="surface\_Layout.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Agent\wwwroot\parameters.js"
+             Link="surface\parameters.js" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
