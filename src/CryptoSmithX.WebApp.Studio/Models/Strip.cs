@@ -29,7 +29,15 @@ public sealed record StripCall(
     double Position,
     bool Placed,
     bool PastWindow,
-    double? Spent);
+    double? Spent)
+{
+    /// <summary>The call's own configured cadence — never the window, which already has it baked
+    /// in. Carried so the view can hand it to studio-ages.js: the client re-ticks PastWindow every
+    /// second from the same three numbers <see cref="Data.Freshness.PastWindow"/> takes here, and
+    /// without this one it would be re-deriving lateness from window alone, disagreeing with the
+    /// render the instant the first tick ran.</summary>
+    public double? CadenceSeconds { get; init; }
+}
 
 /// <summary>
 /// The row's own freshness, as it appears in the venue cell: a scale from the call that has just
@@ -178,7 +186,10 @@ public sealed record StripModel(
 
             calls.Add(new StripCall(
                 label, age, window, Ms(instant), position, placed,
-                Freshness.PastWindow(age, window, cadence), spent));
+                Freshness.PastWindow(age, window, cadence), spent)
+            {
+                CadenceSeconds = cadence,
+            });
         }
 
         // "Degraded" is a per-call verdict, so the row is degraded when its OLDEST call is past

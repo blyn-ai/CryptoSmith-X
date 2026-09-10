@@ -588,7 +588,7 @@ public sealed class DesignSystemTests
     /// that was missing; it does not convert it into an impossibility.
     /// </summary>
     [Theory]
-    [InlineData("studio-ages.js", 5)]
+    [InlineData("studio-ages.js", 6)]
     [InlineData("studio-candles.js", 6)]
     [InlineData("studio-live.js", 3)]
     public void A_script_tag_carries_the_version_its_file_has_earned(string file, int expected)

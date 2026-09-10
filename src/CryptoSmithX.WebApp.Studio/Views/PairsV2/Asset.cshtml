@@ -73,6 +73,8 @@
       data-fade-floor="@Freshness.Floor.ToString(System.Globalization.CultureInfo.InvariantCulture)"
       data-fade-exponent="@Freshness.Exponent.ToString(System.Globalization.CultureInfo.InvariantCulture)"
       data-degraded-windows="@Freshness.DegradedWindows"
+      data-late-floor="@Freshness.LateFloorSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+      data-late-cadence-multiplier="@Freshness.LateCadenceMultiplier.ToString(System.Globalization.CultureInfo.InvariantCulture)"
       data-age-space>
 
 @* ── шапка ─────────────────────────────────────────────────────────────────── *@
@@ -626,7 +628,7 @@
     <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
     <script src="~/studio-candles.js?v=6"></script>
 }
-<script src="~/studio-ages.js?v=5"></script>
+<script src="~/studio-ages.js?v=6"></script>
 <script src="~/studio-live.js?v=3"></script>
 <script src="~/studio-v2.js?v=21"></script>
 <script src="~/studio-disclose.js?v=2"></script>

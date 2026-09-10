@@ -210,7 +210,13 @@
   const FLOOR = Number(sheet.dataset.fadeFloor);
   const EXPONENT = Number(sheet.dataset.fadeExponent);
   const DEGRADED_WINDOWS = Number(sheet.dataset.degradedWindows);
-  if (!Number.isFinite(FLOOR) || !Number.isFinite(EXPONENT) || !Number.isFinite(DEGRADED_WINDOWS)) return;
+  // Freshness.LateFloorSeconds / LateCadenceMultiplier, the same way the three above already
+  // travel — a threshold re-typed here and disagreed with on the server is the exact bug this
+  // whole constants block exists to close.
+  const LATE_FLOOR = Number(sheet.dataset.lateFloor);
+  const LATE_CADENCE_MULTIPLIER = Number(sheet.dataset.lateCadenceMultiplier);
+  if (!Number.isFinite(FLOOR) || !Number.isFinite(EXPONENT) || !Number.isFinite(DEGRADED_WINDOWS)
+    || !Number.isFinite(LATE_FLOOR) || !Number.isFinite(LATE_CADENCE_MULTIPLIER)) return;
 
   const AMPLITUDE = 1 - FLOOR;
 
@@ -237,7 +243,15 @@
     return Math.max(FLOOR, 1 - AMPLITUDE * Math.pow(spent, EXPONENT));
   };
 
-  const pastWindow = (ageS, winS) => ageS !== null && winS !== null && winS > 0 && ageS >= winS;
+  // Freshness.PastWindow, word for word: a window built from a near-zero measured pass is the bare
+  // cadence with none of the headroom a real pass earns it, so the threshold is never allowed below
+  // three of the call's own cadences or twenty seconds, whichever is larger. cadenceS is the call's
+  // own configured interval, never the window — the window already has cadence folded in.
+  const pastWindow = (ageS, winS, cadenceS) => {
+    if (ageS === null || winS === null || !(winS > 0)) return false;
+    const threshold = Math.max(Math.max(winS, (cadenceS ?? 0) * LATE_CADENCE_MULTIPLIER), LATE_FLOOR);
+    return ageS >= threshold;
+  };
   const degraded = (ageS, winS) => ageS !== null && winS !== null && winS > 0 && ageS >= winS * DEGRADED_WINDOWS;
 
   // ── THE ONE AGE TOKEN, AND IT IS THREE CHARACTERS WIDE ──
@@ -381,8 +395,8 @@
 
   // The cell's age line, which also carries the two state classes. The strip's end label uses mark()
   // directly, because it wears a different class for the same condition.
-  const writeAge = (el, ageS, winS) => {
-    const spent = pastWindow(ageS, winS);
+  const writeAge = (el, ageS, winS, cadenceS) => {
+    const spent = pastWindow(ageS, winS, cadenceS);
     el.classList.toggle('a-age--missing', ageS === null);
     el.classList.toggle('a-age--spent', ageS !== null && spent);
     mark(el, ageS !== null && spent, ageText(ageS, winS));
@@ -559,6 +573,7 @@
       cell,
       age: cell.querySelector('.a-age'),
       win: num(cell, 'win'),
+      cadence: num(cell, 'cadence'),
     }));
 
     // The comparative claims, gathered by the group they are made across. Read from `data-rank`
@@ -613,7 +628,7 @@
       fresh: end(venue, 'data-fresh'),
       old: end(venue, 'data-old'),
       calls: [...venue.querySelectorAll('.a-strip-calls > span[data-at]')].map((c) => ({
-        el: c, win: num(c, 'win'), label: c.dataset.label || '', tok: c.querySelector('.a-tok'),
+        el: c, win: num(c, 'win'), cadence: num(c, 'cadence'), label: c.dataset.label || '', tok: c.querySelector('.a-tok'),
       })),
     }));
   };
@@ -683,7 +698,7 @@
     for (const c of cells) {
       const ageS = ageOf(c.cell);
       setVar(c.cell, '--w', weight(ageS, c.win).toFixed(3));
-      if (c.age) writeAge(c.age, ageS, c.win);
+      if (c.age) writeAge(c.age, ageS, c.win, c.cadence);
     }
 
     for (const s of strips) {
@@ -717,7 +732,7 @@
       for (const call of s.calls) {
         const ageS = ageOf(call.el);
         if (ageS === null) continue;
-        const spent = pastWindow(ageS, call.win);
+        const spent = pastWindow(ageS, call.win, call.cadence);
         anyDegraded = anyDegraded || degraded(ageS, call.win);
         call.el.classList.toggle('a-spent', spent);
         // The NAME is not written. It is the call's own label, it is in the HTML the server sent,

@@ -84,7 +84,9 @@
      data-now="@serverNowMs"
      data-fade-floor="@Freshness.Floor.ToString(System.Globalization.CultureInfo.InvariantCulture)"
      data-fade-exponent="@Freshness.Exponent.ToString(System.Globalization.CultureInfo.InvariantCulture)"
-     data-degraded-windows="@Freshness.DegradedWindows">
+     data-degraded-windows="@Freshness.DegradedWindows"
+     data-late-floor="@Freshness.LateFloorSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+     data-late-cadence-multiplier="@Freshness.LateCadenceMultiplier.ToString(System.Globalization.CultureInfo.InvariantCulture)">
     <i class="a-topline"></i>
 
     <header class="a-head">
@@ -145,7 +147,7 @@
 
 @* Manual cache-bust rather than asp-append-version: the Script TagHelper trips a Razor compiler
    bug on this SDK and the WebApp.Admin's own pair page loads its chart the same way. Bump v= on change. *@
-<script src="~/studio-ages.js?v=5" defer></script>
+<script src="~/studio-ages.js?v=6" defer></script>
 @await RenderSectionAsync("scripts", required: false)
 </body>
 </html>

@@ -112,6 +112,7 @@
                                   data-label="@call.Label"
                                   data-at="@call.InstantMs"
                                   data-win="@call.WindowSeconds?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"
+                                  data-cadence="@call.CadenceSeconds?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"
                                   ><span class="a-lab">@call.Label</span> <span class="a-tok">@Format.SpacedAge(call.AgeSeconds)</span></span>
                         }
                     </span>
