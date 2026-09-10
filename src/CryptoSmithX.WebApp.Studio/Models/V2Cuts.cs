@@ -25,7 +25,9 @@ public static class V2Cuts
         new("oi", "Open interest", "base units", V2CutSource.OpenInterest, PairColumn.OpenInterest, 0),
         new("funding", "Funding", "per venue interval", V2CutSource.Funding, null, 6),
         new("turnover", "Turnover", "quote asset, rolling 24 h", V2CutSource.None, PairColumn.Turnover24h, 0),
-        new("liquidations", "Liquidations", "base units, hourly buckets", V2CutSource.Liquidations, null, 0),
+        // P0-5 (UX audit): "hourly buckets" described the OLD source (VenueRowModel.Liquidations'
+        // last closed hour) — the cut now reads the same rolling 24h sum band 1's column does.
+        new("liquidations", "Liquidations", "base units, rolling 24 h", V2CutSource.Liquidations, null, 0),
     ];
 
     /// <summary>The hourly series for one cut, or an empty list when this cut keeps none.</summary>
@@ -43,16 +45,19 @@ public static class V2Cuts
     /// <summary>The figure band 2 ranks the venues by, or null when this cut has no comparable
     /// "now" — funding is a rate over each venue's own interval and does not rank in one column
     /// until it is normalised, which is what the carry group in the table does.</summary>
-    public static double? Now(VenueRowModel r, V2Cut cut)
+    /// <param name="stress">
+    /// P0-5 (UX audit): the SAME rolling 24h liquidation sum band 1's own column reads
+    /// (V2Store.StressAsync) — this cut used to read VenueRowModel.Liquidations' last CLOSED hour
+    /// instead, a different table on a different window, so a venue could print two different
+    /// liquidation figures a scroll apart with nothing on the page to say they were answering
+    /// different questions. Null where the page never loaded stress for this row (bands other than
+    /// this cut do not need it, so callers that never touch the liquidations cut may pass null).
+    /// </param>
+    public static double? Now(VenueRowModel r, V2Cut cut, StressRow? stress)
     {
-        // Ликвидации ранжируются, но не колонкой: их «сейчас» — последний ЗАКРЫТЫЙ час того же
-        // ряда, который рисует полоса 3, а не сумма за сутки и не текущий неполный час. Все
-        // площадки, которые их публикуют, отдают агрегат в базовых единицах, поэтому колонка
-        // сравнима; если однажды появится площадка с другой единицей, сравнивать станет нельзя и
-        // это придётся решать здесь, а не молча складывать.
         if (cut.Source == V2CutSource.Liquidations)
         {
-            return r.Liquidations.LastOrDefault(v => v is not null);
+            return stress?.Volume;
         }
 
         return cut.Column switch

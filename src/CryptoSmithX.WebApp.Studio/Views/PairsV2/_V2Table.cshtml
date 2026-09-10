@@ -56,10 +56,11 @@
 
         @foreach (var r in Model.Rows)
         {
-            var sorts = string.Join(" ", V2Cuts.All.Select(c =>
-                $"data-sort-{c.Key}=\"{V2Cuts.Now(r, c)?.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}\""));
-
             Model.Stress.TryGetValue(r.Row.InstrumentId, out var stress);
+
+            var sorts = string.Join(" ", V2Cuts.All.Select(c =>
+                $"data-sort-{c.Key}=\"{V2Cuts.Now(r, c, stress)?.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}\""));
+
             Model.Books.TryGetValue(r.Row.InstrumentId, out var book);
             var strip = StripModel.Build(r);
 

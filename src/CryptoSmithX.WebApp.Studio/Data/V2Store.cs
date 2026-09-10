@@ -229,7 +229,16 @@ public static class V2Store
         return rows.ToList();
     }
 
-    /// <summary>Liquidation volume in the last buckets, per listing — the stress column.</summary>
+    /// <summary>
+    /// Rolling 24h liquidation volume, per listing — the ONE series band 1's LIQUIDATIONS column
+    /// and band 2's liquidations cut both read (P0-5, UX audit).
+    ///
+    /// Was a rolling 1 HOUR sum, read only by band 1; band 2's own liquidations cut read a
+    /// different series entirely (the last CLOSED hourly bucket from VenueRowModel.Liquidations) —
+    /// two different windows on two different tables, so the same venue could print two different
+    /// numbers a scroll apart with nothing on the page to say they were answering different
+    /// questions. 24 h to match TURNOVER 24H's own window, which sits one column over.
+    /// </summary>
     public static async Task<IReadOnlyDictionary<int, StressRow>> StressAsync(
         DbConnection conn, IReadOnlyList<int> ids, CancellationToken ct)
     {
@@ -246,7 +255,7 @@ public static class V2Store
                    max(l.bucket_time)       as "LatestBucket"
               from liquidation_volume_history l
              where l.exchange_instrument_id = any(@ids)
-               and l.bucket_time > now() - interval '1 hour'
+               and l.bucket_time > now() - interval '1 day'
              group by 1
             """,
             new { ids = ids.ToArray() }, cancellationToken: ct));

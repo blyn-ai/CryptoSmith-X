@@ -53,7 +53,9 @@ public static class V2Columns
         new(V2Field.FundingRate, "Venue rate", CallTone.Ticker, 96),
         new(V2Field.FundingInterval, "Interval", CallTone.Ticker, 64),
         new(V2Field.Turnover24h, "Turnover 24h", CallTone.Ticker, 116, Cut: "turnover"),
-        new(V2Field.LiquidationVolume, "Liquidations", CallTone.Ticker, 104, Cut: "liquidations", Spark: true),
+        // P0-5 (UX audit): the header names the window, the same way TURNOVER 24H does — the figure
+        // is a rolling 24h sum (V2Store.StressAsync), not the "last hour" the column used to read.
+        new(V2Field.LiquidationVolume, "Liquidations 24h", CallTone.Ticker, 116, Cut: "liquidations", Spark: true),
         new(V2Field.LiquidationUnit, "Unit", CallTone.Ticker, 60),
         new(V2Field.VenueClock, "Venue clock", CallTone.Ticker, 88),
         new(V2Field.LastTrade, "Last trade", CallTone.Ticker, 88),
