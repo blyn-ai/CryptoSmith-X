@@ -28,6 +28,9 @@ public sealed class HomeController : Controller
         return View();
     }
 
+    [HttpGet]
+    public IActionResult Login() => RedirectToAction(nameof(Index));
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string? username, string? password, bool rememberMe, CancellationToken ct)
