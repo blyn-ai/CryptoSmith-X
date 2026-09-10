@@ -15,9 +15,11 @@ public static class AssetRegistryStore
 {
     /// <summary>
     /// Every raw spelling that resolves into this family, from every venue. <c>coalesce</c> on
-    /// <c>exchange_code</c> is deliberately NOT applied here — the view prints null as "all venues"
+    /// <c>segment_code</c> is deliberately NOT applied here — the view prints null as "all venues"
     /// itself, so a caller reading the row directly still sees a real null rather than a string that
-    /// happens to say the same thing.
+    /// happens to say the same thing. 0019 renamed <c>asset_alias.exchange_code</c> to
+    /// <c>segment_code</c> along with every other collector-facing table — the alias is keyed to the
+    /// adapter (segment), not the venue-level company row.
     /// </summary>
     public const string AliasesSql =
         """
@@ -27,14 +29,14 @@ public static class AssetRegistryStore
             select @baseFamily
              where not exists (select 1 from asset_family_member where asset_code = @baseFamily)
         )
-        select a.exchange_code                as "ExchangeCode",
+        select a.segment_code                 as "SegmentCode",
                a.alias                         as "Alias",
                a.asset_code                    as "AssetCode",
                a.multiplier::double precision  as "Multiplier",
                a.note                          as "Note"
           from asset_alias a
          where a.asset_code in (select asset_code from base_codes)
-         order by a.exchange_code nulls first, a.alias
+         order by a.segment_code nulls first, a.alias
         """;
 
     /// <summary>

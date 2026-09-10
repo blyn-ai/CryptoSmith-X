@@ -71,11 +71,11 @@ public sealed record VenueDetail(
     IReadOnlyList<CollectorRunRow> Runs);
 
 /// <summary>One raw spelling that resolves into this asset (A3) — the row <c>asset_alias</c> holds,
-/// not the canonical code the board already prints. <c>ExchangeCode</c> is null for a global alias
+/// not the canonical code the board already prints. <c>SegmentCode</c> is null for a global alias
 /// (an alias that resolves the same way on every venue); the view prints that as "all venues", never
 /// as a blank.</summary>
 public sealed record AssetAliasRow(
-    string? ExchangeCode,
+    string? SegmentCode,
     string Alias,
     string AssetCode,
     double Multiplier,

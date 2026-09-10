@@ -24,7 +24,7 @@
                     @foreach (var a in Model.Aliases)
                     {
                         <tr>
-                            <td>@(a.ExchangeCode ?? "all venues")</td>
+                            <td>@(a.SegmentCode ?? "all venues")</td>
                             <td>@a.Alias</td>
                             <td>@a.AssetCode</td>
                             <td>@(a.Multiplier == 1 ? "1×" : Format.Num(a.Multiplier, 6) + "×")</td>
