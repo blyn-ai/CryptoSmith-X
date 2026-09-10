@@ -86,6 +86,7 @@ public static class PairPageLoader
                 data.Metrics.TryGetValue(v.Row.InstrumentId, out var m) ? m : MetricHourSeries.Empty)
             {
                 Liquidations = data.Liquidations.TryGetValue(v.Row.InstrumentId, out var l) ? l : [],
+                Cadence = v.Cadence,
             })
             .ToList();
 

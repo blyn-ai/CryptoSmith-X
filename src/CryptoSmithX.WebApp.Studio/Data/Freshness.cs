@@ -26,6 +26,27 @@ public static class Freshness
     /// the number: thirty-one seconds and thirty days are the same verdict.</summary>
     public const int DegradedWindows = 12;
 
+    /// <summary>The lowest a late threshold is ever allowed to sit, regardless of window or
+    /// cadence.
+    ///
+    /// A window can compute tighter than a reader's own request-to-render gap: a live push, a slow
+    /// network hop, or a segment whose measured pass is briefly near zero can all put a call inside
+    /// a window shorter than twenty seconds even though it is landing exactly on schedule. Twenty
+    /// seconds is not a guess — it is comfortably inside "just looked" for every call this page
+    /// judges and comfortably outside a render's own jitter.</summary>
+    public const double LateFloorSeconds = 20.0;
+
+    /// <summary>How many of a call's OWN cadences must pass before that call counts as late,
+    /// regardless of what its computed window says.
+    ///
+    /// <see cref="Models.SegmentFreshness.Window"/> already folds a measured pass into the window,
+    /// but a segment can report a pass at or near zero — early in collection, or between two
+    /// perfectly synchronised polls — and a window built from cadence alone is the bare interval,
+    /// with none of the headroom a real pass earns it. Three cadences is the floor under that
+    /// window: a call that has run three times since it last wrote has not merely been polled once
+    /// more than expected, it has been missed.</summary>
+    public const double LateCadenceMultiplier = 3.0;
+
     /// <summary>
     /// Opacity for a figure of this age, judged against the window of the call that wrote it.
     ///
@@ -53,9 +74,26 @@ public static class Freshness
     }
 
     /// <summary>Whether the △ belongs beside the age: the call is past the window it is judged
-    /// against, so the number is no longer being graded.</summary>
-    public static bool PastWindow(double? ageSeconds, double? windowSeconds) =>
-        ageSeconds is { } age && windowSeconds is { } window && window > 0 && age >= window;
+    /// against, so the number is no longer being graded.
+    ///
+    /// <paramref name="cadenceSeconds"/> is the call's own configured interval — never the
+    /// computed window, which already has cadence baked into it (see
+    /// <see cref="Models.SegmentFreshness.Window"/>). It raises the threshold rather than lowers
+    /// it: a window computed tighter than <see cref="LateCadenceMultiplier"/> cadences, or tighter
+    /// than <see cref="LateFloorSeconds"/>, is not evidence a call is late, only evidence the window
+    /// was computed from a thin sample. Optional and defaulting to null — a caller with no cadence
+    /// to offer still gets the twenty-second floor and nothing else, which is exactly today's
+    /// behaviour with one extra guard against a too-tight window.</summary>
+    public static bool PastWindow(double? ageSeconds, double? windowSeconds, double? cadenceSeconds = null)
+    {
+        if (ageSeconds is not { } age || windowSeconds is not { } window || window <= 0)
+        {
+            return false;
+        }
+
+        var threshold = Math.Max(Math.Max(window, (cadenceSeconds ?? 0) * LateCadenceMultiplier), LateFloorSeconds);
+        return age >= threshold;
+    }
 
     /// <summary>Whether the count is dropped for the word.</summary>
     public static bool Degraded(double? ageSeconds, double? windowSeconds) =>

@@ -175,6 +175,11 @@ public sealed record VenueRowModel(
     /// которая ликвидаций не публикует.
     /// </summary>
     public IReadOnlyList<double?> Liquidations { get; init; } = [];
+
+    /// <summary>The three calls' own configured cadence, for the late threshold's cadence floor
+    /// (<see cref="Data.Freshness.PastWindow"/>) — unknown by default, the same reading a row with
+    /// no stated cadence already gets everywhere else on this page.</summary>
+    public CallCadence Cadence { get; init; } = CallCadence.Unknown;
 }
 
 /// <summary>

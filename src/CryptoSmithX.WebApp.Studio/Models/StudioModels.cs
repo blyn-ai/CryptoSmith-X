@@ -170,7 +170,7 @@ public sealed record PairVenueRow(
 /// observed pass say about it. Two sources, two records, and no way to read one and forget the
 /// other.
 /// </summary>
-public sealed record PairVenue(PairVenueRow Row, FreshnessWindows Windows);
+public sealed record PairVenue(PairVenueRow Row, FreshnessWindows Windows, CallCadence Cadence);
 
 /// <summary>
 /// One pair across every venue that lists it, at the instant the queries ran.
@@ -222,6 +222,19 @@ public sealed record AssetComparison(
 public sealed record FreshnessWindows(double? PriceSeconds, double? OpenInterestSeconds, double? DepthSeconds)
 {
     public static readonly FreshnessWindows Unknown = new(null, null, null);
+}
+
+/// <summary>
+/// The three calls' own configured cadence — the bare interval, with no measured pass folded in.
+///
+/// Kept separate from <see cref="FreshnessWindows"/> rather than read back out of it: the window is
+/// already cadence plus headroom, and a late-threshold check that wants the cadence ALONE (see
+/// <see cref="Data.Freshness.LateCadenceMultiplier"/>) needs the number before that headroom was
+/// added, not after.
+/// </summary>
+public sealed record CallCadence(double? PriceSeconds, double? OpenInterestSeconds, double? DepthSeconds)
+{
+    public static readonly CallCadence Unknown = new(null, null, null);
 }
 
 /// <summary>
@@ -280,6 +293,13 @@ public sealed record SegmentFreshness(
         // open_interest_at exists precisely so that difference is visible rather than averaged away.
         Window(OpenInterestIntervalSeconds ?? SnapshotIntervalSeconds, OpenInterestPassSeconds),
         Window(DepthIntervalSeconds, DepthPassSeconds));
+
+    /// <summary>The bare cadence behind each call, with no pass-derived headroom — the same
+    /// open-interest fallback <see cref="Windows"/> uses, for the same reason.</summary>
+    public CallCadence Cadence => new(
+        SnapshotIntervalSeconds,
+        OpenInterestIntervalSeconds ?? SnapshotIntervalSeconds,
+        DepthIntervalSeconds);
 
     /// <summary>
     /// The window one call is judged against: how often it runs, plus how long one pass over this

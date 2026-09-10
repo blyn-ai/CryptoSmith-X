@@ -153,14 +153,15 @@ public sealed record StripModel(
     {
         var w = v.Windows;
         var a = v.Ages;
+        var c = v.Cadence;
         var r = v.Row;
 
         var calls = new List<StripCall>();
-        Add("Price", a.PriceSeconds, w.PriceSeconds, r.ReceivedAt);
-        Add("Depth", a.DepthSeconds, w.DepthSeconds, r.DepthAt);
-        Add("OI", a.OpenInterestSeconds, w.OpenInterestSeconds, r.OpenInterestAt);
+        Add("Price", a.PriceSeconds, w.PriceSeconds, r.ReceivedAt, c.PriceSeconds);
+        Add("Depth", a.DepthSeconds, w.DepthSeconds, r.DepthAt, c.DepthSeconds);
+        Add("OI", a.OpenInterestSeconds, w.OpenInterestSeconds, r.OpenInterestAt, c.OpenInterestSeconds);
 
-        void Add(string label, double? age, double? window, DateTime? instant)
+        void Add(string label, double? age, double? window, DateTime? instant, double? cadence)
         {
             if (age is null)
             {
@@ -177,7 +178,7 @@ public sealed record StripModel(
 
             calls.Add(new StripCall(
                 label, age, window, Ms(instant), position, placed,
-                Freshness.PastWindow(age, window), spent));
+                Freshness.PastWindow(age, window, cadence), spent));
         }
 
         // "Degraded" is a per-call verdict, so the row is degraded when its OLDEST call is past

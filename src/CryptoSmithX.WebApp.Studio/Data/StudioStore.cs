@@ -316,9 +316,14 @@ public static class StudioStore
         // no fade, no △. It is not given the neighbouring segment's clocks — that would be one
         // venue's cadence printed over another venue's data.
         var venues = rows
-            .Select(r => new PairVenue(
-                r,
-                freshness.TryGetValue(r.SegmentCode, out var f) ? f.Windows : FreshnessWindows.Unknown))
+            .Select(r =>
+            {
+                freshness.TryGetValue(r.SegmentCode, out var f);
+                return new PairVenue(
+                    r,
+                    f?.Windows ?? FreshnessWindows.Unknown,
+                    f?.Cadence ?? CallCadence.Unknown);
+            })
             .ToList();
 
         // No verdicts here. They depend on which calls have gone degraded, which is a subtraction

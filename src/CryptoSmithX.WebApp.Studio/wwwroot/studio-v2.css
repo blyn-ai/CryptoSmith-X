@@ -238,15 +238,42 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    computed inside that exact quote asset (V2Ranks.IsQuoteScoped), names the population without
    adding a word: a reader can trace a BEST chip's colour straight back to the row it belongs to.
 
+   Named to the exact six element/class combinations that are meant to carry the attribute — NOT
+   the bare [data-quote] selector, which matched the attribute on ANY element regardless of tag or
+   class. .v2-fig and .v2-cell (the wrappers a figure and a whole cell sit in) never carry
+   data-quote today, but a bare selector gave them the rule the instant one did, with nothing in
+   this file saying it shouldn't — the same trap a future .v2-fig[data-quote] would fall into
+   silently. Named selectors make that the CSS's problem to catch, not a reader's to notice.
+
    Inline color-mix() rather than three new custom properties: this file deliberately keeps zero
    tokens of its own (see the header above — three duplicated copies of ds/tokens/* is the bug
    this file was rewritten to stop being able to have again), so the three tints are derived
    inline, from tokens the design system already ships and already themes for ink/paper. Muted on
    purpose — none of the three is the accent (magenta, worst) or the brand fill (acid, best). */
-[data-quote]{box-shadow:inset 3px 0 0 0 var(--text-faint)}
-[data-quote="USD"]{box-shadow:inset 3px 0 0 0 var(--text-heading)}
-[data-quote="USDT"]{box-shadow:inset 3px 0 0 0 var(--call-depth)}
-[data-quote="USDC"]{box-shadow:inset 3px 0 0 0 color-mix(in srgb, var(--call-depth) 55%, var(--text-heading) 45%)}
+.v2-listing[data-quote],
+.v2-part--best[data-quote],
+.v2-part--worst[data-quote],
+.v2-now[data-quote],
+.v2-book[data-quote],
+.v2-cut[data-quote]{box-shadow:inset 3px 0 0 0 var(--text-faint)}
+.v2-listing[data-quote="USD"],
+.v2-part--best[data-quote="USD"],
+.v2-part--worst[data-quote="USD"],
+.v2-now[data-quote="USD"],
+.v2-book[data-quote="USD"],
+.v2-cut[data-quote="USD"]{box-shadow:inset 3px 0 0 0 var(--text-heading)}
+.v2-listing[data-quote="USDT"],
+.v2-part--best[data-quote="USDT"],
+.v2-part--worst[data-quote="USDT"],
+.v2-now[data-quote="USDT"],
+.v2-book[data-quote="USDT"],
+.v2-cut[data-quote="USDT"]{box-shadow:inset 3px 0 0 0 var(--call-depth)}
+.v2-listing[data-quote="USDC"],
+.v2-part--best[data-quote="USDC"],
+.v2-part--worst[data-quote="USDC"],
+.v2-now[data-quote="USDC"],
+.v2-book[data-quote="USDC"],
+.v2-cut[data-quote="USDC"]{box-shadow:inset 3px 0 0 0 color-mix(in srgb, var(--call-depth) 55%, var(--text-heading) 45%)}
 
 .v2-listing{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:5px 8px;min-width:0}
 .v2-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading)}

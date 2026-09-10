@@ -197,13 +197,13 @@
                                plus the one header note set for the whole list (#cut-now-rank,
                                above). Возраст вызова, который написал строку, остаётся. *@
                             @{
-                                (string Label, double? Seconds, double? Window) age = c.Key switch
+                                (string Label, double? Seconds, double? Window, double? Cadence) age = c.Key switch
                                 {
-                                    "depth25" => ("Depth", r.Ages.DepthSeconds, r.Windows.DepthSeconds),
-                                    "oi" => ("OI", r.Ages.OpenInterestSeconds, r.Windows.OpenInterestSeconds),
-                                    _ => ("Price", r.Ages.PriceSeconds, r.Windows.PriceSeconds),
+                                    "depth25" => ("Depth", r.Ages.DepthSeconds, r.Windows.DepthSeconds, r.Cadence.DepthSeconds),
+                                    "oi" => ("OI", r.Ages.OpenInterestSeconds, r.Windows.OpenInterestSeconds, r.Cadence.OpenInterestSeconds),
+                                    _ => ("Price", r.Ages.PriceSeconds, r.Windows.PriceSeconds, r.Cadence.PriceSeconds),
                                 };
-                                var late = Freshness.PastWindow(age.Seconds, age.Window);
+                                var late = Freshness.PastWindow(age.Seconds, age.Window, age.Cadence);
                             }
                             <span class="v2-now-age @(late ? "v2-now-age--late" : "")">@(late ? Format.PastWindowMark : "") @age.Label @Format.SpacedAge(age.Seconds)</span>
                         </div>

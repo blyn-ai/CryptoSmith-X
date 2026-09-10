@@ -106,11 +106,12 @@ public static class V2Columns
 
     /// <summary>The age this column carries: the age of the call that wrote it, and never the row's.
     /// A depth sweep four minutes old under a two-second price is the whole reason the ages are per
-    /// call.</summary>
-    public static (double? Age, double? Window) Freshness(VenueRowModel r, V2Column c) => c.Call switch
+    /// call. Cadence rides along for <see cref="Data.Freshness.PastWindow"/>'s cadence floor — the
+    /// call's own configured interval, not the window, which already has cadence baked in.</summary>
+    public static (double? Age, double? Window, double? Cadence) Freshness(VenueRowModel r, V2Column c) => c.Call switch
     {
-        CallTone.Depth => (r.Ages.DepthSeconds, r.Windows.DepthSeconds),
-        CallTone.OpenInterest => (r.Ages.OpenInterestSeconds, r.Windows.OpenInterestSeconds),
-        _ => (r.Ages.PriceSeconds, r.Windows.PriceSeconds),
+        CallTone.Depth => (r.Ages.DepthSeconds, r.Windows.DepthSeconds, r.Cadence.DepthSeconds),
+        CallTone.OpenInterest => (r.Ages.OpenInterestSeconds, r.Windows.OpenInterestSeconds, r.Cadence.OpenInterestSeconds),
+        _ => (r.Ages.PriceSeconds, r.Windows.PriceSeconds, r.Cadence.PriceSeconds),
     };
 }

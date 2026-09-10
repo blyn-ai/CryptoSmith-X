@@ -148,7 +148,7 @@
                     // already uses for its own magenta (.v2-cellage--late) — now also marks the
                     // cell itself, so the H1 count, this rule and the age's own colour can never
                     // read as three different opinions about whether the same call is late.
-                    var late = Freshness.PastWindow(age.Age, age.Window);
+                    var late = Freshness.PastWindow(age.Age, age.Window, age.Cadence);
 
                     <span class="v2-cell@(late ? " v2-cell--late" : "")" data-group="@c.Field" data-tone="@c.Call.ToString().ToLowerInvariant()"
                           data-label="@c.Label">
@@ -199,7 +199,7 @@
                         @* Возраст ВЫЗОВА, написавшего эту клетку, а не строки: свип четырёхминутной
                            давности под двухсекундной ценой — ровно та причина, по которой часы
                            здесь считаются по вызовам. *@
-                        <span class="v2-cellage @(Freshness.PastWindow(age.Age, age.Window) ? "v2-cellage--late" : "")">@Format.SpacedAge(age.Age) ago</span>
+                        <span class="v2-cellage @(late ? "v2-cellage--late" : "")">@Format.SpacedAge(age.Age) ago</span>
                     </span>
                 }
             </div>
