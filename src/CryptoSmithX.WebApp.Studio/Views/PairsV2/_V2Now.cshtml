@@ -46,6 +46,42 @@
             {
                 @* Цена «сейчас» — это стакан, а не одно число: книга читается формой, где стена,
                    где дыра, симметрична ли она. Двадцать пять уровней цифрами не читает никто. *@
+                @* Prompt 2, U-8: the depth strip's own scale — ±50bps fixed on the x-axis (a
+                   window whichever asset it draws), one shared y-max on the height, so a thin
+                   book reads as thin next to the others rather than filling its own strip just
+                   the same as a deep one. Walked once, over every book, before any card draws. *@
+                const double depthStripBps = 50;
+                var depthStripMax = 0.0;
+                foreach (var r0 in Model.Rows)
+                {
+                    if (!Model.Books.TryGetValue(r0.Row.InstrumentId, out var bk0) || bk0.BidPx.Length == 0 || bk0.AskPx.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var mid0 = (bk0.BidPx[0] + bk0.AskPx[0]) / 2;
+                    if (mid0 <= 0)
+                    {
+                        continue;
+                    }
+
+                    double bidCum = 0;
+                    for (var i = 0; i < bk0.BidPx.Length; i++)
+                    {
+                        var bps = (mid0 - bk0.BidPx[i]) / mid0 * 10000.0;
+                        if (bps < 0 || bps > depthStripBps) { break; }
+                        bidCum += bk0.BidQty[i];
+                    }
+                    double askCum = 0;
+                    for (var i = 0; i < bk0.AskPx.Length; i++)
+                    {
+                        var bps = (bk0.AskPx[i] - mid0) / mid0 * 10000.0;
+                        if (bps < 0 || bps > depthStripBps) { break; }
+                        askCum += bk0.AskQty[i];
+                    }
+                    depthStripMax = Math.Max(depthStripMax, Math.Max(bidCum, askCum));
+                }
+
                 foreach (var r in Model.Rows)
                 {
                     <div class="v2-book">
@@ -58,6 +94,29 @@
                         else
                         {
                             var top = Math.Max(bk.BidQty.DefaultIfEmpty(0).Max(), bk.AskQty.DefaultIfEmpty(0).Max());
+                            var bidWall = bk.BidQty.DefaultIfEmpty(0).Max();
+                            var askWall = bk.AskQty.DefaultIfEmpty(0).Max();
+
+                            @* Prompt 2, U-8: cumulative depth on a shared ±50bps/shared-y-max
+                               axis, above the ladder — the ladder answers "what does a level
+                               cost", this answers "how much stands within reach of mid". *@
+                            var stripMid = bk.BidPx.Length > 0 && bk.AskPx.Length > 0 ? (bk.BidPx[0] + bk.AskPx[0]) / 2 : 0;
+                            var bidPath = Format.DepthAreaPath(bk.BidPx, bk.BidQty, stripMid, false, depthStripBps, depthStripMax, 130, 130, 24);
+                            var askPath = Format.DepthAreaPath(bk.AskPx, bk.AskQty, stripMid, true, depthStripBps, depthStripMax, 130, 130, 24);
+                            @if (bidPath is not null || askPath is not null)
+                            {
+                                <svg class="v2-depth-strip" viewBox="0 0 260 24" preserveAspectRatio="none" aria-hidden="true">
+                                    <line x1="130" y1="0" x2="130" y2="24" stroke="var(--border-hairline)" stroke-width="1" />
+                                    @if (bidPath is not null)
+                                    {
+                                        <path d="@bidPath" fill="var(--candle-up)" fill-opacity=".25" stroke="var(--candle-up)" stroke-width="1" />
+                                    }
+                                    @if (askPath is not null)
+                                    {
+                                        <path d="@askPath" fill="var(--candle-down)" fill-opacity=".18" stroke="var(--candle-down)" stroke-width="1" />
+                                    }
+                                </svg>
+                            }
 
                             @* ПАРНАЯ ЛЕСТНИЦА ОТ СЕРЕДИНЫ, как читают стакан везде: n-й бид против
                                n-го аска на одной строке, цены в середине, объёмы по краям, бары
@@ -83,7 +142,10 @@
                                         @if (i < bidShown)
                                         {
                                             <span class="v2-lvl-qty v2-r">@Format.Num(bk.BidQty[i], 0)</span>
-                                            <span class="v2-lvl v2-lvl--bid"
+                                            @* Prompt 2, U-8: the largest single level per side is the liquidity
+                                               wall — a 1px ink outline, not a colour, so it reads under either
+                                               theme and never competes with the bid/ask fill. *@
+                                            <span class="v2-lvl v2-lvl--bid @(bk.BidQty[i] == bidWall ? "v2-lvl--wall" : "")"
                                                   title="bid @Format.Num(bk.BidPx[i], px) × @Format.Num(bk.BidQty[i], 4)">
                                                 <i style="width:@Format.BarWidth(bk.BidQty[i], top)"></i>
                                                 <b>@Format.Num(bk.BidPx[i], px)</b>
@@ -96,7 +158,7 @@
 
                                         @if (i < askShown)
                                         {
-                                            <span class="v2-lvl v2-lvl--ask"
+                                            <span class="v2-lvl v2-lvl--ask @(bk.AskQty[i] == askWall ? "v2-lvl--wall" : "")"
                                                   title="ask @Format.Num(bk.AskPx[i], px) × @Format.Num(bk.AskQty[i], 4)">
                                                 <i style="width:@Format.BarWidth(bk.AskQty[i], top)"></i>
                                                 <b>@Format.Num(bk.AskPx[i], px)</b>

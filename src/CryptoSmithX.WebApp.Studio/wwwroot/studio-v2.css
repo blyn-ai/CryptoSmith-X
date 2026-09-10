@@ -713,6 +713,16 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
 .v2-lvl--ask i{left:0;background:color-mix(in srgb,var(--candle-down) 18%,transparent)}
 .v2-lvl--ask b{color:var(--candle-down)}
 .v2-lvl:hover i{background:var(--tint-brand)}
+/* Prompt 2, U-8: the liquidity wall — the largest single level a side holds — outlined in ink,
+   not filled: a colour there would read as a third side of the book, and outline never touches
+   layout (it draws outside the box, not inside it). */
+.v2-lvl--wall{outline:1px solid var(--text-heading);outline-offset:-1px}
+
+/* Prompt 2, U-8: cumulative depth, mid at centre, ±50bps fixed on the x-axis and one shared
+   y-max on the height (both threaded in from the view, which is the only place that can see
+   every book on the page at once). Bid green to the left, ask magenta to the right — the same
+   two inks the ladder beneath it already uses. */
+.v2-depth-strip{display:block;width:100%;height:24px;margin-bottom:4px}
 
 .v2-book-note{font:400 var(--fs-micro)/1.3 var(--font-mono);letter-spacing:var(--track-eyebrow);text-transform:uppercase;color:var(--text-faint)}
 

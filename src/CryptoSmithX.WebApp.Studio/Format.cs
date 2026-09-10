@@ -134,7 +134,22 @@ public static class Format
     /// from the display, which is exactly the bug that puts BEST and WORST on two cells rendering
     /// the same characters.
     /// </summary>
-    public static int PriceDecimals(PairVenueRow r) => Decimals(r.PriceStep, fallback: 4);
+    /// <summary>
+    /// Prompt 2, U-8: three venues' stored PriceStep does not survive Decimals() intact — Kraken
+    /// measured at 6dp on the live page where the venue itself quotes 5, because the tick this row
+    /// carries is finer than what Kraken actually prints. A named override for exactly the venues
+    /// that need one; anyone else still reads its own tick, which is correct for them.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, int> VenuePriceDecimals =
+        new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Kraken"] = 5,
+            ["Binance"] = 4,
+            ["Hyperliquid"] = 6,
+        };
+
+    public static int PriceDecimals(PairVenueRow r) =>
+        VenuePriceDecimals.TryGetValue(r.ExchangeName, out var d) ? d : Decimals(r.PriceStep, fallback: 4);
 
     /// <summary>
     /// The decimals a quantity is printed to on this venue's row.
@@ -520,5 +535,64 @@ public static class Format
         var x = SparkX(lastIndex, values.Count, width);
         var y = (height - 1.5) - ((values[lastIndex]!.Value - lo) / (hi - lo)) * (height - 3);
         return (x, y);
+    }
+
+    /// <summary>
+    /// Prompt 2, U-8: one side of the cumulative depth strip above a book's ladder — a step area,
+    /// height at any point on the axis equal to the total size resting between mid and that price.
+    ///
+    /// The axis is bps from mid, not price, so a ±50bps window is a fixed shape whichever asset it
+    /// draws: two books at wildly different price levels still compare directly. <paramref
+    /// name="maxCumulative"/> is shared across every card the caller draws — the one number that
+    /// makes "this venue's book is thin" a visible fact rather than a guess, because a thin book
+    /// drawn alone would fill its own strip just the same as a deep one.
+    /// </summary>
+    public static string? DepthAreaPath(
+        IReadOnlyList<double> prices, IReadOnlyList<double> qtys, double mid, bool isAsk,
+        double maxBps, double maxCumulative, double centerX, double halfWidth, double height)
+    {
+        if (mid <= 0 || maxCumulative <= 0 || maxBps <= 0)
+        {
+            return null;
+        }
+
+        var n = Math.Min(prices.Count, qtys.Count);
+        var parts = new List<string> { "M " + N(centerX) + " " + N(height) };
+        double cum = 0;
+        var lastX = centerX;
+        var any = false;
+
+        for (var i = 0; i < n; i++)
+        {
+            var bps = (prices[i] - mid) / mid * 10000.0 * (isAsk ? 1 : -1);
+            if (bps < 0)
+            {
+                continue;
+            }
+
+            if (bps > maxBps)
+            {
+                break;
+            }
+
+            var x = centerX + (isAsk ? 1 : -1) * (bps / maxBps) * halfWidth;
+            // Flat at the OLD cumulative up to this level's price, then the step up at it — the
+            // shape that says "this much size sits between mid and here", not a smoothed guess.
+            parts.Add("L " + N(x) + " " + N(height - Math.Min(cum / maxCumulative, 1.0) * height));
+            cum += qtys[i];
+            parts.Add("L " + N(x) + " " + N(height - Math.Min(cum / maxCumulative, 1.0) * height));
+            lastX = x;
+            any = true;
+        }
+
+        if (!any)
+        {
+            return null;
+        }
+
+        parts.Add("L " + N(lastX) + " " + N(height) + " Z");
+        return string.Join(" ", parts);
+
+        static string N(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
     }
 }
