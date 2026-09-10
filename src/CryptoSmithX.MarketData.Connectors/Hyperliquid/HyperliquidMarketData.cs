@@ -68,6 +68,34 @@ public sealed class HyperliquidMarketData : IExchangeMarketData
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _wsFeed?.DrainTrades() ?? [];
 
+    /// <summary>The socket feed only, never <see cref="_restFeed"/> — that one is a REST poller, and
+    /// the live path does not call REST. The venue splits what a ticker is across two channels, so
+    /// the quote is assembled the same way <see cref="GetTickersAsync"/> assembles its row:
+    /// <c>metaAndAssetCtxs</c> for mark/oracle/funding/OI and the book for bid/ask, which is why
+    /// <see cref="AssetContext"/> is the enumeration and the top is looked up per symbol.</summary>
+    public IReadOnlyList<LiveQuote> LiveQuotes(TimeSpan maxAge)
+    {
+        if (_wsFeed is null || !_wsFeed.TryGetFreshContexts(out var contexts))
+        {
+            return [];
+        }
+
+        var quotes = new List<LiveQuote>(contexts.Count);
+        foreach (var c in contexts)
+        {
+            var hasTop = _wsFeed.TryGetTop(c.Symbol, out var top);
+            quotes.Add(new LiveQuote(
+                c.Symbol, c.At,
+                hasTop ? top.BidPrice : null, hasTop ? top.BidSize : null,
+                hasTop ? top.AskPrice : null, hasTop ? top.AskSize : null,
+                c.LastPrice, c.MarkPrice, c.IndexPrice, c.FundingRate,
+                c.OpenInterest, c.Turnover24h,
+                _wsFeed.TryGetDepth(c.Symbol, out var depth) ? depth : null));
+        }
+
+        return quotes;
+    }
+
     public bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame)
     {
         if (_wsFeed is not null && _wsFeed.TryGetBookFrame(exchangeSymbol, levels, out frame))

@@ -90,6 +90,38 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
 
     public IReadOnlyList<TradeEvent> DrainLiquidations() => _marketFeed?.DrainLiquidations() ?? [];
 
+    /// <summary>Two sockets, and neither carries what the third source would: <c>/market/stream</c>
+    /// gives last/mark/index/funding/turnover, <c>/public/stream</c>'s maintained book gives bid/ask
+    /// as its own top level (<c>!bookTicker</c> is REST here, so the book IS the quote), and open
+    /// interest has no socket at all on this venue — it is a background REST cycle, so it stays null
+    /// and the page leaves that figure on the database.</summary>
+    public IReadOnlyList<LiveQuote> LiveQuotes(TimeSpan maxAge)
+    {
+        if (_marketFeed is null || !_marketFeed.TryGetFreshContexts(out var contexts))
+        {
+            return [];
+        }
+
+        var quotes = new List<LiveQuote>(contexts.Count);
+        foreach (var c in contexts)
+        {
+            var book = _ws is not null && _ws.TryGetBookFrame(c.Symbol, 1, out var top)
+                && top.BidPrices.Count > 0 && top.AskPrices.Count > 0
+                ? top
+                : null;
+
+            quotes.Add(new LiveQuote(
+                c.Symbol, c.At,
+                book?.BidPrices[0], book?.BidQuantities[0],
+                book?.AskPrices[0], book?.AskQuantities[0],
+                c.LastPrice, c.MarkPrice, c.IndexPrice, c.FundingRate,
+                OpenInterest: null, c.Turnover24h,
+                _ws is not null && _ws.TryGetDepth(c.Symbol, out var depth) ? depth : null));
+        }
+
+        return quotes;
+    }
+
     public bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame)
     {
         if (_ws is not null && _ws.TryGetBookFrame(exchangeSymbol, levels, out frame))

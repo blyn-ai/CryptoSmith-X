@@ -65,6 +65,38 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _ws?.DrainTrades() ?? [];
 
+    /// <summary>The thinnest live path of the four, and honestly so: WEEX's V3 socket has no
+    /// top-of-book, mark, funding or open-interest channel at all (see <see cref="IWeexLiveFeed"/>),
+    /// so the maintained book is the entire live quote — bid/ask from its own top level and the
+    /// cumulative bands beside it. Open interest is a background REST cycle here, not a socket, so
+    /// it stays null rather than riding a 200 ms tick under the word "live".</summary>
+    public IReadOnlyList<LiveQuote> LiveQuotes(TimeSpan maxAge)
+    {
+        if (_ws is null)
+        {
+            return [];
+        }
+
+        var quotes = new List<LiveQuote>();
+        foreach (var symbol in _ws.SubscribedSymbols())
+        {
+            if (!_ws.TryGetBookFrame(symbol, 1, out var top) || top.BidPrices.Count == 0 || top.AskPrices.Count == 0)
+            {
+                continue;
+            }
+
+            quotes.Add(new LiveQuote(
+                symbol, top.ObservedAt,
+                top.BidPrices[0], top.BidQuantities[0],
+                top.AskPrices[0], top.AskQuantities[0],
+                LastPrice: null, MarkPrice: null, IndexPrice: null, FundingRate: null,
+                OpenInterest: null, Turnover24h: null,
+                _ws.TryGetDepth(symbol, out var depth) ? depth : null));
+        }
+
+        return quotes;
+    }
+
     public bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame)
     {
         if (_ws is not null && _ws.TryGetBookFrame(exchangeSymbol, levels, out frame))

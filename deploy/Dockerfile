@@ -32,10 +32,15 @@ WORKDIR /app
 COPY --from=build /app/migrator ./
 ENTRYPOINT ["dotnet", "CryptoSmithX.Database.dll"]
 
-# The hub is a Generic Host worker — no Kestrel, so the runtime image is enough.
-FROM mcr.microsoft.com/dotnet/runtime:10.0 AS hub
+# The hub is still mostly collector loops, but it now serves one endpoint — /live, the venues' own
+# sockets relayed to the studio — so it needs Kestrel and the ASP.NET runtime. The port is published
+# to the compose network only: no ports: in docker-compose and no Traefik route, so /live is
+# reachable from a sibling container and from nowhere else.
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS hub
 WORKDIR /app
 COPY --from=build /app/hub ./
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
 ENTRYPOINT ["dotnet", "CryptoSmithX.MarketData.Hub.dll"]
 
 # The api serves HTTP, so it needs the ASP.NET runtime.

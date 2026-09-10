@@ -55,6 +55,31 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _ws?.DrainTrades() ?? [];
 
+    /// <summary>Kraken is the one venue of the four whose socket carries a WHOLE ticker, so the live
+    /// quote is filled end to end from it and nothing here is null for want of a source. The
+    /// freshness gate is the feed's own (<c>TryGetFreshTickers</c> answers false on an unhealthy
+    /// slice), which is configured from the same setting the caller passes here.</summary>
+    public IReadOnlyList<LiveQuote> LiveQuotes(TimeSpan maxAge)
+    {
+        if (_ws is null || !_ws.TryGetFreshTickers(out var tickers))
+        {
+            return [];
+        }
+
+        var quotes = new List<LiveQuote>(tickers.Count);
+        foreach (var t in tickers)
+        {
+            quotes.Add(new LiveQuote(
+                t.ExchangeSymbol, t.ReceivedAt,
+                t.BidPrice, t.BidSize, t.AskPrice, t.AskSize,
+                t.LastPrice, t.MarkPrice, t.IndexPrice, t.FundingRate,
+                t.OpenInterest, t.Turnover24h,
+                t.Depth ?? (_ws.TryGetDepth(t.ExchangeSymbol, out var depth) ? depth : null)));
+        }
+
+        return quotes;
+    }
+
     public bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame)
     {
         if (_ws is not null && _ws.TryGetBookFrame(exchangeSymbol, levels, out frame))

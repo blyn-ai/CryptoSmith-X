@@ -80,6 +80,23 @@ public interface IExchangeMarketData
     /// </summary>
     IReadOnlyList<TradeEvent> DrainLiquidations() => [];
 
+    /// <summary>
+    /// Only what this venue's own socket holds and is younger than <paramref name="maxAge"/>, for
+    /// every instrument it holds one for. Never REST — an adapter with no socket returns nothing,
+    /// and that is the answer, not a gap to be filled.
+    ///
+    /// This is the live path's only read, and it is a POLL of caches the feeds already keep rather
+    /// than a subscription, because <see cref="Streaming.MarketCache{T}"/> raises no events. That
+    /// is what makes it free: conflation falls out of the cache being last-write-wins, and not one
+    /// line changes inside the feeds.
+    ///
+    /// <paramref name="maxAge"/> is applied where a seam takes it; where a feed's own
+    /// try-get already gates on staleness it is that gate that applies, configured from the same
+    /// <c>ws_stale_after_s</c> setting the caller reads this argument from. A feed that answers
+    /// "no fresh sample" and an instrument absent from the result are the same statement.
+    /// </summary>
+    IReadOnlyList<LiveQuote> LiveQuotes(TimeSpan maxAge) => [];
+
     /// <summary>The top <paramref name="levels"/> of the maintained book right now, or false when
     /// this venue keeps no raw book (the fake) or has not seeded this symbol yet.</summary>
     bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame)

@@ -1,4 +1,5 @@
 using CryptoSmithX.MarketData.Connectors;
+using CryptoSmithX.MarketData.Hub.Live;
 using CryptoSmithX.MarketData.Connectors.Binance;
 using CryptoSmithX.MarketData.Connectors.Fake;
 using CryptoSmithX.MarketData.Connectors.Hyperliquid;
@@ -57,18 +58,25 @@ public sealed class ExchangeWorker : BackgroundService
     private readonly Dictionary<string, Func<CancellationToken, Task>> _serviceFactories = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Task> _serviceTasks = new(StringComparer.Ordinal);
 
+    // Where a running exchange's adapter is published for the live egress to read. The worker owns
+    // the adapter's whole life — built when an exchange is enabled, dropped with its token when it
+    // is disabled — so it is the only thing that can say honestly which adapters exist right now.
+    private readonly AdapterRegistry _adapters;
+
     public ExchangeWorker(
         DbSettings settings,
         Db db,
         TimeProvider clock,
         ILoggerFactory loggers,
-        ILogger<ExchangeWorker> logger)
+        ILogger<ExchangeWorker> logger,
+        AdapterRegistry adapters)
     {
         _settings = settings;
         _db = db;
         _clock = clock;
         _loggers = loggers;
         _logger = logger;
+        _adapters = adapters;
         _gates = new VenueGates(clock);
     }
 
@@ -112,9 +120,10 @@ public sealed class ExchangeWorker : BackgroundService
         }
         finally
         {
-            foreach (var runner in running.Values)
+            foreach (var (code, runner) in running)
             {
                 runner.Cts.Cancel();
+                _adapters.Withdraw(code);
             }
 
             await SafeWhenAll(running.Values.SelectMany(r => r.Collectors.Values.Select(h => h.Task)));
@@ -163,6 +172,9 @@ public sealed class ExchangeWorker : BackgroundService
             _logger.LogInformation("Exchange {Exchange} is no longer enabled; stopping its collectors", code);
             running[code].Cts.Cancel();
             running.Remove(code);
+            // Withdrawn before the token finishes unwinding: an adapter whose socket is closing must
+            // stop being offered to the live path immediately, not once its loops have drained.
+            _adapters.Withdraw(code);
         }
 
         foreach (var (code, config) in enabled)
@@ -198,6 +210,12 @@ public sealed class ExchangeWorker : BackgroundService
 
                 runner = new ExchangeRunner(cts, adapter, BuildBodies(adapter, gate));
                 running[code] = runner;
+                // Keyed by the exchange code, which is what exchange_instrument.segment_code holds —
+                // the same key CollectedSymbols queries with and the same one InstrumentMap reads
+                // back. The adapter's own SegmentCode is a constant compiled into the adapter class;
+                // it agrees today, and keying on it would make the live path disagree with the map
+                // the moment an exchange were ever registered under a different code.
+                _adapters.Publish(code, adapter);
 
                 // One discovery pass before the other loops so the first snapshot has rows to join to.
                 try
