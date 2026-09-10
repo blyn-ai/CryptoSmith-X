@@ -686,19 +686,45 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
    span — reset the browser's own button chrome back to what the plain label already looked like. */
 .v2-cov-dh--open{background:transparent;border:0;padding:0;width:100%;text-align:left;cursor:pointer}
 .v2-cov-dh--open:hover{color:var(--accent)}
-/* Одна метрика — одна шкала. Насыщенность несёт долю удержанного окна и ничего больше. */
-.v2-cov-cell{display:flex;align-items:center;justify-content:center;padding:6px 0;font:400 var(--fs-data)/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);
+/* Одна метрика — одна шкала. Насыщенность несёт долю удержанного окна и ничего больше.
+   P0-3 (UX audit): six states, and no state relies on colour alone — each also carries its own
+   SHAPE, so the matrix still reads correctly for a viewer who cannot tell green from magenta. */
+.v2-cov-cell{position:relative;display:flex;align-items:center;justify-content:center;padding:6px 0;
+  font:400 var(--fs-data)/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);
   background:color-mix(in srgb, var(--money-up,#2F5A00) var(--held,0%), var(--surface-sunken))}
-/* Четыре вида «ничего» ЧЕТЫРЬМЯ разными клетками. Измеренный ноль несёт ту же шкалу в её нижней
-   точке; «здесь не собираем» — нейтральная, без шкалы вовсе, потому что это не наш пробел;
-   «пишется потоком» — своя, потому что доли окна у него не бывает; «не спрашивали» — пустая. */
-.v2-cov-cell--zero{background:var(--surface-sunken);color:var(--text-data)}
-.v2-cov-cell--off{background:transparent;color:var(--text-unmeasured);
-  box-shadow:inset 0 0 0 1px var(--border-hairline)}
-.v2-cov-cell--live{background:var(--tint-neutral);color:var(--text-muted);
+
+/* HELD: the base rule above already is this state (the green scale, nothing else) — the modifier
+   exists so the state has a name in the DOM even where it changes nothing. */
+
+/* GAP / THROTTLED: same green scale as HELD (both still set --held), plus a shape. A magenta
+   notch — never a fill, which would compete with the scale's own colour for the same meaning —
+   top-right corner, on both; THROTTLED adds a dotted outline (outline, not border: it draws
+   INSIDE the box via outline-offset, so the cell's own size never changes between states). */
+.v2-cov-cell--gap::after{content:"";position:absolute;top:0;right:0;width:0;height:0;
+  border:5px solid transparent;border-top-color:var(--accent);border-right-color:var(--accent)}
+.v2-cov-cell--throttled{outline:1px dotted var(--accent);outline-offset:-1px}
+
+/* STALE / LIVE: no requested window, so no green scale — the two live-only states, told apart by
+   ink alone (paper background on both, per the finding) since there is no shape left to spend on
+   the split between them that HELD/GAP were not already using for a different one. */
+.v2-cov-cell--stale{background:transparent;color:var(--accent);
+  box-shadow:inset 0 0 0 1px var(--border-hairline);
   font-size:var(--fs-micro);letter-spacing:var(--track-label);text-transform:uppercase}
-.v2-cov-cell--none{background:var(--surface-sunken);color:var(--text-unmeasured)}
+.v2-cov-cell--live{background:transparent;color:var(--text-faint);
+  box-shadow:inset 0 0 0 1px var(--border-hairline);
+  font-size:var(--fs-micro);letter-spacing:var(--track-label);text-transform:uppercase}
+
+/* UNSUPPORTED: hatched, never blank — the same 45° hairline pattern band 3's charts use for their
+   own un-held span (P0-2), so "this page does not have it" reads as one mark wherever it appears. */
+.v2-cov-cell--unsupported{color:var(--text-unmeasured);
+  background-image:repeating-linear-gradient(45deg,var(--border-hairline) 0,var(--border-hairline) 1px,transparent 1px,transparent 6px)}
+
 .v2-cov-dh{cursor:help}
+
+/* P0-3: hovering a gap row highlights its matrix cell and vice versa — one outline rule, driven
+   by matching data-cell attributes (studio-v2.js), not by re-deriving which cell a gap belongs to
+   in two places. */
+[data-cell].v2-cov-cell--hover,[data-cell].v2-gap--hover{outline:1px solid var(--accent);outline-offset:-1px}
 
 /* Подпись шкалы. Полоса — тот же градиент, что несут клетки, иначе легенда объясняет не то. */
 .v2-cov-key{display:flex;align-items:center;gap:10px;padding:0 var(--space-7) var(--space-4)}

@@ -43,7 +43,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=44">
+    <link rel="stylesheet" href="~/studio-v2.css?v=45">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -448,13 +448,14 @@
             }
             @foreach (var r in Model.Rows)
             {
-                @* Четыре вида «ничего», и это четыре разных факта: доля окна · измеренный ноль ·
-                   «здесь это не собираем» (не наш пробел) · «не спрашивали». Одна шкала зелёного
-                   на одну метрику по одной оси площадок; никаких палитр поперёк метрик — у них
-                   нет общей шкалы, и раскрасить их одним градиентом значило бы соврать. *@
-                var cell = V2Coverage.Cell(Model, d, r.Row);
+                @* P0-3 (UX audit): six states, not four, and none of them "—" — every cell in this
+                   grid used to be able to print a bare dash, which on WEEX SNAPSHOT read as "never
+                   collected" while the gap list two panels down named a four-hour outage for
+                   exactly that cell. See V2Coverage.Cell for what each state means. *@
+                var cell = V2Coverage.Cell(Model, d, r);
                 <span class="v2-cov-cell @cell.Class"
-                      style="@(cell.State == CoverageState.Held ? $"--held:{cell.Percent}%" : "")"
+                      style="@(cell.Percent is { } pct ? $"--held:{pct}%" : "")"
+                      data-cell="@(r.Row.SegmentCode):@d.Code"
                       title="@cell.Title">@cell.Text</span>
             }
             @if (d.Tracked)
@@ -469,6 +470,13 @@
         <span class="v2-cov-ramp"></span>
         <span>100 % of the window held</span>
     </div>
+    @* P0-3: the matrix's six states, in words — a notch and a dotted border are shapes, not
+       colours, and this is where a reader who cannot tell green from magenta finds out what they
+       mean without needing to. *@
+    <p class="v2-legend">
+        notch = gap in window · dotted = throttled · hatched = not provided by venue · live/stale
+        = not a windowed dataset
+    </p>
     <div class="v2-gaps">
         <span class="csx-eyebrow">Open and closed gaps</span>
         @{
@@ -492,7 +500,13 @@
         {
             foreach (var g in lines)
             {
-                <div class="v2-gap">
+                @* P0-3: the matrix key is by DATASET code, and a gap row's own Collector is the
+                   collector_gap vocabulary — almost always the same string, except "book", whose
+                   collector is named "depth" from before "book" existed as its own dataset. The
+                   reverse lookup is the one place that has to know that, so the key matches the
+                   matrix cell's data-cell on both ends. *@
+                var gapDataset = V2Coverage.Datasets.FirstOrDefault(ds => ds.GapCollector == g.Collector)?.Code ?? g.Collector;
+                <div class="v2-gap" data-cell="@g.SegmentCode:@gapDataset">
                     <span class="v2-gap-what">@Names.Segment(g.SegmentCode) · @Names.Dataset(g.Collector)</span>
                     <span class="v2-gap-state @(g.Open ? "v2-gap-state--open" : "")">@(g.Open ? "open" : "closed")</span>
                     <span class="v2-gap-why">@GapVoice.Say(g.Cause)@(g.Detail is null ? "" : " · " + g.Detail)@(g.Count > 1 ? $" × {g.Count}" : "")</span>
@@ -584,7 +598,7 @@
 }
 <script src="~/studio-ages.js?v=5"></script>
 <script src="~/studio-live.js?v=3"></script>
-<script src="~/studio-v2.js?v=20"></script>
+<script src="~/studio-v2.js?v=21"></script>
 <script src="~/studio-disclose.js?v=2"></script>
 <script src="~/studio-v2-band3.js?v=2"></script>
 </body>

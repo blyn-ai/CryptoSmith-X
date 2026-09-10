@@ -118,6 +118,32 @@
 
 })();
 
+// P0-3 (UX audit): hovering a gap row highlights the matrix cell it belongs to, and hovering a
+// GAP/THROTTLED cell highlights the gap rows that explain it — one delegated pair of listeners,
+// matching on data-cell ("{segment}:{dataset}", set server-side by both the matrix and the gap
+// list from the same key), rather than two places independently deciding which gap a cell means.
+(function () {
+  function matches(key) {
+    return document.querySelectorAll('[data-cell="' + key + '"]');
+  }
+
+  document.addEventListener('pointerover', function (e) {
+    var el = e.target.closest('[data-cell]');
+    if (!el) { return; }
+    matches(el.getAttribute('data-cell')).forEach(function (m) {
+      m.classList.add(m.classList.contains('v2-cov-cell') ? 'v2-cov-cell--hover' : 'v2-gap--hover');
+    });
+  });
+
+  document.addEventListener('pointerout', function (e) {
+    var el = e.target.closest('[data-cell]');
+    if (!el) { return; }
+    matches(el.getAttribute('data-cell')).forEach(function (m) {
+      m.classList.remove('v2-cov-cell--hover', 'v2-gap--hover');
+    });
+  });
+})();
+
 /* Лента, которая идёт сама.
 
    FOLLOW — единственный тумблер на странице, за которым стоит запрос: всё остальное здесь
