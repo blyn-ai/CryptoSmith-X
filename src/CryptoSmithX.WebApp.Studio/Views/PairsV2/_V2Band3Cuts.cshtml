@@ -60,7 +60,7 @@ else
         var firstHeldIndex = bars.Bars.ToList().FindIndex(b => b is not null);
         var hatchPct = firstHeldIndex > 0 && bars.Windows.Count > 0
             ? (double)firstHeldIndex / bars.Windows.Count * 100 : 0;
-        <div class="v2-cut@(stale ? " v2-cut--stale" : "")" data-quote="@r.Row.QuoteAsset">
+        <div class="v2-cut@(stale ? " v2-cut--stale" : "")">
             @* Площадка дисплейным начертанием, символ — акцентным моно, и OHLC последнего
                закрытого часа справа: график отвечает на «как шло», а на «чем кончилось»
                по пикселям не отвечает никто. *@

@@ -48,7 +48,7 @@
                    где дыра, симметрична ли она. Двадцать пять уровней цифрами не читает никто. *@
                 foreach (var r in Model.Rows)
                 {
-                    <div class="v2-book" data-quote="@r.Row.QuoteAsset">
+                    <div class="v2-book">
                         <span class="v2-book-plat">@r.Row.ExchangeName <b>@r.Row.Symbol</b>
                             <em>@(r.Row.SpreadBps is { } sp ? Format.Num(sp, 1) + " bps" : "—")</em></span>
                         @if (!Model.Books.TryGetValue(r.Row.InstrumentId, out var bk) || bk.BidPx.Length == 0)
@@ -161,7 +161,7 @@
                     foreach (var r in ordered)
                     {
                         var v = NowOf(r);
-                        <div class="v2-now" data-quote="@r.Row.QuoteAsset">
+                        <div class="v2-now">
                             <span class="v2-now-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em> <b>@r.Row.Symbol</b></span>
                             @* Значение С ЕДИНИЦЕЙ: голое «6.01» в строке про спред — число, про
                                которое надо помнить, чем его мерили, и которое легко сравнить с
@@ -193,9 +193,9 @@
                                 <span class="v2-now-bar"><i style="width:@Format.BarWidth(v, maxNow)"></i></span>
                             }
                             @* P0-1: the per-row "USD FIGURES · EVERY LISTING COMPARABLE" sentence is
-                               gone — replaced by the 3px quote-group rule on the row (v2-now, below)
-                               plus the one header note set for the whole list (#cut-now-rank,
-                               above). Возраст вызова, который написал строку, остаётся. *@
+                               gone — replaced by the one header note set for the whole list
+                               (#cut-now-rank, above). Возраст вызова, который написал строку,
+                               остаётся. *@
                             @{
                                 (string Label, double? Seconds, double? Window, double? Cadence) age = c.Key switch
                                 {

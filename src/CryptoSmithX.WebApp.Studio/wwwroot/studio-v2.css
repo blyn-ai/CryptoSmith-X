@@ -230,56 +230,6 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* Активной каретка стоит у той группы, чьё поле сейчас в полосах 2 и 3 — иначе стрелка
    означает «сюда можно», но никогда «вы здесь». */
 
-/* ── Quote group (P0-1, UX audit prompt 1) ──────────────────────────────────
-   USD, USDT and USDC used to fold into one ranking population and, on this page, into one
-   colourless row: nothing said a USDC ask and a USD bid were different markets until the chip on
-   one of them lied about it. A 3px inset rule — never a border, so it moves nothing — on the
-   listing cell, every NOW row, every book/candle card, and on every chip whose OWN rank was
-   computed inside that exact quote asset (V2Ranks.IsQuoteScoped), names the population without
-   adding a word: a reader can trace a BEST chip's colour straight back to the row it belongs to.
-
-   Named to the exact six element/class combinations that are meant to carry the attribute — NOT
-   the bare [data-quote] selector, which matched the attribute on ANY element regardless of tag or
-   class. .v2-fig and .v2-cell (the wrappers a figure and a whole cell sit in) never carry
-   data-quote today, but a bare selector gave them the rule the instant one did, with nothing in
-   this file saying it shouldn't — the same trap a future .v2-fig[data-quote] would fall into
-   silently. Named selectors make that the CSS's problem to catch, not a reader's to notice.
-
-   Inline color-mix() rather than three new custom properties: this file deliberately keeps zero
-   tokens of its own (see the header above — three duplicated copies of ds/tokens/* is the bug
-   this file was rewritten to stop being able to have again), so the three tints are derived
-   inline, from tokens the design system already ships and already themes for ink/paper. Muted on
-   purpose — none of the three is the accent (magenta, worst) or the brand fill (acid, best). */
-.v2-listing[data-quote],
-.v2-part[data-quote],
-.v2-now[data-quote],
-.v2-book[data-quote],
-.v2-cut[data-quote]{--quote-tint:var(--text-faint)}
-.v2-listing[data-quote="USD"],
-.v2-part[data-quote="USD"],
-.v2-now[data-quote="USD"],
-.v2-book[data-quote="USD"],
-.v2-cut[data-quote="USD"]{--quote-tint:var(--text-heading)}
-.v2-listing[data-quote="USDT"],
-.v2-part[data-quote="USDT"],
-.v2-now[data-quote="USDT"],
-.v2-book[data-quote="USDT"],
-.v2-cut[data-quote="USDT"]{--quote-tint:var(--call-depth)}
-.v2-listing[data-quote="USDC"],
-.v2-part[data-quote="USDC"],
-.v2-now[data-quote="USDC"],
-.v2-book[data-quote="USDC"],
-.v2-cut[data-quote="USDC"]{--quote-tint:color-mix(in srgb, var(--call-depth) 55%, var(--text-heading) 45%)}
-
-/* Оттенок объявляется выше по котировке, а рисуют его эти два правила — по одному на форму:
-   у контейнеров линия по левому краю самого элемента, у марки по левому краю слова. Четыре
-   копии одного box-shadow на каждую котировку были четырьмя местами, где он однажды разойдётся. */
-.v2-listing[data-quote],
-.v2-now[data-quote],
-.v2-book[data-quote],
-.v2-cut[data-quote]{box-shadow:inset 3px 0 0 0 var(--quote-tint)}
-.v2-part[data-quote] i{box-shadow:inset 3px 0 0 0 var(--quote-tint);padding-left:4px}
-
 .v2-listing{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:5px 8px;min-width:0}
 .v2-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading)}
 .v2-plat em,.v2-symbol em{font-style:normal;font:500 8.5px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin-left:5px}
@@ -336,11 +286,9 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* МАРКИ СМОТРЯТ ВНУТРЬ. Верхняя цифра прижата влево, нижняя вправо; марка-префикс на обеих
    уводила верхнее число от левого края, и пара переставала читаться как пара. У верхней марка
    уезжает ЗА число, у нижней остаётся перед ним — оба числа держат свой край, а слова стоят
-   к середине. Правило котировки едет вместе с маркой на её внешнюю сторону. */
+   к середине. */
 .v2-fig--pair .v2-part:first-child{flex-direction:row-reverse}
-.v2-fig--pair .v2-part:first-child i{margin-right:0;margin-left:2px}
-.v2-fig--pair .v2-part:first-child[data-quote] i{padding-left:0;padding-right:4px;
-  box-shadow:inset -3px 0 0 0 var(--quote-tint)}
+.v2-fig--pair .v2-part:first-child i{margin-right:0;margin-left:3px}
 
 /* B2: the listing cell's disclosure — instrument identity, limits, status and spec version,
    opened under the row it belongs to (plan rule 4: no modal, no new screen). Its own small
@@ -424,34 +372,32 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    переставали стоять на одной правой кромке, и глаз читал границу вместо величины. Слово перед
    числом говорит то же самое и ничего не смещает.
 
-   Слово живёт в своей колонке шириной 3ch, поэтому MAX, MIN и пустое место у непомеченной цифры
-   выстраиваются друг под другом, а сами числа — по одной правой кромке во всей колонке.
+   ШИРИНА МАРКИ — ПО СЛОВУ, А НЕ 3ch. Колонка в 3ch была рассчитана на три знака и не считала
+   разрядку: MIN с letter-spacing шире трёх ch, а inline-block не режет содержимое, поэтому
+   лишнее вылезало вправо — прямо на первую цифру. Ровнять по этой колонке всё равно было нечего:
+   у непомеченной цифры марки нет вовсе, а MIN и MAX одинаковой длины сами по себе. Числа держит
+   на одной кромке правое выравнивание клетки, а не ширина слова перед ними.
 
-   Ни зелёного, ни магенты: они заняты сторонами книги и знаком величины. MAX — чернила
-   заголовка, MIN — приглушённые: это пара «край и край», а не победитель с проигравшим. Ранг не
-   гаснет с возрастом строки — он посчитан ПОПЕРЁК площадок, и его правда про сравнение, а не про
-   то, сколько секунд назад пришло это число.
+   ЗАЛИВКА, А НЕ ОДНИ ЧЕРНИЛА, и это ровно те же --tag-*-bg/--tag-*-ink, которыми первая страница
+   красит .a-tag--best/--worst: одна пара «лучшее/худшее» на продукт, а не две похожие. Коробка
+   при этом на СЛОВЕ, а не на числе — то, от чего уходили, было рамкой вокруг цифр.
 
-   Правило котировки (3px слева) висит на САМОЙ МАРКЕ, а не на span'е вокруг числа: на span'е оно
-   было тем же самым краем коробки, от которой здесь и уходим. У непомеченной цифры марки нет,
-   значит нет и правила — селектор .v2-part[data-quote] i не находит ничего, и это не оговорка, а
-   способ не рисовать линию там, где ей нечего пометить.
+   Ранг не гаснет с возрастом строки — он посчитан ПОПЕРЁК площадок, и его правда про сравнение,
+   а не про то, сколько секунд назад пришло это число.
 
    .v2-part--tight/--wide ниже — мёртвые правила, оставленные намеренно: этих классов не
    выдаёт больше никто (Prompt 1.5 — каждое ранжируемое поле, включая спред, носит
    --best/--worst), но удалять их значит терять запись о том, чем они были. */
 .v2-part{display:inline-flex;align-items:flex-start}
-.v2-part i{display:inline-block;width:3ch;margin-right:2px;font-style:normal;
+.v2-part i{display:inline-block;margin-right:3px;padding:1px 3px;font-style:normal;
   font:500 7.5px/1.15 var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
 .v2-part > span{line-height:1}
 /* ЦВЕТ НЕСЁТ «ХОРОШО ИЛИ ПЛОХО», СЛОВО — «КАКОЙ КРАЙ». Это два разных факта, и один другого не
    заменяет: наибольшая глубина хороша, наибольший спред — нет. Поэтому MIN бывает зелёным (спред)
    и MAX бывает магентовым (он же), и это не сбой, а способ узнать, какой конец колонки хорош, без
-   легенды. --tag-tight и --tag-wide — собственная пара «хорошо/плохо» дизайн-системы. */
-.v2-part--good i{color:var(--tag-tight)}
-.v2-part--bad i{color:var(--tag-wide)}
-.v2-part--tight i{color:var(--tag-tight)}
-.v2-part--wide i{color:var(--tag-wide)}
+   легенды. */
+.v2-part--good i,.v2-part--tight i{background:var(--tag-best-bg);color:var(--tag-best-ink)}
+.v2-part--bad i,.v2-part--wide i{background:var(--tag-worst-bg);color:var(--tag-worst-ink)}
 
 .v2-fig em,.v2-figsub em{font-style:normal;color:var(--text-faint);margin:0 3px}
 

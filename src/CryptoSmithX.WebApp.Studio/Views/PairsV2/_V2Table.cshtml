@@ -68,12 +68,7 @@
                 @* B2: the listing cell opens the instrument's identity/limits/status/spec — the
                    same on-click-once-then-toggle mechanism A1–A4 use (studio-disclose.js), which
                    this page now also loads. *@
-                @* P0-1: data-quote drives the 3px quote-group rule (studio-v2.css) — the same
-                   attribute the chips below carry when their own rank was computed inside this
-                   quote asset, so a reader can trace a BEST chip's colour back to the row it
-                   belongs to. *@
                 <span class="v2-listing a-venue" role="button" tabindex="0" aria-expanded="false"
-                      data-quote="@r.Row.QuoteAsset"
                       data-disclose-url="@Url.Action("InstrumentDetail", "PairsV2", new { instrumentId = r.Row.InstrumentId })"
                       data-disclose-target="instrument-@r.Row.InstrumentId">
                     <span class="v2-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em></span>
@@ -124,13 +119,11 @@
                     var column = V2Ranks.ColumnOf(c.Field);
                     var rank = column is { } rc ? Model.Verdicts.Of(r.Row.InstrumentId, rc) : Verdict.None;
                     var mark = rank == Verdict.None ? null : V2Ranks.ClassWord(c.Field, rank);
-                    // P0-1: only a chip whose rank was computed INSIDE this listing's quote asset
-                    // gets the group rule — a WholePair chip (sizes, OI, spread, book reach) ranked
-                    // across every quote on the page and the rule would misname the comparison.
+                    // Prompt 1.5: the mark's title names the population its rank was computed
+                    // in — inside this listing's own quote asset for a per-quote column, across
+                    // every listing on the page for a WholePair one — so a chip never leaves the
+                    // reader to guess what it won against.
                     var quoteRule = mark is not null && V2Ranks.IsQuoteScoped(c.Field);
-                    // Prompt 1.5: the mark's own text (MAX/min) and its title read the SAME
-                    // quoteRule the 3px rule uses, so a chip's title can never name a population
-                    // the rule beside it disagrees with.
                     var markText = rank == Verdict.None ? null : V2Ranks.Mark(c.Field, rank);
                     var markTitle = rank == Verdict.None ? null : V2Ranks.Title(c.Field, rank, quoteRule, r.Row.QuoteAsset);
                     var spark = c.Spark ? Format.SparkPath(V2Columns.Series(r, c), 60, 14) : null;
@@ -155,7 +148,6 @@
                         pairMarkTitle = pairRank == Verdict.None ? null : V2Ranks.Title(pf, pairRank, pairQuoteRuleInner, r.Row.QuoteAsset);
                         pairTone = pairRank == Verdict.None ? null : V2Ranks.ToneWord(pairRank);
                     }
-                    var pairQuoteRule = pairMark is not null && c.PairedField is { } pf2 && V2Ranks.IsQuoteScoped(pf2);
 
                     // P0-4: one predicate — Freshness.PastWindow, the same one the age text below
                     // already uses for its own magenta (.v2-cellage--late) — now also marks the
@@ -171,8 +163,7 @@
                         @if (c.PairedField is null)
                         {
                             <span class="v2-fig @(cell.Value is null ? "v2-fig--none" : "")">
-                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark + " v2-part--" + V2Ranks.ToneWord(rank))"
-                                      data-quote="@(quoteRule ? r.Row.QuoteAsset : null)">
+                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark + " v2-part--" + V2Ranks.ToneWord(rank))">
                                     @if (markText is not null) { <i title="@markTitle">@markText</i> }
                                     <span>@cell.Text</span>
                                 </span>
@@ -189,13 +180,11 @@
                                side by side: each still carries its OWN rank, and one venue can
                                hold the best bid and the worst ask at once. *@
                             <span class="v2-fig v2-fig--pair">
-                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark + " v2-part--" + V2Ranks.ToneWord(rank)) @(cell.Value is null ? "v2-fig--none" : "")"
-                                      data-quote="@(quoteRule ? r.Row.QuoteAsset : null)">
+                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark + " v2-part--" + V2Ranks.ToneWord(rank)) @(cell.Value is null ? "v2-fig--none" : "")">
                                     @if (markText is not null) { <i title="@markTitle">@markText</i> }
                                     <span>@cell.Text</span>
                                 </span>
-                                <span class="v2-part @(pairMark is null ? "" : "v2-part--" + pairMark + " v2-part--" + pairTone) @(pairCell.Value is null ? "v2-fig--none" : "")"
-                                      data-quote="@(pairQuoteRule ? r.Row.QuoteAsset : null)">
+                                <span class="v2-part @(pairMark is null ? "" : "v2-part--" + pairMark + " v2-part--" + pairTone) @(pairCell.Value is null ? "v2-fig--none" : "")">
                                     @if (pairMarkText is not null) { <i title="@pairMarkTitle">@pairMarkText</i> }
                                     <span>@pairCell.Text</span>
                                 </span>
