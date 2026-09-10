@@ -113,13 +113,15 @@ public sealed record V2FieldRef(string Label, V2Field Field);
 /// </summary>
 public static class V2Ranks
 {
+    // Prompt 2, U-12: BID SIZE / ASK SIZE dropped their marks — top-of-book size is transient
+    // (it can be gone by the next tick), so a MAX/MIN chip on it stated a fact about an instant
+    // rather than the book. Depth 10/25/50 bps stay ranked; they are swept, not quoted, and read
+    // less like "the market moved" and more like "this is what the book actually holds".
     public static PairColumn? ColumnOf(V2Field f) => f switch
     {
         V2Field.Bid => PairColumn.Bid,
         V2Field.Ask => PairColumn.Ask,
         V2Field.Spread => PairColumn.SpreadBps,
-        V2Field.BidSize => PairColumn.BidSize,
-        V2Field.AskSize => PairColumn.AskSize,
         V2Field.Depth10 => PairColumn.Depth10,
         V2Field.Depth25 => PairColumn.Depth25,
         V2Field.Depth50 => PairColumn.Depth50,

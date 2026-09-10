@@ -36,7 +36,13 @@ public sealed class ColumnReadingTests
 
         var shown = fromFields.Concat(fromCells).Where(c => c is not null).Select(c => c!.Value).ToHashSet();
 
-        foreach (var column in Enum.GetValues<PairColumn>())
+        // Prompt 2, U-12: BID SIZE / ASK SIZE dropped their MARK on purpose — top-of-book size is
+        // transient, so a MAX/MIN chip on it stated a fact about an instant rather than the book.
+        // The figure itself is still rendered (V2Groups.All's "Bid / Ask size" field); it is only
+        // V2Ranks.ColumnOf, the mark's own pathway, that no longer names these two.
+        var unmarkedOnPurpose = new[] { PairColumn.BidSize, PairColumn.AskSize };
+
+        foreach (var column in Enum.GetValues<PairColumn>().Except(unmarkedOnPurpose))
         {
             Assert.Contains(column, shown);
         }

@@ -43,7 +43,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=60">
+    <link rel="stylesheet" href="~/studio-v2.css?v=61">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -160,8 +160,14 @@
         <i></i><em>By listing</em>
     </button>
 
+    @* Prompt 2, U-10: worded to match the LIVE-off state this renders in ("snapshot · N old") —
+       the LIVE-on state ("live · last pass N ago", ticking) is #a-live-note's own job
+       (studio-live.js), and unifying the two into one line that swaps wording on toggle is not
+       done in this pass; today they are two lines only in the sense that the connection-status
+       words (#a-live-note, above) and this age are printed separately, not that either repeats
+       the other. *@
     <span class="v2-note">
-        A snapshot, @Format.SpacedAge(oldest) old. Nothing here is hidden except what you folded.
+        Snapshot · @Format.SpacedAge(oldest) old. Nothing here is hidden except what you folded.
     </span>
 
     @* Что ниже — списком, чтобы под сгибом не было сюрпризов. *@
@@ -191,10 +197,25 @@
             @* Заголовок и подпись полосы 2 меняются вместе со срезом, поэтому строки едут с
                кнопкой, которая их выбирает: иначе их пришлось бы держать вторым списком в
                скрипте — тем самым, который однажды разойдётся с этим. *@
+            @* Prompt 2, U-10: band 3's own sub-eyebrow per cut, named exactly rather than built
+               from Name · Unit — a reader switching series should be told what the axis IS
+               (hourly? zero-centred? shared or per-line?), which V2Cut.Unit was never written to
+               say. *@
+            var band3Sub = c.Key switch
+            {
+                "price" => "quote asset · hourly candles, 24 h · one scale per quote, time axes tied",
+                "spread" => "bps · hourly · shared scale",
+                "depth25" => "base units, both sides · hourly · shared scale",
+                "oi" => "base units · hourly · shared scale",
+                "funding" => "per day · zero-centred · shared scale",
+                "turnover" => "no hourly series",
+                "liquidations" => "base units, hourly buckets · shared scale",
+                _ => c.Unit,
+            };
             <button type="button" class="v2-cutpick" data-cut="@c.Key"
                     data-title="@(c.Key == "price" ? "The books" : "Now, across venues")"
                     data-note="@(c.Key == "price" ? bookNote : c.Unit)"
-                    data-series="@c.Name · @c.Unit"
+                    data-series="@band3Sub"
                     data-unit="@(c.Key == "depth25" ? "base units · bid ◂ ▸ ask, one scale" : c.Unit)"
                     data-rank-note="@c.RankNote"
                     aria-pressed="@(c.Key == "price" ? "true" : "false")">@c.Name</button>
@@ -216,7 +237,7 @@
         </div>
         @* Имя поля, затем COLUMNS — так COLUMNS stays the rightmost control, matching band 2's own
            header. It used to sit the other way round, with the field name trailing it. *@
-        <span class="csx-eyebrow v2-band-field" id="cut-time-sub">@cuts[0].Name</span>
+        <span class="csx-eyebrow v2-band-field" id="cut-time-sub">quote asset · hourly candles, 24 h · one scale per quote, time axes tied</span>
         <span class="v2-cols" role="group" aria-label="Chart columns" data-cols-key="charts" data-cols-target=".v2-cuts">
             <span class="csx-eyebrow v2-cols-label">Columns</span>
             @for (var n = 5; n >= 1; n--)
@@ -383,7 +404,12 @@
                             else
                             {
                                 var delta = thin || first == 0 ? (double?)null : (last - first) / Math.Abs(first) * 100;
-                                <span class="@(delta is > 0 ? "v2-delta--up" : delta is < 0 ? "v2-delta--down" : "")">
+                                // Prompt 2, U-12: SPREAD and DEPTH's sign is not good/bad — a
+                                // widening spread and a widening book are not opposite facts the
+                                // way a rising and falling price are — so their delta prints grey
+                                // rather than borrowing the up/down inks the other four cuts earn.
+                                var neutral = c.Key is "spread" or "depth25";
+                                <span class="@(neutral ? "v2-delta--neutral" : delta is > 0 ? "v2-delta--up" : delta is < 0 ? "v2-delta--down" : "")">
                                     @(delta is null ? "" : (delta > 0 ? "+" : "") + Format.Num(delta, 1) + "%")
                                 </span>
                             }

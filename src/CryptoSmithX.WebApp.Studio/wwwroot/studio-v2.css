@@ -646,6 +646,8 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
 .v2-cut--stale .v2-cut-age{color:var(--accent)}
 .v2-delta--up{color:var(--candle-up)}
 .v2-delta--down{color:var(--candle-down)}
+/* Prompt 2, U-12: SPREAD and DEPTH's delta is not good/bad, so it is not green/magenta. */
+.v2-delta--neutral{color:var(--text-faint)}
 .v2-cut-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--brand-text);margin-left:6px}
 .v2-chart{height:180px;position:relative}
 /* P0-2: the un-held share of the axis, hatched rather than left blank (rule 3: blank paper must
