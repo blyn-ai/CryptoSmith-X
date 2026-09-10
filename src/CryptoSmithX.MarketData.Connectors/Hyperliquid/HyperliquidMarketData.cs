@@ -73,16 +73,22 @@ public sealed class HyperliquidMarketData : IExchangeMarketData
     /// the quote is assembled the same way <see cref="GetTickersAsync"/> assembles its row:
     /// <c>metaAndAssetCtxs</c> for mark/oracle/funding/OI and the book for bid/ask, which is why
     /// <see cref="AssetContext"/> is the enumeration and the top is looked up per symbol.</summary>
-    public IReadOnlyList<LiveQuote> LiveQuotes(TimeSpan maxAge)
+    public IReadOnlyList<LiveQuote> LiveQuotes(IReadOnlyCollection<string> exchangeSymbols, TimeSpan maxAge)
     {
-        if (_wsFeed is null || !_wsFeed.TryGetFreshContexts(out var contexts))
+        if (_wsFeed is null || exchangeSymbols.Count == 0 || !_wsFeed.TryGetFreshContexts(out var contexts))
         {
             return [];
         }
 
-        var quotes = new List<LiveQuote>(contexts.Count);
+        var wanted = exchangeSymbols as ISet<string> ?? new HashSet<string>(exchangeSymbols, StringComparer.Ordinal);
+        var quotes = new List<LiveQuote>(wanted.Count);
         foreach (var c in contexts)
         {
+            if (!wanted.Contains(c.Symbol))
+            {
+                continue;
+            }
+
             var hasTop = _wsFeed.TryGetTop(c.Symbol, out var top);
             quotes.Add(new LiveQuote(
                 c.Symbol, c.At,

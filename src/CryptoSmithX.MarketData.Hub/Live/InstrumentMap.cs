@@ -137,20 +137,35 @@ public sealed class InstrumentMap
             return false;
         }
 
-        /// <summary>The segments the wanted ids fall across — what the egress polls, so a
-        /// connection watching one asset never walks the venues it is not asking about.</summary>
-        public IReadOnlyCollection<string> SegmentsOf(IEnumerable<int> instrumentIds)
+        /// <summary>
+        /// The wanted ids grouped into what each venue must actually be asked for: its segment, and
+        /// the venue's own spelling of every listing wanted there.
+        ///
+        /// Grouped rather than "which segments are involved" because the symbols are the point. A
+        /// venue asked for its whole listing has to assemble a quote per symbol, and assembling one
+        /// means summing a book — so a page watching five listings would pay for two thousand. The
+        /// caller names the symbols; the venue does the work for those.
+        /// </summary>
+        public IReadOnlyList<(string Segment, IReadOnlyCollection<string> Symbols)> WantedBySegment(
+            IEnumerable<int> instrumentIds)
         {
-            var segments = new HashSet<string>(StringComparer.Ordinal);
+            var bySegment = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
             foreach (var id in instrumentIds)
             {
-                if (_fromId.TryGetValue(id, out var pair))
+                if (!_fromId.TryGetValue(id, out var pair))
                 {
-                    segments.Add(pair.Segment);
+                    continue;
                 }
+
+                if (!bySegment.TryGetValue(pair.Segment, out var symbols))
+                {
+                    bySegment[pair.Segment] = symbols = new HashSet<string>(StringComparer.Ordinal);
+                }
+
+                symbols.Add(pair.Symbol);
             }
 
-            return segments;
+            return [.. bySegment.Select(kv => (kv.Key, (IReadOnlyCollection<string>)kv.Value))];
         }
     }
 }

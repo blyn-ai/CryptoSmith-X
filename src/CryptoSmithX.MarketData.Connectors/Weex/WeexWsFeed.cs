@@ -695,11 +695,6 @@ public sealed class WeexWsFeed : IWeexLiveFeed
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _trades.Drain();
 
-    /// <summary>The depth subscription's own set — the broad one, not <see cref="_klineSymbols"/>.
-    /// A snapshot of the volatile reference, so a resubscribe mid-read swaps the array rather than
-    /// mutating the one being walked.</summary>
-    public IReadOnlyList<string> SubscribedSymbols() => _symbols;
-
     public bool TryGetBookFrame(string symbol, int levels, out BookFrame frame) =>
         _books.TryGetFrame(symbol, levels, out frame);
 

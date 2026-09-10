@@ -23,6 +23,10 @@ namespace CryptoSmithX.MarketData.Connectors.Tests;
 public sealed class LiveQuotesTests
 {
     private static readonly TimeSpan MaxAge = TimeSpan.FromSeconds(5);
+
+    /// <summary>Every symbol any stub below serves, so one set works for all four venues — the
+    /// adapters filter to what they hold, which is the behaviour under test.</summary>
+    private static readonly string[] Wanted = ["PF_XBTUSD", "BTC", "BTCUSDT", "cmt_btcusdt"];
     private static readonly DateTimeOffset T0 = new(2026, 9, 10, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
@@ -31,7 +35,7 @@ public sealed class LiveQuotesTests
         var http = new CountingHandler();
         var adapter = new KrakenFuturesMarketData(KrakenClient(http), new KrakenStub { Fresh = false });
 
-        Assert.Empty(adapter.LiveQuotes(MaxAge));
+        Assert.Empty(adapter.LiveQuotes(Wanted, MaxAge));
         Assert.Equal(0, http.Calls);
     }
 
@@ -43,7 +47,7 @@ public sealed class LiveQuotesTests
         var http = new CountingHandler();
         var adapter = new KrakenFuturesMarketData(KrakenClient(http), ws: null);
 
-        Assert.Empty(adapter.LiveQuotes(MaxAge));
+        Assert.Empty(adapter.LiveQuotes(Wanted, MaxAge));
         Assert.Equal(0, http.Calls);
     }
 
@@ -56,7 +60,7 @@ public sealed class LiveQuotesTests
         var feed = new KrakenStub { Fresh = true, Tickers = [Ticker("PF_XBTUSD", 100, 101)] };
         var adapter = new KrakenFuturesMarketData(KrakenClient(http), feed);
 
-        var quote = Assert.Single(adapter.LiveQuotes(MaxAge));
+        var quote = Assert.Single(adapter.LiveQuotes(Wanted, MaxAge));
 
         Assert.Equal("PF_XBTUSD", quote.ExchangeSymbol);
         Assert.Equal(T0, quote.At);
@@ -74,7 +78,7 @@ public sealed class LiveQuotesTests
             new HyperliquidStub(),
             new HyperliquidStub { Fresh = false });
 
-        Assert.Empty(adapter.LiveQuotes(MaxAge));
+        Assert.Empty(adapter.LiveQuotes(Wanted, MaxAge));
         Assert.Equal(0, http.Calls);
     }
 
@@ -91,7 +95,7 @@ public sealed class LiveQuotesTests
             restBaseline,
             wsFeed: null);
 
-        Assert.Empty(adapter.LiveQuotes(MaxAge));
+        Assert.Empty(adapter.LiveQuotes(Wanted, MaxAge));
         Assert.Equal(0, http.Calls);
     }
 
@@ -110,7 +114,7 @@ public sealed class LiveQuotesTests
             new HyperliquidStub(),
             ws);
 
-        var quote = Assert.Single(adapter.LiveQuotes(MaxAge));
+        var quote = Assert.Single(adapter.LiveQuotes(Wanted, MaxAge));
 
         Assert.Equal(100, quote.BidPrice);
         Assert.Equal(6, quote.AskSize);
@@ -123,7 +127,7 @@ public sealed class LiveQuotesTests
     {
         var http = new CountingHandler();
 
-        Assert.Empty(Binance(http, new BinanceMarketStub { Fresh = false }, new BinanceDepthStub()).LiveQuotes(MaxAge));
+        Assert.Empty(Binance(http, new BinanceMarketStub { Fresh = false }, new BinanceDepthStub()).LiveQuotes(Wanted, MaxAge));
         Assert.Equal(0, http.Calls);
     }
 
@@ -137,7 +141,7 @@ public sealed class LiveQuotesTests
         var market = new BinanceMarketStub { Fresh = true, Contexts = [BinanceContext("BTCUSDT")] };
         var depth = new BinanceDepthStub { Frame = Frame("BTCUSDT", 100, 101) };
 
-        var quote = Assert.Single(Binance(http, market, depth).LiveQuotes(MaxAge));
+        var quote = Assert.Single(Binance(http, market, depth).LiveQuotes(Wanted, MaxAge));
 
         Assert.Null(quote.OpenInterest);
         Assert.Equal(100, quote.BidPrice);
@@ -151,7 +155,7 @@ public sealed class LiveQuotesTests
         var http = new CountingHandler();
         var adapter = new WeexFuturesMarketData(WeexClient(http), new WeexOiStub(), ws: null);
 
-        Assert.Empty(adapter.LiveQuotes(MaxAge));
+        Assert.Empty(adapter.LiveQuotes(Wanted, MaxAge));
         Assert.Equal(0, http.Calls);
     }
 
@@ -161,10 +165,10 @@ public sealed class LiveQuotesTests
         // The thinnest live path of the four and honestly so: this socket has no ticker channel at
         // all, so mark, funding and open interest are null rather than filled from anywhere.
         var http = new CountingHandler();
-        var ws = new WeexStub { Symbols = ["cmt_btcusdt"], Frame = Frame("cmt_btcusdt", 100, 101) };
+        var ws = new WeexStub { Frame = Frame("cmt_btcusdt", 100, 101) };
         var adapter = new WeexFuturesMarketData(WeexClient(http), new WeexOiStub(), ws);
 
-        var quote = Assert.Single(adapter.LiveQuotes(MaxAge));
+        var quote = Assert.Single(adapter.LiveQuotes(["cmt_btcusdt"], MaxAge));
 
         Assert.Equal(100, quote.BidPrice);
         Assert.Null(quote.MarkPrice);
@@ -179,17 +183,56 @@ public sealed class LiveQuotesTests
         // Subscribed is not the same as holding a book: a symbol added seconds ago has no frame yet,
         // and an empty side is not a bid of zero.
         var http = new CountingHandler();
-        var ws = new WeexStub { Symbols = ["cmt_btcusdt"], Frame = null };
+        var ws = new WeexStub { Frame = null };
 
-        Assert.Empty(new WeexFuturesMarketData(WeexClient(http), new WeexOiStub(), ws).LiveQuotes(MaxAge));
+        Assert.Empty(new WeexFuturesMarketData(WeexClient(http), new WeexOiStub(), ws).LiveQuotes(Wanted, MaxAge));
         Assert.Equal(0, http.Calls);
     }
+
+    [Fact]
+    public void An_adapter_assembles_only_the_symbols_it_was_asked_about()
+    {
+        // The guard on the mistake this seam shipped with. Assembling a quote means reading a book,
+        // and reading a book means summing its levels — so answering for a whole venue put ~285 ms
+        // of Kraken's 275 symbols into every 200 ms tick, for a page watching one listing. The feed
+        // may hand back its whole slice; what must not happen is doing the per-symbol work for it.
+        var http = new CountingHandler();
+        var feed = new KrakenStub
+        {
+            Fresh = true,
+            Tickers = [Ticker("PF_XBTUSD", 100, 101), Ticker("PF_ETHUSD", 2, 3), Ticker("PF_SOLUSD", 4, 5)],
+        };
+
+        var quotes = new KrakenFuturesMarketData(KrakenClient(http), feed).LiveQuotes(["PF_XBTUSD"], MaxAge);
+
+        Assert.Equal(["PF_XBTUSD"], quotes.Select(q => q.ExchangeSymbol).ToArray());
+        Assert.Equal(1, feed.DepthCalls);
+    }
+
+    [Fact]
+    public void Weex_reads_its_book_only_for_the_symbols_wanted()
+    {
+        // WEEX is where this bit hardest: it subscribes depth for the venue's whole listing — about
+        // a thousand books — so a whole-venue poll was a thousand cumulative-notional sums a tick.
+        var http = new CountingHandler();
+        var ws = new WeexStub { Frame = Frame("cmt_btcusdt", 100, 101) };
+
+        new WeexFuturesMarketData(WeexClient(http), new WeexOiStub(), ws).LiveQuotes(["cmt_btcusdt"], MaxAge);
+
+        Assert.Equal(["cmt_btcusdt"], ws.FrameCalls);
+    }
+
+    [Fact]
+    public void Nothing_wanted_is_nothing_polled() =>
+        Assert.Empty(new KrakenFuturesMarketData(
+            KrakenClient(new CountingHandler()),
+            new KrakenStub { Fresh = true, Tickers = [Ticker("PF_XBTUSD", 100, 101)] }).LiveQuotes([], MaxAge));
 
     [Fact]
     public void The_fake_adapter_has_no_live_path_at_all() =>
         // Through the interface, because LiveQuotes is a default member the fake does not override —
         // "this adapter has no socket" needs no code at all, which is the point of defaulting it.
-        Assert.Empty(((IExchangeMarketData)new Fake.FakeExchangeMarketData()).LiveQuotes(MaxAge));
+        Assert.Empty(((IExchangeMarketData)new Fake.FakeExchangeMarketData()).LiveQuotes(Wanted, MaxAge));
 
     // ---------------------------------------------------------------------------------------
 
@@ -232,6 +275,7 @@ public sealed class LiveQuotesTests
     {
         public bool Fresh { get; init; }
         public IReadOnlyList<Ticker> Tickers { get; init; } = [];
+        public int DepthCalls { get; private set; }
 
         public bool TryGetFreshTickers(out IReadOnlyList<Ticker> tickers)
         {
@@ -241,6 +285,7 @@ public sealed class LiveQuotesTests
 
         public bool TryGetDepth(string symbol, out Depth depth)
         {
+            DepthCalls++;
             depth = null!;
             return false;
         }
@@ -324,10 +369,8 @@ public sealed class LiveQuotesTests
 
     private sealed class WeexStub : IWeexLiveFeed
     {
-        public IReadOnlyList<string> Symbols { get; init; } = [];
         public BookFrame? Frame { get; init; }
-
-        public IReadOnlyList<string> SubscribedSymbols() => Symbols;
+        public List<string> FrameCalls { get; } = [];
 
         public bool TryGetDepth(string symbol, out Depth depth)
         {
@@ -343,6 +386,7 @@ public sealed class LiveQuotesTests
 
         public bool TryGetBookFrame(string symbol, int levels, out BookFrame frame)
         {
+            FrameCalls.Add(symbol);
             frame = Frame!;
             return Frame is not null;
         }

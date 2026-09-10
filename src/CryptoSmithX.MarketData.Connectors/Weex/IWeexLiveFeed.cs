@@ -31,15 +31,6 @@ public interface IWeexLiveFeed
     /// Defaulted so a test double that only cares about depth stays small.</summary>
     IReadOnlyList<TradeEvent> DrainTrades() => [];
 
-    /// <summary>
-    /// The symbols this feed is currently subscribed for — WEEX's only enumeration, and the reason
-    /// it exists here and on no other venue's seam. The other three sockets carry a ticker, so
-    /// their live path walks the ticker slice and needs no separate list; WEEX's carries none at
-    /// all (see the interface remarks), leaving the subscribed set as the only answer to "which
-    /// symbols could there be a book for".
-    /// </summary>
-    IReadOnlyList<string> SubscribedSymbols() => [];
-
     bool TryGetBookFrame(string symbol, int levels, out BookFrame frame)
     {
         frame = null!;

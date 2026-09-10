@@ -68,20 +68,36 @@ public sealed class InstrumentMapTests
     }
 
     [Fact]
-    public void The_wanted_ids_name_the_segments_worth_polling()
+    public void The_wanted_ids_group_into_one_ask_per_venue_naming_that_venues_symbols()
     {
-        // One asset's row set is a handful of venues, and the egress walks those — never every
-        // exchange in the process for a page that is not asking about them.
-        var segments = Snapshot().SegmentsOf([1, 2]);
+        // Not "which segments are involved" — which SYMBOLS, per venue. Assembling a quote means
+        // summing a book, so a venue asked for its whole listing does that work a thousand times
+        // for a page watching one listing; naming the symbols is what keeps the tick affordable.
+        var wanted = Snapshot().WantedBySegment([1, 2]);
 
-        Assert.Equal(2, segments.Count);
-        Assert.Contains("kraken-futures", segments);
-        Assert.Contains("hyperliquid", segments);
+        Assert.Equal(2, wanted.Count);
+        Assert.Equal(["PF_XBTUSD"], wanted.Single(w => w.Segment == "kraken-futures").Symbols);
+        Assert.Equal(["BTC"], wanted.Single(w => w.Segment == "hyperliquid").Symbols);
     }
 
     [Fact]
-    public void Ids_that_are_not_on_the_map_name_no_segment_at_all() =>
-        Assert.Empty(Snapshot().SegmentsOf([999]));
+    public void Two_listings_on_one_venue_are_one_ask_for_both_symbols()
+    {
+        var map = InstrumentMap.Snapshot.Of(
+        [
+            new InstrumentMap.Row(1, "binance-usdm", "BTCUSDT"),
+            new InstrumentMap.Row(2, "binance-usdm", "BTCUSDC"),
+        ]);
+
+        var wanted = Assert.Single(map.WantedBySegment([1, 2]));
+
+        Assert.Equal("binance-usdm", wanted.Segment);
+        Assert.Equal(2, wanted.Symbols.Count);
+    }
+
+    [Fact]
+    public void Ids_that_are_not_on_the_map_ask_no_venue_anything() =>
+        Assert.Empty(Snapshot().WantedBySegment([999]));
 
     private static InstrumentMap.Snapshot Snapshot() =>
         InstrumentMap.Snapshot.Of(

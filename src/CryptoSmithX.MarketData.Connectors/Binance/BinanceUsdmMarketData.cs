@@ -95,16 +95,22 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
     /// as its own top level (<c>!bookTicker</c> is REST here, so the book IS the quote), and open
     /// interest has no socket at all on this venue — it is a background REST cycle, so it stays null
     /// and the page leaves that figure on the database.</summary>
-    public IReadOnlyList<LiveQuote> LiveQuotes(TimeSpan maxAge)
+    public IReadOnlyList<LiveQuote> LiveQuotes(IReadOnlyCollection<string> exchangeSymbols, TimeSpan maxAge)
     {
-        if (_marketFeed is null || !_marketFeed.TryGetFreshContexts(out var contexts))
+        if (_marketFeed is null || exchangeSymbols.Count == 0 || !_marketFeed.TryGetFreshContexts(out var contexts))
         {
             return [];
         }
 
-        var quotes = new List<LiveQuote>(contexts.Count);
+        var wanted = exchangeSymbols as ISet<string> ?? new HashSet<string>(exchangeSymbols, StringComparer.Ordinal);
+        var quotes = new List<LiveQuote>(wanted.Count);
         foreach (var c in contexts)
         {
+            if (!wanted.Contains(c.Symbol))
+            {
+                continue;
+            }
+
             var book = _ws is not null && _ws.TryGetBookFrame(c.Symbol, 1, out var top)
                 && top.BidPrices.Count > 0 && top.AskPrices.Count > 0
                 ? top

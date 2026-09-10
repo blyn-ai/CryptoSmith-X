@@ -59,16 +59,24 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
     /// quote is filled end to end from it and nothing here is null for want of a source. The
     /// freshness gate is the feed's own (<c>TryGetFreshTickers</c> answers false on an unhealthy
     /// slice), which is configured from the same setting the caller passes here.</summary>
-    public IReadOnlyList<LiveQuote> LiveQuotes(TimeSpan maxAge)
+    public IReadOnlyList<LiveQuote> LiveQuotes(IReadOnlyCollection<string> exchangeSymbols, TimeSpan maxAge)
     {
-        if (_ws is null || !_ws.TryGetFreshTickers(out var tickers))
+        if (_ws is null || exchangeSymbols.Count == 0 || !_ws.TryGetFreshTickers(out var tickers))
         {
             return [];
         }
 
-        var quotes = new List<LiveQuote>(tickers.Count);
+        // The feed hands back its whole slice — that part is a reference to a list it already holds.
+        // The cost is per QUOTE assembled, above all the depth read, so the filter comes first.
+        var wanted = exchangeSymbols as ISet<string> ?? new HashSet<string>(exchangeSymbols, StringComparer.Ordinal);
+        var quotes = new List<LiveQuote>(wanted.Count);
         foreach (var t in tickers)
         {
+            if (!wanted.Contains(t.ExchangeSymbol))
+            {
+                continue;
+            }
+
             quotes.Add(new LiveQuote(
                 t.ExchangeSymbol, t.ReceivedAt,
                 t.BidPrice, t.BidSize, t.AskPrice, t.AskSize,

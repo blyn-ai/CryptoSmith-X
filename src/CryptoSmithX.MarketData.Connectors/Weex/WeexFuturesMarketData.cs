@@ -70,15 +70,15 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
     /// so the maintained book is the entire live quote — bid/ask from its own top level and the
     /// cumulative bands beside it. Open interest is a background REST cycle here, not a socket, so
     /// it stays null rather than riding a 200 ms tick under the word "live".</summary>
-    public IReadOnlyList<LiveQuote> LiveQuotes(TimeSpan maxAge)
+    public IReadOnlyList<LiveQuote> LiveQuotes(IReadOnlyCollection<string> exchangeSymbols, TimeSpan maxAge)
     {
         if (_ws is null)
         {
             return [];
         }
 
-        var quotes = new List<LiveQuote>();
-        foreach (var symbol in _ws.SubscribedSymbols())
+        var quotes = new List<LiveQuote>(exchangeSymbols.Count);
+        foreach (var symbol in exchangeSymbols)
         {
             if (!_ws.TryGetBookFrame(symbol, 1, out var top) || top.BidPrices.Count == 0 || top.AskPrices.Count == 0)
             {

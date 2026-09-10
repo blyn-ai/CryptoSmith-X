@@ -69,7 +69,9 @@ public static class LiveEgress
 
         var log = loggers.CreateLogger(typeof(LiveEgress));
         var conflator = new Conflator();
-        var lastBeat = DateTimeOffset.MinValue;
+        // The connect line below is itself proof of life, so the heartbeat clock starts from it —
+        // otherwise the first quiet tick fires a ping immediately, on a connection one tick old.
+        var lastBeat = DateTimeOffset.UtcNow;
         var seq = 0L;
 
         await context.Response.WriteAsync(": connected\n\n", ct);
@@ -127,17 +129,18 @@ public static class LiveEgress
         }
     }
 
-    /// <summary>Every wanted instrument its segment's socket currently holds. Walks segments, not
-    /// instruments: one <see cref="Connectors.IExchangeMarketData.LiveQuotes"/> call answers for a
-    /// whole venue, so asking per instrument would be the same poll repeated per row.</summary>
+    /// <summary>Every wanted instrument its segment's socket currently holds. One call per venue,
+    /// naming that venue's own symbols — never per instrument, and never for the whole listing; see
+    /// <see cref="Connectors.IExchangeMarketData.LiveQuotes"/> for what the whole-listing version
+    /// cost.</summary>
     private static List<(int InstrumentId, LiveQuote Quote)> Poll(
         HashSet<int> wanted,
         InstrumentMap.Snapshot map,
         IAdapterRegistry adapters,
         TimeSpan maxAge)
     {
-        var found = new List<(int, LiveQuote)>();
-        foreach (var segment in map.SegmentsOf(wanted))
+        var found = new List<(int, LiveQuote)>(wanted.Count);
+        foreach (var (segment, symbols) in map.WantedBySegment(wanted))
         {
             if (!adapters.TryGet(segment, out var adapter))
             {
@@ -146,7 +149,7 @@ public static class LiveEgress
                 continue;
             }
 
-            foreach (var quote in adapter.LiveQuotes(maxAge))
+            foreach (var quote in adapter.LiveQuotes(symbols, maxAge))
             {
                 if (map.TryGetId(segment, quote.ExchangeSymbol, out var id) && wanted.Contains(id))
                 {
