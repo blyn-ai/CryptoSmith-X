@@ -778,6 +778,19 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
    Поэтому и подпись «up to N», кроме одной колонки — у неё потолка нет.
 
    Иконка и есть та раскладка, которую просят: по одной палочке на колонку. */
+/* B3: timeframe and series selectors — same small-toggle shape as .v2-cols-btn below, GET links
+   rather than buttons (a click is a navigation here, not a client-side redraw; band 3 is not a
+   live region). */
+.v2-tf{display:inline-flex;align-items:center;gap:2px}
+.v2-tf-btn{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:20px;
+  padding:0 6px;background:transparent;border:1px solid var(--border-input);cursor:pointer;
+  font:400 var(--fs-micro)/1 var(--font-mono);color:var(--text-muted);text-decoration:none;
+  transition:color 120ms linear,border-color 120ms linear}
+.v2-tf-btn:hover{color:var(--accent);border-color:var(--border-strong)}
+.v2-tf-btn--active{background:var(--tag-worst-bg);border-color:var(--accent);color:var(--accent)}
+
+.v2-cut-partial{margin-left:var(--space-3);font:400 var(--fs-micro)/1.2 var(--font-mono);color:var(--text-faint)}
+
 .v2-cols{margin-left:auto;display:inline-flex;align-items:center;gap:var(--space-3)}
 .v2-cols-label{color:var(--text-faint)}
 .v2-cols-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:20px;

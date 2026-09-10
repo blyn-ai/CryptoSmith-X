@@ -10,9 +10,13 @@ namespace CryptoSmithX.WebApp.Studio.Models;
 /// absence as a measurement of nothing traded. Whether the panel should carry volume is recorded as
 /// an open product question, not a rendering detail, and it is not settled here.
 ///
-/// <see cref="BarCount"/> is kept because it is the honest caveat on the bar: below 60 the hour was
-/// only partly covered by 1m bars (0001), and the panel header says how many such hours it drew
-/// rather than pretending the line is continuous.
+/// <see cref="BarCount"/> is kept because it is the honest caveat on the bar: below the bar's own
+/// timeframe the window was only partly covered by 1m bars (0001), and the panel header says how
+/// many such bars it drew rather than pretending the line is continuous.
+///
+/// <see cref="Source"/> and <see cref="UpdatedAt"/> (0035) are read for the one bar the panel names
+/// explicitly — the last closed one, in its OHLC line's tooltip (B3) — and not carried into the
+/// series' own maths: a bar's provenance is not a value the line is drawn from.
 /// </remarks>
 public sealed record CandleRow(
     int InstrumentId,
@@ -21,16 +25,25 @@ public sealed record CandleRow(
     double High,
     double Low,
     double Close,
-    short BarCount);
+    short BarCount,
+    string? Source,
+    DateTime UpdatedAt);
 
 /// <summary>
-/// One instrument's hourly bars on the page's shared window list.
+/// One instrument's bars on the page's shared window list, at one timeframe.
 ///
 /// <see cref="Bars"/> is index-aligned with <see cref="Windows"/> and holds null where that venue
-/// has no bar for that hour. The null is the whole point: it keeps the gap on the axis instead of
+/// has no bar for that window. The null is the whole point: it keeps the gap on the axis instead of
 /// letting the neighbouring bars slide together, so a venue that stopped quoting looks stopped.
 /// </summary>
-public sealed record CandleSeries(IReadOnlyList<DateTime> Windows, IReadOnlyList<CandleRow?> Bars)
+/// <param name="Timeframe">
+/// Minutes per bar — 60 by default (band 1's sparklines and band 3's default view), but band 3's
+/// timeframe selector (B3) reads the SAME shape at 1/5/15/240/720/1440 too. Carried on the series
+/// rather than assumed, because <see cref="Partial"/> has to compare each bar against the window IT
+/// was actually built at, not against whichever timeframe happens to be the page's default.
+/// </param>
+public sealed record CandleSeries(
+    IReadOnlyList<DateTime> Windows, IReadOnlyList<CandleRow?> Bars, short Timeframe = CandleStore.TimeframeMinutes)
 {
     public static readonly CandleSeries Empty = new([], []);
 
@@ -41,9 +54,11 @@ public sealed record CandleSeries(IReadOnlyList<DateTime> Windows, IReadOnlyList
 
     public int Present => Bars.Count(b => b is not null);
 
-    /// <summary>Hours the rollup covered only partly — fewer 1m bars than minutes in the hour. Said
-    /// out loud in the panel header rather than smoothed into the line.</summary>
-    public int Partial => Bars.Count(b => b is { BarCount: < CandleStore.TimeframeMinutes });
+    /// <summary>Bars the rollup covered only partly — fewer 1m bars than minutes in the bar's own
+    /// window. Said out loud in the panel header rather than smoothed into the line. Always zero at
+    /// the 1-minute timeframe (bar_count is always 1 there, against a window of 1) — nothing to
+    /// single out, so B3 does not show this line at that timeframe.</summary>
+    public int Partial => Bars.Count(b => b is not null && b.BarCount < Timeframe);
 
     public double? Low => Bars.Where(b => b is not null).Select(b => b!.Low).DefaultIfEmpty().Min() is var lo
         && Bars.Any(b => b is not null) ? lo : null;
@@ -224,6 +239,19 @@ public sealed record PairPageModel(
     /// page was built by a path that does not draw band 5.</summary>
     public IReadOnlyDictionary<(string Segment, string Dataset), string> Modes { get; init; }
         = new Dictionary<(string, string), string>();
+
+    /// <summary>
+    /// B3's timeframe and series selector. Null at the default (60-minute, trade) — the v1 page and
+    /// the live-push path never set this, so a live pass never re-fetches a second candle series it
+    /// does not draw (band 3 is not a live region; see PairsV2Controller.LiveRegions). Asset.cshtml
+    /// falls back to <c>r.Candles</c> — the same hourly-trade series band 1's sparklines already
+    /// hold — whenever this is null, rather than re-querying the default it already has in hand.
+    /// </summary>
+    public IReadOnlyDictionary<int, CandleSeries>? Band3Candles { get; init; }
+
+    public short Band3Timeframe { get; init; } = CandleStore.TimeframeMinutes;
+
+    public string Band3Series { get; init; } = "trade";
 
     /// <summary>Rows: one order book, on one venue, with one quote. Binance's PEPE/USDT and
     /// PEPE/USDC are two of them, and the header must not print one number for both.</summary>

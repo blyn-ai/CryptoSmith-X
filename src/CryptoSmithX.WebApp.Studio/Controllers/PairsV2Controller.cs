@@ -107,7 +107,7 @@ public sealed class PairsV2Controller : LivePageController
     }
 
     [HttpGet]
-    public async Task<IActionResult> Asset(string baseFamily, CancellationToken ct)
+    public async Task<IActionResult> Asset(string baseFamily, short? tf, string? series, CancellationToken ct)
     {
         if (!PairAddress.IsFamily(baseFamily))
         {
@@ -120,6 +120,34 @@ public sealed class PairsV2Controller : LivePageController
             ViewData["MissingPair"] = baseFamily;
             Response.StatusCode = StatusCodes.Status404NotFound;
             return View("~/Views/Pairs/PairNotFound.cshtml");
+        }
+
+        var chosenTf = CandleStore.Timeframes.Contains(tf ?? CandleStore.TimeframeMinutes)
+            ? tf ?? CandleStore.TimeframeMinutes : CandleStore.TimeframeMinutes;
+        var chosenSeries = CandleStore.Series.Contains(series) ? series! : "trade";
+
+        // B3: the default view (60-minute, trade) is already sitting in model.Rows[*].Candles — band
+        // 1's sparklines loaded it. Only fetch a second series when the reader actually asked for a
+        // different one, so the common case costs nothing extra.
+        if (chosenTf != CandleStore.TimeframeMinutes || chosenSeries != "trade")
+        {
+            var ids = model.Rows.Select(r => r.Row.InstrumentId).ToList();
+            var band3 = await _cache.GetAsync($"band3:{baseFamily}:{chosenTf}:{chosenSeries}",
+                async token =>
+                {
+                    await using var conn = await _db.OpenAsync(token);
+                    var at = _clock.GetUtcNow();
+                    return chosenSeries == "trade"
+                        ? await CandleStore.ReadAsync(conn, ids, at, chosenTf, CandleStore.Hours, token)
+                        : await PriceCandleStore.ReadAsync(
+                            conn, ids, at, chosenTf, CandleStore.Hours, chosenSeries, token);
+                }, ct);
+
+            model = model with { Band3Candles = band3, Band3Timeframe = chosenTf, Band3Series = chosenSeries };
+        }
+        else
+        {
+            model = model with { Band3Timeframe = chosenTf, Band3Series = chosenSeries };
         }
 
         return View(model);

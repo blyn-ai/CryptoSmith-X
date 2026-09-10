@@ -22,7 +22,7 @@ public sealed class OhlcLineTests
         [.. Enumerable.Range(0, 4).Select(i => new DateTime(2026, 9, 7, 0, 0, 0, DateTimeKind.Utc).AddHours(i))];
 
     private static CandleRow Bar(int i, double open, double high, double low, double close) =>
-        new(1, Hours[i], open, high, low, close, 60);
+        new(1, Hours[i], open, high, low, close, 60, "rest", Hours[i]);
 
     private static CandleSeries Series(params CandleRow?[] bars) => new(Hours, bars);
 

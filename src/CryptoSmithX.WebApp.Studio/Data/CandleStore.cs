@@ -37,6 +37,17 @@ public static class CandleStore
     /// </summary>
     public const short TimeframeMinutes = 60;
 
+    /// <summary>B3's timeframe selector — every grain RollupJob writes (0001), same order the
+    /// page's own prose lists them in. One list, read by the controller that validates a requested
+    /// <c>tf</c> and the view that draws the selector's buttons, so the two cannot silently name a
+    /// different set.</summary>
+    public static readonly short[] Timeframes = [1, 5, 15, 60, 240, 720, 1440];
+
+    /// <summary>B3's series selector. Same shape as <see cref="Timeframes"/> and the same reason for
+    /// it — <c>market_price_candle.series</c>'s own CHECK constraint names these two, "trade" is
+    /// <c>market_candle</c> rather than a value of a series column at all.</summary>
+    public static readonly string[] Series = ["trade", "mark", "index"];
+
     /// <summary>
     /// How many hours of history the page shows. Twenty-five bars for twenty-four hours of history:
     /// the current hour is open and will move, so it is fetched as the twenty-fifth and the panel
@@ -64,7 +75,9 @@ public static class CandleStore
                c.high                   as "High",
                c.low                    as "Low",
                c.close                  as "Close",
-               c.bar_count              as "BarCount"
+               c.bar_count              as "BarCount",
+               c.source                 as "Source",
+               c.updated_at             as "UpdatedAt"
           from market_candle c
          where c.exchange_instrument_id = any(@instrumentIds)
            and c.timeframe = @timeframe
@@ -88,15 +101,26 @@ public static class CandleStore
     /// price history, which is a fact about the venue, and dropping it would leave the reader to
     /// infer from a missing panel something the page could simply say.
     /// </summary>
+    public static Task<IReadOnlyDictionary<int, CandleSeries>> ReadAsync(
+        DbConnection conn, IReadOnlyList<int> instrumentIds, DateTimeOffset now, CancellationToken ct) =>
+        ReadAsync(conn, instrumentIds, now, TimeframeMinutes, Hours, ct);
+
+    /// <summary>
+    /// B3: the same read, at a caller-chosen timeframe and bar count. The default overload above
+    /// stays the one band 1's sparklines and every page other than a chosen band-3 view use — this
+    /// exists so band 3's timeframe selector does not have to duplicate the query or the gap-filling
+    /// logic to draw the six other stored grains.
+    /// </summary>
     public static async Task<IReadOnlyDictionary<int, CandleSeries>> ReadAsync(
-        DbConnection conn, IReadOnlyList<int> instrumentIds, DateTimeOffset now, CancellationToken ct)
+        DbConnection conn, IReadOnlyList<int> instrumentIds, DateTimeOffset now,
+        short timeframeMinutes, int count, CancellationToken ct)
     {
         if (instrumentIds.Count == 0)
         {
             return new Dictionary<int, CandleSeries>();
         }
 
-        var windows = Windows(now);
+        var windows = Windows(now, timeframeMinutes, count);
         var anchor = windows[^1];
 
         var rows = (await conn.QueryAsync<CandleRow>(new CommandDefinition(
@@ -104,7 +128,7 @@ public static class CandleStore
             new
             {
                 instrumentIds = instrumentIds.ToArray(),
-                timeframe = (int)TimeframeMinutes,
+                timeframe = (int)timeframeMinutes,
                 from = windows[0],
                 anchor
             },
@@ -122,7 +146,7 @@ public static class CandleStore
                 var bars = windows
                     .Select(w => byTime is not null && byTime.TryGetValue(w, out var r) ? r : null)
                     .ToList();
-                return new CandleSeries(windows, bars);
+                return new CandleSeries(windows, bars, timeframeMinutes);
             });
     }
 
@@ -142,14 +166,23 @@ public static class CandleStore
     /// for up to fifty-nine minutes — and an empty trailing slot on every series would read as
     /// every venue going quiet at the same instant.
     /// </summary>
-    public static IReadOnlyList<DateTime> Windows(DateTimeOffset now)
-    {
-        var anchor = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero)
-            .AddHours(now.UtcDateTime.Hour)
-            .AddHours(-1);
+    public static IReadOnlyList<DateTime> Windows(DateTimeOffset now) => Windows(now, TimeframeMinutes, Hours);
 
-        return Enumerable.Range(0, Hours)
-            .Select(i => anchor.AddHours(-(Hours - 1 - i)).UtcDateTime)
+    /// <summary>
+    /// The general form behind the overload above: <paramref name="count"/> bars of
+    /// <paramref name="timeframeMinutes"/> each, oldest first, ending at the most recently CLOSED
+    /// one. Flooring by ticks rather than by calendar field works for every stored grain (1, 5, 15,
+    /// 60, 240, 720, 1440) because .NET's tick origin (0001-01-01T00:00:00) already sits on every one
+    /// of those boundaries — the same identity the 60/25 case relied on when it floored by the hour.
+    /// </summary>
+    public static IReadOnlyList<DateTime> Windows(DateTimeOffset now, short timeframeMinutes, int count)
+    {
+        var stepTicks = TimeSpan.FromMinutes(timeframeMinutes).Ticks;
+        var floored = new DateTime((now.UtcDateTime.Ticks / stepTicks) * stepTicks, DateTimeKind.Utc);
+        var anchor = floored.AddMinutes(-timeframeMinutes);
+
+        return Enumerable.Range(0, count)
+            .Select(i => anchor.AddMinutes(-timeframeMinutes * (count - 1 - i)))
             .ToList();
     }
 }

@@ -24,7 +24,15 @@
         + (Freshness.PastWindow(r.Ages.OpenInterestSeconds, r.Windows.OpenInterestSeconds) ? 1 : 0));
 
     var cuts = V2Cuts.All;
-    var drawable = Model.Rows.Where(r => r.Candles.Present >= 2).ToList();
+
+    // B3: the timeframe/series selector overrides band 3's own panels only. Everywhere else on the
+    // page — sparklines, verdicts, band 1's ages — keeps reading r.Candles (always 60-minute trade),
+    // which is why the override lives on the model as a SEPARATE dictionary rather than replacing it.
+    var band3 = Model.Band3Candles;
+    CandleSeries Band3Of(VenueRowModel r) =>
+        band3 is not null && band3.TryGetValue(r.Row.InstrumentId, out var s) ? s : r.Candles;
+
+    var drawable = Model.Rows.Where(r => Band3Of(r).Present >= 2).ToList();
 
     // ОДНА ШКАЛА НА КОТИРОВКУ, как на первой странице: ADAUSDT и ADAUSDC ходят по разным ценам,
     // и общая шкала на обе сплющила бы обе в прямые. Разные котировки — разные шкалы.
@@ -32,8 +40,16 @@
         .GroupBy(r => r.Row.QuoteAsset, StringComparer.Ordinal)
         .ToDictionary(
             g => g.Key,
-            g => (Lo: g.Min(r => r.Candles.Low!.Value), Hi: g.Max(r => r.Candles.High!.Value)),
+            g => (Lo: g.Min(r => Band3Of(r).Low!.Value), Hi: g.Max(r => Band3Of(r).High!.Value)),
             StringComparer.Ordinal);
+
+    static string TfLabel(short minutes) => minutes switch
+    {
+        60 => "1h", 240 => "4h", 720 => "12h", 1440 => "1d", _ => minutes + "m",
+    };
+
+    string Band3Url(short tf, string ser) =>
+        Url.Action("Asset", "PairsV2", new { baseFamily = Model.BaseFamily, tf, series = ser }) + "#band-time";
 
     var oldest = Model.Rows
         .SelectMany(r => new[] { r.Ages.PriceSeconds, r.Ages.DepthSeconds, r.Ages.OpenInterestSeconds })
@@ -53,7 +69,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=40">
+    <link rel="stylesheet" href="~/studio-v2.css?v=41">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -198,7 +214,37 @@
 <section class="v2-band" id="band-time">
     <div class="v2-band-head">
         <span class="csx-eyebrow v2-band-no">3 · Over time, across venues</span>
-        <span class="csx-eyebrow v2-band-sub">quote asset · hourly candles, 24 h · one scale per quote, time axes tied</span>
+        <span class="csx-eyebrow v2-band-sub">
+            quote asset ·
+            @if (Model.Band3Series == "trade")
+            {
+                @:trade price
+            }
+            else
+            {
+                @:@Model.Band3Series price
+            }
+            candles, @TfLabel(Model.Band3Timeframe) × 25 · one scale per quote, time axes tied
+        </span>
+        @* B3: timeframe and series are two independent questions — 1440 minutes of the trade price
+           and 1440 minutes of the mark price are both valid choices — so two button groups, not one
+           combined list. Plain GET links: the same convention A4's collect facet already uses, and
+           band 3 is not a live region (see PairsV2Controller.LiveRegions), so a navigation costs
+           nothing a fetch would have saved. *@
+        <span class="v2-tf" role="group" aria-label="Timeframe">
+            @foreach (var t in CandleStore.Timeframes)
+            {
+                <a class="v2-tf-btn@(t == Model.Band3Timeframe ? " v2-tf-btn--active" : "")"
+                   href="@Band3Url(t, Model.Band3Series)">@TfLabel(t)</a>
+            }
+        </span>
+        <span class="v2-tf" role="group" aria-label="Series">
+            @foreach (var s in CandleStore.Series)
+            {
+                <a class="v2-tf-btn@(s == Model.Band3Series ? " v2-tf-btn--active" : "")"
+                   href="@Band3Url(Model.Band3Timeframe, s)">@s</a>
+            }
+        </span>
         @* Имя поля — справа, как в эталоне: слева стоит то, что верно для полосы всегда, справа
            то, что меняется от клика. Смешанные в одну строку, они читались как одно описание. *@
         <span class="v2-cols" role="group" aria-label="Chart columns" data-cols-key="charts" data-cols-target=".v2-cuts">
@@ -220,25 +266,37 @@
     <div class="v2-cuts" data-cols="4" data-cut="price">
         @if (drawable.Count == 0)
         {
-            <p class="v2-empty">No venue here has two closed bars yet.</p>
+            <p class="v2-empty">No venue here has two closed bars yet.
+                @if (Model.Band3Series != "trade")
+                {
+                    @:Only Binance publishes mark and index candles — every other venue's @Model.Band3Series
+                    @:series is empty by construction, not thin.
+                }
+            </p>
         }
         else
         {
             foreach (var r in drawable)
             {
-                var series = r.Candles;
+                var bars = Band3Of(r);
                 var json = System.Text.Json.JsonSerializer.Serialize(
-                    series.Windows.Select((w, i) => new
+                    bars.Windows.Select((w, i) => new
                     {
                         time = new DateTimeOffset(DateTime.SpecifyKind(w, DateTimeKind.Utc)).ToUnixTimeSeconds(),
-                        o = series.Bars[i]?.Open,
-                        h = series.Bars[i]?.High,
-                        l = series.Bars[i]?.Low,
-                        c = series.Bars[i]?.Close
+                        o = bars.Bars[i]?.Open,
+                        h = bars.Bars[i]?.High,
+                        l = bars.Bars[i]?.Low,
+                        c = bars.Bars[i]?.Close
                     }));
                 var sc = priceScale[r.Row.QuoteAsset];
-                var last = series.Bars.LastOrDefault(b => b is not null);
+                var last = bars.Bars.LastOrDefault(b => b is not null);
                 var pd = Format.Decimals(r.Row.PriceStep, fallback: 4);
+                // B3: source/updated_at, in the tooltip on the one bar this line already names —
+                // the last CLOSED one — rather than on the axis (plan's own instruction: per-bar
+                // hover would need the chart library's own crosshair wiring, which this pass does
+                // not add).
+                var lastTitle = last is null ? null
+                    : $"source: {last.Source ?? "—"} · updated_at: {Format.Utc(last.UpdatedAt)}";
                 <div class="v2-cut">
                     @* Площадка дисплейным начертанием, символ — акцентным моно, и OHLC последнего
                        закрытого часа справа: график отвечает на «как шло», а на «чем кончилось»
@@ -247,8 +305,15 @@
                         <b>@r.Row.ExchangeName</b> <em>@r.Row.Symbol</em>
                         @if (last is not null)
                         {
-                            <span class="v2-ohlc">O @Format.Num(last.Open, pd) H @Format.Num(last.High, pd)
+                            <span class="v2-ohlc" title="@lastTitle">O @Format.Num(last.Open, pd) H @Format.Num(last.High, pd)
                                 L @Format.Num(last.Low, pd) C @Format.Num(last.Close, pd)</span>
+                        }
+                        @* B3: bars the rollup only partly covered — meaningless at 1m (bar_count is
+                           always 1 there), so CandleSeries.Partial already reads zero and this stays
+                           silent rather than printing "0 partly covered" on every panel. *@
+                        @if (bars.Partial > 0)
+                        {
+                            <span class="v2-cut-partial">@bars.Partial of @bars.Windows.Count partly covered</span>
                         }
                     </span>
                     <div class="a-chart v2-chart"
