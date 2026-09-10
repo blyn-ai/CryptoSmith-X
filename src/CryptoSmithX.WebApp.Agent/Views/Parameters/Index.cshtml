@@ -5,12 +5,7 @@
     ViewData["PageClass"] = "p-params";
 
     string? Err(string key) => Model.Errors.TryGetValue(key, out var m) ? m : null;
-    var source = Model.Source switch
-    {
-        TradeProfileSource.Overrides => "Your values",
-        TradeProfileSource.Partial => "Partly yours",
-        _ => "Bot defaults",
-    };
+    const string source = "Database values";
 }
 
 <header class="head">
@@ -23,7 +18,7 @@
 <span class="wordmark">CryptoSmith X</span>
 </span>
 <span class="account">
-<span class="who">@User.Identity?.Name · @Model.BotInstanceId</span>
+<span class="who">@User.Identity?.Name · @Model.PublicAlias · @Model.BotInstanceId</span>
 @* A post, not a link. Signing out changes state, and a GET that changes state is one link
    prefetch away from signing people out for them. *@
 <form method="post" asp-controller="Home" asp-action="Logout">
@@ -47,22 +42,12 @@
     <p class="landed" role="status">Saved. Both workers pick it up within about ten seconds — new entries only, open positions unchanged.</p>
 }
 
-@if (Model.Source == TradeProfileSource.Appsettings)
-{
-    @* An empty override table is a normal state, not a failure and not a zero. Saying so is the
-       difference between "the bot runs on its deployed configuration" and "someone set these". *@
-    <p class="note-source">No overrides stored. These are the values this bot was deployed with; the first save makes them yours.</p>
-}
-else if (Model.Source == TradeProfileSource.Partial)
-{
-    <p class="note-source">Some values are yours and some are the bot's deployed defaults — marked below. Saving writes all four.</p>
-}
+<p class="note-source">Active strategy: @Model.StrategyProfileName revision @Model.StrategyRevision. All displayed limits come from the bot database.</p>
 
 <form id="limits" method="post" asp-action="Save">
 <label class="field @(Err(TradeProfileKeys.PositionMarginUsd) is null ? null : "bad")">
 <span class="labelrow">
 <span class="label">Position margin</span>
-@if (!Model.IsOverridden(TradeProfileKeys.PositionMarginUsd)) { <span class="from">bot default</span> }
 </span>
 <span class="affix">
 <input type="number" name="positionMarginUsd" inputmode="decimal" min="0.01" step="0.01" required
@@ -76,7 +61,6 @@ else if (Model.Source == TradeProfileSource.Partial)
 <label class="field @(Err(TradeProfileKeys.Leverage) is null ? null : "bad")">
 <span class="labelrow">
 <span class="label">Leverage</span>
-@if (!Model.IsOverridden(TradeProfileKeys.Leverage)) { <span class="from">bot default</span> }
 </span>
 <span class="affix">
 <input type="number" name="leverage" inputmode="decimal" min="1" max="10" step="0.1" required
@@ -90,7 +74,6 @@ else if (Model.Source == TradeProfileSource.Partial)
 <label class="field @(Err(TradeProfileKeys.MaxOpenPositions) is null ? null : "bad")">
 <span class="labelrow">
 <span class="label">Maximum open positions</span>
-@if (!Model.IsOverridden(TradeProfileKeys.MaxOpenPositions)) { <span class="from">bot default</span> }
 </span>
 <input type="number" name="maxOpenPositions" inputmode="numeric" min="1" max="20" step="1" required
        value="@Model.Profile.MaxOpenPositions">
@@ -101,7 +84,6 @@ else if (Model.Source == TradeProfileSource.Partial)
 <label class="field @(Err(TradeProfileKeys.MaxOpenPositionsPerGroup) is null ? null : "bad")">
 <span class="labelrow">
 <span class="label">Maximum positions per group</span>
-@if (!Model.IsOverridden(TradeProfileKeys.MaxOpenPositionsPerGroup)) { <span class="from">bot default</span> }
 </span>
 <input type="number" name="maxOpenPositionsPerGroup" inputmode="numeric" min="1" max="20" step="1" required
        value="@Model.Profile.MaxOpenPositionsPerGroup">

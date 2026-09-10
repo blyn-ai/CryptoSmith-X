@@ -68,7 +68,7 @@ separate and are not represented by one invented aggregate value.
 - [x] 2. Add Agent data records and a trading-bot store for owner lookup,
   active-profile resolution and profile history. Add a focused Agent test project
   for mapping, authorization and SQL contract tests.
-- [ ] 3. Replace `TradingBotOptions.Instances` and `Baselines` in the Parameters
+- [x] 3. Replace `TradingBotOptions.Instances` and `Baselines` in the Parameters
   controller with database ownership and the resolved active profile. Retain a
   clear no-assignment state instead of a synthetic baseline.
 - [ ] 4. Add the Strategy Modeler parameter catalogue: labels, units, ranges,

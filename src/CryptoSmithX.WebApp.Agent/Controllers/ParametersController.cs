@@ -2,7 +2,6 @@ using CryptoSmithX.WebApp.Agent.Data;
 using CryptoSmithX.WebApp.Agent.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using Npgsql;
 
 namespace CryptoSmithX.WebApp.Agent.Controllers;
@@ -19,29 +18,36 @@ namespace CryptoSmithX.WebApp.Agent.Controllers;
 public sealed class ParametersController : Controller
 {
     private readonly BotDb _bot;
-    private readonly TradingBotOptions _options;
     private readonly ILogger<ParametersController> _log;
 
-    public ParametersController(BotDb bot, IOptions<TradingBotOptions> options, ILogger<ParametersController> log)
+    public ParametersController(BotDb bot, ILogger<ParametersController> log)
     {
         _bot = bot;
-        _options = options.Value;
         _log = log;
     }
 
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        var instance = _options.InstanceFor(User.Identity?.Name);
-        if (instance is null)
-        {
-            // Signed in, but this account owns no bot. Not a 404 — the page exists — and not a
-            // blank form, which would invite someone to fill in numbers that could never be saved.
-            return View("NoBot");
-        }
-
         try
         {
-            return View(await BuildAsync(instance, errors: null, justSaved: false, posted: null, ct));
+            await using var connection = await _bot.OpenAsync(ct);
+            var owner = await BotInstanceOwnerStore.FindActiveAsync(
+                connection,
+                User.Identity?.Name ?? string.Empty,
+                ct);
+            if (owner is null)
+            {
+                return View("NoBot");
+            }
+
+            var strategy = await StrategyProfileStore.LoadActiveAsync(connection, owner.BotInstanceId, ct);
+            if (strategy is null)
+            {
+                return View("NoStrategyProfile");
+            }
+
+            var model = await BuildAsync(connection, owner, strategy, errors: null, justSaved: false, posted: null, ct);
+            return model is null ? View("RuntimeLimitsUnavailable") : View(model);
         }
         catch (NpgsqlException e)
         {
@@ -63,30 +69,37 @@ public sealed class ParametersController : Controller
         int? maxOpenPositionsPerGroup,
         CancellationToken ct)
     {
-        var instance = _options.InstanceFor(User.Identity?.Name);
-        if (instance is null)
-        {
-            return View("NoBot");
-        }
-
         var posted = new PostedProfile(
             positionMarginUsd, leverage, maxOpenPositions, maxOpenPositionsPerGroup);
-        var errors = Validate(posted);
-        if (errors.Count > 0)
-        {
-            // The browser's own min/max/step stops most of this before it is sent; the same rules
-            // are checked again here because the browser is not the last line — anything can post
-            // to this action.
-            return View(nameof(Index), await BuildAsync(instance, errors, justSaved: false, posted, ct));
-        }
-
-        var profile = new TradeProfile(
-            positionMarginUsd!.Value, leverage!.Value, maxOpenPositions!.Value, maxOpenPositionsPerGroup!.Value);
 
         try
         {
             await using var conn = await _bot.OpenAsync(ct);
-            await TradeProfileStore.SaveAsync(conn, instance, profile, ct);
+            var owner = await BotInstanceOwnerStore.FindActiveAsync(
+                conn,
+                User.Identity?.Name ?? string.Empty,
+                ct);
+            if (owner is null)
+            {
+                return View("NoBot");
+            }
+
+            var strategy = await StrategyProfileStore.LoadActiveAsync(conn, owner.BotInstanceId, ct);
+            if (strategy is null)
+            {
+                return View("NoStrategyProfile");
+            }
+
+            var errors = Validate(posted);
+            if (errors.Count > 0)
+            {
+                var model = await BuildAsync(conn, owner, strategy, errors, justSaved: false, posted, ct);
+                return model is null ? View("RuntimeLimitsUnavailable") : View(nameof(Index), model);
+            }
+
+            var profile = new TradeProfile(
+                positionMarginUsd!.Value, leverage!.Value, maxOpenPositions!.Value, maxOpenPositionsPerGroup!.Value);
+            await TradeProfileStore.SaveAsync(conn, owner.BotInstanceId, profile, ct);
         }
         catch (NpgsqlException e)
         {
@@ -101,32 +114,30 @@ public sealed class ParametersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task<ParametersViewModel> BuildAsync(
-        string instance,
+    private async Task<ParametersViewModel?> BuildAsync(
+        NpgsqlConnection connection,
+        BotInstanceOwner owner,
+        ActiveStrategyProfile strategy,
         IReadOnlyDictionary<string, string>? errors,
         bool justSaved,
         PostedProfile? posted,
         CancellationToken ct)
     {
-        await using var conn = await _bot.OpenAsync(ct);
-        var overrides = await TradeProfileStore.LoadAsync(conn, instance, ct);
+        var overrides = await TradeProfileStore.LoadAsync(connection, owner.BotInstanceId, ct);
+        if (overrides.Count != TradeProfileKeys.All.Length)
+        {
+            return null;
+        }
+
         var lastWritten = overrides.Count > 0
-            ? await TradeProfileStore.LastWrittenAsync(conn, instance, ct)
+            ? await TradeProfileStore.LastWrittenAsync(connection, owner.BotInstanceId, ct)
             : null;
 
-        var baseline = _options.BaselineFor(instance);
-
-        // An override wins; otherwise the deployed baseline. A key that has neither is shown as
-        // zero and said to be unknown — the view marks it — because inventing a number here would
-        // be indistinguishable on screen from a real one.
-        decimal Value(string key, decimal fromBaseline) =>
-            overrides.TryGetValue(key, out var v) ? v : fromBaseline;
-
         var profile = new TradeProfile(
-            Value(TradeProfileKeys.PositionMarginUsd, baseline?.PositionMarginUsd ?? 0m),
-            Value(TradeProfileKeys.Leverage, baseline?.Leverage ?? 0m),
-            (int)Value(TradeProfileKeys.MaxOpenPositions, baseline?.MaxOpenPositions ?? 0),
-            (int)Value(TradeProfileKeys.MaxOpenPositionsPerGroup, baseline?.MaxOpenPositionsPerGroup ?? 0));
+            overrides[TradeProfileKeys.PositionMarginUsd],
+            overrides[TradeProfileKeys.Leverage],
+            decimal.ToInt32(overrides[TradeProfileKeys.MaxOpenPositions]),
+            decimal.ToInt32(overrides[TradeProfileKeys.MaxOpenPositionsPerGroup]));
 
         // A refused save keeps what the person typed, not what the table holds: handing back the
         // stored value would quietly discard three good edits because a fourth was out of range.
@@ -141,19 +152,13 @@ public sealed class ParametersController : Controller
             };
         }
 
-        var source = overrides.Count switch
-        {
-            0 => TradeProfileSource.Appsettings,
-            var n when n == TradeProfileKeys.All.Length => TradeProfileSource.Overrides,
-            _ => TradeProfileSource.Partial,
-        };
-
         return new ParametersViewModel
         {
-            BotInstanceId = instance,
+            BotInstanceId = owner.BotInstanceId,
+            PublicAlias = owner.PublicAlias,
+            StrategyProfileName = strategy.ProfileName,
+            StrategyRevision = strategy.Revision,
             Profile = profile,
-            Overridden = overrides.Keys.ToHashSet(StringComparer.Ordinal),
-            Source = source,
             LastWritten = lastWritten,
             Errors = errors ?? new Dictionary<string, string>(StringComparer.Ordinal),
             JustSaved = justSaved || TempData["JustSaved"] is true,

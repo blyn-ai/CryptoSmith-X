@@ -22,21 +22,3 @@ public sealed record TradeProfile(
     decimal Leverage,
     int MaxOpenPositions,
     int MaxOpenPositionsPerGroup);
-
-/// <summary>
-/// Where the four numbers on screen came from. This is not decoration: an absent row means the
-/// worker is running on its own appsettings, which is a normal state and NOT a zero and NOT an
-/// error — and a page that showed the appsettings figure without saying so would be claiming the
-/// owner had set it.
-/// </summary>
-public enum TradeProfileSource
-{
-    /// <summary>No override row at all. The worker runs on its deployed configuration.</summary>
-    Appsettings,
-
-    /// <summary>Some but not all four keys are overridden; the rest still come from appsettings.</summary>
-    Partial,
-
-    /// <summary>All four keys are overridden. What is on screen is what the worker runs on.</summary>
-    Overrides,
-}

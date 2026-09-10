@@ -55,10 +55,6 @@ builder.Services.AddSingleton(_ => new BotDb(
     builder.Configuration.GetConnectionString("TradingBotDatabase")
     ?? throw new InvalidOperationException("ConnectionStrings:TradingBotDatabase is not configured.")));
 
-// Which account owns which bot instance, and what each instance runs on with no overrides at all.
-builder.Services.Configure<TradingBotOptions>(
-    builder.Configuration.GetSection(TradingBotOptions.SectionName));
-
 // The bot's HTTP API. Read by the health probe only: it is the cheapest question whose answer is
 // "this container can see the bot at all", and it is a different path from the database above —
 // the two fail separately and should be reported separately.

@@ -1,0 +1,16 @@
+@{
+    ViewData["Title"] = "Strategy unavailable";
+    ViewData["PageClass"] = "p-params";
+}
+
+<header class="head">
+<span class="brand"><span class="wordmark">CryptoSmith X</span></span>
+<span class="account"><span class="who">@User.Identity?.Name</span></span>
+</header>
+
+<main>
+<section class="panel">
+<div class="panel-head"><span class="eyebrow">Trading parameters</span></div>
+<p class="note-source" style="margin:14px 12px">This account has a bot instance, but it has no active database strategy profile. The worker falls back to its deployed configuration, which this page cannot safely display or edit.</p>
+</section>
+</main>

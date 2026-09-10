@@ -1,0 +1,16 @@
+@{
+    ViewData["Title"] = "Runtime limits unavailable";
+    ViewData["PageClass"] = "p-params";
+}
+
+<header class="head">
+<span class="brand"><span class="wordmark">CryptoSmith X</span></span>
+<span class="account"><span class="who">@User.Identity?.Name</span></span>
+</header>
+
+<main>
+<section class="panel">
+<div class="panel-head"><span class="eyebrow">Trading parameters</span></div>
+<p class="note-source" style="margin:14px 12px">The strategy profile is active, but the four runtime limit rows are incomplete. The worker is using its deployed fallback for the missing values, so this page will not invent numbers or overwrite them blindly.</p>
+</section>
+</main>

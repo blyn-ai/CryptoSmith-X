@@ -8,13 +8,14 @@ public sealed class ParametersViewModel
 {
     public required string BotInstanceId { get; init; }
 
+    public required string PublicAlias { get; init; }
+
+    public required string StrategyProfileName { get; init; }
+
+    public required int StrategyRevision { get; init; }
+
     /// <summary>The values in the fields — an override where one exists, the deployed baseline otherwise.</summary>
     public required TradeProfile Profile { get; init; }
-
-    /// <summary>Which of the four keys actually have an override row.</summary>
-    public required IReadOnlySet<string> Overridden { get; init; }
-
-    public required TradeProfileSource Source { get; init; }
 
     /// <summary>When the overrides were last written, or null if there are none.</summary>
     public DateTimeOffset? LastWritten { get; init; }
@@ -26,5 +27,4 @@ public sealed class ParametersViewModel
     /// <summary>True immediately after a successful save, so the screen can say the write landed.</summary>
     public bool JustSaved { get; init; }
 
-    public bool IsOverridden(string key) => Overridden.Contains(key);
 }
