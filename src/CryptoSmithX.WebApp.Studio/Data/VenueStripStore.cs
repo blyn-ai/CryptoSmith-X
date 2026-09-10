@@ -43,9 +43,27 @@ public static class VenueStripStore
          order by (sg.status = 'enabled') desc, (sg.status = 'planned') desc, x.name, sg.code
         """;
 
-    public static async Task<IReadOnlyList<VenueStripRow>> ListAsync(DbConnection conn, CancellationToken ct) =>
-        (await conn.QueryAsync<VenueStripRow>(new CommandDefinition(
-            StripSql, cancellationToken: ct))).ToList();
+    /// <summary>
+    /// Read into a tuple, not straight into <see cref="VenueStripRow"/> — found live on test, not in
+    /// a review: Dapper's positional-RECORD materializer cannot find a matching constructor when one
+    /// of the parameters is an array (<c>string[] QuoteAssets</c>), and throws a generic
+    /// "no constructor" error that names nothing about the array. A tuple's own binder does not have
+    /// the same limitation — <c>Admin/Data/ExchangeStore.cs</c> already reads <c>quote_assets</c> the
+    /// same way for exactly this reason — so the tuple is the query's real return shape and the
+    /// record is only assembled after.
+    /// </summary>
+    public static async Task<IReadOnlyList<VenueStripRow>> ListAsync(DbConnection conn, CancellationToken ct)
+    {
+        var rows = await conn.QueryAsync<(string ExchangeCode, string ExchangeName, string SegmentCode,
+                string Kind, string Adapter, string Status, string[] QuoteAssets, int BlacklistCount,
+                int RequestBudgetPerS, int MaxConcurrentRequests, string RequestBudgetSource)>(
+            new CommandDefinition(StripSql, cancellationToken: ct));
+
+        return rows.Select(r => new VenueStripRow(
+            r.ExchangeCode, r.ExchangeName, r.SegmentCode, r.Kind, r.Adapter, r.Status,
+            r.QuoteAssets, r.BlacklistCount, r.RequestBudgetPerS, r.MaxConcurrentRequests,
+            r.RequestBudgetSource)).ToList();
+    }
 
     /// <summary>
     /// A2 block 1: the collection-mode matrix for one segment. Always <c>dataset</c>'s full row
