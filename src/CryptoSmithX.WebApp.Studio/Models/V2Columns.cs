@@ -24,6 +24,13 @@ namespace CryptoSmithX.WebApp.Studio.Models;
 /// The figure is not everything a ranked column holds: one row in it also carries the MAX or MIN
 /// mark in front of the number. That slot is added by <see cref="V2Columns.Tracks"/>, not written
 /// into these numbers, so each one keeps saying the single thing it knows — how wide the figure is.
+///
+/// "What the column holds" has to mean the WHOLE market, not the asset that was open when the
+/// number was picked. Measured on the live page: a figure is 8.4px per character in the body mono,
+/// and BTC's mark price is fifteen characters — «77,355.00000000», because the decimals come from
+/// the venue's own price step. Four price columns and the turnover were sized for a smaller market
+/// than the one they are pointed at, so on BTC the digits ran out of their cells and onto the
+/// neighbours. A width here is characters × 8.4 plus the cell's 17px of padding and border.
 /// </param>
 /// <param name="PairedField">
 /// B1: a second field mirrored into the same cell rather than given its own column — bid/ask and
@@ -48,15 +55,20 @@ public static class V2Columns
         // ── The ticker call: one response carries all of these ──────────────────────────────
         // Bid and ask mirrored into one cell (B1) — see V2Column.PairedField. Ask keeps its own
         // rank; it no longer keeps its own column.
-        new(V2Field.Bid, "Bid / Ask", CallTone.Ticker, 108, Spark: true, PairedField: V2Field.Ask),
+        // 108 держало восемь знаков, а BTC печатает «77,342.000000» — тринадцать: 109px цифр.
+        new(V2Field.Bid, "Bid / Ask", CallTone.Ticker, 128, Spark: true, PairedField: V2Field.Ask),
         new(V2Field.Spread, "Spread bps", CallTone.Ticker, 80, Cut: "spread", Spark: true),
-        new(V2Field.Last, "Last", CallTone.Ticker, 100, Cut: "price", Spark: true),
-        new(V2Field.Mark, "Mark", CallTone.Ticker, 104),
-        new(V2Field.Index, "Index", CallTone.Ticker, 104),
+        new(V2Field.Last, "Last", CallTone.Ticker, 128, Cut: "price", Spark: true),
+        // Марк и индекс печатаются шагом ЦЕНЫ площадки, а он бывает восьмизначным после запятой:
+        // «77,355.00000000» — пятнадцать знаков, 126px. 104 не держало и близко.
+        new(V2Field.Mark, "Mark", CallTone.Ticker, 144),
+        new(V2Field.Index, "Index", CallTone.Ticker, 144),
         new(V2Field.FundingPerDay, "Funding /day", CallTone.Ticker, 96, Cut: "funding", Spark: true),
         new(V2Field.FundingRate, "Venue rate", CallTone.Ticker, 96),
         new(V2Field.FundingInterval, "Interval", CallTone.Ticker, 64),
-        new(V2Field.Turnover24h, "Turnover 24h", CallTone.Ticker, 116, Cut: "turnover"),
+        // «1,435,887,165» у ENA — тринадцать знаков: девяти цифр, на которые эта колонка была
+        // рассчитана, рынку хватает не всегда.
+        new(V2Field.Turnover24h, "Turnover 24h", CallTone.Ticker, 128, Cut: "turnover"),
         // P0-5 (UX audit): the header names the window, the same way TURNOVER 24H does — the figure
         // is a rolling 24h sum (V2Store.StressAsync), not the "last hour" the column used to read.
         new(V2Field.LiquidationVolume, "Liquidations 24h", CallTone.Ticker, 116, Cut: "liquidations", Spark: true),
@@ -73,9 +85,9 @@ public static class V2Columns
         // ── The depth sweep: the slowest of the three, and the one that goes quiet first ────
         // Bid size / ask size mirrored the same way as bid/ask above.
         new(V2Field.BidSize, "Bid / Ask size", CallTone.Depth, 100, PairedField: V2Field.AskSize),
-        new(V2Field.Depth10, "Depth 10bps", CallTone.Depth, 108),
-        new(V2Field.Depth25, "Depth 25bps", CallTone.Depth, 108, Cut: "depth25", Spark: true),
-        new(V2Field.Depth50, "Depth 50bps", CallTone.Depth, 108),
+        new(V2Field.Depth10, "Depth 10bps", CallTone.Depth, 116),
+        new(V2Field.Depth25, "Depth 25bps", CallTone.Depth, 116, Cut: "depth25", Spark: true),
+        new(V2Field.Depth50, "Depth 50bps", CallTone.Depth, 116),
         new(V2Field.BookReach, "Book reach", CallTone.Depth, 100),
     ];
 

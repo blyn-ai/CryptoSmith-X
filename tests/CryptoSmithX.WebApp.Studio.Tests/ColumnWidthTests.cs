@@ -53,6 +53,34 @@ public sealed class ColumnWidthTests
         }
     }
 
+    /// <summary>The width of one character of a figure in band 1: the body mono at its own size,
+    /// measured on the live page (13 characters of "77,342.000000" came to 109.2px).</summary>
+    private const double Char = 8.4;
+
+    /// <summary>What the cell costs around the figure: 8px of padding a side and the 1px rule.</summary>
+    private const int CellChrome = 17;
+
+    [Theory]
+    // Цена печатается шагом площадки, и шаг бывает восьмизначным: «77,355.00000000» у BTC.
+    [InlineData(V2Field.Mark, 15)]
+    [InlineData(V2Field.Index, 15)]
+    [InlineData(V2Field.Last, 13)]
+    [InlineData(V2Field.Bid, 13)]
+    // Оборот за сутки бывает десятизначным: «1,435,887,165» у ENA.
+    [InlineData(V2Field.Turnover24h, 13)]
+    [InlineData(V2Field.Depth50, 11)]
+    public void A_column_holds_the_widest_figure_the_market_prints_and_not_the_one_that_was_open(
+        V2Field field, int characters)
+    {
+        // Ширины выбирались по активу, который был открыт, и на BTC цифры вылезали из клеток на
+        // соседние колонки — марк и индекс на 39px. «Что колонка держит» — это про весь рынок.
+        var column = V2Columns.All.Single(c => c.Field == field);
+        var needed = (int)Math.Ceiling(characters * Char) + CellChrome;
+
+        Assert.True(column.Width >= needed,
+            $"{column.Label} holds {characters} characters — about {needed}px — and has {column.Width}px");
+    }
+
     [Fact]
     public void A_column_that_can_print_a_mark_has_room_for_one()
     {
