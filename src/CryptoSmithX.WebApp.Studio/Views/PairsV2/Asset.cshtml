@@ -48,8 +48,14 @@
         60 => "1h", 240 => "4h", 720 => "12h", 1440 => "1d", _ => minutes + "m",
     };
 
+    // Url.RouteUrl by NAME, not Url.Action: the default route ({controller}/{action}/{id?}) is
+    // registered before "asset-v2" (Program.cs), so Url.Action's own route resolution picks it
+    // first and would generate /studio/PairsV2/Asset?baseFamily=BTC instead of /studio/v2/BTC —
+    // valid, but not the address this page is actually served at. Index.cshtml hit the same thing
+    // building its own link to this route and settled on the same fix.
     string Band3Url(short tf, string ser) =>
-        Url.Action("Asset", "PairsV2", new { baseFamily = Model.BaseFamily, tf, series = ser }) + "#band-time";
+        Url.RouteUrl("asset-v2", new { controller = "PairsV2", action = "Asset", baseFamily = Model.BaseFamily, tf, series = ser })
+        + "#band-time";
 
     var oldest = Model.Rows
         .SelectMany(r => new[] { r.Ages.PriceSeconds, r.Ages.DepthSeconds, r.Ages.OpenInterestSeconds })
