@@ -281,12 +281,23 @@
       panels.push({ legend, decimals, resting, byHour: new Map(rows.map((r) => [r.time, r])) });
     }
 
-    // firstHeld — индекс первого слота, на котором у площадки реально есть бар. Считается ЗДЕСЬ,
-    // из тех же rows, что скормлены серии, а не приходит вторым числом с сервера: два счёта одного
-    // и того же однажды разойдутся, и разойдутся молча.
-    const firstHeld = rows.findIndex((r) => r.o !== null && r.o !== undefined);
+    // КАЖДЫЙ ПРОБЕЛ, А НЕ ТОЛЬКО ПЕРВЫЙ. Штриховалась одна голова оси — от начала до первого
+    // удержанного бара, — потому что считать её умели только долей ширины карточки, а доля ширины
+    // умеет описать один отрезок от края. Пробел в СЕРЕДИНЕ при этом рисовался чистой бумагой, то
+    // есть ровно тем, чем на этой странице нельзя обозначать «нет данных»: у ENA на 12h держится
+    // 21 бар из 25, и все четыре недостающих стояли молча, посреди свечей.
+    //
+    // Считается ЗДЕСЬ, из тех же rows, что скормлены серии, а не приходит вторым числом с сервера:
+    // два счёта одного и того же однажды разойдутся, и разойдутся молча.
+    const gaps = [];
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].o !== null && rows[i].o !== undefined) continue;
+      const from = i;
+      while (i < rows.length && (rows[i].o === null || rows[i].o === undefined)) i++;
+      gaps.push([from, i]);
+    }
 
-    return { chart, series, el, firstHeld };
+    return { chart, series, el, gaps };
   });
 
   // ── THE HOUR EVERY LINE IS SHOWING ──
@@ -324,30 +335,43 @@
   // firstHeld=16 — заезжала на неё на 6px. Первое читается как «тут просто пусто», второе прямо
   // лжёт: свеча стоит на штриховке, которая означает «бара здесь нет».
   //
-  // Поэтому край берётся у самой оси: левая кромка первого удержанного слота — его центр минус
-  // половина шага, а шаг — расстояние между двумя соседними слотами, посчитанное той же осью.
-  // Ось можно двигать и масштабировать (панели связаны логическим диапазоном), поэтому это
-  // пересчитывается на каждое изменение диапазона, а не один раз при создании.
-  //
-  // Высота — площадь графика без временной шкалы (timeScale().height()): фон в 100% высоты
-  // контейнера заходил под подписи дат, где никакого «нет бара» не бывает.
+  // Поэтому кромки берутся у самой оси: пробел из слотов [from, to) — это от центра from минус
+  // половина шага и на (to - from) шагов вправо, а шаг — расстояние между двумя соседними слотами,
+  // посчитанное той же осью. Ось можно двигать и масштабировать (панели связаны логическим
+  // диапазоном), поэтому это пересчитывается на каждое изменение диапазона, а не один раз при
+  // создании.
   const paintHatch = () => {
-    made.forEach(({ chart, el, firstHeld }) => {
+    made.forEach(({ chart, el, gaps }) => {
       const ts = chart.timeScale();
       const box = el.getBoundingClientRect();
-      let edge = 0;
-      if (firstHeld > 0) {
-        const at = ts.logicalToCoordinate(firstHeld);
-        const prev = ts.logicalToCoordinate(firstHeld - 1);
-        if (at !== null && prev !== null) edge = at - (at - prev) / 2;
-      }
-      const width = Math.max(0, Math.min(box.width, edge));
-      el.style.setProperty('--hatch-w', width.toFixed(1) + 'px');
+
+      // Шаг спрашивается у оси, а не берётся из barSpacing: fitContent и любой зум меняют его, а
+      // опция остаётся той, с которой график создали.
+      const zero = ts.logicalToCoordinate(0);
+      const one = ts.logicalToCoordinate(1);
+      const step = zero === null || one === null ? 0 : one - zero;
+
+      // Высота — площадь графика без временной шкалы: под подписями дат «бара нет» не бывает.
       const axis = ts.height();
-      el.style.setProperty('--hatch-h',
-        Number.isFinite(axis) && axis > 0 && axis < box.height
-          ? (box.height - axis).toFixed(1) + 'px'
-          : '100%');
+      const height = Number.isFinite(axis) && axis > 0 && axis < box.height ? box.height - axis : box.height;
+
+      const bands = [];
+      if (step > 0) {
+        for (const [from, to] of gaps) {
+          const left = ts.logicalToCoordinate(from);
+          if (left === null) continue;
+          const x = Math.max(0, left - step / 2);
+          const right = Math.min(box.width, left - step / 2 + (to - from) * step);
+          if (right - x > 0.5) bands.push([x, right - x]);
+        }
+      }
+
+      // Узор объявлен в таблице стилей (--hatch-pattern) и подставляется столько раз, сколько
+      // пробелов: так он остаётся одним узором на продукт и красится темой, а скрипт отвечает
+      // только за то, СКОЛЬКО их и ГДЕ.
+      el.style.backgroundImage = bands.map(() => 'var(--hatch-pattern)').join(',');
+      el.style.backgroundSize = bands.map(([, w]) => w.toFixed(1) + 'px ' + height.toFixed(1) + 'px').join(',');
+      el.style.backgroundPosition = bands.map(([x]) => x.toFixed(1) + 'px top').join(',');
     });
   };
 

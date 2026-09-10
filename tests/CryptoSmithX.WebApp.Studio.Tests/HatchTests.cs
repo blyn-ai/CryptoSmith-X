@@ -77,12 +77,11 @@ public sealed class HatchTests
         Assert.DoesNotContain("hatchPct", view, StringComparison.Ordinal);
         Assert.DoesNotContain("--hatch-w", view, StringComparison.Ordinal);
 
-        // Считает тот, у кого ось: край — центр первого удержанного слота минус половина шага,
-        // и шаг спрашивается у той же оси, а не берётся из опций.
+        // Считает тот, у кого ось: кромка — центр первого пустого слота минус половина шага, и
+        // шаг спрашивается у той же оси, а не берётся из опций, которые fitContent и зум меняют.
         var script = Read("studio-candles.js");
-        Assert.Contains("ts.logicalToCoordinate(firstHeld)", script, StringComparison.Ordinal);
-        Assert.Contains("ts.logicalToCoordinate(firstHeld - 1)", script, StringComparison.Ordinal);
-        Assert.Contains("setProperty('--hatch-w'", script, StringComparison.Ordinal);
+        Assert.Contains("ts.logicalToCoordinate(from)", script, StringComparison.Ordinal);
+        Assert.Contains("const step = zero === null || one === null ? 0 : one - zero;", script, StringComparison.Ordinal);
 
         // Ось можно двигать — панели связаны логическим диапазоном, — поэтому штриховка
         // пересчитывается на каждое его изменение, а не один раз при создании.
@@ -92,9 +91,36 @@ public sealed class HatchTests
 
         // И высота — площадь графика без временной шкалы: под подписями дат «бара нет» не бывает.
         Assert.Contains("ts.height()", script, StringComparison.Ordinal);
-        Assert.Contains("setProperty('--hatch-h'", script, StringComparison.Ordinal);
 
+        // Узор остаётся в таблице стилей — он один на продукт и красится темой; скрипт повторяет
+        // его столько раз, сколько пробелов, и не пишет своего градиента.
         var sheet = Read("studio-v2.css");
-        Assert.Contains("background-size:var(--hatch-w,0) var(--hatch-h,100%)", sheet, StringComparison.Ordinal);
+        Assert.Contains("--hatch-pattern:repeating-linear-gradient(45deg,var(--border-hairline)", sheet, StringComparison.Ordinal);
+        Assert.Contains("'var(--hatch-pattern)'", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("repeating-linear-gradient", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Every_gap_is_hatched_and_not_only_the_one_at_the_head()
+    {
+        // Штриховалась одна голова оси, потому что доля ширины умеет описать только отрезок от
+        // края. У ENA на 12h держится 21 бар из 25, первый — на месте, и все четыре недостающих
+        // стояли посреди свечей чистой бумагой: на этой странице это значит «данных нет», а здесь
+        // означало «мы сюда не смотрели», и отличить было нельзя.
+        var script = Read("studio-candles.js");
+
+        // Пробелы собираются пробегом по тем же rows, что скормлены серии, — списком отрезков.
+        Assert.Contains("const gaps = [];", script, StringComparison.Ordinal);
+        Assert.Contains("gaps.push([from, i]);", script, StringComparison.Ordinal);
+        Assert.Contains("for (const [from, to] of gaps)", script, StringComparison.Ordinal);
+
+        // И каждый отрезок — своя полоса фона: одна подстановка узора на один пробел.
+        Assert.Contains("bands.map(() => 'var(--hatch-pattern)').join(',')", script, StringComparison.Ordinal);
+
+        // Ни одной СТРОКИ КОДА про firstHeld: голова оси больше не особенная, она просто первый
+        // пробел. В комментариях имя остаётся — там записано, чем эта штриховка была и почему
+        // перестала, и стереть эту запись значит стереть причину.
+        var code = string.Join('\n', script.Split('\n').Where(l => !l.TrimStart().StartsWith("//", StringComparison.Ordinal)));
+        Assert.DoesNotContain("firstHeld", code, StringComparison.Ordinal);
     }
 }
