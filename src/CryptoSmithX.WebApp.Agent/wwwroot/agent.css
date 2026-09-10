@@ -311,16 +311,20 @@ body{min-height:100vh;display:flex;flex-direction:column;
 .p-params .field.bad .affix{border-color:var(--money-down)}
 .p-params .affix input{flex:1;min-width:0;height:var(--tap-min);padding:0 11px;background:transparent;border:0;
   outline:none;font-family:var(--font-mono);font-size:19px;font-variant-numeric:tabular-nums;color:var(--text-data)}
-.p-params .unit{flex:none;display:inline-flex;align-items:center;padding:0 11px;
+.p-params .unit{flex:none;display:inline-flex;align-items:center;max-width:11ch;padding:0 11px;
   border-left:1px solid var(--border-hairline);font-family:var(--font-mono);font-size:12px;line-height:1;
   letter-spacing:.06em;color:var(--text-faint)}
 
-.p-params .locked{display:flex;align-items:baseline;gap:8px;height:var(--tap-min);padding:0 11px;
+/* По ЦЕНТРУ коробки, а не по базовой линии: число 19px и единица 12px с общей базовой линией
+   прижимались к верху, и «4 taisyklės» висело в углу серого поля вместо его середины. Число и
+   единица остаются на одной базовой линии между собой — их обнимает свой span. */
+.p-params .locked{display:flex;align-items:center;gap:8px;min-height:var(--tap-min);padding:6px 11px;
   background:var(--surface-sunken);border-left:1px solid var(--border-hairline)}
+.p-params .locked-pair{display:flex;align-items:baseline;gap:8px;min-width:0}
 .p-params .locked-value{font-family:var(--font-mono);font-size:19px;line-height:1;
   font-variant-numeric:tabular-nums;color:var(--text-data)}
 .p-params .locked-unit{font-family:var(--font-mono);font-size:12px;line-height:1;color:var(--text-faint)}
-.p-params .locked-note{margin-left:auto;align-self:center;font-family:var(--font-mono);font-size:9.5px;
+.p-params .locked-note{margin-left:auto;font-family:var(--font-mono);font-size:9.5px;
   font-weight:500;letter-spacing:.17em;text-transform:uppercase;color:var(--text-muted)}
 
 .p-params .field-scale{display:flex;flex-direction:column;gap:2px;margin-top:-2px}

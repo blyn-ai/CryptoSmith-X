@@ -106,7 +106,7 @@
 
 <section class="modeler-section">
     <div class="section-heading"><span>2</span><h2>Prekybos elgsena</h2><span>Redaguojama</span></div>
-    <p class="section-note">Šie nustatymai keičia tik naujų sandorių atranką. Sudėtinės taisyklės, turinčios kelias ribas, rodomos atskirai.</p>
+    <p class="section-note">Šie nustatymai keičia tik naujų sandorių atranką. Suskaičiuotos taisyklės, turinčios kelias ribas, rodomos atskirai.</p>
     <div class="csx-grid">
         @foreach (var card in tradeParameters)
         {
@@ -117,9 +117,11 @@
         <div class="field csx-wide">
             <div class="field-head"><span class="label">Vėlyvo įėjimo apsauga</span></div>
             <span class="locked">
-                <span class="locked-value">4</span>
-                <span class="locked-unit">taisyklės</span>
-                <span class="locked-note">Sudėtinė taisyklė</span>
+                <span class="locked-pair">
+                    <span class="locked-value">4</span>
+                    <span class="locked-unit">taisyklės</span>
+                </span>
+                <span class="locked-note">Suskaičiuotos taisyklės</span>
             </span>
             <p class="field-description">Botas tikrina kelias ribas, kad neįeitų į jau per toli nuėjusią kainą.</p>
             <p class="field-example">Šios ribos išlieka strategijos profilyje ir šiame ekrane jų nesujungiame į vieną išgalvotą skaičių.</p>
@@ -174,7 +176,7 @@
             ("RSI periodas", "14", "Padeda įvertinti, ar kaina juda per greitai viena kryptimi."),
             ("Minimalus EMA tarpas", "0,15 %", "Kiek kryptį rodančios linijos turi būti prasiskyrusios, kad kryptis būtų laikoma tikra."),
             ("BTC režimo vartai", "Įjungta", "Ar atsižvelgiama į bendrą rinkos kryptį pagal Bitcoin."),
-            ("Santykinio stiprumo vartai", "≥ 1,05", "Ar rinka juda stipriau nei visa rinka kartu."),
+            ("Santykinio stiprumo vartai", "≥ 1,05", "Ar kriptovaliuta ar akcija juda stipriau nei visa rinka kartu."),
             ("ATR periodas", "14", "Rinkos svyravimo matas, naudojamas išėjimo taisyklėse."),
         })
         {
