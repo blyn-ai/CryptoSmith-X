@@ -46,6 +46,15 @@
   let source = null;
   let attempts = 0;
 
+  // D-4: which freshness the stream is asked for. A PARAMETER of the one stream, never a second
+  // one — one address, one gate, one place a reader's connection is accounted for. Latest is the
+  // default and the mode a page without a switcher keeps having.
+  let mode = 'latest';
+  // Inside .a-liverow with the button and the note, for the reason those two are: the client looks
+  // for its parts in one place. The first pair page has no switcher and finds none — it keeps the
+  // only mode it has ever had.
+  const modes = Array.from(row.querySelectorAll('.v2-mode-btn'));
+
   // Five failed attempts before the page stops trying. EventSource on its own retries forever,
   // which on a server that is down means a page quietly knocking every three seconds for as long
   // as the tab is open — and a reader who is told nothing. Five is enough to ride out a restart or
@@ -85,7 +94,7 @@
   }
 
   function connect() {
-    source = new EventSource(url);
+    source = new EventSource(mode === 'latest' ? url : url + (url.includes('?') ? '&' : '?') + 'mode=' + mode);
 
     source.addEventListener('open', () => {
       attempts = 0;
@@ -120,6 +129,54 @@
       }
 
       apply(region, ev.data);
+    });
+
+    // D-3: the live mode's own payload. Slots, not markup — and applied BESIDE morph(), never
+    // through it. morph() matches children BY INDEX, which is the mechanism this table's rows have
+    // already come apart on once; and at five frames a second it would walk the whole subtree for
+    // the two cells that moved. Here every slot carries its own address, so nothing is matched by
+    // position and nothing is walked that did not change.
+    //
+    // The client formats NOTHING. Text, sub-line, mark and both ages arrive already written by the
+    // same C# that renders the first paint. A second implementation of "how a number is written"
+    // living in this file is the copy nobody reads and CI cannot see.
+    source.addEventListener('slots', (ev) => {
+      let frame;
+      try {
+        frame = JSON.parse(ev.data);
+      } catch (e) {
+        return;   // one unreadable frame, not a reason to tear down the stream
+      }
+
+      const slots = frame && frame.slots;
+      if (!slots || !slots.length) return;
+
+      for (const slot of slots) {
+        const rowEl = document.querySelector('.v2-row[data-instrument="' + slot.i + '"]');
+        if (!rowEl) continue;
+
+        const cell = rowEl.querySelector('.v2-cell[data-group="' + slot.g + '"]');
+        if (!cell) continue;
+
+        const part = cell.querySelectorAll('.v2-part')[slot.p || 0];
+        if (!part) continue;
+
+        const figure = part.querySelector('span');
+        if (figure) figure.textContent = slot.t;
+
+        const sub = cell.querySelector('.v2-figsub');
+        if (sub && typeof slot.s === 'string') sub.textContent = slot.s;
+
+        mark(part, slot.m, slot.tone);
+
+        // The pointer rule that guards a redrawn REGION does not apply to a slot: replacing the
+        // text inside a cell moves nothing, so there is nothing to pull out from under a reader.
+        const live = cell.querySelector('[data-age-live]');
+        const written = cell.querySelector('[data-age-written]');
+        if (live && typeof slot.a === 'string') live.textContent = slot.a;
+        if (written && typeof slot.w === 'string') written.textContent = slot.w;
+        if (slot.src) cell.setAttribute('data-src', slot.src);
+      }
     });
 
     // The server's instant, sent after the fragments it belongs to. Handing it to studio-ages.js is
@@ -161,10 +218,57 @@
     say(reason);
   }
 
+  // A cell's MAX/MIN chip, created or removed in place. The class names are the view's own
+  // (v2-part--best|worst and v2-part--good|bad) rather than a second vocabulary invented here: two
+  // spellings of the same state is how a mark ends up styled on one path and not the other.
+  function mark(part, word, tone) {
+    let chip = part.querySelector('i');
+
+    if (!word) {
+      if (chip) chip.remove();
+      part.classList.remove('v2-part--best', 'v2-part--worst', 'v2-part--good', 'v2-part--bad');
+      return;
+    }
+
+    if (!chip) {
+      chip = document.createElement('i');
+      part.insertBefore(chip, part.firstChild);
+    }
+
+    // The word arrives written; what is decided here is only which class carries it, and
+    // 'max'/'best' are the same fact under two names — the view spells the chip one way and the
+    // stylesheet hooks it the other.
+    chip.textContent = word;
+    part.classList.toggle('v2-part--best', word === 'max');
+    part.classList.toggle('v2-part--worst', word === 'min');
+    part.classList.toggle('v2-part--good', tone === 'good');
+    part.classList.toggle('v2-part--bad', tone === 'bad');
+  }
+
   function close() {
     if (!source) return;
     source.close();
     source = null;
+  }
+
+  // Switching mode restarts the stream through the SAME open()/close() the button uses. A second
+  // way to start a stream is a second place for the retry count, the slot and the words about a
+  // drop to be got subtly wrong — and those failures are the silent kind.
+  for (const btn of modes) {
+    btn.addEventListener('click', () => {
+      const next = btn.dataset.mode;
+      if (!next || next === mode) return;
+
+      mode = next;
+      for (const other of modes) {
+        other.setAttribute('aria-pressed', String(other.dataset.mode === mode));
+      }
+
+      if (wanted) {
+        close();
+        open();
+      }
+    });
   }
 
   button.addEventListener('click', () => {

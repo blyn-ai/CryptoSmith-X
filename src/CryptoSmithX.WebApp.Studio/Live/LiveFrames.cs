@@ -131,11 +131,21 @@ public static class LiveFrames
 
         return new LiveSlot(
             r.Row.InstrumentId,
-            group.ToLowerInvariant(),
+            // The V2Field's own name, verbatim — which is what data-group renders on the cell
+            // (`data-group="@c.Field"`). The brief called for it lowercased; the markup has never
+            // been lowercase and studio-v2.js already reads that attribute back and compares it to
+            // itself, so matching what is there beats lowercasing both and touching a working
+            // selector. A CSS attribute selector compares values case-sensitively: if these two ever
+            // disagree, every slot silently lands nowhere.
+            group,
             part,
             cell.Text,
             cell.Sub,
-            rank == Verdict.None ? null : V2Ranks.ClassWord(field, rank),
+            // The chip's WORD, written by V2Ranks exactly as the view writes it — not a code the
+            // client turns into a word. The class hook the browser needs (v2-part--best/--worst) is
+            // the same distinction under another name, and mapping one to the other is a selector
+            // lookup rather than a rule: whether this row IS the maximum was decided here.
+            rank == Verdict.None ? null : V2Ranks.Mark(field, rank),
             rank == Verdict.None ? null : V2Ranks.ToneWord(rank),
             liveAge,
             writtenAge,

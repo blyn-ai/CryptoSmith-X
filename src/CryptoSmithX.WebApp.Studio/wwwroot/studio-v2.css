@@ -234,6 +234,24 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
   color:var(--text-faint);white-space:nowrap}
 .v2-cellage--late{color:var(--accent)}
 
+/* D-2: two ages in one slot, and the slot's height does not depend on which mode the page is in.
+   Both spans are always in the DOM — the live one prints a dash in Latest — so switching modes
+   cannot move a row. This table has already cost a CLS of 0.12 on ages that merely ticked; adding
+   a line on a mode change would be that again, deliberately.
+
+   The written age is the quieter of the two on purpose: in live mode the venue's own instant is
+   what the reader is watching, and the record's is what a backtest will see. Both are said; only
+   one is loud. Zero new tokens — colour-mix over the tokens already here, per this sheet's own
+   standing rule (PaletteDisciplineTests). */
+.v2-cellage [data-age-live]{color:inherit}
+.v2-cellage [data-age-written]{color:color-mix(in srgb, currentColor 60%, transparent)}
+.v2-cellage [data-age-live]:not(:empty) + [data-age-written]:not(:empty)::before{content:" · "}
+
+/* D-4: the mode pair, in the button shape this page already uses for a pressed state. No colour of
+   its own, no border of its own, no animation — see the markup's own note. */
+.v2-mode{display:inline-flex;align-items:center;gap:2px}
+.v2-mode-btn{width:auto;padding:0 6px;font:400 var(--fs-age)/1 var(--font-mono);letter-spacing:.02em}
+
 .v2-hrow{background:var(--surface-sunken)}
 /* Prompt 2.1, W-5: matches .v2-cell's own 6px — a header stays aligned with the column under it. */
 .v2-hcell{display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding:5px 6px 6px;border-left:1px solid var(--border-hairline)}

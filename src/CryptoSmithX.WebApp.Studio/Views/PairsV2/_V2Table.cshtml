@@ -86,7 +86,11 @@
             Model.Books.TryGetValue(r.Row.InstrumentId, out var book);
             var strip = StripModel.Build(r);
 
-            <div class="v2-row" @Html.Raw(sorts)>
+            @* Prompt D-2: the address a live slot is delivered to. The cell already carries its
+               own data-group, so a slot is [data-instrument] + [data-group] + which half of a
+               paired cell — no index into anything, which is the mechanism the rows have already
+               come apart on once. *@
+            <div class="v2-row" data-instrument="@r.Row.InstrumentId" @Html.Raw(sorts)>
                 @* B2: the listing cell opens the instrument's identity/limits/status/spec — the
                    same on-click-once-then-toggle mechanism A1–A4 use (studio-disclose.js), which
                    this page now also loads. *@
@@ -186,8 +190,13 @@
                     // read as three different opinions about whether the same call is late.
                     var late = Freshness.PastWindow(age.Age, age.Window, age.Cadence);
 
+                    @* Prompt D-2: the source is on the CELL, never on the page. A feed only
+                       starts where the exchange has a ws_url, so live is always partial — a
+                       page-wide flag would silently mix a two-second figure with a ten-second one.
+                       Latest until a socket says otherwise, which is also what a venue with no
+                       socket keeps saying in live mode. *@
                     <span class="v2-cell@(late ? " v2-cell--late" : "")" data-group="@c.Field" data-tone="@c.Call.ToString().ToLowerInvariant()"
-                          data-label="@c.Label">
+                          data-src="latest" data-label="@c.Label">
                         @* Марка и число — один блок с одной заливкой под обоими; слово стоит мелко
                            у головы числа. Число держит свой цвет: покрасить измерение в цвет
                            суждения о нём значит сказать, что это другая величина. *@
@@ -252,7 +261,18 @@
                            ink, on every one of twenty cells a row was the line this removes. The
                            slot stays reserved (same height late or not) so a row never grows the
                            moment one cell in it goes stale. *@
-                        <span class="v2-cellage @(late ? "v2-cellage--late" : "")">@(late ? Format.SpacedAge(age.Age) + " ago" : "")</span>
+                        @* Prompt D-2: TWO ages, and both spans are in the DOM in both modes.
+                           The live one is the venue's own observation, the written one is what a
+                           backtest will see — and the second is the one that must never be hidden
+                           to make the page look faster than it is.
+
+                           Reserved rather than added when live: switching modes must not move a
+                           row. This table already cost a CLS of 0.12 on ages that merely ticked,
+                           and that was without anything appearing. In Latest the live half is a
+                           dash, which is this page's word for "not measured" everywhere else. *@
+                        <span class="v2-cellage @(late ? "v2-cellage--late" : "")">
+                            <span data-age-live>@Format.Dash</span><span data-age-written>@(late ? Format.SpacedAge(age.Age) + " ago" : "")</span>
+                        </span>
                     </span>
                 }
             </div>

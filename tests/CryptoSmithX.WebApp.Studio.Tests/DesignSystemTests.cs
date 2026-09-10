@@ -597,7 +597,7 @@ public sealed class DesignSystemTests
     [Theory]
     [InlineData("studio-ages.js", 7)]
     [InlineData("studio-candles.js", 9)]
-    [InlineData("studio-live.js", 3)]
+    [InlineData("studio-live.js", 4)]
     public void A_script_tag_carries_the_version_its_file_has_earned(string file, int expected)
     {
         // The three scripts are split across the two views that load them — the ages tick on every

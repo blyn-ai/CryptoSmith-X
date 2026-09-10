@@ -120,7 +120,7 @@ public sealed class LiveFrameTests
         var rows = Rows.Live(Row(1, bid: 100, ask: 101));
         var slots = LiveFrames.Slots(rows, Verdicts.Compute(rows), Empty, Now);
 
-        var bidCell = slots.Where(s => s.Group == "bid").ToArray();
+        var bidCell = slots.Where(s => s.Group == "Bid").ToArray();
 
         Assert.Equal(2, bidCell.Length);
         Assert.Equal([0, 1], bidCell.Select(s => s.Part).ToArray());

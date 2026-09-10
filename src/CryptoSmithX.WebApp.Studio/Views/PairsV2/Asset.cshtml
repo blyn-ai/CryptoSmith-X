@@ -46,7 +46,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=65">
+    <link rel="stylesheet" href="~/studio-v2.css?v=66">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -150,6 +150,20 @@
            где кнопку: разнести их — и обрыв будет сообщён в никуда. В обычном состоянии его не
            видно — эталон в этом ряду держит только тумблеры и возраст снимка, — а вот об обрыве
            страница обязана сказать словами, и тогда оно появляется. *@
+        @* D-4: the two modes, in the button style this page already has for a pressed state
+           (.v2-cols-btn + aria-pressed). Nothing invented: no new colour, no animation, no border
+           of its own — a second vocabulary for "this one is on" is how one control ends up looking
+           like a different kind of thing from the control beside it.
+
+           The words are the modes and nothing else; what they MEAN is in the title, because a
+           label that explains itself in the interface is a label being read every time instead of
+           once. History is not one of these: it is an address with a range, as it already was. *@
+        <span class="v2-mode" role="group" aria-label="Freshness">
+            <button type="button" class="v2-cols-btn v2-mode-btn" data-mode="latest" aria-pressed="true"
+                    title="What we have recorded: the collectors' own passes, as they land.">latest</button>
+            <button type="button" class="v2-cols-btn v2-mode-btn" data-mode="live" aria-pressed="false"
+                    title="What the venues' own sockets are holding, relayed every 200 ms. Only where a venue has one — every cell still says which source wrote it.">live</button>
+        </span>
         <span id="a-live-note" class="v2-livenote"></span>
     </span>
     @* EXPAND ALL убран вместе с раскрытием: все двадцать две колонки видны сразу, разворачивать
@@ -774,7 +788,7 @@
     <script src="~/studio-candles.js?v=9"></script>
 }
 <script src="~/studio-ages.js?v=7"></script>
-<script src="~/studio-live.js?v=3"></script>
+<script src="~/studio-live.js?v=4"></script>
 <script src="~/studio-v2.js?v=24"></script>
 <script src="~/studio-disclose.js?v=2"></script>
 <script src="~/studio-v2-band3.js?v=2"></script>
