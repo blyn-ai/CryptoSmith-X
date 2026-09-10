@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using CryptoSmithX.WebApp.Studio.Data;
+using CryptoSmithX.WebApp.Studio.Models;
 
 namespace CryptoSmithX.WebApp.Studio.Tests;
 
@@ -67,8 +69,35 @@ public sealed class FigureMarkTests
         Assert.Matches(@"\.v2-part i\{[^}]*width:3ch", Sheet);
         Assert.Matches(@"\.v2-part i\{[^}]*margin-right:2px", Sheet);
 
-        Assert.Matches(@"\.v2-part--best i\{color:var\(--text-heading\)\}", Sheet);
-        Assert.Matches(@"\.v2-part--worst i\{color:var\(--text-faint\)\}", Sheet);
+        // Цвет несёт «хорошо/плохо», слово — «какой край»: два разных факта, и класс у каждого свой.
+        Assert.Matches(@"\.v2-part--good i\{color:var\(--tag-tight\)\}", Sheet);
+        Assert.Matches(@"\.v2-part--bad i\{color:var\(--tag-wide\)\}", Sheet);
+    }
+
+    [Fact]
+    public void The_colour_says_good_or_bad_and_the_word_says_which_end()
+    {
+        // MIN зелёным на спреде и MAX магентовым на нём же — обе комбинации законны и обязаны
+        // быть достижимы: иначе цвет просто дублирует слово и не добавляет ничего.
+        var spreadMin = V2Ranks.Mark(V2Field.Spread, Verdict.Best);
+        var spreadMax = V2Ranks.Mark(V2Field.Spread, Verdict.Worst);
+        Assert.Equal("min", spreadMin);
+        Assert.Equal("max", spreadMax);
+        Assert.Equal("good", V2Ranks.ToneWord(Verdict.Best));
+        Assert.Equal("bad", V2Ranks.ToneWord(Verdict.Worst));
+
+        // А на глубине наоборот: больше — лучше.
+        Assert.Equal("max", V2Ranks.Mark(V2Field.Depth25, Verdict.Best));
+    }
+
+    [Fact]
+    public void In_a_paired_cell_the_marks_face_inward()
+    {
+        // Верхняя цифра прижата влево, нижняя вправо. Марка-префикс на обеих уводила бы верхнее
+        // число от его края, и пара переставала бы читаться как пара.
+        Assert.Matches(@"\.v2-fig--pair \.v2-part:first-child\{flex-direction:row-reverse\}", Sheet);
+        Assert.Matches(@"\.v2-fig--pair \.v2-part:first-child i\{margin-right:0;margin-left:2px\}", Sheet);
+        Assert.Matches(@"box-shadow:inset -3px 0 0 0 var\(--quote-tint\)", Sheet);
     }
 
     [Fact]
@@ -76,7 +105,7 @@ public sealed class FigureMarkTests
     {
         // On the span it was the very box edge this change removes. On the mark it is a prefix of a
         // prefix — and an unmarked figure has no mark, so it draws no rule at all.
-        Assert.Matches(@"\.v2-part\[data-quote\] i\{box-shadow:inset 3px 0 0 0 [^}]*;padding-left:4px\}", Sheet);
+        Assert.Matches(@"\.v2-part\[data-quote\] i\{box-shadow:inset 3px 0 0 0 var\(--quote-tint\);padding-left:4px\}", Sheet);
         Assert.DoesNotMatch(@"\.v2-part--(?:best|worst)\[data-quote", Sheet);
     }
 }

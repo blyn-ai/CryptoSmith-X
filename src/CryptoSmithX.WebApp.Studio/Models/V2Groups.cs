@@ -176,6 +176,22 @@ public static class V2Ranks
     /// </summary>
     public static string Mark(V2Field f, Verdict v) => IsMax(f, v) ? "max" : "min";
 
+    /// <summary>
+    /// Whether the marked figure is the GOOD end of its column — the second thing a mark says, and
+    /// the one the word itself cannot.
+    ///
+    /// MAX and MIN state which extreme a figure is; they are deliberately silent about whether
+    /// that extreme is worth having, because it depends on the column: the biggest depth is good
+    /// and the biggest spread is not. That answer already exists — it is <see cref="Verdict"/>,
+    /// which Verdicts computes from each column's own HighIsBest — so the colour reads it directly
+    /// rather than re-deriving it from the word.
+    ///
+    /// The two are therefore independent, and both combinations that look odd are correct: MIN in
+    /// green on the spread column, MAX in magenta on it. That is the point — a reader learns which
+    /// end is good per column without a legend.
+    /// </summary>
+    public static string ToneWord(Verdict v) => v == Verdict.Best ? "good" : "bad";
+
     /// <summary>The field name a mark's title states the fact about — "Highest bid among USD
     /// listings", never a column label built for a header (e.g. the paired "Bid / Ask"), because a
     /// paired cell's two chips each name their OWN field.</summary>

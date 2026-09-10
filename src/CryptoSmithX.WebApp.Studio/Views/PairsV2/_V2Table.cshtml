@@ -143,6 +143,7 @@
                     string? pairMark = null;
                     string? pairMarkText = null;
                     string? pairMarkTitle = null;
+                    string? pairTone = null;
                     if (c.PairedField is { } pf)
                     {
                         pairCell = V2Cells.Field(r, pf, stress, book);
@@ -152,6 +153,7 @@
                         var pairQuoteRuleInner = pairMark is not null && V2Ranks.IsQuoteScoped(pf);
                         pairMarkText = pairRank == Verdict.None ? null : V2Ranks.Mark(pf, pairRank);
                         pairMarkTitle = pairRank == Verdict.None ? null : V2Ranks.Title(pf, pairRank, pairQuoteRuleInner, r.Row.QuoteAsset);
+                        pairTone = pairRank == Verdict.None ? null : V2Ranks.ToneWord(pairRank);
                     }
                     var pairQuoteRule = pairMark is not null && c.PairedField is { } pf2 && V2Ranks.IsQuoteScoped(pf2);
 
@@ -169,7 +171,7 @@
                         @if (c.PairedField is null)
                         {
                             <span class="v2-fig @(cell.Value is null ? "v2-fig--none" : "")">
-                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark)"
+                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark + " v2-part--" + V2Ranks.ToneWord(rank))"
                                       data-quote="@(quoteRule ? r.Row.QuoteAsset : null)">
                                     @if (markText is not null) { <i title="@markTitle">@markText</i> }
                                     <span>@cell.Text</span>
@@ -187,12 +189,12 @@
                                side by side: each still carries its OWN rank, and one venue can
                                hold the best bid and the worst ask at once. *@
                             <span class="v2-fig v2-fig--pair">
-                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark) @(cell.Value is null ? "v2-fig--none" : "")"
+                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark + " v2-part--" + V2Ranks.ToneWord(rank)) @(cell.Value is null ? "v2-fig--none" : "")"
                                       data-quote="@(quoteRule ? r.Row.QuoteAsset : null)">
                                     @if (markText is not null) { <i title="@markTitle">@markText</i> }
                                     <span>@cell.Text</span>
                                 </span>
-                                <span class="v2-part @(pairMark is null ? "" : "v2-part--" + pairMark) @(pairCell.Value is null ? "v2-fig--none" : "")"
+                                <span class="v2-part @(pairMark is null ? "" : "v2-part--" + pairMark + " v2-part--" + pairTone) @(pairCell.Value is null ? "v2-fig--none" : "")"
                                       data-quote="@(pairQuoteRule ? r.Row.QuoteAsset : null)">
                                     @if (pairMarkText is not null) { <i title="@pairMarkTitle">@pairMarkText</i> }
                                     <span>@pairCell.Text</span>
