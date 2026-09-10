@@ -283,6 +283,14 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-fig--fresh{color:var(--candle-up)}
 .v2-fig--late{color:var(--accent)}
 
+/* B1: bid/ask and bid size/ask size share one cell instead of one column each — two mirrored
+   figures, bid (or bid size) top-left, ask (or ask size) bottom-right, each keeping its own rank.
+   .v2-cell already right-aligns everything; this wrapper overrides that for its own two lines so
+   the mirror reads as a mirror rather than as two right-aligned rows. */
+.v2-fig--pair{display:flex;flex-direction:column;align-items:stretch;gap:1px;width:100%}
+.v2-fig--pair .v2-part{align-self:flex-start}
+.v2-fig--pair .v2-part+.v2-part{align-self:flex-end}
+
 /* Колонка выбранного поля: шапка акцентом. */
 
 /* Пара цен держится в одну строку даже с марками: перенос делал из одной величины две. */

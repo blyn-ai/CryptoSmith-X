@@ -21,21 +21,30 @@ namespace CryptoSmithX.WebApp.Studio.Models;
 /// widths are chosen for what the column HOLDS — a price is eight digits, an interval is "8 h", a
 /// turnover is nine digits and a comma every three — and they do not move.
 /// </param>
+/// <param name="PairedField">
+/// B1: a second field mirrored into the same cell rather than given its own column — bid/ask and
+/// bid size/ask size are one question asked in two directions, and printing them as two columns
+/// repeated that question across the table. The paired field keeps its own rank (both ends or
+/// neither still applies per figure, computed exactly as it was when it had a column), it is only
+/// the CELL that is shared. Every other field's ranking in <see cref="Verdicts"/> is untouched.
+/// </param>
 public sealed record V2Column(
     V2Field Field,
     string Label,
     CallTone Call,
     int Width,
     string? Cut = null,
-    bool Spark = false);
+    bool Spark = false,
+    V2Field? PairedField = null);
 
 public static class V2Columns
 {
     public static IReadOnlyList<V2Column> All { get; } =
     [
         // ── The ticker call: one response carries all of these ──────────────────────────────
-        new(V2Field.Bid, "Bid", CallTone.Ticker, 100, Spark: true),
-        new(V2Field.Ask, "Ask", CallTone.Ticker, 100, Spark: true),
+        // Bid and ask mirrored into one cell (B1) — see V2Column.PairedField. Ask keeps its own
+        // rank; it no longer keeps its own column.
+        new(V2Field.Bid, "Bid / Ask", CallTone.Ticker, 108, Spark: true, PairedField: V2Field.Ask),
         new(V2Field.Spread, "Spread bps", CallTone.Ticker, 80, Cut: "spread", Spark: true),
         new(V2Field.Last, "Last", CallTone.Ticker, 100, Cut: "price", Spark: true),
         new(V2Field.Mark, "Mark", CallTone.Ticker, 104),
@@ -54,8 +63,8 @@ public static class V2Columns
         new(V2Field.Multiplier, "Multiplier", CallTone.OpenInterest, 72),
 
         // ── The depth sweep: the slowest of the three, and the one that goes quiet first ────
-        new(V2Field.BidSize, "Bid size", CallTone.Depth, 92),
-        new(V2Field.AskSize, "Ask size", CallTone.Depth, 92),
+        // Bid size / ask size mirrored the same way as bid/ask above.
+        new(V2Field.BidSize, "Bid / Ask size", CallTone.Depth, 100, PairedField: V2Field.AskSize),
         new(V2Field.Depth10, "Depth 10bps", CallTone.Depth, 108),
         new(V2Field.Depth25, "Depth 25bps", CallTone.Depth, 108, Cut: "depth25", Spark: true),
         new(V2Field.Depth50, "Depth 50bps", CallTone.Depth, 108),

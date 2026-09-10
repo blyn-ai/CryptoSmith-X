@@ -116,20 +116,53 @@
                     var spark = c.Spark ? Format.SparkPath(V2Columns.Series(r, c), 60, 14) : null;
                     var age = V2Columns.Freshness(r, c);
 
+                    // B1: a paired column (bid/ask, bid size/ask size) carries a second field's
+                    // cell and rank — computed exactly as it would be for a column of its own,
+                    // because it still is one, only sharing a cell rather than a track.
+                    var pairCell = V2Cell.None;
+                    string? pairMark = null;
+                    if (c.PairedField is { } pf)
+                    {
+                        pairCell = V2Cells.Field(r, pf, stress, book);
+                        var pairColumn = V2Ranks.ColumnOf(pf);
+                        var pairRank = pairColumn is { } prc ? Model.Verdicts.Of(r.Row.InstrumentId, prc) : Verdict.None;
+                        pairMark = pairRank == Verdict.None ? null : V2Ranks.Word(pf, pairRank);
+                    }
+
                     <span class="v2-cell" data-group="@c.Field" data-tone="@c.Call.ToString().ToLowerInvariant()"
                           data-label="@c.Label">
                         @* Марка и число — один блок с одной заливкой под обоими; слово стоит мелко
                            у головы числа. Число держит свой цвет: покрасить измерение в цвет
                            суждения о нём значит сказать, что это другая величина. *@
-                        <span class="v2-fig @(cell.Value is null ? "v2-fig--none" : "")">
-                            <span class="v2-part @(mark is null ? "" : "v2-part--" + mark)">
-                                @if (mark is not null) { <i>@mark</i> }
-                                <span>@cell.Text</span>
-                            </span>
-                        </span>
-                        @if (cell.Sub is not null)
+                        @if (c.PairedField is null)
                         {
-                            <span class="v2-figsub">@cell.Sub</span>
+                            <span class="v2-fig @(cell.Value is null ? "v2-fig--none" : "")">
+                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark)">
+                                    @if (mark is not null) { <i>@mark</i> }
+                                    <span>@cell.Text</span>
+                                </span>
+                            </span>
+                            @if (cell.Sub is not null)
+                            {
+                                <span class="v2-figsub">@cell.Sub</span>
+                            }
+                        }
+                        else
+                        {
+                            @* Bid top-left, ask bottom-right — the same "one cell, two mirrored
+                               figures" the depth stripes already use, only stacked instead of
+                               side by side: each still carries its OWN rank, and one venue can
+                               hold the best bid and the worst ask at once. *@
+                            <span class="v2-fig v2-fig--pair">
+                                <span class="v2-part @(mark is null ? "" : "v2-part--" + mark) @(cell.Value is null ? "v2-fig--none" : "")">
+                                    @if (mark is not null) { <i>@mark</i> }
+                                    <span>@cell.Text</span>
+                                </span>
+                                <span class="v2-part @(pairMark is null ? "" : "v2-part--" + pairMark) @(pairCell.Value is null ? "v2-fig--none" : "")">
+                                    @if (pairMark is not null) { <i>@pairMark</i> }
+                                    <span>@pairCell.Text</span>
+                                </span>
+                            </span>
                         }
                         @if (spark is not null)
                         {

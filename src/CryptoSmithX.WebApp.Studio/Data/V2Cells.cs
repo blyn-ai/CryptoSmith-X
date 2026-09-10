@@ -161,7 +161,7 @@ public static class V2Cells
         // а не берётся из колонок 0030. Оттуда приходило ±108 734 bps (десятикратная цена: где-то
         // абсолютная цена принята за bps) и ±0 bps при двадцати пяти уровнях, чего не бывает
         // физически. Обе цифры печатались как измерение.
-        V2Field.BookReach => Reach(book),
+        V2Field.BookReach => Reach(book, r.Row.DepthRef, Format.PriceDecimals(r.Row)),
 
         V2Field.OpenInterest => Fig(r.Row.OpenInterest, 0),
         V2Field.Multiplier => Text(r.Row.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(r.Row.ContractMultiplier, 0)),
@@ -170,10 +170,19 @@ public static class V2Cells
         // column. The venue's own rate and its interval stay visible beside it, because the
         // normalisation is ours and the reader is entitled to the number the venue published.
         V2Field.FundingPerDay => PerDay(r),
-        V2Field.FundingRate => Pct(r.Row.FundingRate),
-        V2Field.FundingInterval => r.Row.FundingIntervalHours is { } h ? Text(h + " h") : V2Cell.None,
+        // The venue's current rate, large; its own prediction for the NEXT period, small, under it.
+        // Kraken is the only venue that writes funding_rate_predicted — everyone else prints — for
+        // the sub line, honestly, rather than repeating the current rate under itself.
+        V2Field.FundingRate => FundingRateCell(r),
+        // Same shape: the interval a venue settles on, large; the next settlement instant it told
+        // us, small, under it. Kraken is REST-only here (its ticker skips the field over WS); Binance
+        // has it on both transports.
+        V2Field.FundingInterval => FundingIntervalCell(r),
 
-        V2Field.Turnover24h => Fig(r.Row.Turnover24h, 0, sub: r.Row.QuoteAsset),
+        // base volume, primary — the figure this cell never showed before. Turnover in quote stays,
+        // demoted to the sub line with the asset that prices it; Hyperliquid writes no base volume at
+        // all, so its primary reads — rather than falling back to the quote figure in its place.
+        V2Field.Turnover24h => Turnover24hCell(r),
 
         V2Field.AgePrice => Age(r.Ages.PriceSeconds),
         V2Field.AgeDepth => Age(r.Ages.DepthSeconds),
@@ -210,6 +219,37 @@ public static class V2Cells
     private static V2Cell Pct(double? v) =>
         v is null ? V2Cell.None : new V2Cell(v, Format.SignedPercent(v, 4), null);
 
+    private static V2Cell FundingRateCell(VenueRowModel r)
+    {
+        if (r.Row.FundingRate is not { } rate)
+        {
+            return V2Cell.None;
+        }
+
+        var predicted = r.Row.FundingRatePredicted is { } p ? "next " + Format.SignedPercent(p, 4) : null;
+        return new V2Cell(rate, Format.SignedPercent(rate, 4), predicted);
+    }
+
+    private static V2Cell FundingIntervalCell(VenueRowModel r)
+    {
+        if (r.Row.FundingIntervalHours is not { } hours)
+        {
+            return V2Cell.None;
+        }
+
+        var next = r.Row.NextFundingAt is { } at ? "next " + Format.UtcClock(at) : null;
+        return new V2Cell(hours, hours + " h", next);
+    }
+
+    private static V2Cell Turnover24hCell(VenueRowModel r)
+    {
+        var quote = r.Row.Turnover24h is { } t ? Format.Num(t, 0) + " " + r.Row.QuoteAsset : null;
+
+        return r.Row.Volume24hBase is { } baseVolume
+            ? new V2Cell(baseVolume, Format.Num(baseVolume, 0), quote)
+            : new V2Cell(null, "—", quote);
+    }
+
     private static V2Cell Age(double? seconds) =>
         seconds is null ? V2Cell.None : new V2Cell(seconds, Format.ShortAge(seconds), null);
 
@@ -220,28 +260,42 @@ public static class V2Cells
 
     /// <summary>Public because BAND 2 PRINTS THE SAME SENTENCE under its ladder. It said "reach
     /// not measured" for a listing whose band-1 cell read ±18 bps — one page, one book, two
-    /// answers — because the two were computed from different sources.</summary>
-    public static V2Cell Reach(BookFrame? book)
+    /// answers — because the two were computed from different sources.
+    ///
+    /// <paramref name="depthRef"/> is the stored reference mid the depth sweep (10/25/50bps)
+    /// columns were themselves computed against — a DIFFERENT number from the live mid this method
+    /// derives from <paramref name="book"/>, and printed here rather than there (B1) because this is
+    /// the one cell in the depth-sweep band with room to hold it. Printed whenever it is known, even
+    /// when the live book is not — the sweep can be measured on a snapshot the level book behind it
+    /// has already aged out of. Band 2's call to this method ignores it: it only reads
+    /// <c>.Value</c>/<c>.Text</c>.</summary>
+    public static V2Cell Reach(BookFrame? book, double? depthRef, int priceDecimals)
     {
+        var refText = depthRef is { } dr ? "ref " + Format.Num(dr, priceDecimals) : null;
+
         if (book is null || book.BidPx.Length == 0 || book.AskPx.Length == 0)
         {
-            return V2Cell.None;
+            return refText is null ? V2Cell.None : new V2Cell(null, "—", refText);
         }
 
         var mid = (book.BidPx.Max() + book.AskPx.Min()) / 2;
         if (mid <= 0)
         {
-            return V2Cell.None;
+            return refText is null ? V2Cell.None : new V2Cell(null, "—", refText);
         }
 
         var bid = (mid - book.BidPx.Min()) / mid * 10000;
         var ask = (book.AskPx.Max() - mid) / mid * 10000;
         var far = Math.Max(bid, ask);
 
-        return far <= 0 || far > ReachCeilingBps
-            ? V2Cell.None
-            : new V2Cell(far, "±" + Format.Num(far, 0) + " bps",
-                Format.Num(bid, 0) + " / " + Format.Num(ask, 0));
+        if (far <= 0 || far > ReachCeilingBps)
+        {
+            return refText is null ? V2Cell.None : new V2Cell(null, "—", refText);
+        }
+
+        var split = Format.Num(bid, 0) + " / " + Format.Num(ask, 0);
+        return new V2Cell(far, "±" + Format.Num(far, 0) + " bps",
+            refText is null ? split : split + " · " + refText);
     }
 
     private static V2Cell Text(string s) =>

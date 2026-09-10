@@ -102,7 +102,7 @@
                                 @* ТО ЖЕ ЧИСЛО, что печатает клетка Book reach в полосе 1, из
                                    одного места: полоса 2 говорила «reach not measured» там, где
                                    полоса 1 писала ±18 bps — одна книга, одна страница, два ответа. *@
-                                @{ var reach = V2Cells.Reach(bk); }
+                                @{ var reach = V2Cells.Reach(bk, r.Row.DepthRef, px); }
                                 @(reach.Value is null ? "reach not measured" : "seen to " + reach.Text)
                                 · @(bidShown == held && askShown == held
                                       ? $"{held} levels a side"
