@@ -392,8 +392,11 @@ public abstract class LivePageController : Controller
 
     /// <summary>Renders a partial to a string outside the normal action-result pipeline, on this
     /// request's own <see cref="ControllerContext"/> so view lookup resolves exactly as
-    /// <c>&lt;partial&gt;</c> does from the page.</summary>
-    private async Task<string> RenderPartialAsync(string viewName, object model)
+    /// <c>&lt;partial&gt;</c> does from the page. Protected rather than private: PairsV2Controller's
+    /// own B3 fragment action (a plain AJAX response, not an SSE push) reuses it for the same
+    /// reason the push loop does — one render path for "a partial as a string", not two that can
+    /// drift.</summary>
+    protected async Task<string> RenderPartialAsync(string viewName, object model)
     {
         var viewResult = ViewEngine.FindView(ControllerContext, viewName, isMainPage: false);
         if (!viewResult.Success)

@@ -1,0 +1,41 @@
+@using CryptoSmithX.WebApp.Studio.Data
+@model PairPageModel
+@{
+    // B3: rendered both by Asset.cshtml's first paint and by PairsV2Controller.Asset's AJAX branch
+    // (studio-v2-band3.js swaps this into #band3-head without a navigation) — one template, so the
+    // two can never say something different about the same choice.
+    string Band3Url(short tf, string ser) =>
+        Url.RouteUrl("asset-v2", new { controller = "PairsV2", action = "Asset", baseFamily = Model.BaseFamily, tf, series = ser })
+        + "#band-time";
+}
+<span class="csx-eyebrow v2-band-sub">
+    quote asset ·
+    @if (Model.Band3Series == "trade")
+    {
+        @:trade price
+    }
+    else
+    {
+        @:@Model.Band3Series price
+    }
+    candles, @V2Band3.TfLabel(Model.Band3Timeframe) × 25 · one scale per quote, time axes tied
+</span>
+@* B3: timeframe and series are two independent questions — 1440 minutes of the trade price and
+   1440 minutes of the mark price are both valid choices — so two button groups, not one combined
+   list. Plain <a> with a real href (no-JS fallback navigates, same as before); studio-v2-band3.js
+   intercepts the click and fetches the same URL instead, so a switch swaps this panel and the
+   candles below it rather than reloading the page. *@
+<span class="v2-tf" role="group" aria-label="Timeframe">
+    @foreach (var t in CandleStore.Timeframes)
+    {
+        <a class="v2-tf-btn@(t == Model.Band3Timeframe ? " v2-tf-btn--active" : "")"
+           href="@Band3Url(t, Model.Band3Series)">@V2Band3.TfLabel(t)</a>
+    }
+</span>
+<span class="v2-tf" role="group" aria-label="Series">
+    @foreach (var s in CandleStore.Series)
+    {
+        <a class="v2-tf-btn@(s == Model.Band3Series ? " v2-tf-btn--active" : "")"
+           href="@Band3Url(Model.Band3Timeframe, s)">@s</a>
+    }
+</span>

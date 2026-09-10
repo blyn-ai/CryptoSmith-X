@@ -71,6 +71,12 @@
              Link="surface\_InstrumentDetail.cshtml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\PairsV2\_CoverageDetail.cshtml"
              Link="surface\_CoverageDetail.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\PairsV2\_V2Band3Head.cshtml"
+             Link="surface\_V2Band3Head.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\PairsV2\_V2Band3Cuts.cshtml"
+             Link="surface\_V2Band3Cuts.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\wwwroot\studio-v2-band3.js"
+             Link="surface\studio-v2-band3.js" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\Pairs\_VenueDetail.cshtml"
              Link="surface\_VenueDetail.cshtml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\Pairs\_AssetRegistry.cshtml"

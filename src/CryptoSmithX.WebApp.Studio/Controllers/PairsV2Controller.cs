@@ -122,35 +122,64 @@ public sealed class PairsV2Controller : LivePageController
             return View("~/Views/Pairs/PairNotFound.cshtml");
         }
 
+        model = await ResolveBand3Async(model, baseFamily, tf, series, ct);
+
+        // B3: studio-v2-band3.js fetches this SAME action with this header rather than following
+        // the link — swapping #band3-head and #band3-cuts in place instead of navigating, so the
+        // rest of the page (the tape mid-follow, a scroll position, band 5's open disclosures)
+        // survives a timeframe or series switch. A plain link still works with scripts off: the
+        // href is this action's own real address, and without the header it renders the full page.
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+        {
+            var head = await RenderPartialAsync("~/Views/PairsV2/_V2Band3Head.cshtml", model);
+            var cuts = await RenderPartialAsync("~/Views/PairsV2/_V2Band3Cuts.cshtml", model);
+            var url = Url.RouteUrl("asset-v2", new
+            {
+                controller = "PairsV2", action = "Asset", baseFamily,
+                tf = model.Band3Timeframe, series = model.Band3Series,
+            }) + "#band-time";
+
+            return Json(new { head, cuts, url });
+        }
+
+        return View(model);
+    }
+
+    /// <summary>
+    /// B3: resolves the requested timeframe/series against what is actually offered, and loads a
+    /// second candle series only when one was asked for. Shared by <see cref="Asset"/>'s full-page
+    /// and AJAX-fragment branches — both have to make exactly the same choice from the same two
+    /// query parameters, or a switch made through one path could render differently from the same
+    /// switch made through the other.
+    /// </summary>
+    private async Task<PairPageModel> ResolveBand3Async(
+        PairPageModel model, string baseFamily, short? tf, string? series, CancellationToken ct)
+    {
         var chosenTf = CandleStore.Timeframes.Contains(tf ?? CandleStore.TimeframeMinutes)
             ? tf ?? CandleStore.TimeframeMinutes : CandleStore.TimeframeMinutes;
         var chosenSeries = CandleStore.Series.Contains(series) ? series! : "trade";
 
-        // B3: the default view (60-minute, trade) is already sitting in model.Rows[*].Candles — band
+        // The default view (60-minute, trade) is already sitting in model.Rows[*].Candles — band
         // 1's sparklines loaded it. Only fetch a second series when the reader actually asked for a
         // different one, so the common case costs nothing extra.
-        if (chosenTf != CandleStore.TimeframeMinutes || chosenSeries != "trade")
+        if (chosenTf == CandleStore.TimeframeMinutes && chosenSeries == "trade")
         {
-            var ids = model.Rows.Select(r => r.Row.InstrumentId).ToList();
-            var band3 = await _cache.GetAsync($"band3:{baseFamily}:{chosenTf}:{chosenSeries}",
-                async token =>
-                {
-                    await using var conn = await _db.OpenAsync(token);
-                    var at = _clock.GetUtcNow();
-                    return chosenSeries == "trade"
-                        ? await CandleStore.ReadAsync(conn, ids, at, chosenTf, CandleStore.Hours, token)
-                        : await PriceCandleStore.ReadAsync(
-                            conn, ids, at, chosenTf, CandleStore.Hours, chosenSeries, token);
-                }, ct);
-
-            model = model with { Band3Candles = band3, Band3Timeframe = chosenTf, Band3Series = chosenSeries };
-        }
-        else
-        {
-            model = model with { Band3Timeframe = chosenTf, Band3Series = chosenSeries };
+            return model with { Band3Timeframe = chosenTf, Band3Series = chosenSeries };
         }
 
-        return View(model);
+        var ids = model.Rows.Select(r => r.Row.InstrumentId).ToList();
+        var band3 = await _cache.GetAsync($"band3:{baseFamily}:{chosenTf}:{chosenSeries}",
+            async token =>
+            {
+                await using var conn = await _db.OpenAsync(token);
+                var at = _clock.GetUtcNow();
+                return chosenSeries == "trade"
+                    ? await CandleStore.ReadAsync(conn, ids, at, chosenTf, CandleStore.Hours, token)
+                    : await PriceCandleStore.ReadAsync(
+                        conn, ids, at, chosenTf, CandleStore.Hours, chosenSeries, token);
+            }, ct);
+
+        return model with { Band3Candles = band3, Band3Timeframe = chosenTf, Band3Series = chosenSeries };
     }
 
     /// <summary>

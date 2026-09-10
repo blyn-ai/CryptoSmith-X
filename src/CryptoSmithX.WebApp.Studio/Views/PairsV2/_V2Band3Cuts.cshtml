@@ -1,0 +1,66 @@
+@using CryptoSmithX.WebApp.Studio.Data
+@model PairPageModel
+@{
+    // Same reason as _V2Band3Head: one template for the first paint and the AJAX swap.
+    var drawable = V2Band3.Drawable(Model);
+    var priceScale = V2Band3.PriceScale(Model);
+}
+@if (drawable.Count == 0)
+{
+    <p class="v2-empty">No venue here has two closed bars yet.
+        @if (Model.Band3Series != "trade")
+        {
+            @:Only Binance publishes mark and index candles — every other venue's @Model.Band3Series
+            @:series is empty by construction, not thin.
+        }
+    </p>
+}
+else
+{
+    foreach (var r in drawable)
+    {
+        var bars = V2Band3.Of(Model, r);
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            bars.Windows.Select((w, i) => new
+            {
+                time = new DateTimeOffset(DateTime.SpecifyKind(w, DateTimeKind.Utc)).ToUnixTimeSeconds(),
+                o = bars.Bars[i]?.Open,
+                h = bars.Bars[i]?.High,
+                l = bars.Bars[i]?.Low,
+                c = bars.Bars[i]?.Close
+            }));
+        var sc = priceScale[r.Row.QuoteAsset];
+        var last = bars.Bars.LastOrDefault(b => b is not null);
+        var pd = Format.Decimals(r.Row.PriceStep, fallback: 4);
+        // B3: source/updated_at, in the tooltip on the one bar this line already names — the last
+        // CLOSED one — rather than on the axis (plan's own instruction: per-bar hover would need
+        // the chart library's own crosshair wiring, which this pass does not add).
+        var lastTitle = last is null ? null
+            : $"source: {last.Source ?? "—"} · updated_at: {Format.Utc(last.UpdatedAt)}";
+        <div class="v2-cut">
+            @* Площадка дисплейным начертанием, символ — акцентным моно, и OHLC последнего
+               закрытого часа справа: график отвечает на «как шло», а на «чем кончилось»
+               по пикселям не отвечает никто. *@
+            <span class="v2-cut-plat">
+                <b>@r.Row.ExchangeName</b> <em>@r.Row.Symbol</em>
+                @if (last is not null)
+                {
+                    <span class="v2-ohlc" title="@lastTitle">O @Format.Num(last.Open, pd) H @Format.Num(last.High, pd)
+                        L @Format.Num(last.Low, pd) C @Format.Num(last.Close, pd)</span>
+                }
+                @* B3: bars the rollup only partly covered — meaningless at 1m (bar_count is
+                   always 1 there), so CandleSeries.Partial already reads zero and this stays
+                   silent rather than printing "0 partly covered" on every panel. *@
+                @if (bars.Partial > 0)
+                {
+                    <span class="v2-cut-partial">@bars.Partial of @bars.Windows.Count partly covered</span>
+                }
+            </span>
+            <div class="a-chart v2-chart"
+                 data-candles="@json"
+                 data-scale-lo="@sc.Lo.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                 data-scale-hi="@sc.Hi.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                 data-decimals="@Format.Decimals(r.Row.PriceStep, fallback: 4)"></div>
+        </div>
+    }
+}

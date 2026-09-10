@@ -33,9 +33,6 @@
 (() => {
   'use strict';
 
-  const els = [...document.querySelectorAll('.a-chart[data-candles]')];
-  if (!els.length || !window.LightweightCharts) return;
-
   const v = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
   const chartOptions = () => ({
@@ -186,6 +183,33 @@
     setText(legend.chg, signedPercent(missing ? null : (bar.c - bar.o) / bar.o));
   };
 
+  // ── RE-INITIALISABLE, FOR THE ONE THING ON THIS PAGE THAT SWAPS ITS OWN CHART ELEMENTS ──
+  // B3's timeframe/series selector replaces .v2-cuts's markup with a fresh set of .a-chart
+  // elements rather than navigating — see studio-v2-band3.js — and this file only ran once, at
+  // script load, on the elements present then. A chart library does not notice new DOM on its
+  // own; nothing here had ever needed it to before.
+  //
+  // Disposing the PREVIOUS set before building the new one is not optional: a chart instance
+  // whose host element was just removed from the DOM (by that same innerHTML swap) still holds a
+  // ResizeObserver on it, and re-running this function without disposing first would pile one more
+  // orphaned observer and one more `csx-studio-theme` listener onto the page per switch.
+  let activeCharts = [];
+  let activeRepaint = null;
+
+  function initCandlePanels() {
+    activeCharts.forEach((c) => {
+      try { c.remove(); } catch (e) { /* host already gone; nothing to clean up */ }
+    });
+    activeCharts = [];
+
+    if (activeRepaint) {
+      document.removeEventListener('csx-studio-theme', activeRepaint);
+      activeRepaint = null;
+    }
+
+    const els = [...document.querySelectorAll('.a-chart[data-candles]')];
+    if (!els.length || !window.LightweightCharts) return;
+
   // One entry per panel that has a line above it: the line's six fields, this panel's own bars by
   // hour, the hour it rests on, and the tick it prints to.
   const panels = [];
@@ -287,12 +311,22 @@
   // register flip has to reach in and push them back. studio-ages.js fires this after it moves
   // data-theme; a MutationObserver would work too and would also fire for every other attribute
   // anyone ever adds to <html>.
-  const repaint = () => made.forEach(({ chart, series }) => {
-    chart.applyOptions(chartOptions());
-    series.applyOptions(candleOptions());
-  });
+    const repaint = () => made.forEach(({ chart, series }) => {
+      chart.applyOptions(chartOptions());
+      series.applyOptions(candleOptions());
+    });
 
-  document.addEventListener('csx-studio-theme', repaint);
+    activeCharts = made.map(({ chart }) => chart);
+    activeRepaint = repaint;
+    document.addEventListener('csx-studio-theme', repaint);
+  }
+
+  initCandlePanels();
+
+  // Re-invoked from studio-v2-band3.js after it swaps .v2-cuts's markup for a new timeframe or
+  // series. Not a MutationObserver: that would fire for every attribute change anywhere on the
+  // page, for a need that has exactly one caller and one moment it ever fires.
+  window.CSXInitCandles = initCandlePanels;
 
   // ─────────────────────────────────────────────────────────────────────────────────────────────
   // HOW MANY PANELS SIT SIDE BY SIDE
