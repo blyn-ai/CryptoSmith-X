@@ -154,7 +154,10 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* ── раскладка второй страницы: сетка групп ──────────────────────────────────
    Первая колонка — листинг, дальше по колонке на вопрос. Число колонок приходит
    из вьюхи переменной --cols, чтобы группа добавлялась в одном месте. */
-.v2 { margin:0; }
+/* .v2 is the SAME element body{} above sets max-width/margin on (<body class="v2 a-sheet">) — a
+   class selector beats an element selector, so this used to override the 1920px cap's own
+   centring back to margin:0 flush-left the moment it loaded. */
+.v2 { margin:0 auto; }
 .v2-head{display:flex;align-items:center;gap:var(--space-6);flex-wrap:wrap;padding:var(--space-4) var(--space-7);background:var(--surface-card);border-bottom:2px solid var(--brand)}
 .v2-wordmark{font-family:var(--font-display);font-size:var(--fs-h3);line-height:1.2;letter-spacing:.06em;text-transform:uppercase;color:var(--brand-text)}
 .v2-crumb{color:var(--eyebrow)}
