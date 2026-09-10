@@ -19,7 +19,7 @@ public sealed class ColumnWidthTests
     {
         // Built once and used by all three, so they cannot drift into three declarations that
         // nearly agree — which is exactly how the header stopped standing over its columns before.
-        var tracks = V2Columns.Tracks.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var tracks = V2Columns.Tracks(true).Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         Assert.Equal(V2Columns.All.Count + 1, tracks.Length);
         Assert.All(tracks, t => Assert.EndsWith("px", t, StringComparison.Ordinal));
@@ -89,7 +89,7 @@ public sealed class ColumnWidthTests
         // Клетка — фиксированный трек, и марка, которая в него не влезла, не переносится и не
         // ужимается: она ВЫЛЕЗАЕТ, а поскольку цифры прижаты вправо — вылезает влево, на соседнюю
         // колонку. Так MAX колонки TURNOVER 24H оказался поверх «4 h» колонки INTERVAL.
-        var tracks = V2Columns.Tracks.Split(' ', StringSplitOptions.RemoveEmptyEntries).Skip(1).ToList();
+        var tracks = V2Columns.Tracks(true).Split(' ', StringSplitOptions.RemoveEmptyEntries).Skip(1).ToList();
 
         for (var i = 0; i < V2Columns.All.Count; i++)
         {

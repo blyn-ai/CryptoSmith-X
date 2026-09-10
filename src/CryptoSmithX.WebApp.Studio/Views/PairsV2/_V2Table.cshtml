@@ -24,7 +24,7 @@
 
     @* Таблица шире экрана и прокручивается ВНУТРИ СЕБЯ: страница по горизонтали не едет. *@
     <div class="v2-scroll">
-    <div class="v2-grid" style="--tracks:@V2Columns.Tracks">
+    <div class="v2-grid" style="--tracks:@V2Columns.Tracks(lastTradeHasData)">
         @* ── ПОЛОСЫ ВЫЗОВОВ ──────────────────────────────────────────────────────
            Одна на вызов, шириной в его колонки. Три источника отвечают с разной частотой и
            ломаются порознь, и какой из них стоит за цифрой — первое, что про неё нужно знать.
@@ -33,7 +33,7 @@
            единицами под заголовками. *@
         <div class="v2-calls">
             <span></span>
-            @foreach (var b in V2Columns.Bands)
+            @foreach (var b in V2Columns.Bands(lastTradeHasData))
             {
                 <span class="v2-call" data-tone="@b.Call.ToString().ToLowerInvariant()"
                       style="grid-column:span @b.Span">@b.Label</span>
@@ -42,11 +42,10 @@
 
         <div class="v2-hrow">
             <span class="v2-hcell v2-hcell--listing">Listing</span>
-            @foreach (var c in V2Columns.All)
+            @foreach (var c in V2Columns.Visible(lastTradeHasData))
             {
                 <span class="v2-hcell" data-tone="@c.Call.ToString().ToLowerInvariant()"
-                      data-cut="@c.Cut" data-col="@c.Field"
-                      hidden="@(c.Field == V2Field.LastTrade && !lastTradeHasData ? "hidden" : null)">
+                      data-cut="@c.Cut" data-col="@c.Field">
                     @{
                         // Prompt 2, U-6: the label wraps after the noun ("SPREAD" over "BPS"),
                         // never wherever the browser happens to break the line — one text node,
@@ -139,7 +138,7 @@
                     </span>
                 </span>
 
-                @foreach (var c in V2Columns.All)
+                @foreach (var c in V2Columns.Visible(lastTradeHasData))
                 {
                     var cell = V2Cells.Field(r, c.Field, stress, book);
                     var column = V2Ranks.ColumnOf(c.Field);
@@ -188,8 +187,7 @@
                     var late = Freshness.PastWindow(age.Age, age.Window, age.Cadence);
 
                     <span class="v2-cell@(late ? " v2-cell--late" : "")" data-group="@c.Field" data-tone="@c.Call.ToString().ToLowerInvariant()"
-                          data-label="@c.Label"
-                          hidden="@(c.Field == V2Field.LastTrade && !lastTradeHasData ? "hidden" : null)">
+                          data-label="@c.Label">
                         @* Марка и число — один блок с одной заливкой под обоими; слово стоит мелко
                            у головы числа. Число держит свой цвет: покрасить измерение в цвет
                            суждения о нём значит сказать, что это другая величина. *@

@@ -60,12 +60,8 @@
 
 /* CSX Arena — the reset the surface assumes. */
 *,*::before,*::after{box-sizing:border-box}
-/* On a screen wider than the page's own cap, html carries the same paper colour so the gutter on
-   either side reads as margin, not as the page stopping short. */
-html{background:var(--surface-page)}
 body{
-  max-width:1920px;
-  margin:0 auto;
+  margin:0;
   background:var(--surface-page);
   background-image:var(--dot-pattern);
   background-size:var(--dot-size) var(--dot-size);
@@ -129,8 +125,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* CSX Arena — the reset the surface assumes. */
 *,*::before,*::after{box-sizing:border-box}
 body{
-  max-width:1920px;
-  margin:0 auto;
+  margin:0;
   background:var(--surface-page);
   background-image:var(--dot-pattern);
   background-size:var(--dot-size) var(--dot-size);
@@ -154,10 +149,11 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 /* ── раскладка второй страницы: сетка групп ──────────────────────────────────
    Первая колонка — листинг, дальше по колонке на вопрос. Число колонок приходит
    из вьюхи переменной --cols, чтобы группа добавлялась в одном месте. */
-/* .v2 is the SAME element body{} above sets max-width/margin on (<body class="v2 a-sheet">) — a
-   class selector beats an element selector, so this used to override the 1920px cap's own
-   centring back to margin:0 flush-left the moment it loaded. */
-.v2 { margin:0 auto; }
+.v2 { margin:0; }
+/* The header and the footer (below) are full-bleed on purpose — a chrome band reads as part of
+   the browser chrome, not the document, and a chrome band that stops short of the edge reads as
+   broken. .v2-page is the 1920px, centred container for everything between them. */
+.v2-page{max-width:1920px;margin:0 auto}
 .v2-head{display:flex;align-items:center;gap:var(--space-6);flex-wrap:wrap;padding:var(--space-4) var(--space-7);background:var(--surface-card);border-bottom:2px solid var(--brand)}
 .v2-wordmark{font-family:var(--font-display);font-size:var(--fs-h3);line-height:1.2;letter-spacing:.06em;text-transform:uppercase;color:var(--brand-text)}
 .v2-crumb{color:var(--eyebrow)}

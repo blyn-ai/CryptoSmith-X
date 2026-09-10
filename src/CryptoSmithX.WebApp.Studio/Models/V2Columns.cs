@@ -122,18 +122,28 @@ public static class V2Columns
         V2Ranks.ColumnOf(c.Field) is not null
         || (c.PairedField is { } paired && V2Ranks.ColumnOf(paired) is not null);
 
+    /// <summary>Prompt 2.1, W-1: the columns actually laid out this render — every column except
+    /// LAST TRADE while nothing has one. A `hidden` cell still reserves its own grid TRACK (CSS
+    /// Grid defines tracks from grid-template-columns regardless of which items are display:none),
+    /// so keeping band 1 inside its 1920px cap means this column is absent from the track list
+    /// itself, not merely hidden inside it — and the header loop, the row loop, Tracks and Bands
+    /// all have to filter it the SAME way, or the header's bands stop lining up with the body's
+    /// tracks the moment they disagree about which nineteen or twenty columns exist.</summary>
+    public static IReadOnlyList<V2Column> Visible(bool lastTradeHasData) =>
+        lastTradeHasData ? All : [.. All.Where(c => c.Field != V2Field.LastTrade)];
+
     /// <summary>The grid's tracks: the listing cell, then every column at the width its content
     /// actually needs — the figure, plus the mark's slot wherever a mark can appear. One string,
     /// built here, so the bands, the headings and every row are laid on the same tracks by
     /// construction rather than by three declarations agreeing.</summary>
-    public static string Tracks { get; } =
-        "150px " + string.Join(" ", All.Select(c => c.Width + (Ranked(c) ? MarkSlot : 0) + "px"));
+    public static string Tracks(bool lastTradeHasData) =>
+        "150px " + string.Join(" ", Visible(lastTradeHasData).Select(c => c.Width + (Ranked(c) ? MarkSlot : 0) + "px"));
 
     /// <summary>The bands over the headings: one per call, each as wide as the columns it owns.
     /// Built from the list rather than written down, so a column moved between calls cannot leave a
     /// band claiming a figure it did not write.</summary>
-    public static IReadOnlyList<(CallTone Call, string Label, int Span)> Bands { get; } =
-        [.. All
+    public static IReadOnlyList<(CallTone Call, string Label, int Span)> Bands(bool lastTradeHasData) =>
+        [.. Visible(lastTradeHasData)
             .GroupBy(c => c.Call)
             .Select(g => (g.Key, Label: g.Key switch
             {

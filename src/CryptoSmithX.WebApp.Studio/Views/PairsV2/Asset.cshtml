@@ -7,7 +7,10 @@
 
     var perp = Model.Rows.Count(r => r.Row.SegmentKind == "perp");
     var spot = Model.Rows.Count(r => r.Row.SegmentKind == "spot");
-    var fieldsEach = V2Columns.All.Count;
+    // Prompt 2.1, W-1: the count band 1 actually draws — nineteen while LAST TRADE has nothing to
+    // show, matching V2Columns.Visible, the same list the table itself iterates.
+    var lastTradeHasDataForCount = Model.Rows.Any(r => r.Row.LastTradeAt is not null);
+    var fieldsEach = V2Columns.Visible(lastTradeHasDataForCount).Count;
 
     // Counted, not claimed. The header prints these and a reader can check every one against what
     // is drawn below — which is the only reason to print them at all.
@@ -93,6 +96,10 @@
         <button type="button" id="a-ink" class="v2-ink" hidden>Ink</button>
     </span>
 </header>
+
+@* The header and footer stay full-width; everything between them is the 1920px, centred
+   container — .v2-page carries the cap so body itself can stay full-bleed. *@
+<div class="v2-page">
 
 <div class="v2-title">
     @* ЗАГОЛОВОК НАЗЫВАЕТ НАХОДКУ, а не пересчитывает строки. «Five listings quote ADA.» — это
@@ -741,6 +748,8 @@
         }
     </div>
 </section>
+
+</div>
 
 </div>
 
