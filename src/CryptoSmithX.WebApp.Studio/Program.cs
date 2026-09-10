@@ -65,6 +65,35 @@ builder.Services.AddSingleton<StudioCache>();
 builder.Services.AddSingleton<LiveNotifier>();
 builder.Services.AddSingleton<LiveStreamGate>();
 
+// The live mode's three halves, singletons for the same reason and with the same discipline.
+//
+// HubStream is NOT an AddHostedService either, and the argument is the notifier's word for word: it
+// opens its one connection to the hub when the first room subscribes and closes it when the last one
+// leaves. A hosted service would hold a connection open from boot for readers who may never arrive.
+//
+// The base address is configuration because it differs by contour, and it is a name on the compose
+// network — http://hub:8080 — which is reachable from this container and from nowhere else. There is
+// no route for it in Traefik and the hub publishes no ports, which is why /live carries no auth.
+builder.Services.AddHttpClient<HubStream>(client =>
+{
+    client.BaseAddress = new Uri(
+        builder.Configuration["Hub:BaseUrl"]
+        ?? throw new InvalidOperationException("Hub:BaseUrl is not configured."));
+
+    // A stream is held open for as long as somebody is watching; the default 100 s would cut every
+    // one of them and read, from the page, as a hub that keeps dying.
+    client.Timeout = Timeout.InfiniteTimeSpan;
+});
+builder.Services.AddSingleton<LiveRooms>(sp => new LiveRooms(
+    (baseFamily, ct) => PairPageLoader.LoadAsync(
+        sp.GetRequiredService<Db>(), sp.GetRequiredService<StudioCache>(),
+        sp.GetRequiredService<TimeProvider>(), baseFamily, ct),
+    sp.GetRequiredService<HubStream>(),
+    sp.GetRequiredService<LiveNotifier>(),
+    sp.GetRequiredService<TimeProvider>(),
+    sp.GetRequiredService<ILoggerFactory>()));
+builder.Services.AddSingleton<LiveFrameGate>();
+
 builder.Services.AddControllersWithViews();
 
 // The hosting layer registers Data Protection whether or not anything uses it, and with nowhere

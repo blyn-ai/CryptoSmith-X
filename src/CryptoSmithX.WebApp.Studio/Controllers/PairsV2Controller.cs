@@ -1,5 +1,6 @@
 using CryptoSmithX.WebApp.Studio.Data;
 using CryptoSmithX.WebApp.Studio.Live;
+using Microsoft.AspNetCore.Http.Features;
 using CryptoSmithX.WebApp.Studio.Models;
 using CryptoSmithX.Database;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +27,9 @@ public sealed class PairsV2Controller : LivePageController
     private readonly Db _db;
     private readonly StudioCache _cache;
     private readonly TimeProvider _clock;
+    private readonly LiveRooms _rooms;
+    private readonly LiveFrameGate _frames;
+    private readonly HubStream _hub;
 
     public PairsV2Controller(
         Db db,
@@ -33,6 +37,9 @@ public sealed class PairsV2Controller : LivePageController
         TimeProvider clock,
         LiveNotifier notifier,
         LiveStreamGate streams,
+        LiveRooms rooms,
+        LiveFrameGate frames,
+        HubStream hub,
         ICompositeViewEngine viewEngine,
         ILogger<PairsV2Controller> logger)
         : base(notifier, streams, viewEngine, logger)
@@ -40,6 +47,100 @@ public sealed class PairsV2Controller : LivePageController
         _db = db;
         _cache = cache;
         _clock = clock;
+        _rooms = rooms;
+        _frames = frames;
+        _hub = hub;
+    }
+
+    /// <summary>
+    /// The live mode: this asset's room, joined, and its frames written out as they are computed.
+    ///
+    /// <b>No <c>panel</c> for the table.</b> Band 1 is carried by slots here, and sending the
+    /// rendered partial as well would have <c>morph()</c> overwrite a live cell with the database's
+    /// value — which the next tick would put back, two hundred milliseconds later, for as long as
+    /// the tab stayed open. Band 2's panel is untouched; the books are not on the live path yet.
+    ///
+    /// <b>Its own gate.</b> A viewer here costs a room ticking five times a second, not a render on
+    /// a collector pass, so it is counted against <see cref="LiveFrameGate"/> and not the Latest
+    /// ceiling — and refused in words, never as a status, for the reason the Latest branch gives:
+    /// a browser retries a failed status by itself, forever.
+    /// </summary>
+    protected override async Task LiveFramesAsync(string baseFamily, CancellationToken ct)
+    {
+        Response.Headers.ContentType = "text/event-stream";
+        Response.Headers.CacheControl = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
+        HttpContext.Features.Get<IHttpResponseBodyFeature>()?.DisableBuffering();
+
+        var address = LiveFrameGate.AddressOf(HttpContext);
+        if (!_frames.TryEnter(address))
+        {
+            await WriteAsync("event: notice\ndata: full\n\n", ct);
+            return;
+        }
+
+        var room = _rooms.Room(baseFamily);
+        var reader = room.Join();
+
+        // A joining reader holds nothing yet, so the first tick owes it the whole picture rather
+        // than a diff against a page it has not been sent.
+        room.Resend();
+
+        try
+        {
+            await WriteAsync(": connected\n\n", ct);
+            await WriteAsync($"event: signal\ndata: {(_hub.State == HubStreamState.Down ? "degraded" : "up")}\n\n", ct);
+
+            var beat = new PeriodicTimer(TimeSpan.FromSeconds(25));
+            var heartbeat = beat.WaitForNextTickAsync(ct).AsTask();
+            var next = reader.WaitToReadAsync(ct).AsTask();
+
+            while (!ct.IsCancellationRequested)
+            {
+                var woke = await Task.WhenAny(next, heartbeat);
+                if (ReferenceEquals(woke, heartbeat))
+                {
+                    // Under the 30 s idle timeout proxies commonly take. A comment line, so it keeps
+                    // the connection alive while saying nothing about the market.
+                    await WriteAsync(": ping\n\n", ct);
+                    heartbeat = beat.WaitForNextTickAsync(ct).AsTask();
+                    continue;
+                }
+
+                if (!await next)
+                {
+                    break;   // the room closed under us
+                }
+
+                next = reader.WaitToReadAsync(ct).AsTask();
+                while (reader.TryRead(out var frame))
+                {
+                    await WriteAsync(
+                        $"event: slots\nid: {frame.Seq.ToString(System.Globalization.CultureInfo.InvariantCulture)}\n"
+                        + $"data: {System.Text.Json.JsonSerializer.Serialize(frame)}\n\n",
+                        ct);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The reader closed the tab.
+        }
+        catch (IOException)
+        {
+            // The same event the other way round: a write onto a connection already reset.
+        }
+        finally
+        {
+            _rooms.Leave(room, reader);
+            _frames.Exit(address);
+        }
+    }
+
+    private async Task WriteAsync(string text, CancellationToken ct)
+    {
+        await Response.WriteAsync(text, ct);
+        await Response.Body.FlushAsync(ct);
     }
 
     /// <summary>

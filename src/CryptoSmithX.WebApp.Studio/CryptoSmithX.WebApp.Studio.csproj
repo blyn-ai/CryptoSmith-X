@@ -7,6 +7,14 @@
     <ProjectReference Include="..\CryptoSmithX.Database\CryptoSmithX.Database.csproj" />
   </ItemGroup>
 
+  <!-- HubStream's debounce and backoff are settable only from the tests: the numbers are a design
+       decision (see that class), and a timing that can be raised from a config file is a timing that
+       gets raised instead of understood. The same seam the Hub and the connectors already open to
+       their own tests. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="CryptoSmithX.WebApp.Studio.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Npgsql" Version="9.0.3" />
     <PackageReference Include="Dapper" Version="2.1.66" />

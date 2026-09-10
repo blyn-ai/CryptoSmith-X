@@ -72,7 +72,7 @@ public abstract class LivePageController : Controller
     /// an update that cannot have changed them — would be the page moving for its own sake.
     /// </summary>
     [HttpGet]
-    public async Task Live(string baseFamily, CancellationToken ct)
+    public async Task Live(string baseFamily, CancellationToken ct, string? mode = null)
     {
         // Same check as Pair, and here it matters more rather than less — Program.cs says so about
         // the route constraint and it is just as true of the address that bypasses it: what this
@@ -81,6 +81,18 @@ public abstract class LivePageController : Controller
         if (!PairAddress.IsFamily(baseFamily))
         {
             Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        // The live mode is a PARAMETER of this stream and not a second endpoint: one address, one
+        // gate to remember, one place a reader's connection is accounted for. It hands off here,
+        // BESIDE the loop below and never inside it — everything past this branch is the Latest
+        // cycle exactly as it was, and that is deliberate. It is the part that works, it is the part
+        // whose failures are silent, and a mode switch threaded through its middle would be a second
+        // set of conditions inside a loop whose whole difficulty is that it has to be read as one.
+        if (string.Equals(mode, "live", StringComparison.OrdinalIgnoreCase))
+        {
+            await LiveFramesAsync(baseFamily, ct);
             return;
         }
 
@@ -306,6 +318,21 @@ public abstract class LivePageController : Controller
         {
             Streams.Exit();
         }
+    }
+
+    /// <summary>
+    /// The live mode, where a page has one: figures at the venues' own rate, as slots rather than
+    /// rendered markup.
+    ///
+    /// Virtual and refusing by default, because "this design has a live mode" is a fact about a
+    /// page and not about the stream. The first pair page has no room and no hub subscription; asked
+    /// for one it answers the same 404 it answers for an address it does not serve, rather than
+    /// quietly handing back the Latest cycle under the word "live".
+    /// </summary>
+    protected virtual Task LiveFramesAsync(string baseFamily, CancellationToken ct)
+    {
+        Response.StatusCode = StatusCodes.Status404NotFound;
+        return Task.CompletedTask;
     }
 
     /// <summary>How long a burst is allowed to keep arriving before it is drawn as one update.</summary>
