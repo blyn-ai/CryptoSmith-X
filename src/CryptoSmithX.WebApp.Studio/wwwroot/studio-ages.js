@@ -562,12 +562,19 @@
   let cells = [];
   let strips = [];
   let statement = null;
+  let statementLate = null;
+  let statementDegraded = null;
   let ranks = [];
 
   const collect = () => {
     // The accent half of the statement line. One element, re-derived from the strips below rather
     // than patched — it is a whole sentence, and there is no partial update of a sentence.
     statement = document.querySelector('[data-statement-verdict]');
+    // Вторая страница держит в заголовке ПОСТОЯННЫЙ текст и два слота под числа; первая — одну из
+    // пяти фраз. Слоты есть — пишем их, нет — пишем фразу: одна тикалка на обе страницы, и ни
+    // одна из них не переписывает разметку другой.
+    statementLate = document.querySelector('[data-statement-late]');
+    statementDegraded = document.querySelector('[data-statement-degraded]');
 
     cells = [...document.querySelectorAll('.a-cell[data-at]')].map((cell) => ({
       cell,
@@ -807,7 +814,15 @@
     // replaces the text node and invalidates layout, and this element sits inside a live region
     // ([data-live-region="statement"]), where an identical rewrite is a redundant announcement.
     // With the sentence no longer carrying a clock, a typical tick now writes nothing here at all.
-    setText(statement, statementText(degradedFeeds, lateCalls, landed, windowed));
+    if (statementLate || statementDegraded) {
+      // Прочерк, а не ноль: страница, где ещё ничего не наблюдали или где никто не заявил такта,
+      // не имеет счёта — а ноль сказал бы «всё в своём окне», чего эти два состояния не говорят.
+      var judged = landed > 0 && windowed > 0;
+      setText(statementLate, judged ? String(lateCalls) : '—');
+      setText(statementDegraded, judged ? String(degradedFeeds) : '—');
+    } else {
+      setText(statement, statementText(degradedFeeds, lateCalls, landed, windowed));
+    }
 
     // Said after the statement line and derived from the same walk: where that sentence says what
     // is true of the FEEDS, this one says what is true of the PAGE, and a reader who has just read

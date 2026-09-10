@@ -112,6 +112,38 @@ public static class Statement
     }
 
     /// <summary>
+    /// The same four facts as <see cref="Verdict"/>, handed back as NUMBERS instead of a sentence.
+    ///
+    /// <b>Why both exist.</b> Verdict picks one of five sentences, so the headline changes length
+    /// whenever the page changes state — and on the second asset page that line is the largest type
+    /// on the screen, so it visibly jumped. The counts let the words stay put and only the figures
+    /// move, each in a slot of its own.
+    ///
+    /// <b>What that costs, and how it is paid.</b> The comment on <see cref="OneCallLate"/> rejected
+    /// exactly this once, and its reason was real: the display face ships no <c>tnum</c>, so digits
+    /// in it have different advances and a fixed slot holds the LINE still while the digits inside
+    /// keep shifting. The answer is not to argue with that — it is to set the figures in the mono
+    /// face, which does have tabular figures. The words stay in the display face; only the numbers
+    /// leave it, and they are the only part that changes.
+    ///
+    /// Null is not zero here either: a page where nothing has ever been observed, or where nothing
+    /// states a cadence, has NO count — zero would claim everything is inside its window, which is
+    /// the one thing those two states do not say.
+    /// </summary>
+    public static StatementCounts Counts(IReadOnlyList<VenueRowModel> rows)
+    {
+        var strips = rows.Select(StripModel.Build).ToList();
+        var landed = strips.SelectMany(s => s.Calls).ToList();
+
+        if (landed.Count == 0 || landed.All(c => c.WindowSeconds is null))
+        {
+            return new StatementCounts(null, null);
+        }
+
+        return new StatementCounts(LateCalls(rows).Count, strips.Count(s => s.Degraded));
+    }
+
+    /// <summary>
     /// P0-4 (UX audit): every call on the page that is past its own window, right now — the ONE
     /// array <see cref="Verdict"/>'s count, band 1's per-cell rule (V2Cells.cs), and band 5's
     /// synthetic OPEN gap rows (V2Coverage / Asset.cshtml) all read, so the three can never
@@ -148,4 +180,13 @@ public static class Statement
 
     public static int Perps(IReadOnlyList<VenueRowModel> rows) =>
         rows.Count(r => !string.Equals(r.Row.SegmentKind, "spot", StringComparison.Ordinal));
+}
+
+/// <summary>The statement line as figures: how many calls are past their windows and how many feeds
+/// have stopped meaning anything. Null in both when the page has nothing to judge — see
+/// <see cref="Statement.Counts"/>.</summary>
+public sealed record StatementCounts(int? Late, int? Degraded)
+{
+    /// <summary>What a slot prints. A dash, never a zero, when there is no count to give.</summary>
+    public static string Slot(int? n) => n?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "—";
 }
