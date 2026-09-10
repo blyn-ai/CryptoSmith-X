@@ -8,11 +8,17 @@
     string? Err(string key) => Model.Errors.TryGetValue(key, out var message) ? message : null;
     StrategyParameterViewModel Parameter(string id) => Model.StrategyParameters.Single(p => p.Definition.Id == id);
 
+    // Метка у сверта — из макета, и считается из самого значения: до 5× сбалансировано,
+    // до 7× повышенно, дальше агрессивно. Единственное поле, у которого метка есть.
+    string? LeverageTag(decimal x) => x <= 5m ? "Subalansuota" : x <= 7m ? "Padidinta" : "Agresyvu";
+
     FieldCard FromLimit(RuntimeLimitViewModel l) => new(
         l.BindingName, l.Label, l.Unit, l.Value, l.Minimum, l.Maximum, l.Step, l.DecimalPlaces,
         l.LowerCaption, l.HigherCaption, l.Description, l.Example,
         l.DetailIntro, l.LowerImpact, l.HigherImpact, l.Technical,
-        Editable: true, Tag: null, Hint: null, Error: l.Error);
+        Editable: true,
+        Tag: string.Equals(l.Key, "leverage", StringComparison.Ordinal) ? LeverageTag(l.Value) : null,
+        Hint: null, Error: l.Error);
 
     FieldCard FromParameter(StrategyParameterViewModel p)
     {

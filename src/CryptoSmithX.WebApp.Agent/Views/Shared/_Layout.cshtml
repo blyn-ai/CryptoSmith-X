@@ -12,7 +12,12 @@
     <title>@ViewData["Title"] · CryptoSmith X</title>
     <link rel="icon" href="~/ds/mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="~/ds/styles.css">
-    <link rel="stylesheet" href="~/agent.css">
+    @* ?v= — НЕ УКРАШЕНИЕ. Cloudflare кеширует статику этого домена, и без версии в адресе
+       браузер получает старый файл: разметка страницы параметров уехала новая, а стилей к ней
+       не пришло вовсе — cf-cache-status: HIT, age 3213, 179 строк вместо 489. Ровно та же
+       ловушка, что уже ловила studio-v2.css и studio-live.js в соседнем приложении.
+       Поднимать при каждой правке файла. *@
+    <link rel="stylesheet" href="~/agent.css?v=2">
 </head>
 <body class="@ViewData["PageClass"]">
 @RenderBody()
