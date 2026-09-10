@@ -24,9 +24,17 @@ namespace CryptoSmithX.MarketData.Hub.Live;
 /// </summary>
 public sealed class InstrumentMap
 {
+    // Aliased to the record's own names, quoted, the way CandleStore and every other Dapper query
+    // here does it. Two reasons, and the first one shipped broken once: the column is
+    // exchange_instrument.id — there is no instrument_id column on this table, only on the tables
+    // that point at it. And Dapper is not configured to match names across underscores anywhere in
+    // this solution, so a bare snake_case column would not bind to a PascalCase member even if the
+    // name existed.
     public const string TargetInstrumentsSql =
         """
-        select instrument_id, segment_code, exchange_symbol
+        select id              as "InstrumentId",
+               segment_code    as "SegmentCode",
+               exchange_symbol as "ExchangeSymbol"
           from exchange_instrument
          where collect = true
            and status = 'trading'

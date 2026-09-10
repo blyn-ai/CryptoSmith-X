@@ -19,6 +19,23 @@ public sealed class InstrumentMapTests
     }
 
     [Fact]
+    public void Every_column_the_row_needs_is_selected_under_the_name_it_binds_by()
+    {
+        // This one is here because it shipped broken. The first version selected "instrument_id",
+        // which is not a column on this table at all — the key is exchange_instrument.id, and only
+        // the tables pointing AT it spell the reference out. It reached the test host before the
+        // error did, since a query nothing runs in CI is a query nothing checks.
+        //
+        // Quoted aliases rather than snake_case, because Dapper is not configured to match names
+        // across underscores anywhere in this solution: exchange_symbol would not bind to
+        // ExchangeSymbol even where the column does exist.
+        Assert.Contains("""id              as "InstrumentId" """.TrimEnd(), InstrumentMap.TargetInstrumentsSql);
+        Assert.Contains(""""SegmentCode"""", InstrumentMap.TargetInstrumentsSql);
+        Assert.Contains(""""ExchangeSymbol"""", InstrumentMap.TargetInstrumentsSql);
+        Assert.DoesNotContain("select instrument_id", InstrumentMap.TargetInstrumentsSql);
+    }
+
+    [Fact]
     public void A_symbol_resolves_to_its_id_within_its_own_segment()
     {
         var map = Snapshot();
