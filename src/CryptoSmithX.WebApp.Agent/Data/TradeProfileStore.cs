@@ -71,7 +71,23 @@ public static class TradeProfileStore
     {
         await using var tx = await conn.BeginTransactionAsync(ct);
 
-        await conn.ExecuteAsync(new CommandDefinition(
+        await SaveInTransactionAsync(conn, tx, botInstanceId, profile, ct);
+
+        await tx.CommitAsync(ct);
+    }
+
+    /// <summary>
+    /// Writes the four worker-owned numeric overrides inside a caller's wider
+    /// transaction. Strategy revisions call this so the worker cannot see a new
+    /// strategy paired with old capital limits, or the reverse.
+    /// </summary>
+    public static Task SaveInTransactionAsync(
+        DbConnection conn,
+        DbTransaction tx,
+        string botInstanceId,
+        TradeProfile profile,
+        CancellationToken ct) =>
+        conn.ExecuteAsync(new CommandDefinition(
             """
             insert into bot_config_overrides
               (bot_instance_id, override_key, numeric_value, updated_at)
@@ -95,7 +111,4 @@ public static class TradeProfileStore
             },
             tx,
             cancellationToken: ct));
-
-        await tx.CommitAsync(ct);
-    }
 }

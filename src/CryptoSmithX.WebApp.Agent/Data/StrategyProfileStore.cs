@@ -42,6 +42,52 @@ public static class StrategyProfileStore
          limit @limit
         """;
 
+    internal const string LockActiveAssignmentSql =
+        """
+        select profile_id as "ProfileId",
+               profile_revision as "Revision"
+          from bot_instance_strategy_profiles
+         where bot_instance_id = @botInstanceId
+           and is_active = true
+         for update
+        """;
+
+    internal const string LockProfileSql =
+        """
+        select profile_id
+          from bot_strategy_profiles
+         where profile_id = @profileId
+         for update
+        """;
+
+    internal const string NextRevisionSql =
+        """
+        select coalesce(max(revision), 0) + 1
+          from bot_strategy_profile_revisions
+         where profile_id = @profileId
+        """;
+
+    internal const string InsertRevisionSql =
+        """
+        insert into bot_strategy_profile_revisions
+            (profile_id, revision, values_jsonb, change_note, created_by)
+        values
+            (@profileId, @revision, cast(@valuesJson as jsonb), @changeNote, @changedBy)
+        """;
+
+    internal const string ActivateRevisionSql =
+        """
+        update bot_instance_strategy_profiles
+           set profile_revision = @revision,
+               overrides_jsonb = '{}'::jsonb,
+               updated_at = now(),
+               updated_by = @changedBy
+         where bot_instance_id = @botInstanceId
+           and profile_id = @profileId
+           and profile_revision = @expectedRevision
+           and is_active = true
+        """;
+
     public static async Task<ActiveStrategyProfile?> LoadActiveAsync(
         DbConnection connection,
         string botInstanceId,
@@ -85,6 +131,114 @@ public static class StrategyProfileStore
         return result;
     }
 
+    /// <summary>
+    /// Creates the next complete profile revision in memory. Instance overrides
+    /// are intentionally folded into it: the new revision is the exact strategy
+    /// the owner reviewed, and its assignment starts without a hidden second
+    /// layer that could mask a saved field.
+    /// </summary>
+    public static JsonObject BuildNextRevisionValues(
+        ActiveStrategyProfile active,
+        IReadOnlyDictionary<string, decimal> parameters)
+    {
+        var values = ResolveValues(active);
+        foreach (var parameter in parameters)
+        {
+            StrategyParameterCatalog.Write(StrategyParameterCatalog.Get(parameter.Key), values, parameter.Value);
+        }
+
+        return values;
+    }
+
+    /// <summary>
+    /// Atomically advances a bot's active strategy revision and its four runtime
+    /// limits. The expected profile revision prevents a stale browser form from
+    /// silently replacing another save made after the page was opened.
+    /// </summary>
+    public static async Task<ActiveStrategyProfile> SaveAsync(
+        DbConnection connection,
+        string botInstanceId,
+        ActiveStrategyProfile expected,
+        StrategyProfileSave save,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        var assignment = await connection.QuerySingleOrDefaultAsync<ActiveAssignmentRow>(new CommandDefinition(
+            LockActiveAssignmentSql,
+            new { botInstanceId },
+            transaction,
+            cancellationToken: cancellationToken));
+        if (assignment is null)
+        {
+            throw new InvalidOperationException($"Bot instance '{botInstanceId}' has no active strategy assignment.");
+        }
+
+        if (assignment.ProfileId != expected.ProfileId || assignment.Revision != expected.Revision)
+        {
+            throw new StrategyProfileConflictException(botInstanceId, expected.Revision, assignment.Revision);
+        }
+
+        await connection.ExecuteScalarAsync<Guid>(new CommandDefinition(
+            LockProfileSql,
+            new { profileId = expected.ProfileId },
+            transaction,
+            cancellationToken: cancellationToken));
+        var revision = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            NextRevisionSql,
+            new { profileId = expected.ProfileId },
+            transaction,
+            cancellationToken: cancellationToken));
+        var values = BuildNextRevisionValues(expected, save.Parameters);
+        var changeNote = NormalizeNote(save.ChangeNote);
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            InsertRevisionSql,
+            new
+            {
+                profileId = expected.ProfileId,
+                revision,
+                valuesJson = values.ToJsonString(),
+                changeNote,
+                changedBy = save.ChangedBy,
+            },
+            transaction,
+            cancellationToken: cancellationToken));
+        var activated = await connection.ExecuteAsync(new CommandDefinition(
+            ActivateRevisionSql,
+            new
+            {
+                botInstanceId,
+                profileId = expected.ProfileId,
+                revision,
+                expectedRevision = expected.Revision,
+                changedBy = save.ChangedBy,
+            },
+            transaction,
+            cancellationToken: cancellationToken));
+        if (activated != 1)
+        {
+            throw new StrategyProfileConflictException(botInstanceId, expected.Revision, null);
+        }
+
+        await TradeProfileStore.SaveInTransactionAsync(
+            connection,
+            transaction,
+            botInstanceId,
+            save.RuntimeLimits,
+            cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return new ActiveStrategyProfile(
+            expected.ProfileId,
+            expected.ProfileName,
+            revision,
+            values,
+            new JsonObject(),
+            changeNote,
+            DateTime.UtcNow);
+    }
+
     private static JsonObject ParseObject(string json, string source) =>
         JsonNode.Parse(json)?.AsObject()
         ?? throw new InvalidOperationException($"Strategy profile {source} must be a JSON object.");
@@ -104,6 +258,16 @@ public static class StrategyProfileStore
         }
     }
 
+    private static string? NormalizeNote(string? note)
+    {
+        var normalized = note?.Trim();
+        return string.IsNullOrWhiteSpace(normalized)
+            ? null
+            : normalized.Length <= 1_000
+                ? normalized
+                : throw new ArgumentOutOfRangeException(nameof(note), "A strategy note cannot exceed 1000 characters.");
+    }
+
     public sealed record ActiveStrategyProfileRow(
         Guid ProfileId,
         string ProfileName,
@@ -112,6 +276,8 @@ public static class StrategyProfileStore
         string OverridesJson,
         string? ChangeNote,
         DateTime CreatedAt);
+
+    public sealed record ActiveAssignmentRow(Guid ProfileId, int Revision);
 }
 
 public sealed record ActiveStrategyProfile(
@@ -127,3 +293,19 @@ public sealed record StrategyProfileRevision(
     int Revision,
     string? ChangeNote,
     DateTime CreatedAt);
+
+public sealed record StrategyProfileSave(
+    TradeProfile RuntimeLimits,
+    IReadOnlyDictionary<string, decimal> Parameters,
+    string? ChangeNote,
+    string ChangedBy);
+
+public sealed class StrategyProfileConflictException(
+    string botInstanceId,
+    int expectedRevision,
+    int? actualRevision) : Exception(
+        actualRevision is null
+            ? $"The active strategy assignment for '{botInstanceId}' changed before this save completed."
+            : $"The active strategy revision for '{botInstanceId}' changed from {expectedRevision} to {actualRevision}.")
+{
+}
