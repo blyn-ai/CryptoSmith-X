@@ -43,12 +43,45 @@ public sealed class ColumnReadingTests
     }
 
     [Fact]
-    public void The_spread_says_tight_and_wide_and_everything_else_says_best_and_worst()
+    public void Every_other_ranked_field_agrees_best_with_max()
     {
-        Assert.Equal("tight", V2Ranks.Word(V2Field.Spread, Verdict.Best));
-        Assert.Equal("wide", V2Ranks.Word(V2Field.Spread, Verdict.Worst));
-        Assert.Equal("best", V2Ranks.Word(V2Field.Bid, Verdict.Best));
-        Assert.Equal("worst", V2Ranks.Word(V2Field.Bid, Verdict.Worst));
+        // Bid: the good price is the HIGH one (Verdicts.HighIsBest), so Best is the row holding
+        // the population's own maximum and wears the "best" class and the MAX mark together.
+        Assert.Equal("best", V2Ranks.ClassWord(V2Field.Bid, Verdict.Best));
+        Assert.Equal("max", V2Ranks.Mark(V2Field.Bid, Verdict.Best));
+        Assert.Equal("worst", V2Ranks.ClassWord(V2Field.Bid, Verdict.Worst));
+        Assert.Equal("min", V2Ranks.Mark(V2Field.Bid, Verdict.Worst));
+    }
+
+    [Fact]
+    public void Ask_and_spread_invert_best_and_worst_against_max_and_min()
+    {
+        // Prompt 1.5 (UX audit): MAX/MIN name the actual highest/lowest figure, which is a
+        // different question from Verdict.Best/Worst on the two ranked fields where the GOOD
+        // price is the LOW one (Verdicts.HighIsBest is false for Ask and for Spread) — Best there
+        // is the row holding the MINIMUM, so it wears the "worst" class and the MIN mark, and
+        // Worst wears "best"/MAX. Same rank, same population, the word just states which extreme
+        // rather than which one is good.
+        Assert.Equal("worst", V2Ranks.ClassWord(V2Field.Spread, Verdict.Best));
+        Assert.Equal("min", V2Ranks.Mark(V2Field.Spread, Verdict.Best));
+        Assert.Equal("best", V2Ranks.ClassWord(V2Field.Spread, Verdict.Worst));
+        Assert.Equal("max", V2Ranks.Mark(V2Field.Spread, Verdict.Worst));
+
+        Assert.Equal("worst", V2Ranks.ClassWord(V2Field.Ask, Verdict.Best));
+        Assert.Equal("min", V2Ranks.Mark(V2Field.Ask, Verdict.Best));
+        Assert.Equal("best", V2Ranks.ClassWord(V2Field.Ask, Verdict.Worst));
+        Assert.Equal("max", V2Ranks.Mark(V2Field.Ask, Verdict.Worst));
+    }
+
+    [Fact]
+    public void A_marks_title_states_the_fact_and_the_population()
+    {
+        Assert.Equal(
+            "Highest bid among USD listings",
+            V2Ranks.Title(V2Field.Bid, Verdict.Best, quoteScoped: true, quoteAsset: "USD"));
+        Assert.Equal(
+            "Lowest spread among all listings",
+            V2Ranks.Title(V2Field.Spread, Verdict.Best, quoteScoped: false, quoteAsset: "USD"));
     }
 
     [Fact]

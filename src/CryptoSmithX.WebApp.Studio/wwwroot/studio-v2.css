@@ -417,17 +417,29 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    Число держит свой цвет: покрасить измерение в цвет суждения о нём — значит сказать, что
    зелёное число и есть другая величина.
 
-   У спреда заливки нет вовсе, только цветное слово: TIGHT и WIDE — это тот же ранг, названный
-   словом колонки, и wash под каждым спредом на семи строках забил бы всю колонку. */
+   Prompt 1.5: MAX and MIN replace BEST/WORST/TIGHT/WIDE everywhere, .v2-part--tight/--wide
+   below are dead rules kept rather than deleted (nothing emits those classes any more — every
+   ranked field, spread included, now wears .v2-part--best/--worst, decided by which figure a row
+   actually holds rather than by which one Verdicts.cs calls good). Neither mark keeps green or
+   magenta: those stay reserved for bid/ask and sign, and a mark states a fact, not a verdict —
+   MAX washes a neutral warm grey, MIN wears no fill at all, only a hairline outline, so the two
+   read as a pair rather than as a winner and a loser.
+
+   The grey is inline color-mix() rather than a fourth --tag-* token: this file keeps zero tokens
+   of its own (see the header above), and ds/tokens/colors.css is a byte-identical vendored copy
+   of the design system's own file (DesignSystemTests), so a token this page alone needs cannot
+   live there either. --text-heading IS the ink the design system's own comment names it — mixed
+   at a wash-level alpha it reads as a warm grey on both themes without inventing a colour. */
 .v2-part{display:inline-flex;align-items:flex-start;gap:2px}
 .v2-part i{font-style:normal;font:500 7.5px/1.15 var(--font-mono);letter-spacing:.08em;
   text-transform:uppercase}
 .v2-part > span{line-height:1}
-.v2-part--best,.v2-part--worst{padding:1px 3px}
-.v2-part--best{background:var(--tag-best-bg)}
-.v2-part--best i{color:var(--tag-best-ink)}
-.v2-part--worst{background:var(--tag-worst-bg)}
-.v2-part--worst i{color:var(--tag-worst-ink)}
+.v2-part--best,.v2-part--worst{padding:1px 2px}
+.v2-part--best i,.v2-part--worst i{display:inline-block;width:3ch}
+.v2-part--best{background:color-mix(in srgb, var(--text-heading) 16%, transparent)}
+.v2-part--best i{color:var(--text-heading)}
+.v2-part--worst{outline:1px solid var(--border-hairline);outline-offset:-1px}
+.v2-part--worst i{color:var(--text-heading)}
 .v2-part--tight i{color:var(--tag-tight)}
 .v2-part--wide i{color:var(--tag-wide)}
 

@@ -138,16 +138,73 @@ public static class V2Ranks
     public static bool IsQuoteScoped(V2Field f) =>
         ColumnOf(f) is { } column && Verdicts.Scope(column) == VerdictScope.PerQuoteAsset;
 
-    /// <summary>The word the spread column uses for the same two ranks. Every other column says
-    /// BEST and WORST; on a spread "best" is a width, and the reader reads TIGHT faster than they
-    /// translate.</summary>
-    public static string Word(V2Field f, Verdict v) => (f, v) switch
+    /// <summary>
+    /// Prompt 1.5: whether this rank names the row holding the HIGHEST figure in its ranking
+    /// population (MAX) rather than the LOWEST (MIN).
+    ///
+    /// Not the same question as "is this Verdict.Best" — Best names the GOOD figure, and the good
+    /// figure is the high one only where <see cref="Verdicts.HighIsBest"/> says so. On Ask and on
+    /// Spread the good price is the low one, so Verdict.Best there is the row holding the MINIMUM,
+    /// and a mark that only ever asked "is this Best" would have printed MAX on the lowest ask on
+    /// the page.
+    /// </summary>
+    public static bool IsMax(V2Field f, Verdict v)
     {
-        (V2Field.Spread, Verdict.Best) => "tight",
-        (V2Field.Spread, Verdict.Worst) => "wide",
-        (_, Verdict.Best) => "best",
-        _ => "worst",
+        var highIsBest = ColumnOf(f) is { } c && Verdicts.HighIsBest(c);
+        return (v == Verdict.Best) == highIsBest;
+    }
+
+    /// <summary>
+    /// The class suffix a rank chip wears — <c>.v2-part--best</c> / <c>.v2-part--worst</c>,
+    /// unchanged names so Prompt 1.5 needed no selector rewrite in studio-v2.css. What changed is
+    /// what decides between them: now <see cref="IsMax"/>, not <see cref="Verdict"/> directly, so
+    /// the class some MAX chip wears is always "best" and some MIN chip's is always "worst" even on
+    /// Ask and Spread, where the two used to point the other way (a "worst" class rendering the
+    /// word "best" for the row holding the MINIMUM ask has always been a contradiction the class
+    /// name alone could not see).
+    /// </summary>
+    public static string ClassWord(V2Field f, Verdict v) => IsMax(f, v) ? "best" : "worst";
+
+    /// <summary>
+    /// Prompt 1.5: the mark's own text — always MAX or MIN, replacing BEST/WORST/TIGHT/WIDE
+    /// everywhere on this page. States which figure in the ranking population this one is, never
+    /// which one is "good": green and magenta are reserved for bid/ask and sign, not for a rank
+    /// mark, so the same two words now cover every ranked column including spread, where the
+    /// tightest figure is the MINIMUM and the widest is the MAXIMUM whichever one a trader wants.
+    /// Lowercase — studio-v2.css's existing text-transform:uppercase on <c>.v2-part i</c> renders
+    /// it, the same way BEST/WORST always did.
+    /// </summary>
+    public static string Mark(V2Field f, Verdict v) => IsMax(f, v) ? "max" : "min";
+
+    /// <summary>The field name a mark's title states the fact about — "Highest bid among USD
+    /// listings", never a column label built for a header (e.g. the paired "Bid / Ask"), because a
+    /// paired cell's two chips each name their OWN field.</summary>
+    public static string FieldName(V2Field f) => f switch
+    {
+        V2Field.Bid => "bid",
+        V2Field.Ask => "ask",
+        V2Field.Spread => "spread",
+        V2Field.BidSize => "bid size",
+        V2Field.AskSize => "ask size",
+        V2Field.Depth10 => "depth at 10 bps",
+        V2Field.Depth25 => "depth at 25 bps",
+        V2Field.Depth50 => "depth at 50 bps",
+        V2Field.OpenInterest => "open interest",
+        V2Field.Turnover24h => "turnover",
+        _ => f.ToString().ToLowerInvariant(),
     };
+
+    /// <summary>Prompt 1.5, item 3: the mark's title, stating the fact and the population —
+    /// "Highest bid among USD listings", "Lowest spread among all listings". <paramref
+    /// name="quoteScoped"/> decides the population's own words, read from the same
+    /// <see cref="IsQuoteScoped"/>/quote-asset pair the chip's 3px rule already uses, so the title
+    /// and the rule can never name two different populations for one chip.</summary>
+    public static string Title(V2Field f, Verdict v, bool quoteScoped, string quoteAsset)
+    {
+        var fact = IsMax(f, v) ? "Highest" : "Lowest";
+        var population = quoteScoped ? quoteAsset + " listings" : "all listings";
+        return $"{fact} {FieldName(f)} among {population}";
+    }
 }
 
 public enum V2Field

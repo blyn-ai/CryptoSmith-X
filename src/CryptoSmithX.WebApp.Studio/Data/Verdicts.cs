@@ -276,6 +276,15 @@ public static class Verdicts
     public static VerdictScope Scope(PairColumn column) => ByColumn[column].Scope;
 
     /// <summary>
+    /// Whether the HIGH figure in this column is the good one — true for a bid, false for an ask,
+    /// where the good price is the LOW one. Exposed for Prompt 1.5: a MAX/MIN mark states which
+    /// figure a row actually holds, the highest or the lowest, and that is a different question
+    /// from which one <see cref="Verdict"/> calls Best — the two agree everywhere <paramref
+    /// name="column"/>'s good direction is up and invert everywhere it is down (Ask, SpreadBps).
+    /// </summary>
+    public static bool HighIsBest(PairColumn column) => ByColumn[column].HighIsBest;
+
+    /// <summary>
     /// Whether this row's figure in this column may take part in a comparison at all — the chip and
     /// the bar together, because they are the same claim in two channels.
     ///

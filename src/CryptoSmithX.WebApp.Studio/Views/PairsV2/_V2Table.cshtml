@@ -123,11 +123,16 @@
                     var cell = V2Cells.Field(r, c.Field, stress, book);
                     var column = V2Ranks.ColumnOf(c.Field);
                     var rank = column is { } rc ? Model.Verdicts.Of(r.Row.InstrumentId, rc) : Verdict.None;
-                    var mark = rank == Verdict.None ? null : V2Ranks.Word(c.Field, rank);
+                    var mark = rank == Verdict.None ? null : V2Ranks.ClassWord(c.Field, rank);
                     // P0-1: only a chip whose rank was computed INSIDE this listing's quote asset
                     // gets the group rule — a WholePair chip (sizes, OI, spread, book reach) ranked
                     // across every quote on the page and the rule would misname the comparison.
                     var quoteRule = mark is not null && V2Ranks.IsQuoteScoped(c.Field);
+                    // Prompt 1.5: the mark's own text (MAX/min) and its title read the SAME
+                    // quoteRule the 3px rule uses, so a chip's title can never name a population
+                    // the rule beside it disagrees with.
+                    var markText = rank == Verdict.None ? null : V2Ranks.Mark(c.Field, rank);
+                    var markTitle = rank == Verdict.None ? null : V2Ranks.Title(c.Field, rank, quoteRule, r.Row.QuoteAsset);
                     var spark = c.Spark ? Format.SparkPath(V2Columns.Series(r, c), 60, 14) : null;
                     var age = V2Columns.Freshness(r, c);
 
@@ -136,12 +141,17 @@
                     // because it still is one, only sharing a cell rather than a track.
                     var pairCell = V2Cell.None;
                     string? pairMark = null;
+                    string? pairMarkText = null;
+                    string? pairMarkTitle = null;
                     if (c.PairedField is { } pf)
                     {
                         pairCell = V2Cells.Field(r, pf, stress, book);
                         var pairColumn = V2Ranks.ColumnOf(pf);
                         var pairRank = pairColumn is { } prc ? Model.Verdicts.Of(r.Row.InstrumentId, prc) : Verdict.None;
-                        pairMark = pairRank == Verdict.None ? null : V2Ranks.Word(pf, pairRank);
+                        pairMark = pairRank == Verdict.None ? null : V2Ranks.ClassWord(pf, pairRank);
+                        var pairQuoteRuleInner = pairMark is not null && V2Ranks.IsQuoteScoped(pf);
+                        pairMarkText = pairRank == Verdict.None ? null : V2Ranks.Mark(pf, pairRank);
+                        pairMarkTitle = pairRank == Verdict.None ? null : V2Ranks.Title(pf, pairRank, pairQuoteRuleInner, r.Row.QuoteAsset);
                     }
                     var pairQuoteRule = pairMark is not null && c.PairedField is { } pf2 && V2Ranks.IsQuoteScoped(pf2);
 
@@ -161,7 +171,7 @@
                             <span class="v2-fig @(cell.Value is null ? "v2-fig--none" : "")">
                                 <span class="v2-part @(mark is null ? "" : "v2-part--" + mark)"
                                       data-quote="@(quoteRule ? r.Row.QuoteAsset : null)">
-                                    @if (mark is not null) { <i>@mark</i> }
+                                    @if (markText is not null) { <i title="@markTitle">@markText</i> }
                                     <span>@cell.Text</span>
                                 </span>
                             </span>
@@ -179,12 +189,12 @@
                             <span class="v2-fig v2-fig--pair">
                                 <span class="v2-part @(mark is null ? "" : "v2-part--" + mark) @(cell.Value is null ? "v2-fig--none" : "")"
                                       data-quote="@(quoteRule ? r.Row.QuoteAsset : null)">
-                                    @if (mark is not null) { <i>@mark</i> }
+                                    @if (markText is not null) { <i title="@markTitle">@markText</i> }
                                     <span>@cell.Text</span>
                                 </span>
                                 <span class="v2-part @(pairMark is null ? "" : "v2-part--" + pairMark) @(pairCell.Value is null ? "v2-fig--none" : "")"
                                       data-quote="@(pairQuoteRule ? r.Row.QuoteAsset : null)">
-                                    @if (pairMark is not null) { <i>@pairMark</i> }
+                                    @if (pairMarkText is not null) { <i title="@pairMarkTitle">@pairMarkText</i> }
                                     <span>@pairCell.Text</span>
                                 </span>
                             </span>
@@ -212,10 +222,13 @@
     @* P0-1 / P0-5 (UX audit): this paragraph replaces the old one, which claimed a bar REPLACES the
        BEST chip — false; both exist, on different columns, for different reasons. The sentence
        this file needs to keep true from here on is the one below, not the one that used to be
-       here. *@
+       here.
+       Prompt 1.5: BEST/WORST retired the same way TIGHT/WIDE did — MAX and MIN state the fact
+       (which figure is the population's own extreme) rather than a recommendation, which is what
+       BEST always risked reading as on a page that takes no side in the trade. *@
     <p class="v2-legend">
-        Chips on prices and turnover rank inside a quote — the rule on the chip is the quote. Chips
-        on bps and base units rank across every listing.
+        MAX and MIN mark the highest and lowest figure — inside a quote for prices and turnover,
+        across every listing for bps and base units. They state a fact, not a recommendation.
         <b>—</b> is not measured and never a zero. A late call is a magenta rule on its cells, one
         clock per call in the listing cell.
     </p>
