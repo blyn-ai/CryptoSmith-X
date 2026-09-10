@@ -592,12 +592,17 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
    never mean "no data"). Lightweight Charts is created with a transparent layout background
    (studio-candles.js chartOptions()), so this sits on the CONTAINER, behind the canvas, and shows
    through wherever the chart paints nothing — which is exactly the gap this exists to mark.
-   --hatch-w is the one number that varies per card (set inline); everything else is fixed, so no
-   card's chart shifts size to draw it. */
+   --hatch-w and --hatch-h are the two numbers that vary per card; everything else is fixed, so no
+   card's chart shifts size to draw it.
+
+   ОБА ЧИСЛА СТАВИТ studio-candles.js, ПО ОСИ САМОГО ГРАФИКА. Ширина была процентом ширины
+   контейнера — координатной системой, к которой ось отношения не имеет: у одних панелей штриховка
+   не доходила до первой свечи, у других заезжала под неё. Высота была 100% и заходила под
+   подписи дат. Умолчания нулевые: без скрипта нет и графика, а штриховка без графика — узор. */
 .v2-chart{
   background-image:repeating-linear-gradient(45deg,var(--border-hairline) 0,var(--border-hairline) 1px,transparent 1px,transparent 6px);
-  background-size:var(--hatch-w,0) 100%;
-  background-position:left;
+  background-size:var(--hatch-w,0) var(--hatch-h,100%);
+  background-position:left top;
   background-repeat:no-repeat;
 }
 .v2-line{display:block;width:100%;height:64px;color:var(--spark-ticker)}

@@ -43,7 +43,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=53">
+    <link rel="stylesheet" href="~/studio-v2.css?v=54">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -297,9 +297,13 @@
                     // P0-2: same hatch, SVG form — the sparkline has no chart-library container to
                     // hang a CSS background on, so the un-held share of the axis is a literal
                     // pattern fill behind the line instead.
+                    //
+                    // Кромка берётся у самой линии (Format.SparkX), а не как доля ширины: доля
+                    // ширины считает шаг как 260/n, а линия ставит точки с шагом 259/(n-1), и
+                    // штриховка каждый раз не доходила до первой точки на несколько единиц.
                     var hatchIndex = vals.ToList().FindIndex(v => v is not null);
-                    var hatchWidth = hatchIndex > 0 && vals.Count > 0
-                        ? (double)hatchIndex / vals.Count * 260 : 0;
+                    var hatchWidth = hatchIndex > 0 && vals.Count > 1
+                        ? Format.SparkX(hatchIndex, vals.Count, 260) : 0;
                     <div class="v2-cut@(stale ? " v2-cut--stale" : "")">
                         <span class="v2-cut-plat"><b>@r.Row.ExchangeName</b> <em>@r.Row.Symbol</em></span>
                         <svg class="v2-line" viewBox="0 0 260 64" preserveAspectRatio="none" aria-hidden="true">
@@ -635,7 +639,7 @@
 @if (V2Band3.Drawable(Model).Count > 0)
 {
     <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
-    <script src="~/studio-candles.js?v=6"></script>
+    <script src="~/studio-candles.js?v=7"></script>
 }
 <script src="~/studio-ages.js?v=7"></script>
 <script src="~/studio-live.js?v=3"></script>

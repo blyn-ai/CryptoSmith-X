@@ -281,7 +281,12 @@
       panels.push({ legend, decimals, resting, byHour: new Map(rows.map((r) => [r.time, r])) });
     }
 
-    return { chart, series };
+    // firstHeld — индекс первого слота, на котором у площадки реально есть бар. Считается ЗДЕСЬ,
+    // из тех же rows, что скормлены серии, а не приходит вторым числом с сервера: два счёта одного
+    // и того же однажды разойдутся, и разойдутся молча.
+    const firstHeld = rows.findIndex((r) => r.o !== null && r.o !== undefined);
+
+    return { chart, series, el, firstHeld };
   });
 
   // ── THE HOUR EVERY LINE IS SHOWING ──
@@ -311,6 +316,41 @@
     });
   }
 
+  // ── ШТРИХОВКА МЕРЯЕТСЯ ОСЬЮ, А НЕ КОРОБКОЙ ──
+  // Незанятая доля оси рисовалась как процент ШИРИНЫ КОНТЕЙНЕРА: firstHeld/25 от 352px. Ось так
+  // не устроена. После fitContent центр слота i стоит в 33 + 12·i, то есть перед нулевым слотом
+  // есть поле, а справа библиотека держит ещё rightOffset пустых слотов. Ошибка от этого меняет
+  // знак по панелям: при firstHeld=6 штриховка обрывалась на 15px раньше первой свечи, при
+  // firstHeld=16 — заезжала на неё на 6px. Первое читается как «тут просто пусто», второе прямо
+  // лжёт: свеча стоит на штриховке, которая означает «бара здесь нет».
+  //
+  // Поэтому край берётся у самой оси: левая кромка первого удержанного слота — его центр минус
+  // половина шага, а шаг — расстояние между двумя соседними слотами, посчитанное той же осью.
+  // Ось можно двигать и масштабировать (панели связаны логическим диапазоном), поэтому это
+  // пересчитывается на каждое изменение диапазона, а не один раз при создании.
+  //
+  // Высота — площадь графика без временной шкалы (timeScale().height()): фон в 100% высоты
+  // контейнера заходил под подписи дат, где никакого «нет бара» не бывает.
+  const paintHatch = () => {
+    made.forEach(({ chart, el, firstHeld }) => {
+      const ts = chart.timeScale();
+      const box = el.getBoundingClientRect();
+      let edge = 0;
+      if (firstHeld > 0) {
+        const at = ts.logicalToCoordinate(firstHeld);
+        const prev = ts.logicalToCoordinate(firstHeld - 1);
+        if (at !== null && prev !== null) edge = at - (at - prev) / 2;
+      }
+      const width = Math.max(0, Math.min(box.width, edge));
+      el.style.setProperty('--hatch-w', width.toFixed(1) + 'px');
+      const axis = ts.height();
+      el.style.setProperty('--hatch-h',
+        Number.isFinite(axis) && axis > 0 && axis < box.height
+          ? (box.height - axis).toFixed(1) + 'px'
+          : '100%');
+    });
+  };
+
   // Tied only once every instance exists, or the early panels get dragged around by instances that
   // have no data yet.
   let syncing = false;
@@ -323,8 +363,13 @@
         if (other.chart !== chart) other.chart.timeScale().setVisibleLogicalRange(range);
       });
       syncing = false;
+      // После синхронизации, а не внутри неё: диапазон только что сменился у ВСЕХ панелей, и
+      // штриховка каждой из них теперь стоит не там, где её ось.
+      paintHatch();
     });
   });
+
+  paintHatch();
 
   // The library reads the custom properties once, at creation, and keeps its own copy — so the
   // register flip has to reach in and push them back. studio-ages.js fires this after it moves

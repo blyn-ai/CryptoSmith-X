@@ -332,6 +332,19 @@ public static class Format
     /// hours it was silent. Null when fewer than two ADJACENT points exist anywhere in the series —
     /// there is no line to draw, and a single dot would be a history of one moment.
     /// </summary>
+    /// <summary>
+    /// Where point number <paramref name="index"/> of a series of <paramref name="count"/> points
+    /// stands on a sparkline <paramref name="width"/> units wide.
+    ///
+    /// Public because the line is not the only thing drawn on that axis: the un-held head of a
+    /// series is hatched behind it, and the hatch has to end exactly where the line begins. That
+    /// was computed separately as index/count of the width — a near-miss that always fell a few
+    /// units short of the first point, because the line's own step is width/(count-1), not
+    /// width/count. One function, so the two can no longer disagree by construction.
+    /// </summary>
+    public static double SparkX(int index, int count, double width = SparkWidth)
+        => count < 2 ? 0 : index * ((width - 1) / (count - 1)) + 0.5;
+
     public static string? SparkPath(
         IReadOnlyList<double?> values, double width = SparkWidth, double height = SparkHeight)
     {
@@ -358,7 +371,6 @@ public static class Format
             lo -= pad > 0 ? pad : 1;
         }
 
-        var step = (width - 1) / (values.Count - 1);
         var parts = new List<string>();
         var drawing = false;
         var segmentPoints = 0;
@@ -371,7 +383,7 @@ public static class Format
                 continue;
             }
 
-            var x = i * step + 0.5;
+            var x = SparkX(i, values.Count, width);
             var y = (height - 1.5) - ((v - lo) / (hi - lo)) * (height - 3);
             parts.Add((drawing ? "L" : "M")
                 + x.ToString("0.#", CultureInfo.InvariantCulture) + " "

@@ -596,7 +596,7 @@ public sealed class DesignSystemTests
     /// </summary>
     [Theory]
     [InlineData("studio-ages.js", 7)]
-    [InlineData("studio-candles.js", 6)]
+    [InlineData("studio-candles.js", 7)]
     [InlineData("studio-live.js", 3)]
     public void A_script_tag_carries_the_version_its_file_has_earned(string file, int expected)
     {

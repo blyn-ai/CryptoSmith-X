@@ -54,12 +54,14 @@ else
         // P0-2: the share of the panel's own axis that holds no bar at all — hatched rather than
         // left blank, because blank paper on this page must never mean "no data" (rule 3). The
         // common shape of a gap here is thin history at the OLD end (backfill has not reached
-        // that far yet), so this hatches from the axis's start up to the first bar actually held
-        // — not every scattered gap individually, which would need the chart library's own pixel
-        // coordinates rather than a plain share of the window count.
-        var firstHeldIndex = bars.Bars.ToList().FindIndex(b => b is not null);
-        var hatchPct = firstHeldIndex > 0 && bars.Windows.Count > 0
-            ? (double)firstHeldIndex / bars.Windows.Count * 100 : 0;
+        // that far yet), so it hatches from the axis's start up to the first bar actually held —
+        // not every scattered gap individually.
+        //
+        // Ширина этой штриховки БОЛЬШЕ НЕ СЧИТАЕТСЯ ЗДЕСЬ. Отсюда она выходила долей ширины
+        // карточки, а ось графика устроена не так: у панели, где первый бар восьмой, штриховка
+        // не доходила до него, а где шестнадцатый — заезжала под свечу и говорила про неё «бара
+        // нет». Единственная система координат, в которой это можно посчитать верно, — ось самой
+        // библиотеки, поэтому считает studio-candles.js, из тех же rows, что он рисует.
         <div class="v2-cut@(stale ? " v2-cut--stale" : "")">
             @* Площадка дисплейным начертанием, символ — акцентным моно, и OHLC последнего
                закрытого часа справа: график отвечает на «как шло», а на «чем кончилось»
@@ -95,7 +97,6 @@ else
                 }
             </span>
             <div class="a-chart v2-chart" data-held="@bars.Present" data-total="@bars.Windows.Count"
-                 style="@(hatchPct > 0 ? $"--hatch-w:{hatchPct.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}%" : "")"
                  data-candles="@json"
                  data-scale-lo="@sc.Lo.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                  data-scale-hi="@sc.Hi.ToString(System.Globalization.CultureInfo.InvariantCulture)"

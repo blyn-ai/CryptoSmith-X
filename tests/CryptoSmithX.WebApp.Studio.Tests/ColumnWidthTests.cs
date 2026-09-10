@@ -1,3 +1,4 @@
+using System.Globalization;
 using CryptoSmithX.WebApp.Studio.Models;
 
 namespace CryptoSmithX.WebApp.Studio.Tests;
@@ -50,5 +51,32 @@ public sealed class ColumnWidthTests
             var needed = (int)Math.Ceiling(c.Label.Length * 5.4) + 16 + (c.Cut is null ? 0 : 10);
             Assert.True(c.Width >= needed, $"{c.Label} needs about {needed}px and has {c.Width}px");
         }
+    }
+
+    [Fact]
+    public void A_column_that_can_print_a_mark_has_room_for_one()
+    {
+        // Клетка — фиксированный трек, и марка, которая в него не влезла, не переносится и не
+        // ужимается: она ВЫЛЕЗАЕТ, а поскольку цифры прижаты вправо — вылезает влево, на соседнюю
+        // колонку. Так MAX колонки TURNOVER 24H оказался поверх «4 h» колонки INTERVAL.
+        var tracks = V2Columns.Tracks.Split(' ', StringSplitOptions.RemoveEmptyEntries).Skip(1).ToList();
+
+        for (var i = 0; i < V2Columns.All.Count; i++)
+        {
+            var c = V2Columns.All[i];
+            var track = int.Parse(tracks[i].Replace("px", string.Empty), CultureInfo.InvariantCulture);
+            var ranked = V2Ranks.ColumnOf(c.Field) is not null
+                || (c.PairedField is { } p && V2Ranks.ColumnOf(p) is not null);
+
+            Assert.Equal(c.Width + (ranked ? V2Columns.MarkSlot : 0), track);
+        }
+
+        // И слот не нулевой: правило, которое ничего не прибавляет, — это отсутствие правила,
+        // записанное так, что читается как правило.
+        Assert.True(V2Columns.MarkSlot >= 24, "a MAX chip is 21px of ground plus its gap");
+
+        // Неранжируемая колонка марки не печатает никогда, и лишних пикселей не носит.
+        var interval = V2Columns.All.ToList().FindIndex(c => c.Field == V2Field.FundingInterval);
+        Assert.Equal(V2Columns.All[interval].Width + "px", tracks[interval]);
     }
 }

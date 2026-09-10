@@ -13,13 +13,17 @@ namespace CryptoSmithX.WebApp.Studio.Models;
 /// chosen, and they are still what the units under the headings say.
 /// </summary>
 /// <param name="Width">
-/// The column's width in pixels, and fixed on purpose.
+/// The width the column's FIGURE needs, in pixels, and fixed on purpose.
 ///
 /// Content-sized tracks looked obvious and were wrong twice over: a column re-measured itself
 /// whenever its text changed, so a hundred and ten ages ticking over re-laid the whole grid once a
 /// second, and the widest number a venue happened to print decided the width for everyone. Fixed
 /// widths are chosen for what the column HOLDS — a price is eight digits, an interval is "8 h", a
 /// turnover is nine digits and a comma every three — and they do not move.
+///
+/// The figure is not everything a ranked column holds: one row in it also carries the MAX or MIN
+/// mark in front of the number. That slot is added by <see cref="V2Columns.Tracks"/>, not written
+/// into these numbers, so each one keeps saying the single thing it knows — how wide the figure is.
 /// </param>
 /// <param name="PairedField">
 /// B1: a second field mirrored into the same cell rather than given its own column — bid/ask and
@@ -57,7 +61,9 @@ public static class V2Columns
         // is a rolling 24h sum (V2Store.StressAsync), not the "last hour" the column used to read.
         new(V2Field.LiquidationVolume, "Liquidations 24h", CallTone.Ticker, 116, Cut: "liquidations", Spark: true),
         new(V2Field.LiquidationUnit, "Unit", CallTone.Ticker, 60),
-        new(V2Field.VenueClock, "Venue clock", CallTone.Ticker, 88),
+        // 88 не держало собственного значения этой колонки: "17:20:48Z" в моноширинном — 76px, плюс
+        // поля клетки, и время вылезало влево на соседнюю. Мерено на странице, а не прикинуто.
+        new(V2Field.VenueClock, "Venue clock", CallTone.Ticker, 96),
         new(V2Field.LastTrade, "Last trade", CallTone.Ticker, 88),
 
         // ── The open-interest call: its own clock, its own cadence ──────────────────────────
@@ -73,11 +79,30 @@ public static class V2Columns
         new(V2Field.BookReach, "Book reach", CallTone.Depth, 100),
     ];
 
+    /// <summary>
+    /// The room the MAX/MIN mark takes in front of a figure: the chip itself plus the gap between
+    /// it and the first digit.
+    ///
+    /// It is a track's business and not the chip's. A cell is a fixed track, so a mark that does
+    /// not fit does not wrap and does not shrink — it overflows, and because the figures are
+    /// right-aligned it overflows LEFT, onto the neighbouring column. That is exactly what shipped:
+    /// TURNOVER 24H's own MAX chip stood on top of INTERVAL's "4 h" one column to its left.
+    /// </summary>
+    public const int MarkSlot = 25;
+
+    /// <summary>Whether this column can ever print a mark — its own field is ranked, or the field
+    /// mirrored into the same cell is. Read from <see cref="V2Ranks.ColumnOf"/> rather than listed
+    /// again here, so a field that gains or loses a rank changes its track in the same edit.</summary>
+    private static bool Ranked(V2Column c) =>
+        V2Ranks.ColumnOf(c.Field) is not null
+        || (c.PairedField is { } paired && V2Ranks.ColumnOf(paired) is not null);
+
     /// <summary>The grid's tracks: the listing cell, then every column at the width its content
-    /// actually needs. One string, built here, so the bands, the headings and every row are laid on
-    /// the same tracks by construction rather than by three declarations agreeing.</summary>
+    /// actually needs — the figure, plus the mark's slot wherever a mark can appear. One string,
+    /// built here, so the bands, the headings and every row are laid on the same tracks by
+    /// construction rather than by three declarations agreeing.</summary>
     public static string Tracks { get; } =
-        "150px " + string.Join(" ", All.Select(c => c.Width + "px"));
+        "150px " + string.Join(" ", All.Select(c => c.Width + (Ranked(c) ? MarkSlot : 0) + "px"));
 
     /// <summary>The bands over the headings: one per call, each as wide as the columns it owns.
     /// Built from the list rather than written down, so a column moved between calls cannot leave a
