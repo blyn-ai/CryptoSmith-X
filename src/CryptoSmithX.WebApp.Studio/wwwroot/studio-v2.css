@@ -570,11 +570,29 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
 .v2-cut-plat em{font-style:normal;color:var(--accent)}
 .v2-ohlc{margin-left:auto;font:400 var(--fs-micro)/1.2 var(--font-mono);
   font-variant-numeric:tabular-nums;color:var(--text-faint);white-space:nowrap}
-.v2-cut-held{font:400 var(--fs-micro)/1.3 var(--font-mono);color:var(--text-faint)}
+/* P0-2 (UX audit): the newest bar's own age, on every band-3 card — candle panels used to show
+   how price moved and stay silent about when, so a card could sit a day stale with nothing on it
+   to say so. Colour only, never width/height: the card's border-WIDTH stays 1px in both states
+   (.v2-cut already declares it), so a card going stale never shifts anything around it. */
+.v2-cut-age{font:400 var(--fs-micro)/1.3 var(--font-mono);color:var(--text-faint)}
+.v2-cut--stale{border-color:var(--accent)}
+.v2-cut--stale .v2-cut-age{color:var(--accent)}
 .v2-delta--up{color:var(--candle-up)}
 .v2-delta--down{color:var(--candle-down)}
 .v2-cut-plat b{font-weight:400;font-family:var(--font-mono);font-size:var(--fs-data);color:var(--brand-text);margin-left:6px}
-.v2-chart{height:180px}
+.v2-chart{height:180px;position:relative}
+/* P0-2: the un-held share of the axis, hatched rather than left blank (rule 3: blank paper must
+   never mean "no data"). Lightweight Charts is created with a transparent layout background
+   (studio-candles.js chartOptions()), so this sits on the CONTAINER, behind the canvas, and shows
+   through wherever the chart paints nothing — which is exactly the gap this exists to mark.
+   --hatch-w is the one number that varies per card (set inline); everything else is fixed, so no
+   card's chart shifts size to draw it. */
+.v2-chart{
+  background-image:repeating-linear-gradient(45deg,var(--border-hairline) 0,var(--border-hairline) 1px,transparent 1px,transparent 6px);
+  background-size:var(--hatch-w,0) 100%;
+  background-position:left;
+  background-repeat:no-repeat;
+}
 .v2-line{display:block;width:100%;height:64px;color:var(--spark-ticker)}
 /* Концы линии — числами. Линия без шкалы отвечает на «росло или падало» и молчит на «с чего». */
 .v2-cut-scale{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3);

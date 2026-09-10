@@ -37,7 +37,30 @@ else
         // the chart library's own crosshair wiring, which this pass does not add).
         var lastTitle = last is null ? null
             : $"source: {last.Source ?? "—"} · updated_at: {Format.Utc(last.UpdatedAt)}";
-        <div class="v2-cut" data-quote="@r.Row.QuoteAsset">
+
+        // P0-2 (UX audit): how old the newest bar actually is, against the SAME instant the rest
+        // of the page's ages are measured from (Model.RenderedAt) — never DateTime.UtcNow here,
+        // for the reason every other age on this page gives (blueprint §5): a row served from a
+        // cached payload must still report a truthful age, and that is only true if every age on
+        // the render is a subtraction against the one instant the render was built at.
+        var lastAgeSeconds = last is null ? (double?)null
+            : (Model.RenderedAt - new DateTimeOffset(DateTime.SpecifyKind(last.OpenTime, DateTimeKind.Utc))).TotalSeconds;
+        var intervalSeconds = bars.Timeframe * 60;
+        // Twice the bar's own interval, not a flat "2 hours": a 1-minute panel is stale at 2
+        // minutes behind and an hourly one is not stale until 2 hours behind, on the same page,
+        // now that B3's own timeframe selector can show either.
+        var stale = lastAgeSeconds is { } age && age > 2 * intervalSeconds;
+
+        // P0-2: the share of the panel's own axis that holds no bar at all — hatched rather than
+        // left blank, because blank paper on this page must never mean "no data" (rule 3). The
+        // common shape of a gap here is thin history at the OLD end (backfill has not reached
+        // that far yet), so this hatches from the axis's start up to the first bar actually held
+        // — not every scattered gap individually, which would need the chart library's own pixel
+        // coordinates rather than a plain share of the window count.
+        var firstHeldIndex = bars.Bars.ToList().FindIndex(b => b is not null);
+        var hatchPct = firstHeldIndex > 0 && bars.Windows.Count > 0
+            ? (double)firstHeldIndex / bars.Windows.Count * 100 : 0;
+        <div class="v2-cut@(stale ? " v2-cut--stale" : "")" data-quote="@r.Row.QuoteAsset">
             @* Площадка дисплейным начертанием, символ — акцентным моно, и OHLC последнего
                закрытого часа справа: график отвечает на «как шло», а на «чем кончилось»
                по пикселям не отвечает никто. *@
@@ -56,7 +79,23 @@ else
                     <span class="v2-cut-partial">@bars.Partial of @bars.Windows.Count partly covered</span>
                 }
             </span>
-            <div class="a-chart v2-chart"
+            @* P0-2: the newest bar's own instant, named — a candle panel used to show HOW price
+               moved and stay silent about WHEN, so a card could sit a day behind its neighbours
+               with nothing on it to say so. Magenta (v2-cut--stale, above) once the newest bar is
+               more than two of its own intervals old. *@
+            <span class="v2-cut-age">
+                @if (last is null)
+                {
+                    @:No closed bar yet.
+                }
+                else
+                {
+                    @:last bar @Format.UtcDayMonthClock(last.OpenTime) · @Format.SpacedAge(lastAgeSeconds) ago
+                    @:· @bars.Present of @bars.Windows.Count bars held
+                }
+            </span>
+            <div class="a-chart v2-chart" data-held="@bars.Present" data-total="@bars.Windows.Count"
+                 style="@(hatchPct > 0 ? $"--hatch-w:{hatchPct.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}%" : "")"
                  data-candles="@json"
                  data-scale-lo="@sc.Lo.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                  data-scale-hi="@sc.Hi.ToString(System.Globalization.CultureInfo.InvariantCulture)"

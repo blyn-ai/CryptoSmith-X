@@ -35,7 +35,25 @@
 
   const v = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-  const chartOptions = () => ({
+  // P0-2 (UX audit): the axis used to print "12:00" and nothing else, on a panel that can span a
+  // day or more — two ticks twelve hours apart printed identical text. tickMarkType is the
+  // library's OWN classification of what kind of boundary a tick sits on; DayOfMonth/Month/Year
+  // are the ones it draws when a tick crosses midnight, so those get the date. firstTime (this
+  // chart's own leftmost bar) gets it too, for a short panel that never crosses one.
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const tickMarkFormatter = (firstTime) => (time, tickMarkType) => {
+    const d = new Date(time * 1000);
+    const hhmm = d.toISOString().slice(11, 16);
+    const boundary = tickMarkType === LightweightCharts.TickMarkType.DayOfMonth
+      || tickMarkType === LightweightCharts.TickMarkType.Month
+      || tickMarkType === LightweightCharts.TickMarkType.Year;
+    if (boundary || time === firstTime) {
+      return String(d.getUTCDate()).padStart(2, '0') + ' ' + MONTHS[d.getUTCMonth()] + ' ' + hhmm;
+    }
+    return hhmm;
+  };
+
+  const chartOptions = (firstTime) => ({
     autoSize: true,
     layout: {
       background: { color: 'transparent' },
@@ -58,6 +76,7 @@
       rightOffset: 2,
       barSpacing: 12,
       minBarSpacing: 4,
+      tickMarkFormatter: tickMarkFormatter(firstTime),
     },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
   });
@@ -221,7 +240,7 @@
     const decimals = Number(el.dataset.decimals);
 
     const chart = LightweightCharts.createChart(el, {
-      ...chartOptions(),
+      ...chartOptions(rows.length > 0 ? rows[0].time : undefined),
       // Printed to the venue's own tick, like every other price on the page. A chart axis that
       // rounds to two decimals on a four-decimal instrument is inventing a precision downward,
       // which is the same class of error as inventing one upward.

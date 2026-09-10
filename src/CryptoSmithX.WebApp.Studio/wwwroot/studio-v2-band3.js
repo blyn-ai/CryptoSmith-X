@@ -42,7 +42,7 @@
     if (candlesReady) { return candlesReady; }
 
     candlesReady = loadScript(BASE + 'vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1')
-      .then(function () { return loadScript(BASE + 'studio-candles.js?v=5'); });
+      .then(function () { return loadScript(BASE + 'studio-candles.js?v=6'); });
     return candlesReady;
   }
 

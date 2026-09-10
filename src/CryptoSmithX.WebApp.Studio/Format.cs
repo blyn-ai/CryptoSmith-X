@@ -46,6 +46,12 @@ public static class Format
     public static string UtcClock(DateTime? t) =>
         t is null ? Dash : t.Value.ToUniversalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture) + "Z";
 
+    /// <summary>P0-2 (UX audit): a bar's own instant, named the way "last bar 09 Sep 12:00Z" needs
+    /// it — day, month and minute, no year and no seconds, because the value this labels is a
+    /// window's open time and the reader is comparing it to "now" printed the same width away.</summary>
+    public static string UtcDayMonthClock(DateTime? t) =>
+        t is null ? Dash : t.Value.ToUniversalTime().ToString("dd MMM HH:mm", CultureInfo.InvariantCulture) + "Z";
+
     /// <summary>
     /// How many decimals a price wants, taken from the venue's own tick.
     ///

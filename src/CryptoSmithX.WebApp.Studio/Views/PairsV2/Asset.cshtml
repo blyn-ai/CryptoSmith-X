@@ -43,7 +43,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=43">
+    <link rel="stylesheet" href="~/studio-v2.css?v=44">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -263,9 +263,37 @@
                        четыре точки и шесть — это две очень разные линии одинакового вида. *@
                     var delta = first == 0 ? (double?)null : (last - first) / Math.Abs(first) * 100;
                     var held = vals.Count(v => v is not null);
-                    <div class="v2-cut">
+
+                    // P0-2: the same "last point's own age" disclosure the candle cards carry,
+                    // read off the SAME window list (r.Metrics.Windows) the line itself is drawn
+                    // on — index-aligned with vals, so the last non-null index names the hour.
+                    var lastIndex = vals.ToList().FindLastIndex(v => v is not null);
+                    var lastWindow = lastIndex >= 0 ? r.Metrics.Windows[lastIndex] : (DateTime?)null;
+                    var lastAgeSeconds = lastWindow is { } lw
+                        ? (Model.RenderedAt - new DateTimeOffset(DateTime.SpecifyKind(lw, DateTimeKind.Utc))).TotalSeconds
+                        : (double?)null;
+                    const int hourSeconds = 3600;
+                    var stale = lastAgeSeconds is { } age2 && age2 > 2 * hourSeconds;
+
+                    // P0-2: same hatch, SVG form — the sparkline has no chart-library container to
+                    // hang a CSS background on, so the un-held share of the axis is a literal
+                    // pattern fill behind the line instead.
+                    var hatchIndex = vals.ToList().FindIndex(v => v is not null);
+                    var hatchWidth = hatchIndex > 0 && vals.Count > 0
+                        ? (double)hatchIndex / vals.Count * 260 : 0;
+                    <div class="v2-cut@(stale ? " v2-cut--stale" : "")">
                         <span class="v2-cut-plat"><b>@r.Row.ExchangeName</b> <em>@r.Row.Symbol</em></span>
                         <svg class="v2-line" viewBox="0 0 260 64" preserveAspectRatio="none" aria-hidden="true">
+                            @if (hatchWidth > 0)
+                            {
+                                <defs>
+                                    <pattern id="v2-hatch-@r.Row.InstrumentId-@c.Key" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                                        <line x1="0" y1="0" x2="0" y2="6" stroke="var(--border-hairline)" stroke-width="1" />
+                                    </pattern>
+                                </defs>
+                                <rect x="0" y="0" width="@hatchWidth.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" height="64"
+                                      fill="url(#v2-hatch-@r.Row.InstrumentId-@c.Key)" />
+                            }
                             @* Заливка под линией — та же кривая, замкнутая по нижнему краю: она
                                не добавляет данных, но даёт линии вес, которого у волоска в один
                                пиксель на светлом фоне нет. *@
@@ -278,7 +306,12 @@
                                 @(delta is null ? "" : (delta > 0 ? "+" : "") + Format.Num(delta, 1) + "%")
                             </span>
                         </span>
-                        <span class="v2-cut-held">@held of @vals.Count hours held
+                        <span class="v2-cut-age">
+                            @if (lastWindow is { } lw2)
+                            {
+                                @:last bar @Format.UtcDayMonthClock(lw2) · @Format.SpacedAge(lastAgeSeconds) ago ·
+                            }
+                            @held of @vals.Count hours held
                             @* B4: gap_seconds distinguishes a quiet market from a blind collector —
                                the shortfall above can be either, and only this number says which.
                                Silent at zero, the common case, rather than printing "0s blind" on
@@ -547,12 +580,12 @@
 @if (V2Band3.Drawable(Model).Count > 0)
 {
     <script src="~/vendor/lightweight-charts/lightweight-charts-5.2.1.standalone.production.js?v=1"></script>
-    <script src="~/studio-candles.js?v=5"></script>
+    <script src="~/studio-candles.js?v=6"></script>
 }
 <script src="~/studio-ages.js?v=5"></script>
 <script src="~/studio-live.js?v=3"></script>
 <script src="~/studio-v2.js?v=20"></script>
 <script src="~/studio-disclose.js?v=2"></script>
-<script src="~/studio-v2-band3.js?v=1"></script>
+<script src="~/studio-v2-band3.js?v=2"></script>
 </body>
 </html>
