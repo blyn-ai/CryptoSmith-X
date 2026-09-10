@@ -724,9 +724,16 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
 
 .v2-tape{padding:0 var(--space-7) var(--space-4)}
 
+/* Prompt 2, U-7: the band's own age moved next to the toggle, not the status line — margin-left
+   auto travels from .v2-follow to it, so the two sit together at the row's right edge and FOLLOW
+   no longer needs its own push. --accent past 60s, the same "this is now stale" ink the rest of
+   the page uses for the same fact. */
+.v2-tape-status{margin-left:auto;color:var(--text-faint)}
+.v2-tape-status--stale{color:var(--accent)}
+
 /* FOLLOW у ленты. Тумблер дизайнера — 40×20 с квадратной шашкой, отдельный от .v2-switch:
    тот носит подпись внутри себя, а этот — рядом, потому что подпись общая для полосы. */
-.v2-follow{margin-left:auto;display:inline-flex;align-items:center;gap:var(--space-3)}
+.v2-follow{display:inline-flex;align-items:center;gap:var(--space-3)}
 .v2-follow label{font:500 var(--fs-micro)/1 var(--font-mono);letter-spacing:var(--track-label);
   text-transform:uppercase;color:var(--text-body)}
 .v2-toggle{padding:0;background:none;border:none;cursor:pointer;line-height:0}
@@ -738,15 +745,34 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
 .v2-toggle[aria-checked="true"] .v2-toggle-knob::before{transform:translateX(20px);background:var(--text-on-action)}
 /* Колонки по содержимому, а не растянутые на всю полосу: между временем и ценой стояли
    провалы в полэкрана, и глаз терял строку по дороге. */
-.v2-tape-head,.v2-tape-row{display:grid;grid-template-columns:86px minmax(0,1fr) 44px minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr);gap:var(--space-4);align-items:baseline;padding:4px 0}
+/* Prompt 2, U-7: KIND is gone — the loud wash (.v2-tape-row--loud, below) already says
+   "liquidation" the one time it matters, and a column that reads "fill" on every other row was a
+   field holding its own default. VENUE is a fixed 40px: three letters, not "Hyperliquid". */
+.v2-tape-head,.v2-tape-row{display:grid;grid-template-columns:92px 40px 28px minmax(0,1fr) minmax(0,120px);gap:var(--space-4);align-items:baseline;padding:4px 0}
 .v2-tape-head{font:500 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow);border-bottom:1px solid var(--border-hairline)}
-.v2-tape-row{font:400 var(--fs-data)/1.3 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);border-bottom:1px solid var(--border-hairline)}
+/* Прямой левый край, а не только цвет цены: правило не про эстетику, оно про читателя, который
+   не различает зелёный и магентовый — тому же служит notch/пунктир в полосе 5. */
+.v2-tape-row{position:relative;padding-left:8px;font:400 var(--fs-data)/1.3 var(--font-mono);
+  font-variant-numeric:tabular-nums;color:var(--text-data);border-bottom:1px solid var(--border-hairline)}
+.v2-tape-row--buy{box-shadow:inset 2px 0 0 0 var(--tag-tight)}
+.v2-tape-row--sell{box-shadow:inset 2px 0 0 0 var(--accent)}
+.v2-tape-row--buy .v2-tape-price{color:var(--tag-tight)}
+.v2-tape-row--sell .v2-tape-price{color:var(--accent)}
 .v2-tape-row--loud{background:var(--tag-worst-bg)}
-.v2-tape-row--loud .v2-kind{color:var(--accent)}
+/* .mmm тускло — час и минуты несут время, миллисекунды несут только порядок между тремя сделками
+   одной секунды. */
+.v2-tape-row em{font-style:normal;color:var(--text-faint)}
 .v2-r{text-align:right}
 .v2-side{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted)}
-.v2-kind{font-size:var(--fs-eyebrow);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-faint)}
-.v2-tape-row--loud .v2-kind{color:var(--brand-text)}
+/* Бар — ЗА числом, не рядом: правый край держит число, левый растёт с размером относительно p95
+   печатей этого актива. Печать крупнее p95 сама встаёт жирным — бар в 100% ширины на самой
+   печати, которая его и задала, читался бы как «типичный» размер, а он ровно противоположность. */
+.v2-tape-size{position:relative;display:flex;align-items:center;justify-content:flex-end}
+.v2-tape-size i{position:absolute;right:0;top:50%;transform:translateY(-50%);height:8px;
+  background:color-mix(in srgb, var(--text-faint) 30%, transparent);z-index:0}
+.v2-tape-size b{position:relative;z-index:1;font-weight:400;background:var(--surface-card);padding:0 0 0 4px}
+.v2-tape-size--over b{font-weight:700}
+.v2-tape-row--loud .v2-tape-size b{background:var(--tag-worst-bg)}
 
 /* ── полоса 5: покрытие и пробелы ───────────────────────────────────────────── */
 .v2-cov{display:grid;grid-template-columns:minmax(140px,auto) repeat(var(--vcols),1fr);gap:2px;padding:var(--space-4) var(--space-7)}
@@ -883,8 +909,9 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
   /* Широкое — прокручивается ВНУТРИ себя, а не тянет страницу. Правило одно на все три. */
   .v2-cov,.v2-tape{overflow-x:auto}
   .v2-cov{grid-template-columns:minmax(96px,auto) repeat(var(--vcols),minmax(44px,1fr));min-width:0}
-  .v2-tape-head,.v2-tape-row{grid-template-columns:78px 1fr 44px 1fr 1fr;gap:var(--space-3)}
-  .v2-tape-head span:last-child,.v2-tape-row .v2-kind{display:none}
+  /* Prompt 2, U-7: KIND is gone from every render, mobile included — five columns now, not the
+     six this rule used to fit by hiding the last one. */
+  .v2-tape-head,.v2-tape-row{grid-template-columns:78px 36px 24px 1fr 90px;gap:var(--space-3)}
 
   /* Списки в две строки вместо четырёх колонок. */
   .v2-gap,.v2-reach-row{grid-template-columns:1fr auto;gap:2px var(--space-3)}

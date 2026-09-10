@@ -156,15 +156,41 @@
 (function () {
   var btn = document.getElementById('tape-follow');
   var body = document.getElementById('tape-body');
+  var status = document.getElementById('tape-status');
   if (!btn || !body) { return; }
 
   var url = btn.getAttribute('data-url');
   var timer = null;
 
-  function cell(cls, text) {
+  function cell(cls, text, title) {
     var el = document.createElement('span');
     if (cls) { el.className = cls; }
     el.textContent = text;
+    if (title) { el.title = title; }
+    return el;
+  }
+
+  // Prompt 2, U-7: the row's own two cells that carry more than plain text — time (hh:mm:ss in
+  // ink, .mmm faint) and size (a right-anchored bar behind a bold-if-over-p95 figure). Built by
+  // hand rather than through cell() because both need a child node, not a bare text node.
+  function timeCell(at, atMs) {
+    var el = document.createElement('span');
+    el.appendChild(document.createTextNode(at));
+    var ms = document.createElement('em');
+    ms.textContent = atMs;
+    el.appendChild(ms);
+    return el;
+  }
+
+  function sizeCell(qty, pct, over) {
+    var el = document.createElement('span');
+    el.className = 'v2-r v2-tape-size' + (over ? ' v2-tape-size--over' : '');
+    var bar = document.createElement('i');
+    bar.style.width = pct + '%';
+    el.appendChild(bar);
+    var b = document.createElement('b');
+    b.textContent = qty;
+    el.appendChild(b);
     return el;
   }
 
@@ -178,14 +204,13 @@
     }
     rows.forEach(function (t) {
       var row = document.createElement('div');
-      row.className = 'v2-tape-row' + (t.loud ? ' v2-tape-row--loud' : '');
+      row.className = 'v2-tape-row v2-tape-row--' + t.side + (t.loud ? ' v2-tape-row--loud' : '');
       row.setAttribute('data-venue', t.listing);
-      row.appendChild(cell(null, t.at));
-      row.appendChild(cell(null, t.venue));
-      row.appendChild(cell('v2-side v2-side--' + t.side, t.side));
-      row.appendChild(cell('v2-r', t.price));
-      row.appendChild(cell('v2-r', t.qty));
-      row.appendChild(cell('v2-kind', t.loud ? t.kind : ''));
+      row.appendChild(timeCell(t.at, t.atMs));
+      row.appendChild(cell(null, t.venue, t.venueTitle));
+      row.appendChild(cell('v2-side v2-side--' + t.side, t.sideLetter));
+      row.appendChild(cell('v2-r v2-tape-price', t.price));
+      row.appendChild(sizeCell(t.qty, t.sizePct, t.over));
       frag.appendChild(row);
     });
     body.replaceChildren(frag);
@@ -195,7 +220,17 @@
   function poll() {
     fetch(url, { headers: { 'Accept': 'application/json' } })
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (rows) { if (rows) { draw(rows); } })
+      .then(function (rows) {
+        if (!rows) { return; }
+        draw(rows);
+        // Prompt 2, U-7: FOLLOW on says the cadence it is actually polling at, not an age —
+        // the age line is what OFF shows, because once a reader has pressed the button the
+        // question is no longer "how stale is this", it is "is this still running".
+        if (status) {
+          status.classList.remove('v2-tape-status--stale');
+          status.textContent = 'following · 5 s';
+        }
+      })
       .catch(function () { /* сеть моргнула — следующий круг через пять секунд */ });
   }
 
@@ -203,6 +238,10 @@
     btn.setAttribute('aria-checked', on ? 'true' : 'false');
     if (on) { poll(); timer = window.setInterval(poll, 5000); return; }
     if (timer) { window.clearInterval(timer); timer = null; }
+    // Прочерк, а не застывшее «following · 5 s»: без даты печати в ответе (сервер отдаёт только
+    // время суток) этот файл не может честно посчитать «N назад» сам, а неверный возраст хуже
+    // отсутствующего.
+    if (status) { status.textContent = 'not following'; status.classList.remove('v2-tape-status--stale'); }
   }
 
   btn.addEventListener('click', function () {
@@ -383,5 +422,9 @@
   } else {
     window.addEventListener('resize', update);
   }
-  update();
+  // requestAnimationFrame, not a bare call: this script runs synchronously mid-parse, before the
+  // browser has necessarily laid the grid's own max-content width out yet, and a first check made
+  // too early reads scrollWidth === clientWidth and never sets the shadow until the reader's
+  // first scroll or resize.
+  requestAnimationFrame(update);
 })();

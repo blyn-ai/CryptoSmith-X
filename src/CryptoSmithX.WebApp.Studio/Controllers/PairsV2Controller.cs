@@ -263,15 +263,26 @@ public sealed class PairsV2Controller : LivePageController
         await using var conn = await _db.OpenAsync(ct);
         var tape = await V2Store.TapeAsync(conn, [.. venues.Keys], 18, ct);
 
+        // Prompt 2, U-7: the SIZE bar's p95 read from this same batch, so a FOLLOW poll and the
+        // first paint agree on what p95 means — see the view's own note on why it is not "the
+        // last 200 prints" the finding names (that population needs a query this endpoint does
+        // not otherwise make).
+        var sizeSample = tape.Select(t => t.Qty).OrderBy(q => q).ToList();
+        var p95 = Format.Percentile(sizeSample, 0.95);
+
         return Json(tape.Select(t => new
         {
             listing = t.InstrumentId,
-            at = t.EventTime.ToString("mm:ss.fff"),
-            venue = venues.TryGetValue(t.InstrumentId, out var name) ? name : "—",
+            at = t.EventTime.ToString("HH:mm:ss"),
+            atMs = t.EventTime.ToString(".fff"),
+            venue = Format.VenueCode(venues.TryGetValue(t.InstrumentId, out var name) ? name : "—"),
+            venueTitle = venues.TryGetValue(t.InstrumentId, out var fullName) ? fullName : "—",
             side = t.TakerSide,
+            sideLetter = t.TakerSide[..1].ToUpperInvariant(),
             price = Format.Num(t.Price, 6),
             qty = Format.Num(t.Qty, 0),
-            kind = (t.TradeType ?? "fill").Replace("_", " ", StringComparison.Ordinal),
+            sizePct = p95 is { } m && m > 0 ? Math.Min(100.0, t.Qty / m * 100.0) : 0,
+            over = p95 is { } m2 && t.Qty > m2,
             loud = t.TradeType is "liquidation" or "partial_liquidation" or "termination",
         }));
     }

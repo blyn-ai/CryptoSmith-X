@@ -22,6 +22,37 @@ public static class Format
     /// <summary>Past its window: the count is no longer being graded.</summary>
     public const string PastWindowMark = "△";
 
+    /// <summary>Prompt 2, U-7: the tape's VENUE column is a fixed 40px, which holds three
+    /// characters and not "Hyperliquid" — the four venues this page reads get their own short
+    /// codes; anything else falls back to its own first three letters rather than overflowing.</summary>
+    public static string VenueCode(string exchangeName) => exchangeName.ToUpperInvariant() switch
+    {
+        "KRAKEN" => "KRK",
+        "HYPERLIQUID" => "HYP",
+        "BINANCE" => "BIN",
+        "WEEX" => "WEX",
+        _ => exchangeName.Length <= 3 ? exchangeName.ToUpperInvariant() : exchangeName[..3].ToUpperInvariant(),
+    };
+
+    /// <summary>
+    /// The value at the given fraction of a sorted sample — Prompt 2, U-7's p95 print size, the
+    /// scale the tape's size bar is measured against.
+    ///
+    /// Nearest-rank, not interpolated: a print size is itself a measurement no venue reports to a
+    /// fraction, so a rank between two real prints would invent a size neither venue actually
+    /// traded. Null on an empty sample — there is nothing to be a percentile of.
+    /// </summary>
+    public static double? Percentile(IReadOnlyList<double> sorted, double fraction)
+    {
+        if (sorted.Count == 0)
+        {
+            return null;
+        }
+
+        var index = (int)Math.Ceiling(fraction * sorted.Count) - 1;
+        return sorted[Math.Clamp(index, 0, sorted.Count - 1)];
+    }
+
     public static string Num(double? value, int decimals = 2) =>
         value is null || double.IsNaN(value.Value) || double.IsInfinity(value.Value)
             ? Dash

@@ -43,7 +43,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=58">
+    <link rel="stylesheet" href="~/studio-v2.css?v=59">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -435,6 +435,19 @@
            поэтому она и единственное, что имеет смысл опрашивать: включённый FOLLOW раз в пять
            секунд просит те же восемнадцать сделок и подставляет их на место. Выключенный —
            оставляет то, что вы читаете, ровно там, где оно есть. *@
+        @* Prompt 2, U-7: the band's own age, so a reader with FOLLOW off can see AT A GLANCE
+           whether "the tape" is five seconds old or five minutes — the toggle is right beside
+           it, one look answers "should I press this". studio-v2.js rewrites this text on every
+           poll while FOLLOW is on ("following · 5 s"); it starts as printed here, off. *@
+        @{
+            var newest = Model.Tape.Count > 0 ? Model.Tape.Max(t => t.EventTime) : (DateTime?)null;
+            var tapeAgeSeconds = newest is { } newestAt
+                ? (Model.RenderedAt - new DateTimeOffset(DateTime.SpecifyKind(newestAt, DateTimeKind.Utc))).TotalSeconds
+                : (double?)null;
+        }
+        <span class="csx-eyebrow v2-tape-status @(tapeAgeSeconds is > 60 ? "v2-tape-status--stale" : "")" id="tape-status">
+            @(tapeAgeSeconds is null ? "no prints yet" : "last print " + Format.SpacedAge(tapeAgeSeconds) + " ago")
+        </span>
         <span class="v2-follow">
             <button type="button" id="tape-follow" class="v2-toggle" role="switch" aria-checked="false"
                     data-url="@Url.Action("Tape", "PairsV2", new { baseFamily = Model.BaseFamily })"
@@ -445,10 +458,18 @@
         </span>
     </div>
 
+    @{
+        // Prompt 2, U-7: the p95 print size the SIZE bar is measured against. "The last 200
+        // prints on this asset" would need its own query past the eighteen this band already
+        // holds; read from the held batch instead — the same simplification the Tape() JSON
+        // endpoint below makes, so a snapshot render and a FOLLOW poll agree on what p95 means.
+        var sizeSample = Model.Tape.Select(t => t.Qty).OrderBy(q => q).ToList();
+        var p95 = Format.Percentile(sizeSample, 0.95);
+    }
     <div class="v2-tape">
         <div class="v2-tape-head">
             <span>Time</span><span>Venue</span><span>Side</span>
-            <span class="v2-r">Price</span><span class="v2-r">Size</span><span>Kind</span>
+            <span class="v2-r">Price</span><span class="v2-r">Size</span>
         </div>
         @* Тело ленты отдельным узлом: FOLLOW заменяет ЕГО, а не полосу, поэтому шапка,
            заголовок и подпись под лентой остаются на месте между опросами. *@
@@ -466,18 +487,19 @@
                 var owner = Model.Rows.FirstOrDefault(r => r.Row.InstrumentId == t.InstrumentId);
                 var kind = t.TradeType ?? "fill";
                 var loud = kind is "liquidation" or "partial_liquidation" or "termination";
-                <div class="v2-tape-row @(loud ? "v2-tape-row--loud" : "")">
-                    @* mm:ss.mmm: час в ленте, покрывающей последний час, — три знака, одинаковые во всех
-                       восемнадцати строках. *@
-                    <span>@t.EventTime.ToString("mm:ss.fff")</span>
-                    <span>@(owner?.Row.ExchangeName ?? "—")</span>
-                    <span class="v2-side v2-side--@t.TakerSide">@t.TakerSide</span>
-                    <span class="v2-r">@Format.Num(t.Price, 6)</span>
-                    <span class="v2-r">@Format.Num(t.Qty, 0)</span>
-                    @* Пометка только там, где есть что пометить: колонка, в которой на каждой
-                       строке написано «fill», — не колонка, а поле, заполненное значением по
-                       умолчанию. *@
-                    <span class="v2-kind">@kind</span>
+                var sizePct = p95 is { } m && m > 0 ? Math.Min(100.0, t.Qty / m * 100.0) : 0;
+                var overP95 = p95 is { } m2 && t.Qty > m2;
+                <div class="v2-tape-row v2-tape-row--@t.TakerSide @(loud ? "v2-tape-row--loud" : "")">
+                    @* hh:mm:ss в обычных чернилах, .mmm тускло — лента покрывает час, и часы
+                       должны быть видны: без них 00:21 читается позже 59:04. *@
+                    <span>@t.EventTime.ToString("HH:mm:ss")<em>@t.EventTime.ToString(".fff")</em></span>
+                    <span title="@(owner?.Row.ExchangeName ?? "—")">@Format.VenueCode(owner?.Row.ExchangeName ?? "—")</span>
+                    <span class="v2-side v2-side--@t.TakerSide">@t.TakerSide.Substring(0, 1).ToUpperInvariant()</span>
+                    <span class="v2-r v2-tape-price">@Format.Num(t.Price, 6)</span>
+                    <span class="v2-r v2-tape-size @(overP95 ? "v2-tape-size--over" : "")">
+                        <i style="width:@sizePct.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)%"></i>
+                        <b>@Format.Num(t.Qty, 0)</b>
+                    </span>
                 </div>
             }
         </div>
@@ -702,7 +724,7 @@
 }
 <script src="~/studio-ages.js?v=7"></script>
 <script src="~/studio-live.js?v=3"></script>
-<script src="~/studio-v2.js?v=22"></script>
+<script src="~/studio-v2.js?v=23"></script>
 <script src="~/studio-disclose.js?v=2"></script>
 <script src="~/studio-v2-band3.js?v=2"></script>
 </body>
