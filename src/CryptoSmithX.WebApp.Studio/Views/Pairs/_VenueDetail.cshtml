@@ -1,0 +1,126 @@
+@model VenueDetail
+@{
+    // No "now" of its own — this partial is fetched on demand, seconds or minutes after the page
+    // around it rendered, so ages here are computed against THIS moment, read fresh from the
+    // request, never against the page's RenderedAt (which would already be stale by the time a
+    // reader opens the panel).
+    var now = DateTime.UtcNow;
+
+    static string AgeOf(DateTime now, DateTime? at) =>
+        at is null ? "—" : Format.SpacedAge((now - at.Value).TotalSeconds) + " ago";
+}
+
+<div class="a-disclose-grid">
+    <section>
+        <h3 class="csx-eyebrow">Collection mode · segment_dataset</h3>
+        <p class="a-note">
+            Every dataset has a row here, always — an absent row is never how "off" is spelled
+            (0014). <b>@Model.Modes.Count</b> datasets.
+        </p>
+        <table class="a-table a-disclose-table">
+            <thead>
+                <tr>
+                    <th>Dataset</th><th>Mode</th><th>Interval</th><th>History interval</th><th>Retention</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Model.Modes)
+                {
+                    <tr>
+                        <td>@m.DatasetCode</td>
+                        <td><span class="a-tag@(m.Mode == "collect" ? " a-tag--spot" : "")">@m.Mode</span></td>
+                        <td>@(m.IntervalSeconds is { } iv ? iv + " s" : "—")</td>
+                        <td>@(m.HistoryIntervalSeconds is { } hv ? hv + " s" : "—")</td>
+                        <td>@(m.RetentionDays is { } rd ? rd + " d" : "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h3 class="csx-eyebrow">Collector state · collector_status</h3>
+        @if (Model.Collectors.Count == 0)
+        {
+            <p class="a-note">No collector for this segment has completed a pass yet.</p>
+        }
+        else
+        {
+            <table class="a-table a-disclose-table">
+                <thead>
+                    <tr>
+                        <th>Collector</th><th>Last success</th><th>Failures in a row</th>
+                        <th>Avg duration</th><th>Rollup watermark</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Collectors)
+                    {
+                        <tr>
+                            <td>@c.Collector</td>
+                            <td title="@(c.LastSuccessAt is { } lsa ? Format.Utc(lsa) : "never")">@AgeOf(now, c.LastSuccessAt)</td>
+                            <td>
+                                @if (c.ConsecutiveFailures > 0)
+                                {
+                                    <span class="a-tag a-tag--hold">@c.ConsecutiveFailures</span>
+                                }
+                                else
+                                {
+                                    <text>0</text>
+                                }
+                            </td>
+                            <td>@(c.AvgDurationMs is { } avg ? Format.Num(avg, 0) + " ms" : "—")</td>
+                            <td title="How far rollup has folded this segment's minutes into derived timeframes.">
+                                @(c.WatermarkAt is { } w ? AgeOf(now, w) : "—")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+
+    <section>
+        <h3 class="csx-eyebrow">Last @VenueStripStore.MaxRuns passes · collector_run</h3>
+        <p class="a-note">
+            The only source for how often this segment is ACTUALLY polled — not the interval it is
+            configured for above, but what really happened.
+        </p>
+        @if (Model.Runs.Count == 0)
+        {
+            <p class="a-note">No passes recorded yet.</p>
+        }
+        else
+        {
+            <table class="a-table a-disclose-table">
+                <thead>
+                    <tr><th>When</th><th>Collector</th><th>Duration</th><th>Result</th><th>Items</th><th>Transport</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Runs)
+                    {
+                        <tr>
+                            <td title="@Format.Utc(r.StartedAt)">@AgeOf(now, r.StartedAt)</td>
+                            <td>@r.Collector</td>
+                            <td>@r.DurationMs ms</td>
+                            <td>
+                                @if (r.Ok)
+                                {
+                                    <span class="a-dot" title="ok"></span>
+                                }
+                                else
+                                {
+                                    <span class="a-tag a-tag--hold" title="@(r.Error ?? "failed")">
+                                        failed@(r.HttpStatus is { } hs ? " · " + hs : "")
+                                    </span>
+                                }
+                            </td>
+                            <td>@(r.Items is { } items ? items.ToString() : "—")</td>
+                            <td>@(r.Transport ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+</div>

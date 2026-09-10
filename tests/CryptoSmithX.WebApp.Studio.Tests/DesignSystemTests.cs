@@ -362,7 +362,8 @@ public sealed class DesignSystemTests
         {
             "_PairTable.cshtml", "_Statement.cshtml", "_Layout.cshtml", "_Stamps.cshtml",
             "Pair.cshtml", "Index.cshtml", "PairNotFound.cshtml",
-            "studio-ages.js", "studio-live.js", "studio-candles.js"
+            "_VenueDetail.cshtml", "_AssetRegistry.cshtml",
+            "studio-ages.js", "studio-live.js", "studio-candles.js", "studio-disclose.js"
         };
         var emitted = string.Concat(emitters.Select(Source));
 

@@ -1,0 +1,80 @@
+@model AssetRegistryDetail
+@{
+    var now = DateTime.UtcNow;
+    static string AgeOf(DateTime now, DateTime? at) =>
+        at is null ? "—" : Format.SpacedAge((now - at.Value).TotalSeconds) + " ago";
+}
+
+<div class="a-disclose-grid">
+    <section>
+        <h3 class="csx-eyebrow">Alias registry · asset_alias</h3>
+        <p class="a-note">
+            The raw spellings a venue sends that discovery resolves into this asset. The rule
+            behind the fold this board already does — counted, never listed elsewhere on the site.
+        </p>
+        @if (Model.Aliases.Count == 0)
+        {
+            <p class="a-note">No aliases registered — every venue that lists this asset already spells it the canonical way.</p>
+        }
+        else
+        {
+            <table class="a-table a-disclose-table">
+                <thead><tr><th>Venue</th><th>Alias</th><th>Resolves to</th><th>Multiplier</th><th>Note</th></tr></thead>
+                <tbody>
+                    @foreach (var a in Model.Aliases)
+                    {
+                        <tr>
+                            <td>@(a.ExchangeCode ?? "all venues")</td>
+                            <td>@a.Alias</td>
+                            <td>@a.AssetCode</td>
+                            <td>@(a.Multiplier == 1 ? "1×" : Format.Num(a.Multiplier, 6) + "×")</td>
+                            <td>@(a.Note ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        <p class="a-note">
+            Auto-collect on this family:
+            @if (Model.AutoCollect is { } ac)
+            {
+                <b>@(ac ? "on" : "off")</b>
+                <text> — a new listing of this asset arrives @(ac ? "collecting" : "waiting for an operator") (gate 0029).</text>
+            }
+            else
+            {
+                <b>mixed</b>
+                <text> — the members folded into this family do not all agree, so a new listing's fate depends on which raw code the venue lists it under.</text>
+            }
+        </p>
+    </section>
+
+    <section>
+        <h3 class="csx-eyebrow">Collect audit · exchange_instrument</h3>
+        <p class="a-note">
+            Every listing this family has, whatever it decided. <c>collect</c> is written only at
+            first insert — a discovery pass never revisits it, so a listing with no change shown
+            below has been in this state since the day it first appeared, decided once, silently,
+            by the gate.
+        </p>
+        <table class="a-table a-disclose-table">
+            <thead><tr><th>Venue</th><th>Symbol</th><th>Status</th><th>Collect</th><th>Decided</th><th>By</th><th>Note</th></tr></thead>
+            <tbody>
+                @foreach (var l in Model.Listings)
+                {
+                    <tr>
+                        <td>@l.SegmentCode</td>
+                        <td>@l.Symbol</td>
+                        <td>@l.Status</td>
+                        <td>
+                            <span class="a-tag@(l.Collect ? " a-tag--spot" : " a-tag--hold")">@(l.Collect ? "collecting" : "waiting")</span>
+                        </td>
+                        <td title="@(l.ChangedAt is { } ca ? Format.Utc(ca) : "never changed")">@AgeOf(now, l.ChangedAt)</td>
+                        <td>@(l.ChangedBy ?? "—")</td>
+                        <td>@(l.Note ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+</div>

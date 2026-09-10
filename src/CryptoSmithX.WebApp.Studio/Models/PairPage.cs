@@ -274,7 +274,14 @@ public sealed record PairListModel(
     int Matching,
     int Limit,
     string Search,
-    DateTimeOffset RenderedAt)
+    DateTimeOffset RenderedAt,
+    // A4's facet — 'on' / 'waiting' / 'all', see Data.StudioStore.CollectFacets. Carried on the
+    // model, not re-derived from the query string in the view, so the view and the query agree on
+    // what was actually asked for even if a future caller adds a fourth value the view does not
+    // yet know how to render as a facet button.
+    string CollectFacet,
+    CollectCounts Counts,
+    IReadOnlyList<VenueStripRow> VenueStrip)
 {
     /// <summary>Whether the board is showing fewer pairs than matched. One place, so the statement
     /// line and the note below the cards cannot disagree about it.</summary>

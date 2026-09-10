@@ -6,9 +6,42 @@
     ViewData["ShowCollected"] = false;
 
     var busiest = Model.Pairs.Count == 0 ? 0 : Model.Pairs.Max(p => p.Venues);
+
+    string CollectUrl(string facet) => Url.Action("Index", "Pairs", new { q = Model.Search, collect = facet }) ?? "";
 }
 
 <main class="a-main">
+
+    @* A1: the axis the board never had. One row per segment, before the pair cards that read off
+       it — a reader who wants "what are we watching" should not have to infer it from which
+       venues happen to appear on the busiest cards. *@
+    <section class="a-venues" aria-label="Venues and segments">
+        <h2 class="csx-eyebrow">Venues · @Model.VenueStrip.Count segments</h2>
+        <div class="a-venue-strip">
+            @foreach (var v in Model.VenueStrip)
+            {
+                var panelId = "venue-" + v.SegmentCode;
+                <div class="a-venue-row" data-status="@v.Status">
+                    <button type="button" class="a-venue-trigger"
+                            data-disclose-url="@Url.Action("VenueDetail", "Pairs", new { segment = v.SegmentCode })"
+                            data-disclose-target="@panelId">
+                        <span class="a-venue-name">@v.ExchangeName</span>
+                        <span class="a-venue-segment">@v.SegmentCode <span class="a-tag@(v.Kind == "perp" ? " a-tag--perp" : " a-tag--spot")">@v.Kind</span></span>
+                        <span class="a-tag" title="Segment status — planned means catalogued, not yet started.">@v.Status</span>
+                        <span class="a-venue-quotes" title="Quoted against">@string.Join(" · ", v.QuoteAssets)</span>
+                        <span class="a-venue-blacklist" title="Symbols this segment excludes before discovery ever writes a row">
+                            @(v.BlacklistCount == 0 ? "no blacklist" : v.BlacklistCount + " blacklisted")
+                        </span>
+                        <span class="a-venue-budget" title="Request budget: concurrent requests, requests/second, and how the number was set">
+                            @v.MaxConcurrentRequests × @v.RequestBudgetPerS/s
+                            <span class="a-tag">@v.RequestBudgetSource</span>
+                        </span>
+                    </button>
+                    <div class="a-disclose-panel" id="@panelId" hidden></div>
+                </div>
+            }
+        </div>
+    </section>
 
     <div class="a-statement-row">
         <h1 class="a-statement">
@@ -54,11 +87,28 @@
         {
             <a class="a-btn" href="@Url.Action("Index", "Pairs")" style="display:inline-flex;align-items:center">Clear</a>
         }
+        <input type="hidden" name="collect" value="@Model.CollectFacet" />
     </form>
 
-    @* The cap, in words, next to the thing it capped. Not at the foot of the page: a reader who
-       stops at the last card has to have been told before they got there, and the number that
-       matters to them is how many pairs they are NOT looking at. *@
+    @* A4's facet: which instruments this board draws from, not just which pairs matched a search
+       term. Three mutually exclusive states, not a checkbox pile — an instrument is in exactly one
+       of them (StudioStore.CollectFacets). *@
+    <div class="a-facets" role="group" aria-label="Which listings to show">
+        <a class="a-facet@(Model.CollectFacet == "on" ? " a-facet--active" : "")" href="@CollectUrl("on")">
+            Collecting <b>@Model.Counts.Collecting</b>
+        </a>
+        <a class="a-facet@(Model.CollectFacet == "waiting" ? " a-facet--active" : "")" href="@CollectUrl("waiting")">
+            Waiting on an operator <b>@Model.Counts.Waiting</b>
+        </a>
+        <a class="a-facet@(Model.CollectFacet == "all" ? " a-facet--active" : "")" href="@CollectUrl("all")">
+            All <b>@(Model.Counts.Collecting + Model.Counts.Waiting)</b>
+        </a>
+    </div>
+
+    @* The cap, in words, next to the thing it capped — and now BOTH reasons a pair a reader wants
+       might not be on this page, not only the cap. A pair missing from the "collecting" facet is
+       not necessarily absent from the market: it may be waiting on gate 0029, or excluded before
+       discovery ever saw it by a segment's own blacklist. *@
     @if (Model.Truncated)
     {
         <p class="a-note">
@@ -66,6 +116,18 @@
             <b>@(Model.Matching - Model.Pairs.Count)</b> more match and are not on this page — this
             board is capped at @Model.Limit cards, which is a rule of the page and not a fact about
             the market. Filter by an asset to reach any of them.
+        </p>
+    }
+    @if (Model.CollectFacet == "on" && Model.Counts.Waiting > 0)
+    {
+        <p class="a-note">
+            <b>@Model.Counts.Waiting</b> listings are not on this board at all in this facet — they
+            arrived with <code>collect = false</code> because their base asset was not auto-approved
+            (gate 0029) and no operator has decided yet.
+            <a href="@CollectUrl("waiting")">See them</a>.
+            Separately, @Model.VenueStrip.Sum(v => v.BlacklistCount) symbols across
+            @Model.VenueStrip.Count(v => v.BlacklistCount > 0) segments are blacklisted and never
+            reach discovery at all — see the venue strip above.
         </p>
     }
 
@@ -114,6 +176,7 @@
                    ОТДЕЛЬНЫМИ ссылками рядом с карточкой, а не внутри неё: ссылка внутри ссылки —
                    невалидная разметка, и браузеры разбирают её по-разному, вплоть до того, что
                    внешняя перестаёт кликаться на части своей площади. *@
+                var registryPanelId = "registry-" + p.BaseFamily;
                 <div class="a-pair-cell">
                     <a class="a-plain a-pair-card" href="@href">
                         <span class="a-pair-name">@p.BaseFamily</span>
@@ -129,7 +192,14 @@
                     <span class="a-pair-designs">
                         <a class="a-design" href="@v1" title="@p.BaseFamily — first design">v1</a>
                         <a class="a-design a-design--now" href="@href" title="@p.BaseFamily — second design">v2</a>
+                        @* A3 + A4 on one trigger: the alias registry behind the fold, and the
+                           collect audit for every listing this family has. *@
+                        <button type="button" class="a-design a-design--registry"
+                                data-disclose-url="@Url.Action("AssetRegistry", "Pairs", new { baseFamily = p.BaseFamily })"
+                                data-disclose-target="@registryPanelId"
+                                title="@p.BaseFamily — aliases and collect audit">aliases</button>
                     </span>
+                    <div class="a-disclose-panel a-disclose-panel--card" id="@registryPanelId" hidden></div>
                 </div>
             }
         </div>
@@ -143,3 +213,7 @@
         and they differ wherever one venue lists the pair against two quotes in the same family.
     </p>
 </main>
+
+@section scripts {
+    <script src="~/studio-disclose.js?v=1" defer></script>
+}

@@ -81,7 +81,15 @@ public static class StudioStore
               -- here would drop every pair nobody has folded yet, which is most of them.
               left join asset_family_member bm on bm.asset_code = i.base_asset
               left join asset_family_member qm on qm.asset_code = i.quote_asset
-             where i.collect
+             where
+               -- A4's facet. Parameterised, not string-built, and expressed as three mutually
+               -- exclusive arms rather than one flag with a default — 'on' is the historic behaviour
+               -- (every pair before this facet existed was implicitly this one), 'waiting' is 0029's
+               -- gate made visible, 'all' is both together. @collect is always one of the three; the
+               -- controller is what enforces that, the same way it enforces every other query string.
+               ((@collect = 'on'      and i.collect)
+             or (@collect = 'waiting' and not i.collect)
+             or  @collect = 'all')
                -- Not `= 'trading'`. An instrument in halt, post_only or reduce_only stays in the
                -- comparison carrying its state; vanishing without a mark is the same lie as a zero
                -- standing in for a dash.
@@ -236,15 +244,23 @@ public static class StudioStore
     /// </summary>
     public const int MaxPairs = 200;
 
+    /// <summary>The three values <see cref="PairsSql"/>'s <c>@collect</c> parameter accepts. Anything
+    /// else is refused by <see cref="ListPairsAsync"/> before it reaches SQL, rather than silently
+    /// falling through to one arm of the facet's three-way OR.</summary>
+    public static readonly string[] CollectFacets = ["on", "waiting", "all"];
+
     /// <summary>Pairs the site publishes, folded into families, busiest first, at most
     /// <see cref="MaxPairs"/> of them and always with the number that matched.</summary>
+    /// <param name="collect">A4's facet — see <see cref="CollectFacets"/>. Anything not in that list
+    /// is treated as "on", the facet every pair on this board answered to before A4 existed.</param>
     public static async Task<PairListPage> ListPairsAsync(
-        DbConnection conn, string? search, CancellationToken ct)
+        DbConnection conn, string? search, string? collect, CancellationToken ct)
     {
         var term = (search ?? "").Trim();
+        var facet = CollectFacets.Contains(collect) ? collect! : "on";
         var rows = (await conn.QueryAsync<PairListRow>(new CommandDefinition(
             PairsSql,
-            new { search = term, like = $"%{term}%", limit = MaxPairs },
+            new { search = term, like = $"%{term}%", limit = MaxPairs, collect = facet },
             cancellationToken: ct))).ToList();
 
         // No rows, no window to read the count off. Zero here is an observation and not a missing

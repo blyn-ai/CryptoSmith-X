@@ -323,8 +323,9 @@ public sealed class PublicSurfaceTests
             .Select(i => new PairListItem("A" + i, 1, 1))
             .ToList();
 
-        var full = new PairListModel(cards, 4812, StudioStore.MaxPairs, "", DateTimeOffset.UnixEpoch);
-        var complete = new PairListModel(cards, cards.Count, StudioStore.MaxPairs, "", DateTimeOffset.UnixEpoch);
+        var counts = new CollectCounts(0, 0, 0);
+        var full = new PairListModel(cards, 4812, StudioStore.MaxPairs, "", DateTimeOffset.UnixEpoch, "on", counts, []);
+        var complete = new PairListModel(cards, cards.Count, StudioStore.MaxPairs, "", DateTimeOffset.UnixEpoch, "on", counts, []);
 
         Assert.True(full.Truncated);
         Assert.False(complete.Truncated);

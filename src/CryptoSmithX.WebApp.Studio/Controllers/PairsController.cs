@@ -37,10 +37,13 @@ public sealed class PairsController : LivePageController
     }
 
     /// <summary>The list of pairs, and the site's front door: PathBase makes this /studio.</summary>
+    /// <param name="collect">A4's facet: on (default) / waiting / all — see
+    /// <see cref="StudioStore.CollectFacets"/>.</param>
     [HttpGet]
-    public async Task<IActionResult> Index(string? q, CancellationToken ct)
+    public async Task<IActionResult> Index(string? q, string? collect, CancellationToken ct)
     {
         var search = (q ?? "").Trim();
+        var facet = StudioStore.CollectFacets.Contains(collect) ? collect! : "on";
 
         // The search term is part of the cache key because it is part of the answer, and it is the
         // one part an anonymous caller writes. What bounds the TABLE is the cache itself — a ceiling
@@ -76,18 +79,76 @@ public sealed class PairsController : LivePageController
         // quieter. Closing this properly means bounding the column in the schema or matching on a
         // prefix an index can serve, and both are changes to 0001's data model rather than to a
         // controller.
+        // The facet is part of the cache key for the same reason the search term is: it is part of
+        // the answer, and there are only three of them, so it costs nothing to keep separately.
         var pairs = await _cache.GetAsync(
-            "pairs:" + search,
+            "pairs:" + facet + ":" + search,
             async token =>
             {
                 await using var conn = await _db.OpenAsync(token);
-                return await StudioStore.ListPairsAsync(conn, search, token);
+                return await StudioStore.ListPairsAsync(conn, search, facet, token);
+            },
+            ct);
+
+        var strip = await _cache.GetAsync(
+            "venues",
+            async token =>
+            {
+                await using var conn = await _db.OpenAsync(token);
+                return await VenueStripStore.ListAsync(conn, token);
+            },
+            ct);
+
+        var counts = await _cache.GetAsync(
+            "collect-counts",
+            async token =>
+            {
+                await using var conn = await _db.OpenAsync(token);
+                return await AssetRegistryStore.CollectCountsAsync(conn, token);
             },
             ct);
 
         // Rendered-at is read here, per request, and never comes out of the cache. The list above
         // may be a second old; this is not, and the header says both.
-        return View(new PairListModel(pairs.Items, pairs.Matching, pairs.Limit, search, _clock.GetUtcNow()));
+        return View(new PairListModel(
+            pairs.Items, pairs.Matching, pairs.Limit, search, _clock.GetUtcNow(), facet, counts, strip));
+    }
+
+    /// <summary>
+    /// A2's disclosure, fetched only when a strip row is actually opened — the strip itself never
+    /// carries collector_status/collector_run for all seventeen segments up front, since the
+    /// disclosure is the minority of loads a given visit makes.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> VenueDetail(string segment, CancellationToken ct)
+    {
+        var detail = await _cache.GetAsync(
+            "venue-detail:" + segment,
+            async token =>
+            {
+                await using var conn = await _db.OpenAsync(token);
+                return await VenueStripStore.DetailAsync(conn, segment, token);
+            },
+            ct);
+
+        return PartialView("_VenueDetail", detail);
+    }
+
+    /// <summary>A3 + A4's card disclosure: the alias registry and the collect audit for one asset
+    /// family, fetched only when a card is actually opened.</summary>
+    [HttpGet]
+    public async Task<IActionResult> AssetRegistry(string baseFamily, CancellationToken ct)
+    {
+        var detail = await _cache.GetAsync(
+            "asset-registry:" + baseFamily,
+            async token =>
+            {
+                await using var conn = await _db.OpenAsync(token);
+                return await AssetRegistryStore.DetailAsync(conn, baseFamily, token);
+            },
+            ct);
+
+        return PartialView("_AssetRegistry", detail);
     }
 
     /// <summary>

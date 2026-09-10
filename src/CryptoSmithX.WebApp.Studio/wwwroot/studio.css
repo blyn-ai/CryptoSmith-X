@@ -1837,3 +1837,153 @@ a.a-wordmark:hover { color: var(--text-heading); }
 .a-plain:hover { color: inherit; text-decoration: none; }
 
 .a-plain:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Venue strip (plan item A1/A2) — the axis the board never had
+   ════════════════════════════════════════════════════════════════════════════
+   One row per segment, above the pair cards. A planned segment renders here with the SAME markup
+   as an enabled one — same row, same columns — dimmed by --state-stopped rather than hidden or
+   struck through, because the strip's whole point is to answer "what are we watching for", and an
+   unlaunched segment is part of that answer. */
+
+.a-venues {
+  padding: var(--space-6) var(--space-7) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.a-venue-strip {
+  display: flex;
+  flex-direction: column;
+  border: var(--panel-border);
+  background: var(--surface-card);
+}
+
+.a-venue-row + .a-venue-row { border-top: var(--hairline); }
+
+/* Дважды приглушённые: сегмент со статусом не enabled/planned (disabled, maintenance,
+   abandoned) гаснет сильнее, чем planned — planned это «ещё не начали», а не «сейчас не работает». */
+.a-venue-row[data-status="planned"] { opacity: 0.62; }
+.a-venue-row[data-status="disabled"],
+.a-venue-row[data-status="maintenance"],
+.a-venue-row[data-status="abandoned"] { opacity: 0.4; }
+
+.a-venue-trigger {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.4fr 1.6fr auto 1fr 1.2fr 1.4fr;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-6);
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--fs-eyebrow);
+  color: var(--text-body);
+  text-align: left;
+  transition: var(--transition-color);
+}
+
+.a-venue-trigger:hover { background: var(--surface-sunken); }
+.a-venue-trigger:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
+
+.a-venue-name {
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--text-heading);
+}
+
+.a-venue-segment {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  letter-spacing: var(--track-badge);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.a-venue-quotes,
+.a-venue-blacklist,
+.a-venue-budget { color: var(--text-faint); letter-spacing: var(--track-badge); }
+
+.a-venue-budget .a-tag { margin-left: var(--space-2); }
+
+/* The panel a click opens — fetched once by studio-disclose.js, then just shown/hidden. Full width
+   under the row it belongs to, never a modal (plan rule 4). */
+.a-disclose-panel {
+  padding: var(--space-6);
+  border-top: var(--hairline);
+  background: var(--surface-sunken);
+}
+
+.a-disclose-panel[hidden] { display: none; }
+
+.a-disclose-panel--card { border-top: var(--hairline); }
+
+.a-disclose-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-7);
+}
+
+.a-disclose-grid h3 { margin-bottom: var(--space-3); }
+.a-disclose-grid section { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.a-disclose-table {
+  width: 100%;
+  font-size: var(--fs-age);
+}
+
+.a-disclose-table th,
+.a-disclose-table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Collect facet (A4) — three mutually exclusive states, never a checkbox pile
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.a-facets {
+  display: flex;
+  gap: var(--space-3);
+  padding: 0 var(--space-7);
+}
+
+.a-facet {
+  padding: var(--space-3) var(--space-5);
+  border: var(--hairline);
+  font-family: var(--font-mono);
+  font-size: var(--fs-eyebrow);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.a-facet:hover { color: var(--accent); border-color: var(--border-strong); }
+
+.a-facet--active {
+  background: var(--surface-sunken);
+  color: var(--text-heading);
+  border-color: var(--border-strong);
+}
+
+.a-facet b { font-weight: var(--fw-medium); }
+
+/* The card's third button — same shape as v1/v2, a trigger rather than a navigation link, so it
+   needs the button reset .a-design doesn't already carry (it was written for anchors). */
+.a-design--registry {
+  border: var(--hairline);
+  background: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.a-design--registry:hover { color: var(--accent); border-color: var(--border-strong); }

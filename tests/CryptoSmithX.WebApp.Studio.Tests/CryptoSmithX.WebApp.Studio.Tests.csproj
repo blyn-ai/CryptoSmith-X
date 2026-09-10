@@ -67,6 +67,12 @@
              Link="surface\_V2Table.cshtml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\PairsV2\_V2Now.cshtml"
              Link="surface\_V2Now.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\Pairs\_VenueDetail.cshtml"
+             Link="surface\_VenueDetail.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\Pairs\_AssetRegistry.cshtml"
+             Link="surface\_AssetRegistry.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\wwwroot\studio-disclose.js"
+             Link="surface\studio-disclose.js" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <!-- The design system's token files and Studio's vendored copies of them, both trees, so a test
        can say what "vendored" means: byte-identical, except where the copy argues its deviation in
