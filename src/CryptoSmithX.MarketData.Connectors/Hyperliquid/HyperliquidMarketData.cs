@@ -1,5 +1,6 @@
 using System.Globalization;
 using CryptoSmithX.MarketData.Connectors.Market;
+using CryptoSmithX.MarketData.Connectors.Streaming;
 
 namespace CryptoSmithX.MarketData.Connectors.Hyperliquid;
 
@@ -67,6 +68,8 @@ public sealed class HyperliquidMarketData : IExchangeMarketData
     ];
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _wsFeed?.DrainTrades() ?? [];
+
+    public EventTap<TradeEvent>? ObserveTrades(int capacity) => _wsFeed?.ObserveTrades(capacity);
 
     /// <summary>The socket feed only, never <see cref="_restFeed"/> — that one is a REST poller, and
     /// the live path does not call REST. The venue splits what a ticker is across two channels, so

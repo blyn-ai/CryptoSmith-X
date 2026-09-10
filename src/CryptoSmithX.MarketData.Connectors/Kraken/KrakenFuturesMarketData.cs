@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using CryptoSmithX.MarketData.Connectors.Market;
+using CryptoSmithX.MarketData.Connectors.Streaming;
 
 namespace CryptoSmithX.MarketData.Connectors.Kraken;
 
@@ -54,6 +55,8 @@ public sealed class KrakenFuturesMarketData : IExchangeMarketData
     ];
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _ws?.DrainTrades() ?? [];
+
+    public EventTap<TradeEvent>? ObserveTrades(int capacity) => _ws?.ObserveTrades(capacity);
 
     /// <summary>Kraken is the one venue of the four whose socket carries a WHOLE ticker, so the live
     /// quote is filled end to end from it and nothing here is null for want of a source. The

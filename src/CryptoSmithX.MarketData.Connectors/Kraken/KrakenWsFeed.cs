@@ -255,6 +255,8 @@ public sealed class KrakenWsFeed : IKrakenLiveFeed
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _trades.Drain();
 
+    public EventTap<TradeEvent>? ObserveTrades(int capacity) => _trades.Observe(capacity);
+
     public long TradesDropped => _trades.Dropped;
 
     public bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame) =>

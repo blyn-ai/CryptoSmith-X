@@ -695,6 +695,8 @@ public sealed class WeexWsFeed : IWeexLiveFeed
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _trades.Drain();
 
+    public EventTap<TradeEvent>? ObserveTrades(int capacity) => _trades.Observe(capacity);
+
     public bool TryGetBookFrame(string symbol, int levels, out BookFrame frame) =>
         _books.TryGetFrame(symbol, levels, out frame);
 

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using CryptoSmithX.MarketData.Connectors.Kraken;
 using CryptoSmithX.MarketData.Connectors.Market;
+using CryptoSmithX.MarketData.Connectors.Streaming;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -88,7 +89,11 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _marketFeed?.DrainTrades() ?? [];
 
+    public EventTap<TradeEvent>? ObserveTrades(int capacity) => _marketFeed?.ObserveTrades(capacity);
+
     public IReadOnlyList<TradeEvent> DrainLiquidations() => _marketFeed?.DrainLiquidations() ?? [];
+
+    public EventTap<TradeEvent>? ObserveLiquidations(int capacity) => _marketFeed?.ObserveLiquidations(capacity);
 
     /// <summary>Two sockets, and neither carries what the third source would: <c>/market/stream</c>
     /// gives last/mark/index/funding/turnover, <c>/public/stream</c>'s maintained book gives bid/ask

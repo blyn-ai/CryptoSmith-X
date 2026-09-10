@@ -464,7 +464,11 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _trades.Drain();
 
+    public EventTap<TradeEvent>? ObserveTrades(int capacity) => _trades.Observe(capacity);
+
     public IReadOnlyList<TradeEvent> DrainLiquidations() => _liquidations.Drain();
+
+    public EventTap<TradeEvent>? ObserveLiquidations(int capacity) => _liquidations.Observe(capacity);
 
     private static bool TryParseString(JsonElement obj, string property, out double value)
     {

@@ -31,6 +31,10 @@ public interface IWeexLiveFeed
     /// Defaulted so a test double that only cares about depth stays small.</summary>
     IReadOnlyList<TradeEvent> DrainTrades() => [];
 
+    /// <summary>A lossy second reader of the same tape, for the live path — see
+    /// <see cref="IExchangeMarketData.ObserveTrades"/>. Null on a feed with no socket behind it.</summary>
+    Streaming.EventTap<TradeEvent>? ObserveTrades(int capacity) => null;
+
     bool TryGetBookFrame(string symbol, int levels, out BookFrame frame)
     {
         frame = null!;

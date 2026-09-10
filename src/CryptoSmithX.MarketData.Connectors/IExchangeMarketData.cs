@@ -104,6 +104,23 @@ public interface IExchangeMarketData
     /// </summary>
     IReadOnlyList<LiveQuote> LiveQuotes(IReadOnlyCollection<string> exchangeSymbols, TimeSpan maxAge) => [];
 
+    /// <summary>
+    /// A second, LOSSY reader of this venue's tape — the live path's counterpart to
+    /// <see cref="DrainTrades"/>, and deliberately not a second call to it. Null where this venue
+    /// has no socket to observe.
+    ///
+    /// <see cref="DrainTrades"/> removes what it returns, so it can have exactly one consumer and
+    /// that consumer is the database. Everything the page shows in its tape comes through here
+    /// instead: its own bounded queue, its own drops, and no way for a viewer falling behind to
+    /// cost the record a single print. See <see cref="Streaming.EventTap{T}"/>.
+    /// </summary>
+    Streaming.EventTap<TradeEvent>? ObserveTrades(int capacity) => null;
+
+    /// <summary>Liquidations, observed the same way and kept apart for the same reason
+    /// <see cref="DrainLiquidations"/> is kept apart from the tape — Binance publishes them twice
+    /// and counting both would double the executed quantity.</summary>
+    Streaming.EventTap<TradeEvent>? ObserveLiquidations(int capacity) => null;
+
     /// <summary>The top <paramref name="levels"/> of the maintained book right now, or false when
     /// this venue keeps no raw book (the fake) or has not seeded this symbol yet.</summary>
     bool TryGetBookFrame(string exchangeSymbol, int levels, out BookFrame frame)

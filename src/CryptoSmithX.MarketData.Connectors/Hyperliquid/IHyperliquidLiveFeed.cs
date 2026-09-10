@@ -54,6 +54,10 @@ public interface IHyperliquidLiveFeed
     /// <summary>Trades buffered since the last call — see <see cref="IExchangeMarketData.DrainTrades"/>.</summary>
     IReadOnlyList<TradeEvent> DrainTrades() => [];
 
+    /// <summary>A lossy second reader of the same tape, for the live path — see
+    /// <see cref="IExchangeMarketData.ObserveTrades"/>. Null on a feed with no socket behind it.</summary>
+    Streaming.EventTap<TradeEvent>? ObserveTrades(int capacity) => null;
+
     /// <summary>The last l2Book frame's raw levels (book_topn, 0032). The REST baseline feed keeps
     /// no frame of its own and answers false; the socket feed serves the frame it cached.</summary>
     bool TryGetBookFrame(string symbol, int levels, out BookFrame frame)

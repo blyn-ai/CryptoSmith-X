@@ -1,6 +1,7 @@
 using System.Globalization;
 using CryptoSmithX.MarketData.Connectors.Kraken;
 using CryptoSmithX.MarketData.Connectors.Market;
+using CryptoSmithX.MarketData.Connectors.Streaming;
 
 namespace CryptoSmithX.MarketData.Connectors.Weex;
 
@@ -64,6 +65,8 @@ public sealed class WeexFuturesMarketData : IExchangeMarketData
     ];
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _ws?.DrainTrades() ?? [];
+
+    public EventTap<TradeEvent>? ObserveTrades(int capacity) => _ws?.ObserveTrades(capacity);
 
     /// <summary>The thinnest live path of the four, and honestly so: WEEX's V3 socket has no
     /// top-of-book, mark, funding or open-interest channel at all (see <see cref="IWeexLiveFeed"/>),

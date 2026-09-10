@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CryptoSmithX.MarketData.Connectors.Market;
+using CryptoSmithX.MarketData.Connectors.Streaming;
 using Microsoft.AspNetCore.Http.Features;
 
 namespace CryptoSmithX.MarketData.Hub.Live;
@@ -34,6 +35,15 @@ public static class LiveEgress
 
     /// <summary>Under the 30 s idle timeout proxies commonly take, same as the studio's own stream.</summary>
     private static readonly TimeSpan Heartbeat = TimeSpan.FromSeconds(25);
+
+    /// <summary>How far behind one subscriber's tape may fall before it starts losing prints.
+    ///
+    /// The page shows a tape of about twenty rows, and this is drained five times a second, so a
+    /// thousand is roughly ten seconds of a busy venue's flow — far more than a viewer can be behind
+    /// and still be reading a tape rather than a history. It is a bound, not a target: what matters
+    /// is that a viewer who stalls costs itself prints and costs the recorder none.
+    /// </summary>
+    private const int TapeCapacity = 1_000;
 
     private static readonly JsonSerializerOptions Wire = new(JsonSerializerDefaults.Web)
     {
@@ -77,6 +87,13 @@ public static class LiveEgress
         await context.Response.WriteAsync(": connected\n\n", ct);
         await context.Response.Body.FlushAsync(ct);
 
+        // One tape subscription per venue this connection watches, opened on the first tick that
+        // knows which venues those are and closed with the connection. Per connection rather than
+        // shared, because a tap is drained by whoever reads it: two connections sharing one would
+        // take prints from each other exactly the way a second Drain() would take them from the
+        // database.
+        var tapes = new Dictionary<string, EventTap<TradeEvent>>(StringComparer.Ordinal);
+
         using var ticker = new PeriodicTimer(Tick);
         try
         {
@@ -90,11 +107,26 @@ public static class LiveEgress
                 var polled = Poll(wanted, snapshot, adapters, maxAge);
                 var changed = conflator.Changed(polled);
 
+                var wrote = false;
                 if (changed.Count > 0)
                 {
                     seq++;
                     var payload = JsonSerializer.Serialize(changed.Select(c => Wired(c.InstrumentId, snapshot, c.Quote)), Wire);
                     await context.Response.WriteAsync($"event: quotes\nid: {seq.ToString(CultureInfo.InvariantCulture)}\ndata: {payload}\n\n", ct);
+                    wrote = true;
+                }
+
+                var prints = DrainTapes(wanted, snapshot, adapters, tapes);
+                if (prints.Count > 0)
+                {
+                    seq++;
+                    var payload = JsonSerializer.Serialize(prints, Wire);
+                    await context.Response.WriteAsync($"event: trades\nid: {seq.ToString(CultureInfo.InvariantCulture)}\ndata: {payload}\n\n", ct);
+                    wrote = true;
+                }
+
+                if (wrote)
+                {
                     await context.Response.Body.FlushAsync(ct);
                     lastBeat = DateTimeOffset.UtcNow;
                     continue;
@@ -127,6 +159,55 @@ public static class LiveEgress
             // database meanwhile, which is exactly the degraded path it is built to survive.
             log.LogWarning(ex, "Live egress failed for {Count} instruments", wanted.Count);
         }
+        finally
+        {
+            // A tape left subscribed after its reader is gone is a queue the socket keeps filling
+            // for nobody, for the life of the process.
+            foreach (var tape in tapes.Values)
+            {
+                tape.Dispose();
+            }
+        }
+    }
+
+    /// <summary>Every print since the last tick on the venues this connection watches, for the
+    /// instruments it asked about. Subscribes on first sight of a venue: a tape is a live view, so
+    /// it starts when someone starts watching and carries no backlog.</summary>
+    private static List<WireTrade> DrainTapes(
+        HashSet<int> wanted,
+        InstrumentMap.Snapshot map,
+        IAdapterRegistry adapters,
+        Dictionary<string, EventTap<TradeEvent>> tapes)
+    {
+        var prints = new List<WireTrade>();
+        foreach (var (segment, symbols) in map.WantedBySegment(wanted))
+        {
+            if (!tapes.TryGetValue(segment, out var tape))
+            {
+                if (!adapters.TryGet(segment, out var adapter) || adapter.ObserveTrades(TapeCapacity) is not { } opened)
+                {
+                    // No socket on this venue, or the exchange is not running: no tape, and the page
+                    // keeps whatever the collectors recorded.
+                    continue;
+                }
+
+                tapes[segment] = tape = opened;
+            }
+
+            foreach (var t in tape.Drain())
+            {
+                // The tap carries the whole venue's tape — it is the feed's buffer, and the feed
+                // subscribes for its own reasons. The connection asked about a few listings.
+                if (symbols.Contains(t.ExchangeSymbol) && map.TryGetId(segment, t.ExchangeSymbol, out var id))
+                {
+                    prints.Add(new WireTrade(
+                        id, segment, t.EventTime.ToUnixTimeMilliseconds(),
+                        t.Price, t.Qty, t.TakerSide, t.TradeType));
+                }
+            }
+        }
+
+        return prints;
     }
 
     /// <summary>Every wanted instrument its segment's socket currently holds. One call per venue,
@@ -188,6 +269,18 @@ public static class LiveEgress
         [property: JsonPropertyName("oi")] double? OpenInterest,
         [property: JsonPropertyName("turn")] double? Turnover24h,
         [property: JsonPropertyName("depth")] WireDepth? Depth);
+
+    /// <summary>One print. No venue uid and no sequence: those exist so the RECORD can be
+    /// de-duplicated and ordered, and this is a view that is allowed to miss prints entirely —
+    /// carrying an identity would invite the page to pretend otherwise.</summary>
+    private sealed record WireTrade(
+        [property: JsonPropertyName("id")] int InstrumentId,
+        [property: JsonPropertyName("seg")] string Segment,
+        [property: JsonPropertyName("at")] long AtUnixMs,
+        [property: JsonPropertyName("px")] double Price,
+        [property: JsonPropertyName("qty")] double Qty,
+        [property: JsonPropertyName("side")] string TakerSide,
+        [property: JsonPropertyName("kind")] string? TradeType);
 
     private sealed record WireDepth(
         [property: JsonPropertyName("b10")] double? Bid10Bps,

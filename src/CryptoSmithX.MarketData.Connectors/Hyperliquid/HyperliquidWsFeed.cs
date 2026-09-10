@@ -279,6 +279,8 @@ public sealed class HyperliquidWsFeed : IHyperliquidLiveFeed
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _trades.Drain();
 
+    public EventTap<TradeEvent>? ObserveTrades(int capacity) => _trades.Observe(capacity);
+
     public bool TryGetBookFrame(string symbol, int levels, out BookFrame frame)
     {
         if (!Healthy || !_frames.TryGet(symbol, _staleAfter, out var cached))

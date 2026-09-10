@@ -51,7 +51,14 @@ public interface IBinanceMarketFeed
     /// <summary>Tape trades buffered since the last call (<c>@aggTrade</c>).</summary>
     IReadOnlyList<TradeEvent> DrainTrades() => [];
 
+    /// <summary>A lossy second reader of the same tape, for the live path — see
+    /// <see cref="IExchangeMarketData.ObserveTrades"/>. Null on a feed with no socket behind it.</summary>
+    Streaming.EventTap<TradeEvent>? ObserveTrades(int capacity) => null;
+
     /// <summary>Liquidation orders buffered since the last call (<c>!forceOrder@arr</c>), kept apart
     /// from the tape — see <see cref="IExchangeMarketData.DrainLiquidations"/>.</summary>
     IReadOnlyList<TradeEvent> DrainLiquidations() => [];
+
+    /// <summary>The same for liquidations — see <see cref="IExchangeMarketData.ObserveLiquidations"/>.</summary>
+    Streaming.EventTap<TradeEvent>? ObserveLiquidations(int capacity) => null;
 }
