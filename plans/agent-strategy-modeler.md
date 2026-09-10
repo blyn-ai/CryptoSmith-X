@@ -71,7 +71,7 @@ separate and are not represented by one invented aggregate value.
 - [x] 3. Replace `TradingBotOptions.Instances` and `Baselines` in the Parameters
   controller with database ownership and the resolved active profile. Retain a
   clear no-assignment state instead of a synthetic baseline.
-- [ ] 4. Add the Strategy Modeler parameter catalogue: labels, units, ranges,
+- [x] 4. Add the Strategy Modeler parameter catalogue: labels, units, ranges,
   default metadata, JSON paths and server-side validation. Keep the four capital
   limits and the twelve profile fields above as the only write surface.
 - [ ] 5. Implement transactional save: derive the instance from the session,
