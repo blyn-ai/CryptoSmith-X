@@ -65,7 +65,7 @@ separate and are not represented by one invented aggregate value.
 
 - [x] 1. Inspect the Agent, the static design artifact and the trading worker's
   current strategy-profile contract. Commit this plan first.
-- [ ] 2. Add Agent data records and a trading-bot store for owner lookup,
+- [x] 2. Add Agent data records and a trading-bot store for owner lookup,
   active-profile resolution and profile history. Add a focused Agent test project
   for mapping, authorization and SQL contract tests.
 - [ ] 3. Replace `TradingBotOptions.Instances` and `Baselines` in the Parameters
