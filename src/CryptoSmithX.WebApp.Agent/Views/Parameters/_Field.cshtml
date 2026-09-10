@@ -1,0 +1,74 @@
+@using CryptoSmithX.WebApp.Agent.Models
+@model FieldCard
+@*
+    Карточка параметра — перенос макета один в один: подпись и метка, число с единицей,
+    ползунок, подписи концов шкалы, строка «изменено» со сбросом, описание, пример и кнопка,
+    открывающая лист-подсказку.
+
+    Лист не встроен в карточку: в макете он один на страницу и наполняется от нажатой кнопки.
+    Поэтому весь его текст едет здесь в data-*, а не рисуется двадцать раз скрытым.
+*@
+<div class="field @(Model.Error is null ? null : "bad")" data-field>
+    <div class="field-head">
+        <span class="label">@Model.Label</span>
+        @if (Model.Tag is { } tag)
+        {
+            <span class="tag">@tag</span>
+        }
+    </div>
+
+    @if (Model.Editable && Model.BindingName is { } name)
+    {
+        <span class="affix">
+            <input type="number" name="@name" inputmode="decimal"
+                   min="@Model.Invariant(Model.Minimum)" max="@Model.Invariant(Model.Maximum)"
+                   step="@Model.Invariant(Model.Step)" required value="@Model.Display"
+                   aria-label="@Model.Label" data-number data-saved="@Model.Display">
+            <span class="unit">@Model.Unit</span>
+        </span>
+
+        @* Ползунок и поле — ОДНО значение в двух видах, а не два поля. Он без имени и не
+           отправляется: форму заполняет число, ползунок только его двигает. *@
+        <span class="field-scale">
+            <input type="range" class="csx-range"
+                   min="@Model.Invariant(Model.Minimum)" max="@Model.Invariant(Model.Maximum)"
+                   step="@Model.Invariant(Model.Step)" value="@Model.Display"
+                   aria-label="@Model.Label — slankiklis" data-range tabindex="-1">
+            <span><span>← @Model.LowerCaption</span><span>@Model.HigherCaption →</span></span>
+        </span>
+
+        <span class="field-changed" hidden data-changed>
+            <span>Išsaugota: <b>@Model.Display</b></span>
+            <button type="button" class="link-btn" data-revert>Atstatyti</button>
+        </span>
+    }
+    else
+    {
+        <span class="locked">
+            <span class="locked-value">@Model.Display</span>
+            <span class="locked-unit">@Model.Unit</span>
+            <span class="locked-note">Sudėtinė taisyklė</span>
+        </span>
+    }
+
+    @if (Model.Hint is { } hint)
+    {
+        <span class="hint">@hint</span>
+    }
+    @if (Model.Error is { } error)
+    {
+        <span class="bad-msg">@error</span>
+    }
+
+    <p class="field-description">@Model.Description</p>
+    <p class="field-example">@Model.Example</p>
+
+    <button type="button" class="more" data-sheet
+            data-title="@Model.Label"
+            data-intro="@Model.DetailIntro"
+            data-down="@Model.LowerImpact"
+            data-up="@Model.HigherImpact"
+            data-tech="@Model.Technical"
+            data-now="@Model.Display @Model.Unit"
+            data-saved="@Model.Display @Model.Unit">Išsamiau</button>
+</div>

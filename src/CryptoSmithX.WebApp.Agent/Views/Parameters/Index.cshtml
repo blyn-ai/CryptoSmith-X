@@ -6,33 +6,64 @@
     ViewData["PageClass"] = "p-params";
 
     string? Err(string key) => Model.Errors.TryGetValue(key, out var message) ? message : null;
-    StrategyParameterViewModel Parameter(string id) => Model.StrategyParameters.Single(parameter => parameter.Definition.Id == id);
-    var tradeParameters = new[] { Parameter("markets"), Parameter("volume"), Parameter("longScore"), Parameter("shortScore"), Parameter("spread"), Parameter("btcDrop"), Parameter("btcBars") };
-    var exitParameters = new[] { Parameter("stop"), Parameter("trail"), Parameter("maxHold"), Parameter("cooldown") };
+    StrategyParameterViewModel Parameter(string id) => Model.StrategyParameters.Single(p => p.Definition.Id == id);
+
+    FieldCard FromLimit(RuntimeLimitViewModel l) => new(
+        l.BindingName, l.Label, l.Unit, l.Value, l.Minimum, l.Maximum, l.Step, l.DecimalPlaces,
+        l.LowerCaption, l.HigherCaption, l.Description, l.Example,
+        l.DetailIntro, l.LowerImpact, l.HigherImpact, l.Technical,
+        Editable: true, Tag: null, Hint: null, Error: l.Error);
+
+    FieldCard FromParameter(StrategyParameterViewModel p)
+    {
+        var d = p.Definition;
+        return new FieldCard(
+            $"Parameters[{d.Id}]", d.Label, d.Unit, p.Value, d.Minimum, d.Maximum, d.Step, d.DecimalPlaces,
+            d.LowerCaption, d.HigherCaption, d.Description, d.Example,
+            d.DetailIntro, d.LowerImpact, d.HigherImpact, d.Technical,
+            Editable: p.IsEnabled, Tag: null,
+            Hint: p.IsEnabled ? null : "Išjungta šio profilio ATR trailing režimu.",
+            Error: p.Error);
+    }
+
+    var tradeParameters = new[] { "markets", "volume", "longScore", "shortScore", "spread", "btcDrop", "btcBars" }
+        .Select(id => FromParameter(Parameter(id))).ToList();
+    var exitParameters = new[] { "stop", "trail", "maxHold", "cooldown" }
+        .Select(id => FromParameter(Parameter(id))).ToList();
+
     var exposure = Model.Profile.PositionMarginUsd * Model.Profile.Leverage * Model.Profile.MaxOpenPositions;
     var elevatedRisk = exposure >= 10_000m || Model.Profile.Leverage >= 8m;
 }
 
 <header class="head">
-<span class="brand">
-<svg aria-hidden="true" viewBox="4.6 12.43 30.8 15.14" width="26" height="13" fill="none">
-<path d="M20 23.54 L15.97 27.57 L12.43 24.03 L16.46 20 L12.43 15.97 L15.97 12.43 L20 16.46 L24.03 12.43 L27.57 15.97 L23.54 20 L27.57 24.03 L24.03 27.57 Z" fill="currentColor"></path>
-<circle cx="6.6" cy="20" r="2" fill="currentColor" opacity=".55"></circle>
-<circle cx="33.4" cy="20" r="2" fill="currentColor" opacity=".55"></circle>
-</svg>
-<span class="wordmark">CryptoSmith X</span>
-</span>
-<span class="account">
-<span class="who">@User.Identity?.Name</span>
-<form method="post" asp-controller="Home" asp-action="Logout"><button type="submit" class="logout">Atsijungti</button></form>
-</span>
+    <span class="brand">
+        <svg aria-hidden="true" viewBox="4.6 12.43 30.8 15.14" width="26" height="13" fill="none">
+            <path d="M20 23.54 L15.97 27.57 L12.43 24.03 L16.46 20 L12.43 15.97 L15.97 12.43 L20 16.46 L24.03 12.43 L27.57 15.97 L23.54 20 L27.57 24.03 L24.03 27.57 Z" fill="currentColor"></path>
+            <circle cx="6.6" cy="20" r="2" fill="currentColor" opacity=".55"></circle>
+            <circle cx="33.4" cy="20" r="2" fill="currentColor" opacity=".55"></circle>
+        </svg>
+        <span class="wordmark">CryptoSmith X</span>
+    </span>
+    <span class="account">
+        <span class="who">@User.Identity?.Name</span>
+        <form method="post" asp-controller="Home" asp-action="Logout"><button type="submit" class="logout">Atsijungti</button></form>
+    </span>
 </header>
+
+@* Подшапка макета: какая стратегия открыта, менялось ли что-то с загрузки, и вход в список
+   сохранённого. Прилипает под шапкой — отсюда --head-h. *@
+<div class="subbar">
+    <span class="subbar-eyebrow">Strategija</span>
+    <span class="subbar-name">@Model.StrategyProfileName · rev. @Model.StrategyRevision</span>
+    <span class="subbar-unsaved" hidden data-unsaved>Pakeista</span>
+    <button type="button" class="subbar-load" data-open="saved">Išsaugoti nustatymai · @Model.RevisionHistory.Count</button>
+</div>
 
 <main>
 <div class="modeler-heading">
-<h1>Strategijos nustatymai</h1>
-<span class="profile-line"><span>@Model.StrategyProfileName</span><span>Profilis · @Model.BotInstanceId · rev. @Model.StrategyRevision</span></span>
-<p>Viršuje — pinigai ir ekspozicija · žemiau — kaip agresyviai botas elgiasi · apačioje — išėjimo taisyklės.</p>
+    <h1>Strategijos nustatymai</h1>
+    <span class="profile-line"><span>@Model.PublicAlias</span><span>@Model.BotInstanceId</span></span>
+    <p>Viršuje — pinigai ir ekspozicija · žemiau — kaip agresyviai botas elgiasi · apačioje — išėjimo taisyklės.</p>
 </div>
 
 @if (Model.JustSaved)
@@ -54,94 +85,208 @@
 <input type="hidden" name="changeNote" id="change-note">
 
 <section class="modeler-section">
-<div class="section-heading"><span>1</span><h2>Kapitalas ir limitai</h2><span>Redaguojama</span></div>
-<div class="modeler-grid">
-@foreach (var limit in Model.RuntimeLimits)
-{
-    <partial name="_RuntimeLimit" model="limit" />
-}
-</div>
-<div class="risk-panel @(elevatedRisk ? "elevated" : null)" data-risk-panel>
-<span><span>Rizikos lygis</span><strong data-risk-level>@(elevatedRisk ? "Padidintas" : "Įprastas")</strong></span>
-<p data-risk-text>@Model.Profile.PositionMarginUsd.ToString("0.##", CultureInfo.InvariantCulture) USD × @Model.Profile.Leverage.ToString("0.#", CultureInfo.InvariantCulture) svertas × iki @Model.Profile.MaxOpenPositions pozicijų gali reikšti iki @exposure.ToString("0.##", CultureInfo.InvariantCulture) USD bendros ekspozicijos rinkoje.</p>
-</div>
+    <div class="section-heading"><span>1</span><h2>Kapitalas ir limitai</h2><span>Redaguojama</span></div>
+    <div class="csx-grid">
+        @foreach (var limit in Model.RuntimeLimits)
+        {
+            <partial name="_Field" model="FromLimit(limit)" />
+        }
+    </div>
+    <div class="risk-panel @(elevatedRisk ? "elevated" : null)" data-risk-panel>
+        <span><span>Rizikos lygis</span><strong data-risk-level>@(elevatedRisk ? "Padidintas" : "Įprastas")</strong></span>
+        <p data-risk-text>@Model.Profile.PositionMarginUsd.ToString("0.##", CultureInfo.InvariantCulture) USD × @Model.Profile.Leverage.ToString("0.#", CultureInfo.InvariantCulture) svertas × iki @Model.Profile.MaxOpenPositions pozicijų gali reikšti iki @exposure.ToString("0.##", CultureInfo.InvariantCulture) USD bendros ekspozicijos rinkoje.</p>
+    </div>
 </section>
 
 <section class="modeler-section">
-<div class="section-heading"><span>2</span><h2>Prekybos elgsena</h2><span>Redaguojama</span></div>
-<p class="section-note">Šie nustatymai keičia tik naujų sandorių atranką. Sudėtinės taisyklės, turinčios kelias ribas, rodomos atskirai.</p>
-<div class="modeler-grid">
-@foreach (var parameter in tradeParameters)
-{
-    <partial name="_StrategyParameter" model="parameter" />
-}
-<div class="read-only-card">
-<span class="label">Vėlyvo įėjimo apsauga</span>
-<span class="read-only-value">Sudėtinė taisyklė</span>
-<p>Botas tikrina kelias ribas, kad neįeitų į jau per toli nuėjusią kainą.</p>
-<p class="field-example">Šios ribos išlieka strategijos profilyje ir šiame ekrane jų nesujungiame į vieną išgalvotą skaičių.</p>
-</div>
-</div>
+    <div class="section-heading"><span>2</span><h2>Prekybos elgsena</h2><span>Redaguojama</span></div>
+    <p class="section-note">Šie nustatymai keičia tik naujų sandorių atranką. Sudėtinės taisyklės, turinčios kelias ribas, rodomos atskirai.</p>
+    <div class="csx-grid">
+        @foreach (var card in tradeParameters)
+        {
+            <partial name="_Field" model="card" />
+        }
+        @* Составное правило: у него нет одного числа, и макет рисует его такой же карточкой,
+           но с запертым значением вместо поля. *@
+        <div class="field csx-wide">
+            <div class="field-head"><span class="label">Vėlyvo įėjimo apsauga</span></div>
+            <span class="locked">
+                <span class="locked-value">4</span>
+                <span class="locked-unit">taisyklės</span>
+                <span class="locked-note">Sudėtinė taisyklė</span>
+            </span>
+            <p class="field-description">Botas tikrina kelias ribas, kad neįeitų į jau per toli nuėjusią kainą.</p>
+            <p class="field-example">Šios ribos išlieka strategijos profilyje ir šiame ekrane jų nesujungiame į vieną išgalvotą skaičių.</p>
+            <button type="button" class="more" data-sheet
+                    data-title="Vėlyvo įėjimo apsauga"
+                    data-intro="Neleidžia botui vytis kainos, jei ji jau stipriai pajudėjo. Tai kelios atskiros taisyklės, ne vienas skaičius."
+                    data-tech="Taisyklės tikrinamos nuosekliai po balo ribos: run-up per paskutines žvakes, atstumas nuo greitos EMA, kainos nuklydimas nuo tos, kuriai skaičiuotas signalas, ir atstumas iki vietinės viršūnės."
+                    data-note="Kiekviena taisyklė turi savo ribą strategijos profilyje ir keičiama atskirai, ne vienu bendru skaičiumi."
+                    data-rows="Šuolis prieš įėjimą=Įjungta|Atotrūkis nuo vidurkio=Įjungta|Nuklydimas nuo signalo kainos=Įjungta|Artumas prie vietinės viršūnės=Įjungta">Išsamiau</button>
+        </div>
+    </div>
 </section>
 
 <section class="modeler-section">
-<div class="section-heading"><span>3</span><h2>Rizika ir išėjimas</h2><span>Redaguojama</span></div>
-<div class="modeler-grid">
-@foreach (var parameter in exitParameters)
-{
-    <partial name="_StrategyParameter" model="parameter" />
-}
-</div>
+    <div class="section-heading"><span>3</span><h2>Rizika ir išėjimas</h2><span>Redaguojama</span></div>
+    <div class="csx-grid">
+        @foreach (var card in exitParameters)
+        {
+            <partial name="_Field" model="card" />
+        }
+    </div>
 </section>
 
 <section class="sticky-save">
-<span id="status" data-state="saved" data-idle="Išsaugota">Išsaugota</span>
-<button type="submit" class="save">Išsaugoti</button>
-<p>Pakeitimai bus taikomi naujoms pozicijoms. Jau atidarytos pozicijos nesikeis.</p>
+    <span class="save-status">
+        <span id="status" data-state="saved" data-idle="Išsaugota">Išsaugota</span>
+        <span class="invalid" hidden data-invalid>Patikrink pažymėtus laukus</span>
+    </span>
+    <button type="submit" class="save">Išsaugoti</button>
+    <p>Pakeitimai bus taikomi naujoms pozicijoms. Jau atidarytos pozicijos nesikeis.</p>
 </section>
+
+<div class="reset-block">
+    <button type="button" class="reset-ask" data-reset-ask>Atstatyti išsaugotas reikšmes</button>
+    <div class="reset-confirm" hidden data-reset-confirm>
+        <p>Atstatyti visas reikšmes į <span>@Model.StrategyProfileName</span> išsaugotas? Tavo pakeitimai bus prarasti.</p>
+        <span>
+            <button type="button" class="btn-danger" data-reset-do>Taip, atstatyti</button>
+            <button type="button" class="btn-quiet" data-reset-cancel>Atšaukti</button>
+        </span>
+    </div>
+</div>
 </form>
 
-<section class="modeler-section revision-history" id="revision-history">
-<div class="section-heading"><span>4</span><h2>Išsaugoti nustatymai</h2><span>Tik peržiūrai</span></div>
-<p class="section-intro">Kiekvienas išsaugojimas sukuria nekintamą strategijos reviziją.</p>
-@if (Model.RevisionHistory.Count == 0)
-{
-    <p class="empty">Kol kas nėra išsaugotų strategijos revizijų.</p>
-}
-else
-{
-    <ol>
-    @foreach (var revision in Model.RevisionHistory)
-    {
-        <li>
-            <span>Revizija @revision.Revision</span>
-            <time datetime="@revision.CreatedAt.ToUniversalTime().ToString("O")">@revision.CreatedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm") UTC</time>
-            @if (!string.IsNullOrWhiteSpace(revision.ChangeNote)) { <p>@revision.ChangeNote</p> }
-        </li>
-    }
-    </ol>
-}
+<section class="modeler-section">
+    <div class="section-heading"><span>4</span><h2>Strategijos vidiniai parametrai</h2><span>Tik peržiūrai</span></div>
+    <button type="button" class="internals-toggle" data-internals-toggle aria-expanded="false">Rodyti vidinius parametrus</button>
+    <div class="csx-grid" hidden data-internals>
+        @foreach (var (label, value, description) in new[]
+        {
+            ("EMA greitas / lėtas", "9 / 21", "Padeda botui įvertinti trumpalaikę kainos kryptį."),
+            ("RSI periodas", "14", "Padeda įvertinti, ar kaina juda per greitai viena kryptimi."),
+            ("Minimalus EMA tarpas", "0,15 %", "Kiek kryptį rodančios linijos turi būti prasiskyrusios, kad kryptis būtų laikoma tikra."),
+            ("BTC režimo vartai", "Įjungta", "Ar atsižvelgiama į bendrą rinkos kryptį pagal Bitcoin."),
+            ("Santykinio stiprumo vartai", "≥ 1,05", "Ar rinka juda stipriau nei visa rinka kartu."),
+            ("ATR periodas", "14", "Rinkos svyravimo matas, naudojamas išėjimo taisyklėse."),
+        })
+        {
+            <div class="internal-card">
+                <span><span class="internal-label">@label</span><span class="internal-value">@value</span></span>
+                <p>@description</p>
+                <button type="button" class="link-btn" data-sheet
+                        data-title="@label"
+                        data-intro="@description"
+                        data-tech="Reikšmė ateina iš priskirto strategijos profilio ir taikoma visoms šios instancijos pozicijoms nuo kito ciklo."
+                        data-note="Šis parametras priklauso strategijos modeliui ir per šį ekraną nekeičiamas."
+                        data-rows="Reikšmė=@value|Šaltinis=Strategijos profilis">Išsamiau</button>
+            </div>
+        }
+    </div>
 </section>
 
 <p class="compliance">Ne investavimo rekomendacija · Tik nuosavos lėšos</p>
-
-<dialog id="confirm" class="confirm" aria-labelledby="confirm-title">
-<form method="dialog">
-<p class="confirm-eyebrow" id="confirm-title">Išsaugoti nustatymus</p>
-<p class="confirm-caption">Bus sukurta strategijos revizija @(@Model.StrategyRevision + 1).</p>
-<dl class="confirm-list">
-<div><dt>Pozicijos marža</dt><dd data-for="positionMarginUsd"></dd></div>
-<div><dt>Svertas</dt><dd data-for="leverage"></dd></div>
-<div><dt>Daugiausia atvirų pozicijų</dt><dd data-for="maxOpenPositions"></dd></div>
-<div><dt>Daugiausia vienoje grupėje</dt><dd data-for="maxOpenPositionsPerGroup"></dd></div>
-</dl>
-<label class="dialog-note"><span>Pastabos</span><textarea id="revision-note" maxlength="1000" rows="3" placeholder="Pvz. mažesnis svertas savaitgaliui"></textarea><small>Neprivaloma. Padeda vėliau atpažinti, kodėl taip nustatei.</small></label>
-<p class="confirm-note">Pakeitimai bus taikomi naujoms pozicijoms. Jau atidarytos pozicijos nesikeis.</p>
-<div class="confirm-actions"><button type="submit" value="cancel" class="confirm-no">Atšaukti</button><button type="submit" value="save" class="confirm-yes">Išsaugoti</button></div>
-</form>
-</dialog>
 </main>
 
+@* ── Подтверждение сохранения ──────────────────────────────────────────────
+   Механизм тот же, что был: форма отправляется только после подтверждения, скрипт
+   переносит примечание в скрытое поле и вызывает requestSubmit. Со скриптами наотрез
+   форма уходит напрямую и сервер проверяет её точно так же. *@
+<dialog id="confirm" class="overlay" aria-labelledby="confirm-title">
+    <form method="dialog" class="panel">
+        <div class="panel-head">
+            <span class="panel-title" id="confirm-title">Išsaugoti nustatymus</span>
+            <button type="submit" value="cancel" class="panel-close" aria-label="Uždaryti">✕</button>
+        </div>
+        <div class="panel-body tight">
+            <span class="dialog-field">
+                <span class="dialog-eyebrow">Pavadinimas</span>
+                <span class="dialog-name">Revizija @(Model.StrategyRevision + 1)</span>
+                <span class="dialog-small">Vardas sudaromas automatiškai: revizijos numeris didėja per vieną.</span>
+            </span>
+            @* Четыре числа, которые сейчас станут ботовскими. В макете этого списка нет, но это
+               существующая защита формы, а не оформление, и убирать её — менять поведение. *@
+            <div class="sheet-rows">
+                <span class="sheet-row"><span>Pozicijos marža</span><span data-for="positionMarginUsd"></span></span>
+                <span class="sheet-row"><span>Svertas</span><span data-for="leverage"></span></span>
+                <span class="sheet-row"><span>Daugiausia atvirų pozicijų</span><span data-for="maxOpenPositions"></span></span>
+                <span class="sheet-row"><span>Daugiausia vienoje grupėje</span><span data-for="maxOpenPositionsPerGroup"></span></span>
+            </div>
+            <label class="dialog-field">
+                <span class="dialog-eyebrow">Pastabos</span>
+                <textarea id="revision-note" maxlength="1000" rows="3" placeholder="Pvz. mažesnis svertas savaitgaliui"></textarea>
+                <span class="dialog-small">Neprivaloma. Padeda vėliau atpažinti, kodėl taip nustatei.</span>
+            </label>
+            <p class="field-example">Pakeitimai bus taikomi naujoms pozicijoms. Jau atidarytos pozicijos nesikeis.</p>
+            <div class="dialog-actions">
+                <button type="submit" value="save" class="btn-primary">Išsaugoti</button>
+                <button type="submit" value="cancel" class="btn-quiet">Atšaukti</button>
+            </div>
+        </div>
+    </form>
+</dialog>
+
+@* ── Сохранённые настройки ─────────────────────────────────────────────────
+   Список ревизий макета. Кнопки «загрузить» здесь нет: восстановления ревизии на сервере
+   не существует, а кнопка, которая ничего не делает, — обещание, которого не будет. *@
+<dialog id="saved" class="overlay" aria-labelledby="saved-title">
+    <div class="panel">
+        <div class="panel-head">
+            <span class="panel-title" id="saved-title">Išsaugoti nustatymai</span>
+            <button type="button" class="panel-close" data-close aria-label="Uždaryti">✕</button>
+        </div>
+        <div class="panel-body">
+            @if (Model.RevisionHistory.Count == 0)
+            {
+                <p class="empty">Kol kas nėra išsaugotų strategijos revizijų.</p>
+            }
+            else
+            {
+                foreach (var revision in Model.RevisionHistory)
+                {
+                    <div class="saved-item @(revision.Revision == Model.StrategyRevision ? "current" : null)">
+                        <span class="saved-line">
+                            <span class="saved-name">Revizija @revision.Revision</span>
+                            @if (revision.Revision == Model.StrategyRevision)
+                            {
+                                <span class="saved-badge">Dabartinė</span>
+                            }
+                            <time class="saved-when" datetime="@revision.CreatedAt.ToUniversalTime().ToString("O")">@revision.CreatedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm") UTC</time>
+                        </span>
+                        @if (!string.IsNullOrWhiteSpace(revision.ChangeNote))
+                        {
+                            <p>@revision.ChangeNote</p>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</dialog>
+
+@* ── Лист-подсказка ────────────────────────────────────────────────────────
+   Один на страницу; наполняется из data-* нажатой кнопки. *@
+<dialog id="sheet" class="overlay" aria-labelledby="sheet-title">
+    <div class="panel">
+        <div class="panel-head">
+            <span class="panel-title" id="sheet-title" data-sheet-title></span>
+            <button type="button" class="panel-close" data-close aria-label="Uždaryti">✕</button>
+        </div>
+        <div class="panel-body">
+            <p class="sheet-intro" data-sheet-intro></p>
+            <div class="sheet-directions" hidden data-sheet-directions>
+                <div class="sheet-direction"><span>Jei sumažinsi</span><span data-sheet-down></span></div>
+                <div class="sheet-direction"><span>Jei padidinsi</span><span data-sheet-up></span></div>
+            </div>
+            <div class="sheet-rows" data-sheet-rows></div>
+            <p class="field-example" hidden data-sheet-note></p>
+            <button type="button" class="more" data-tech-toggle aria-expanded="false">Kaip tai veikia techniškai</button>
+            <p class="sheet-tech" hidden data-sheet-tech></p>
+        </div>
+    </div>
+</dialog>
+
 @section Scripts {
-<script src="~/parameters.js"></script>
+<script src="~/parameters.js?v=2"></script>
 }

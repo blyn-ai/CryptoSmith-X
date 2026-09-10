@@ -1,39 +1,202 @@
-/* Two jobs on this screen, and neither of them writes anything: the status word, and the
-   confirmation in front of Save.
+/* Экран стратегии. Ничего не пишет сам: сохранение делает форма, как и делало.
 
-   The status word only distinguishes "what you see is what is stored" from "you have typed
-   something that is not". Its idle text comes from the server (data-idle), because only the server
-   knows whether these numbers are the owner's overrides or the bot's own deployed defaults.
+   Задачи здесь три, и все они про то, что читатель видит:
+     1. слово о состоянии и метка «Pakeista» — отличают «на экране то, что сохранено» от «ты
+        что-то набрал»;
+     2. подтверждение перед сохранением — перехватывает submit и показывает четыре числа,
+        которые сейчас станут ботовскими;
+     3. лист-подсказка, ползунки, сброс и списки — оформление макета.
 
-   The confirmation intercepts submit and shows the four numbers that are about to become the
-   bot's. With scripting off the form posts straight through and the server validates it exactly
-   the same — the dialog guards a working form, it is not the way the form works. */
+   Со скриптами наотрез форма уходит напрямую, и сервер проверяет её точно так же: диалог
+   охраняет работающую форму, а не является способом её отправить. */
 (function () {
   var form = document.getElementById('limits');
-  var status = document.getElementById('status');
-  var dialog = document.getElementById('confirm');
   if (!form) { return; }
 
-  if (status) {
-    var idle = status.dataset.idle || 'Išsaugota';
-    form.addEventListener('input', function () {
-      status.dataset.state = 'dirty';
-      status.textContent = 'Neišsaugoti pakeitimai';
+  var status = document.getElementById('status');
+  var invalid = document.querySelector('[data-invalid]');
+  var unsaved = document.querySelector('[data-unsaved]');
+  var dialog = document.getElementById('confirm');
+
+  // ── 1. Состояние ─────────────────────────────────────────────────────────
+  var idle = status ? (status.dataset.idle || 'Išsaugota') : '';
+
+  function dirty() {
+    var changed = false;
+    Array.prototype.forEach.call(form.querySelectorAll('[data-number]'), function (input) {
+      var moved = input.value !== input.dataset.saved;
+      var card = input.closest('[data-field]');
+      if (card) {
+        card.classList.toggle('changed', moved);
+        var line = card.querySelector('[data-changed]');
+        if (line) { line.hidden = !moved; }
+      }
+      if (moved) { changed = true; }
     });
-    // pageshow rather than load: coming back with the Back button restores the fields from the
-    // browser's cache, and a status left reading "Saving…" from the visit before would be a lie
-    // about a request that is long over.
-    window.addEventListener('pageshow', function () {
-      status.dataset.state = 'saved';
-      status.textContent = idle;
+
+    if (unsaved) { unsaved.hidden = !changed; }
+    if (status) {
+      status.dataset.state = changed ? 'dirty' : 'saved';
+      status.textContent = changed ? 'Neišsaugoti pakeitimai' : idle;
+    }
+    if (invalid) { invalid.hidden = form.checkValidity(); }
+  }
+
+  form.addEventListener('input', dirty);
+
+  // pageshow, а не load: возврат кнопкой «назад» восстанавливает поля из кеша браузера, и слово
+  // «Saugoma…», оставшееся от прошлого визита, было бы ложью о давно законченном запросе.
+  window.addEventListener('pageshow', dirty);
+
+  // ── 2. Ползунок и число — одно значение ──────────────────────────────────
+  Array.prototype.forEach.call(form.querySelectorAll('[data-field]'), function (card) {
+    var number = card.querySelector('[data-number]');
+    var range = card.querySelector('[data-range]');
+    var revert = card.querySelector('[data-revert]');
+    if (!number) { return; }
+
+    if (range) {
+      range.addEventListener('input', function () {
+        number.value = range.value;
+        number.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      number.addEventListener('input', function () { range.value = number.value; });
+    }
+
+    if (revert) {
+      revert.addEventListener('click', function () {
+        number.value = number.dataset.saved;
+        if (range) { range.value = number.value; }
+        number.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    }
+  });
+
+  // ── 3. Сброс всех значений к сохранённым ─────────────────────────────────
+  var askReset = document.querySelector('[data-reset-ask]');
+  var confirmReset = document.querySelector('[data-reset-confirm]');
+  if (askReset && confirmReset) {
+    askReset.addEventListener('click', function () {
+      confirmReset.hidden = false;
+      askReset.hidden = true;
+    });
+    confirmReset.querySelector('[data-reset-cancel]').addEventListener('click', function () {
+      confirmReset.hidden = true;
+      askReset.hidden = false;
+    });
+    confirmReset.querySelector('[data-reset-do]').addEventListener('click', function () {
+      Array.prototype.forEach.call(form.querySelectorAll('[data-number]'), function (input) {
+        input.value = input.dataset.saved;
+        var range = input.closest('[data-field]').querySelector('[data-range]');
+        if (range) { range.value = input.value; }
+      });
+      confirmReset.hidden = true;
+      askReset.hidden = false;
+      dirty();
     });
   }
 
-  if (!dialog || typeof dialog.showModal !== 'function') { return; }
+  // ── 4. Внутренние параметры ──────────────────────────────────────────────
+  var internalsToggle = document.querySelector('[data-internals-toggle]');
+  var internals = document.querySelector('[data-internals]');
+  if (internalsToggle && internals) {
+    internalsToggle.addEventListener('click', function () {
+      var open = internals.hidden;
+      internals.hidden = !open;
+      internalsToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      internalsToggle.textContent = open ? 'Slėpti vidinius parametrus' : 'Rodyti vidinius parametrus';
+    });
+  }
 
-  var confirmed = false;
-  var note = document.getElementById('revision-note');
-  var noteTarget = document.getElementById('change-note');
+  // ── 5. Лист-подсказка ────────────────────────────────────────────────────
+  var sheet = document.getElementById('sheet');
+  if (sheet) {
+    var tech = sheet.querySelector('[data-sheet-tech]');
+    var techToggle = sheet.querySelector('[data-tech-toggle]');
+
+    function fill(button) {
+      sheet.querySelector('[data-sheet-title]').textContent = button.dataset.title || '';
+      sheet.querySelector('[data-sheet-intro]').textContent = button.dataset.intro || '';
+
+      var directions = sheet.querySelector('[data-sheet-directions]');
+      var hasDirection = !!(button.dataset.down || button.dataset.up);
+      directions.hidden = !hasDirection;
+      if (hasDirection) {
+        sheet.querySelector('[data-sheet-down]').textContent = button.dataset.down || '';
+        sheet.querySelector('[data-sheet-up]').textContent = button.dataset.up || '';
+      }
+
+      // Строки листа: либо заданные кнопкой, либо «сейчас / сохранено» у обычного поля.
+      var rows = sheet.querySelector('[data-sheet-rows]');
+      rows.textContent = '';
+      var pairs = button.dataset.rows
+        ? button.dataset.rows.split('|').map(function (p) { return p.split('='); })
+        : [['Dabar', button.dataset.now || ''], ['Išsaugota', button.dataset.saved || '']];
+
+      pairs.forEach(function (pair) {
+        if (!pair[0]) { return; }
+        var row = document.createElement('span');
+        row.className = 'sheet-row';
+        var left = document.createElement('span');
+        left.textContent = pair[0];
+        var right = document.createElement('span');
+        right.textContent = pair[1] || '';
+        row.appendChild(left);
+        row.appendChild(right);
+        rows.appendChild(row);
+      });
+
+      var note = sheet.querySelector('[data-sheet-note]');
+      note.textContent = button.dataset.note || '';
+      note.hidden = !button.dataset.note;
+
+      tech.textContent = button.dataset.tech || '';
+      tech.hidden = true;
+      techToggle.hidden = !button.dataset.tech;
+      techToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    if (techToggle) {
+      techToggle.addEventListener('click', function () {
+        var open = tech.hidden;
+        tech.hidden = !open;
+        techToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    }
+
+    document.addEventListener('click', function (e) {
+      var button = e.target.closest ? e.target.closest('[data-sheet]') : null;
+      if (!button) { return; }
+      // «Сейчас» берётся в момент открытия: карточка живая, и значение в ней могло уехать.
+      var card = button.closest('[data-field]');
+      var number = card ? card.querySelector('[data-number]') : null;
+      if (number) { button.dataset.now = number.value + ' ' + (button.dataset.now || '').split(' ').slice(1).join(' '); }
+      fill(button);
+      if (typeof sheet.showModal === 'function') { sheet.showModal(); }
+    });
+  }
+
+  // Открытие и закрытие любого <dialog> по data-атрибутам, одним обработчиком.
+  document.addEventListener('click', function (e) {
+    var open = e.target.closest ? e.target.closest('[data-open]') : null;
+    if (open) {
+      var target = document.getElementById(open.dataset.open);
+      if (target && typeof target.showModal === 'function') { target.showModal(); }
+      return;
+    }
+    var close = e.target.closest ? e.target.closest('[data-close]') : null;
+    if (close) {
+      var owner = close.closest('dialog');
+      if (owner) { owner.close(); }
+    }
+  });
+
+  // Щелчок по затемнению закрывает лист — как в макете.
+  Array.prototype.forEach.call(document.querySelectorAll('dialog.overlay'), function (d) {
+    d.addEventListener('click', function (e) { if (e.target === d) { d.close(); } });
+  });
+
+  // ── 6. Подтверждение сохранения — механизм не менялся ────────────────────
   var riskPanel = document.querySelector('[data-risk-panel]');
   var riskLevel = document.querySelector('[data-risk-level]');
   var riskText = document.querySelector('[data-risk-text]');
@@ -63,11 +226,18 @@
 
   updateRisk();
   form.addEventListener('input', updateRisk);
+  dirty();
+
+  if (!dialog || typeof dialog.showModal !== 'function') { return; }
+
+  var confirmed = false;
+  var note = document.getElementById('revision-note');
+  var noteTarget = document.getElementById('change-note');
 
   form.addEventListener('submit', function (e) {
     if (confirmed) { return; }
-    // Let the fields' own min/max/step speak first: confirming a value the browser is about to
-    // refuse would ask the owner to approve something that never gets sent.
+    // Пусть сначала скажут min/max/step самих полей: подтверждать значение, которое браузер
+    // всё равно отвергнет, — значит просить одобрить то, что не уйдёт.
     if (form.noValidate !== true && typeof form.reportValidity === 'function' && !form.reportValidity()) {
       e.preventDefault();
       return;
@@ -85,8 +255,8 @@
     confirmed = true;
     if (noteTarget) { noteTarget.value = note ? note.value : ''; }
     if (status) { status.dataset.state = 'saving'; status.textContent = 'Saugoma…'; }
-    // requestSubmit, not submit(): submit() skips the submit event AND the submit button, and this
-    // form has no name on its button to lose — but it also skips validation, and one day it will.
+    // requestSubmit, а не submit(): submit() пропускает событие submit И кнопку, а заодно
+    // проверку полей — и однажды это выстрелит.
     if (typeof form.requestSubmit === 'function') { form.requestSubmit(); } else { form.submit(); }
   });
 })();
