@@ -89,7 +89,14 @@ public sealed class PairsV2Controller : LivePageController
         try
         {
             await WriteAsync(": connected\n\n", ct);
-            await WriteAsync($"event: signal\ndata: {(_hub.State == HubStreamState.Down ? "degraded" : "up")}\n\n", ct);
+
+            // Sent when it changes and never otherwise — the Latest branch's own rule: a reader is
+            // told that something about this stream is different, not reminded every twenty-five
+            // seconds that it is fine. Carried on the room's frames rather than read from the hub
+            // here, so the state a viewer is told is the state the figures beside it were computed
+            // under; asking the hub separately would let the two disagree by a tick.
+            var signal = _hub.State == HubStreamState.Down ? "degraded" : "up";
+            await WriteAsync($"event: signal\ndata: {signal}\n\n", ct);
 
             var beat = new PeriodicTimer(TimeSpan.FromSeconds(25));
             var heartbeat = beat.WaitForNextTickAsync(ct).AsTask();
@@ -115,6 +122,20 @@ public sealed class PairsV2Controller : LivePageController
                 next = reader.WaitToReadAsync(ct).AsTask();
                 while (reader.TryRead(out var frame))
                 {
+                    if (frame.Signal != signal)
+                    {
+                        signal = frame.Signal;
+                        await WriteAsync($"event: signal\ndata: {signal}\n\n", ct);
+                    }
+
+                    // A frame whose signal moved and whose figures did not carries no slots, and
+                    // that is the whole message: nothing about the market changed, everything about
+                    // where it is coming from did.
+                    if (frame.Slots.Count == 0)
+                    {
+                        continue;
+                    }
+
                     await WriteAsync(
                         $"event: slots\nid: {frame.Seq.ToString(System.Globalization.CultureInfo.InvariantCulture)}\n"
                         + $"data: {System.Text.Json.JsonSerializer.Serialize(frame)}\n\n",

@@ -46,6 +46,7 @@ public sealed class LiveRoom : IDisposable
     private volatile bool _quotesArrived;
     private long _seq;
     private long _computations;
+    private string _signal = "up";
 
     public LiveRoom(
         string baseFamily,
@@ -244,10 +245,27 @@ public sealed class LiveRoom : IDisposable
             return;
         }
 
+        // The signal is settled BEFORE the "is there anything to say" test below, because a state
+        // change is itself the news. With the hub gone no quotes arrive, so every later test would
+        // pass and the reader would be told nothing at all — and a page that goes quiet when its
+        // feed dies is indistinguishable from a page watching a quiet market. That is the one
+        // failure this whole signal exists to prevent, and leaving it to the quotes reintroduced it.
+        var signal = _hub.State == HubStreamState.Down ? "degraded" : "up";
+        var signalMoved = signal != _signal;
+        if (signalMoved && _signal == "degraded")
+        {
+            // Recovered. While the hub was gone this room was told nothing, so the reader's page is
+            // as old as the outage: what they are owed first is the whole picture, not a diff
+            // against one that has since moved.
+            Resend();
+        }
+
+        _signal = signal;
+
         Dictionary<int, HubQuote> quotes;
         lock (_gate)
         {
-            if (!_quotesArrived && _sent.Count > 0)
+            if (!_quotesArrived && _sent.Count > 0 && !signalMoved)
             {
                 // Nothing arrived and the picture has already been sent once. The ages on screen
                 // keep counting on their own — that is what studio-ages.js is for — so a frame
@@ -266,15 +284,15 @@ public sealed class LiveRoom : IDisposable
         var rows = LiveFrames.Overlay(_baseline.Rows, quotes, now);
         var slots = LiveFrames.Slots(rows, Verdicts.Compute(rows), quotes, now);
 
-        // Degraded is said out loud, and a recovery resends everything: while the hub was gone this
-        // room was told nothing, so the first thing a recovered feed owes the reader is the current
-        // state rather than a diff against a picture that has since moved.
-        var signal = _hub.State == HubStreamState.Down ? "degraded" : "up";
         var changed = LiveFrames.Diff(_sent, slots);
-        if (changed.Count == 0)
+        if (changed.Count == 0 && !signalMoved)
         {
             return;
         }
+
+        // A frame carrying no slots at all is not empty: when the signal moved and no figure did,
+        // the signal IS the frame. Said out loud rather than left for the reader to infer from
+        // figures that stopped moving.
 
         _sent = slots.ToDictionary(s => s.Key);
         var frame = new LiveFrame(Interlocked.Increment(ref _seq), changed, signal);

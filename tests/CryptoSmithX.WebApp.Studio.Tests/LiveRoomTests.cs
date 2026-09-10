@@ -121,6 +121,31 @@ public sealed class LiveRoomTests
     }
 
     [Fact]
+    public async Task The_hub_going_down_is_reported_even_though_no_figure_moved()
+    {
+        // This one is here because it shipped broken and the test host caught it. With the hub gone
+        // no quotes arrive, so the "is there anything to say" check passed and the reader was told
+        // NOTHING — and a page that goes quiet when its feed dies is indistinguishable from a page
+        // watching a quiet market, which is the single confusion this signal exists to prevent.
+        using var room = Room(out var hub);
+        var reader = room.Join();
+
+        await room.TickAsync(CancellationToken.None);
+        Assert.True(reader.TryRead(out _));
+
+        // A tick with nothing new says nothing...
+        await room.TickAsync(CancellationToken.None);
+        Assert.False(reader.TryRead(out _));
+
+        // ...but a tick where the FEED changed says so, with no slots at all if no figure moved.
+        hub.State = HubStreamState.Down;
+        await room.TickAsync(CancellationToken.None);
+
+        Assert.True(reader.TryRead(out var frame));
+        Assert.Equal("degraded", frame!.Signal);
+    }
+
+    [Fact]
     public async Task A_recovered_hub_resends_the_whole_picture()
     {
         // While the hub was gone this room was told nothing, so the reader's page is as old as the
