@@ -48,7 +48,8 @@ public static class MetricHourStore
                m.open_interest_last     as "OpenInterestLast",
                m.depth_bid_25bps_avg    as "DepthBid25BpsAvg",
                m.depth_ask_25bps_avg    as "DepthAsk25BpsAvg",
-               m.snapshot_count         as "SnapshotCount"
+               m.snapshot_count         as "SnapshotCount",
+               m.gap_seconds            as "GapSeconds"
           from market_metric_hour m
          where m.exchange_instrument_id = any(@instrumentIds)
            and m.hour_time >= @from

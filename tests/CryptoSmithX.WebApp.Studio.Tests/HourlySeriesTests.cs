@@ -28,8 +28,8 @@ public sealed class HourlySeriesTests
 
     private static MetricHourRow Hour(
         int i, double? spread = 1, double? funding = 0.0001, double? oi = 100,
-        double? depthBid = 50, double? depthAsk = 60, short snapshots = 60) =>
-        new(1, Windows[i], spread, funding, oi, depthBid, depthAsk, snapshots);
+        double? depthBid = 50, double? depthAsk = 60, short snapshots = 60, int? gapSeconds = 0) =>
+        new(1, Windows[i], spread, funding, oi, depthBid, depthAsk, snapshots, gapSeconds);
 
     /// <summary>
     /// The cells of one venue's row, on a page holding two.

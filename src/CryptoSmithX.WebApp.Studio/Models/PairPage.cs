@@ -79,6 +79,11 @@ public sealed record CandleSeries(
 ///
 /// <see cref="SnapshotCount"/> is the hour's own caveat: how many snapshots it was averaged from.
 /// </remarks>
+/// <param name="GapSeconds">
+/// B4: how many seconds of this hour overlap a recorded <c>collection_gap</c> (0017) — the
+/// distinction between "the market was quiet" and "we were blind": the first reads zero here, the
+/// second does not, and <see cref="SnapshotCount"/> alone cannot tell them apart.
+/// </param>
 public sealed record MetricHourRow(
     int InstrumentId,
     DateTime HourTime,
@@ -87,7 +92,8 @@ public sealed record MetricHourRow(
     double? OpenInterestLast,
     double? DepthBid25BpsAvg,
     double? DepthAsk25BpsAvg,
-    short SnapshotCount);
+    short SnapshotCount,
+    int? GapSeconds);
 
 /// <summary>
 /// One instrument's hourly microstructure on the page's shared window list — the four series rule
@@ -101,6 +107,10 @@ public sealed record MetricHourRow(
 public sealed record MetricHourSeries(IReadOnlyList<DateTime> Windows, IReadOnlyList<MetricHourRow?> Hours)
 {
     public static readonly MetricHourSeries Empty = new([], []);
+
+    /// <summary>B4: total seconds, across every hour currently on the axis, that overlapped a
+    /// collection gap — zero when the window's shortfall (if any) was the market, not us.</summary>
+    public int GapSecondsHeld => Hours.Where(h => h is not null).Sum(h => h!.GapSeconds ?? 0);
 
     /// <summary>Average spread in bps per hour — the line under the figure the ticker call wrote.</summary>
     public IReadOnlyList<double?> Spread => Hours.Select(h => h?.SpreadBpsAvg).ToList();

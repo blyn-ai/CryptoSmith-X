@@ -61,7 +61,7 @@ public sealed class ColumnReadingTests
             metrics: new MetricHourSeries(
                 [.. Enumerable.Range(0, 3).Select(i => DateTime.UnixEpoch.AddHours(i))],
                 [.. Enumerable.Range(0, 3).Select(i => (MetricHourRow?)new MetricHourRow(
-                    1, DateTime.UnixEpoch.AddHours(i), 1, 0.0001, 100, 50, 60, 60))]),
+                    1, DateTime.UnixEpoch.AddHours(i), 1, 0.0001, 100, 50, 60, 60, 0))]),
             liquidations: [1, 2, 3]);
 
         var withHistory = V2Groups.All.Where(g => V2Groups.Spark(row, g).Count > 0).Select(g => g.Key).ToList();

@@ -1,0 +1,27 @@
+@model System.Collections.Generic.IReadOnlyList<CryptoSmithX.WebApp.Studio.Data.CoverageDetailRow>
+
+@if (Model.Count == 0)
+{
+    <p class="v2-disclose-note">Nothing was asked for in the last 24 h, on any venue.</p>
+}
+else
+{
+    <table class="v2-disclose-table">
+        <thead>
+            <tr><th>Venue</th><th>Requested</th><th>Returned from</th><th>Returned to</th><th>Rows</th><th>Run</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var c in Model)
+            {
+                <tr>
+                    <td>@c.Venue</td>
+                    <td>@Format.Utc(c.RequestedAt)</td>
+                    <td title="The oldest row the venue actually returned, not the floor of what was asked for">@Format.Utc(c.RangeFrom)</td>
+                    <td>@Format.Utc(c.RangeTo)</td>
+                    <td>@Format.Num(c.Returned, 0)</td>
+                    <td>@(c.RunId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "—")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

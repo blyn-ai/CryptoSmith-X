@@ -69,6 +69,8 @@
              Link="surface\_V2Now.cshtml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\PairsV2\_InstrumentDetail.cshtml"
              Link="surface\_InstrumentDetail.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\PairsV2\_CoverageDetail.cshtml"
+             Link="surface\_CoverageDetail.cshtml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\Pairs\_VenueDetail.cshtml"
              Link="surface\_VenueDetail.cshtml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Studio\Views\Pairs\_AssetRegistry.cshtml"

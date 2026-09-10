@@ -159,6 +159,51 @@ public static class V2Store
         return rows.ToList();
     }
 
+    /// <summary>How many individual <c>coverage</c> rows a disclosed dataset cell shows before the
+    /// panel stops rather than scrolling. A day at a busy dataset's own request cadence stays well
+    /// under this; it exists as a backstop, not a tuned figure.</summary>
+    public const int MaxCoverageRows = 100;
+
+    /// <summary>
+    /// B4: band 5's coverage ROW disclosed — every request the last 24 h actually made for this
+    /// dataset, across every venue on the page, newest first. <c>range_from</c> is named for what it
+    /// is in the model (<see cref="CoverageDetailRow"/>'s own doc) rather than trusted to the column
+    /// name alone: it is the oldest row the venue actually RETURNED, not the floor of what was asked
+    /// for — the two differ exactly when the venue answered <c>limit_hit</c> or cut the call short.
+    /// </summary>
+    public static async Task<IReadOnlyList<CoverageDetailRow>> CoverageDetailAsync(
+        DbConnection conn, IReadOnlyList<int> instrumentIds, string dataset, CancellationToken ct)
+    {
+        if (instrumentIds.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await conn.QueryAsync<CoverageDetailRow>(new CommandDefinition(
+            """
+            select c.exchange_instrument_id     as "InstrumentId",
+                   x.name || ' ' || i.exchange_symbol as "Venue",
+                   c.range_from                 as "RangeFrom",
+                   c.range_to                   as "RangeTo",
+                   c.returned                   as "Returned",
+                   c.requested_at               as "RequestedAt",
+                   c.run_id                     as "RunId"
+              from coverage c
+              join exchange_instrument i on i.id = c.exchange_instrument_id
+              join segment sg on sg.code = i.segment_code
+              join exchange x on x.code = sg.exchange_code
+             where c.exchange_instrument_id = any(@instrumentIds)
+               and c.dataset_code = @dataset
+               and c.range_to > now() - interval '1 day'
+             order by c.exchange_instrument_id, c.requested_at desc
+             limit @limit
+            """,
+            new { instrumentIds = instrumentIds.ToArray(), dataset, limit = MaxCoverageRows },
+            cancellationToken: ct));
+
+        return rows.ToList();
+    }
+
     /// <summary>Where a stream broke, still open first. A gap with no end is the page's loudest
     /// statement about itself, so it is not folded in with the closed ones.</summary>
     public static async Task<IReadOnlyList<GapRow>> GapsAsync(
@@ -334,6 +379,18 @@ public sealed record TapeRow(
     int InstrumentId, DateTime EventTime, double Price, double Qty, string TakerSide, string? TradeType);
 
 public sealed record CoverageCell(int InstrumentId, string Dataset, int PercentHeld, DateTime LastAsked, int Short);
+
+/// <summary>B4: one request behind a coverage cell.</summary>
+/// <param name="RangeFrom">The OLDEST row the venue actually returned — not the floor of the
+/// requested range. The two differ exactly when the venue cut the call short (limit_hit) or broke
+/// mid-way (timeout/error); reading this as "what we asked for" understates how much the venue
+/// really withheld.</param>
+/// <param name="RunId">The collector_run this request belongs to, or null — the FK is
+/// <c>on delete set null</c>, so a request whose run has since aged out of retention still has its
+/// own row here with nothing to link back to.</param>
+public sealed record CoverageDetailRow(
+    int InstrumentId, string Venue,
+    DateTime RangeFrom, DateTime RangeTo, int Returned, DateTime RequestedAt, long? RunId);
 
 public sealed record GapRow(
     string SegmentCode, string Collector, DateTime GapStart, DateTime? GapEnd, string Cause, string? Detail);

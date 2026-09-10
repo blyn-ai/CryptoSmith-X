@@ -184,6 +184,32 @@ public sealed class PairsV2Controller : LivePageController
         return detail is null ? NotFound() : PartialView("~/Views/PairsV2/_InstrumentDetail.cshtml", detail);
     }
 
+    /// <summary>
+    /// B4: band 5's coverage ROW, disclosed — every request the last 24 h made for this dataset,
+    /// across every venue on the page. Fetched on click, like B2's instrument disclosure: a request
+    /// has no call and no age of its own, so it does not belong in the live-pushed payload either.
+    /// <paramref name="ids"/> is comma-separated instrument ids rather than a second page load — the
+    /// view already has them from the model it just rendered.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> CoverageDetail(string ids, string dataset, CancellationToken ct)
+    {
+        var instrumentIds = ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => int.TryParse(s, out var id) ? id : (int?)null)
+            .Where(id => id is not null)
+            .Select(id => id!.Value)
+            .ToList();
+
+        var rows = await _cache.GetAsync($"coverage-detail:{dataset}:{string.Join(',', instrumentIds)}",
+            async token =>
+            {
+                await using var conn = await _db.OpenAsync(token);
+                return await V2Store.CoverageDetailAsync(conn, instrumentIds, dataset, token);
+            }, ct);
+
+        return PartialView("~/Views/PairsV2/_CoverageDetail.cshtml", rows);
+    }
+
     [HttpGet]
     public async Task<IActionResult> Tape(string baseFamily, CancellationToken ct)
     {

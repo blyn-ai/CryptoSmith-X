@@ -75,7 +75,7 @@
        трёхчасовой давности (cf-cache-status: HIT, age 3068), из-за чего полоса 2 шла голым
        текстом, а линии графиков разъезжались на пол-экрана. Ровно та же ловушка, что уже
        ловила studio-live.js. Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/studio-v2.css?v=41">
+    <link rel="stylesheet" href="~/studio-v2.css?v=42">
 
     @* Тема применяется ДО первой отрисовки и поэтому здесь, а не скриптом внизу страницы:
        поставленная снизу, она показала бы светлый экран и мигнула тёмным — ровно то, ради чего
@@ -391,7 +391,16 @@
                                 @(delta is null ? "" : (delta > 0 ? "+" : "") + Format.Num(delta, 1) + "%")
                             </span>
                         </span>
-                        <span class="v2-cut-held">@held of @vals.Count hours held</span>
+                        <span class="v2-cut-held">@held of @vals.Count hours held
+                            @* B4: gap_seconds distinguishes a quiet market from a blind collector —
+                               the shortfall above can be either, and only this number says which.
+                               Silent at zero, the common case, rather than printing "0s blind" on
+                               every panel. *@
+                            @if (r.Metrics.GapSecondsHeld > 0)
+                            {
+                                @:· @(r.Metrics.GapSecondsHeld)s blind
+                            }
+                        </span>
                     </div>
                 }
 
@@ -502,8 +511,21 @@
         {
             @* Подпись строки — из списка наборов полосы, а не из общего словаря имён: полоса 5
                перечисляет наборы эталона его же словами, и второй источник для той же надписи
-               однажды даст в одной строке два разных названия. *@
-            <span class="v2-cov-dh" title="@d.Draws">@d.Label</span>
+               однажды даст в одной строке два разных названия.
+               B4: TRACKED datasets only get the disclosure trigger — an untracked one (snapshot,
+               trades, book) never has a coverage row to show (V2Coverage.Cell's own NotTracked
+               branch), so a trigger there would open a panel that always says so and never
+               anything else. *@
+            @if (d.Tracked)
+            {
+                <button type="button" class="v2-cov-dh v2-cov-dh--open" title="@d.Draws" aria-expanded="false"
+                        data-disclose-url="@Url.Action("CoverageDetail", "PairsV2", new { ids = string.Join(",", Model.Rows.Select(r => r.Row.InstrumentId)), dataset = d.Code })"
+                        data-disclose-target="coverage-@d.Code">@d.Label</button>
+            }
+            else
+            {
+                <span class="v2-cov-dh" title="@d.Draws">@d.Label</span>
+            }
             @foreach (var r in Model.Rows)
             {
                 @* Четыре вида «ничего», и это четыре разных факта: доля окна · измеренный ноль ·
@@ -514,6 +536,10 @@
                 <span class="v2-cov-cell @cell.Class"
                       style="@(cell.State == CoverageState.Held ? $"--held:{cell.Percent}%" : "")"
                       title="@cell.Title">@cell.Text</span>
+            }
+            @if (d.Tracked)
+            {
+                <div class="v2-disclose" id="coverage-@d.Code" hidden style="grid-column:1/-1"></div>
             }
         }
     </div>

@@ -646,6 +646,10 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
 .v2-cov-vh{display:flex;flex-direction:row;justify-content:center;gap:4px;font:500 var(--fs-micro)/1.3 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--eyebrow);text-align:center}
 .v2-cov-vh em{font-style:normal;color:var(--text-faint);letter-spacing:0}
 .v2-cov-dh{display:flex;align-items:center;font:500 var(--fs-micro)/1.2 var(--font-mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted)}
+/* B4: a tracked dataset's row label is a button (opens the coverage disclosure) rather than a
+   span — reset the browser's own button chrome back to what the plain label already looked like. */
+.v2-cov-dh--open{background:transparent;border:0;padding:0;width:100%;text-align:left;cursor:pointer}
+.v2-cov-dh--open:hover{color:var(--accent)}
 /* Одна метрика — одна шкала. Насыщенность несёт долю удержанного окна и ничего больше. */
 .v2-cov-cell{display:flex;align-items:center;justify-content:center;padding:6px 0;font:400 var(--fs-data)/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-data);
   background:color-mix(in srgb, var(--money-up,#2F5A00) var(--held,0%), var(--surface-sunken))}
