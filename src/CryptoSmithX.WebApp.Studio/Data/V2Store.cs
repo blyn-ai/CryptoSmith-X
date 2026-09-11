@@ -48,7 +48,8 @@ public static class V2Store
                    v.depth_above_1pct       as "DepthAbove1Pct",
                    v.depth_below_1pct       as "DepthBelow1Pct",
                    v.liquidity_buy          as "LiquidityBuy",
-                   v.liquidity_sell         as "LiquiditySell"
+                   v.liquidity_sell         as "LiquiditySell",
+                   v.spread_p               as "SpreadPercent"
               from vault_pair_state v
              where v.exchange_instrument_id = any(@ids)
                and v.received_at > now() - interval '10 minutes'
@@ -436,7 +437,14 @@ public sealed record VaultPairRow(
     double? DepthAbove1Pct,
     double? DepthBelow1Pct,
     double? LiquidityBuy,
-    double? LiquiditySell);
+    double? LiquiditySell,
+
+    /// <summary>The venue's own fixed spread, in percent. NOT the same measurement as
+    /// <c>PairVenueRow.SpreadBps</c>, which is (ask − bid) / mid off a book: this is a stated
+    /// charge applied to the oracle price before size-dependent impact. Shown here, beside the
+    /// other inputs, and deliberately never in the spread column — putting it there would be the
+    /// same category error as putting these depth figures into depth_*bps.</summary>
+    double? SpreadPercent);
 
 public sealed record BookFrame(
     int InstrumentId, DateTime ObservedAt, short Levels,

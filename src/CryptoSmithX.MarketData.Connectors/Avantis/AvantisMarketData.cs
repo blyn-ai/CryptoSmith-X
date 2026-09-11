@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using CryptoSmithX.MarketData.Connectors.Market;
 
 namespace CryptoSmithX.MarketData.Connectors.Avantis;
@@ -14,19 +15,40 @@ namespace CryptoSmithX.MarketData.Connectors.Avantis;
 /// only a continuous carry whose components are a different quantity with a different unit. Both are
 /// read through <c>segment.market_model</c>, which is what turns "empty" into "empty by nature".
 ///
-/// <b>And it fills no price either — measured, not assumed.</b> The catalogue has no price field at
-/// all, and the venue's own Socket.IO broadcast was checked live on 2026-09-11: 86 KB of
-/// <c>RES:DATA</c> carrying pairInfos, with no occurrence of price, index, mid or last anywhere in
-/// it. Price on this venue exists only on the oracle. The one place Avantis itself serves it is the
-/// candle shim, and those are minute bars of the ORACLE's history — which is why they land as
-/// <c>series = 'index'</c> price candles and never as this row's <c>index_price</c>. A row of OI,
-/// fees and trading hours with no price is an honest row; a price copied off a stream the venue
-/// does not publish would not be.
+/// <b>Where the price comes from, and where it does not.</b> The catalogue carries none: checked
+/// live on 2026-09-11, and the venue's own Socket.IO broadcast too — 86 KB of <c>RES:DATA</c>
+/// carrying pairInfos, with no occurrence of price, index, mid or last anywhere in it. There IS a
+/// batched endpoint named for the job, <c>/v1/price-feeds/last-price</c>, and it is a trap: its
+/// rows carried timestamps one and two DAYS old, and a BTC price 560 dollars off the live one. The
+/// venue's own SDK reads exactly that endpoint for <c>markets.price()</c>, so this is their bug
+/// inherited rather than ours invented — and it is why nothing here calls it.
+///
+/// What is fresh is the candle shim, to the minute. Its newest closed bar fills
+/// <c>index_price</c> — the oracle's reference, which is what that column is documented to be —
+/// and the bar's OWN instant travels with it in <c>venue_ts</c>, because a close is as old as its
+/// bar and the row's <c>received_at</c> is not. <c>last_price</c> and <c>mark_price</c> stay empty:
+/// this venue publishes no trade and marks against the unadjusted oracle without stating a figure,
+/// and the index under another name would be neither.
 /// </summary>
 public sealed class AvantisMarketData : IExchangeMarketData
 {
     private readonly AvantisClient _client;
     private readonly IAvantisCatalogFeed? _ws;
+
+    /// <summary>
+    /// The last closed oracle bar this adapter has seen, per symbol — filled by the candle pass and
+    /// read by the ticker pass.
+    ///
+    /// <b>It costs nothing.</b> The candles_index collector already fetches these bars on its own
+    /// cadence; remembering the newest close is free, where asking the venue again from the ticker
+    /// path would be one request per symbol per pass for a figure already in hand.
+    ///
+    /// <b>And it carries its own clock.</b> A bar's close is as old as the bar — up to a minute —
+    /// while the snapshot's received_at is the instant the row was written. Those are different
+    /// facts, so the bar's own time travels with it and is written to venue_ts, which exists for
+    /// exactly this: the venue's clock for a figure, as distinct from ours for the row.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, (double Close, DateTimeOffset At)> _lastBar = new(StringComparer.Ordinal);
 
     public AvantisMarketData(AvantisClient client, IAvantisCatalogFeed? ws = null)
     {
@@ -129,6 +151,8 @@ public sealed class AvantisMarketData : IExchangeMarketData
                 continue;
             }
 
+            var bar = _lastBar.TryGetValue(Symbol(p), out var seen) ? seen : ((double Close, DateTimeOffset At)?)null;
+
             list.Add(new Ticker(
                 ExchangeSymbol: Symbol(p),
                 ReceivedAt: now,
@@ -139,8 +163,16 @@ public sealed class AvantisMarketData : IExchangeMarketData
                 AskPrice: null,
                 BidSize: null,
                 AskSize: null,
+                // Marking is against the oracle unadjusted, which the venue does not publish as a
+                // figure of its own — so this stays absent rather than being the index under
+                // another name.
                 MarkPrice: null,
-                IndexPrice: null,
+                // THE ORACLE'S PRICE, which is what index_price is documented to be: a reference
+                // from outside this venue, written as published. Taken from the newest closed bar
+                // the candle pass already fetched (see _lastBar) — never from
+                // /v1/price-feeds/last-price, which carries the right name and a price one to two
+                // days old, measured.
+                IndexPrice: bar?.Close,
                 // No discrete payment: the carry is continuous and its components are a different
                 // quantity. Writing a carry rate here would misstate the unit as well as the thing.
                 FundingRate: null,
@@ -150,7 +182,13 @@ public sealed class AvantisMarketData : IExchangeMarketData
                 OpenInterestAt: now,
                 Depth: null,
                 OiQuote: p.PairOi ?? Sum(p.OpenInterest),
-                MarketOpen: p.Feed?.Attributes?.IsOpen));
+                MarketOpen: p.Feed?.Attributes?.IsOpen)
+            {
+                // The bar's own instant, not ours. Without it the page would show a price up to a
+                // minute old under an age of two seconds — the one lie this whole surface exists
+                // to prevent.
+                VenueTs = bar?.At,
+            });
         }
 
         return list;
@@ -211,6 +249,10 @@ public sealed class AvantisMarketData : IExchangeMarketData
             }
 
             list.Add(new PriceCandle(exchangeSymbol, series, open, b.Open, b.High, b.Low, b.Close));
+
+            // Newest wins: the shim returns bars oldest first, so the last one through here is the
+            // freshest closed bar and is what the ticker pass will report as the index.
+            _lastBar[exchangeSymbol] = (b.Close, open + TimeSpan.FromMinutes(1));
         }
 
         return list;

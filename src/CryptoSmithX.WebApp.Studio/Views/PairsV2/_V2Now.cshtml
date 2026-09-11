@@ -115,6 +115,13 @@
                                                 @(vault.OiShortQuote is { } os ? Format.Num(os, 0) : Format.Dash) <em>short</em></dd></div>
                                         <div><dt title="How much open interest this pair may hold before the venue stops taking more — the ceiling a book has no equivalent of">OI cap</dt>
                                             <dd>@(vault.OiMaxQuote is { } cap ? Format.Num(cap, 0) : Format.Dash) <em>@r.Row.QuoteAsset</em></dd></div>
+                                        @* Спред площадки стоит ЗДЕСЬ, а не в колонке SPREAD BPS полосы 1.
+                                           Та определена как (ask − bid) / mid по книге; этот — заявленная
+                                           надбавка к оракульной цене ДО размерозависимого импакта. Величины
+                                           родственные по смыслу и разные по измерению, и подставить одну под
+                                           другую значило бы повторить ошибку, которой мы избегаем в depth_*bps. *@
+                                        <div><dt title="The venue's own stated spread, applied to the oracle price before size-dependent impact. Not a book's (ask − bid) / mid, which is why it is not in the spread column.">Stated spread</dt>
+                                            <dd>@(vault.SpreadPercent is { } statedSpread ? Format.Num(statedSpread, 3) : Format.Dash) <em>%</em></dd></div>
                                     </dl>
                                 }
                                 else
