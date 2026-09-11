@@ -188,7 +188,11 @@
                     // already uses for its own magenta (.v2-cellage--late) — now also marks the
                     // cell itself, so the H1 count, this rule and the age's own colour can never
                     // read as three different opinions about whether the same call is late.
-                    var late = Freshness.PastWindow(age.Age, age.Window, age.Cadence);
+                    // A market the venue says is shut is not a late one: nothing is due from it,
+                    // and by Monday a perfectly healthy venue with sessions would otherwise be the
+                    // reddest thing on the page. The age is still shown — the reader is owed the
+                    // number — it is simply not judged.
+                    var late = Freshness.PastWindow(age.Age, age.Window, age.Cadence, r.Row.MarketOpen);
 
                     @* Prompt D-2: the source is on the CELL, never on the page. A feed only
                        starts where the exchange has a ws_url, so live is always partial — a

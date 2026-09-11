@@ -84,8 +84,17 @@ public static class Freshness
     /// was computed from a thin sample. Optional and defaulting to null — a caller with no cadence
     /// to offer still gets the twenty-second floor and nothing else, which is exactly today's
     /// behaviour with one extra guard against a too-tight window.</summary>
-    public static bool PastWindow(double? ageSeconds, double? windowSeconds, double? cadenceSeconds = null)
+    public static bool PastWindow(
+        double? ageSeconds, double? windowSeconds, double? cadenceSeconds = null, bool? marketOpen = null)
     {
+        // A market the venue says is shut cannot be late: nothing is due from it. Checked before
+        // the window rather than after, because every threshold below is an argument about a feed
+        // that is supposed to be answering.
+        if (Closed(marketOpen))
+        {
+            return false;
+        }
+
         if (ageSeconds is not { } age || windowSeconds is not { } window || window <= 0)
         {
             return false;
@@ -94,6 +103,21 @@ public static class Freshness
         var threshold = Math.Max(Math.Max(window, (cadenceSeconds ?? 0) * LateCadenceMultiplier), LateFloorSeconds);
         return age >= threshold;
     }
+
+    /// <summary>
+    /// A CLOSED market is not a late one, and this is the whole of the difference.
+    ///
+    /// Freshness measures how long ago a figure was observed, and every judgement built on it — the
+    /// magenta cell, the header's "past window" count, the degraded word — assumes that a figure
+    /// which stopped moving means a feed that stopped answering. On a market with trading hours
+    /// that assumption is simply false: the oracle keeps publishing a price no one can trade at,
+    /// and by Monday a perfectly healthy venue would be the reddest thing on the page.
+    ///
+    /// So the age is still SHOWN — the reader is owed the number — and it is not JUDGED. Null means
+    /// the venue publishes no such flag, which is every venue but Avantis, and those are judged
+    /// exactly as they were: an unknown session is not an excuse.
+    /// </summary>
+    public static bool Closed(bool? marketOpen) => marketOpen is false;
 
     /// <summary>Whether the count is dropped for the word.</summary>
     public static bool Degraded(double? ageSeconds, double? windowSeconds) =>

@@ -89,7 +89,19 @@
                             <em>@(r.Row.SpreadBps is { } sp ? Format.Num(sp, 1) + " bps" : "—")</em></span>
                         @if (!Model.Books.TryGetValue(r.Row.InstrumentId, out var bk) || bk.BidPx.Length == 0)
                         {
-                            <p class="v2-empty v2-empty--inline">No level book from this venue. Not a thin book — an unmeasured one.</p>
+                            @* Two different silences, and telling them apart is the whole job of
+                               this band. "We did not measure it" is a gap in OUR record. "There is
+                               nothing to measure" is a fact about the market — and the source of
+                               that sentence is segment.market_model, never a list of venue names
+                               in this template: the next oracle-priced venue must need no edit. *@
+                            @if (r.Row.MarketModel == "oracle_vault")
+                            {
+                                <p class="v2-empty v2-empty--inline">This market has no book at all — the counterparty is a liquidity pool, not a resting order. Nothing missing.</p>
+                            }
+                            else
+                            {
+                                <p class="v2-empty v2-empty--inline">No level book from this venue. Not a thin book — an unmeasured one.</p>
+                            }
                         }
                         else
                         {

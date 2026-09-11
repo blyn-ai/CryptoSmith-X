@@ -27,7 +27,10 @@ internal static class Rows
         short? fundingHours = 8,
         // Defaults to the quote itself — the absent-registry-row reading, which is what every test
         // written before families existed assumed and still means.
-        string? quoteFamily = null) =>
+        string? quoteFamily = null,
+        // A book unless a test says otherwise — five of the six segments are, and a test about
+        // ranking or freshness should not have to state a market model to mean the ordinary one.
+        string marketModel = "orderbook") =>
         new(
             InstrumentId: id,
             SegmentCode: segment,
@@ -75,7 +78,12 @@ internal static class Rows
             Volume24hBase: null,
             DepthRef: null,
             BookReachBid: null,
-            BookReachAsk: null);
+            BookReachAsk: null,
+            OiQuote: null,
+            // Null, not false: "this venue publishes no session flag" is what every venue but
+            // Avantis says, and it is what a test that is not about sessions should mean.
+            MarketOpen: null,
+            MarketModel: marketModel);
 
     /// <summary>A window wide enough to be a real one and round enough to do arithmetic against:
     /// twelve of these is 360 s, so an age of 360 s is exactly the degraded boundary.</summary>

@@ -202,7 +202,17 @@ public static class StudioStore
                s.volume_24h_base                as "Volume24hBase",
                s.depth_ref                      as "DepthRef",
                s.book_reach_bid                 as "BookReachBid",
-               s.book_reach_ask                 as "BookReachAsk"
+               s.book_reach_ask                 as "BookReachAsk",
+               -- 0044. Same warning as the block above: the tail of PairVenueRow is positional, so
+               -- order and type here must match it exactly.
+               s.oi_quote                       as "OiQuote",
+               -- Whether the venue says this instrument is trading right now. NULL on every venue
+               -- that publishes no such flag, which is all of them but Avantis.
+               s.market_open                    as "MarketOpen",
+               -- How this market is built. Not an observation and not on the snapshot: it comes
+               -- from the segment, and it is what turns four empty quote columns from "we did not
+               -- get it" into "this market has no second side".
+               sg.market_model                  as "MarketModel"
           from exchange_instrument i
           join segment  sg on sg.code = i.segment_code
           join exchange x  on x.code  = sg.exchange_code

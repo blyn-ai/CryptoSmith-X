@@ -22,9 +22,9 @@
     // sets. It is the page's own answer to "can any of this still be believed", and it is a count
     // rather than an adjective so a reader can check it against the ages in the rows.
     var behind = Model.Rows.Sum(r =>
-        (Freshness.PastWindow(r.Ages.PriceSeconds, r.Windows.PriceSeconds) ? 1 : 0)
-        + (Freshness.PastWindow(r.Ages.DepthSeconds, r.Windows.DepthSeconds) ? 1 : 0)
-        + (Freshness.PastWindow(r.Ages.OpenInterestSeconds, r.Windows.OpenInterestSeconds) ? 1 : 0));
+        (Freshness.PastWindow(r.Ages.PriceSeconds, r.Windows.PriceSeconds, null, r.Row.MarketOpen) ? 1 : 0)
+        + (Freshness.PastWindow(r.Ages.DepthSeconds, r.Windows.DepthSeconds, null, r.Row.MarketOpen) ? 1 : 0)
+        + (Freshness.PastWindow(r.Ages.OpenInterestSeconds, r.Windows.OpenInterestSeconds, null, r.Row.MarketOpen) ? 1 : 0));
 
     var cuts = V2Cuts.All;
 

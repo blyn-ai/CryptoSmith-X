@@ -111,7 +111,21 @@ public sealed record PairVenueRow(
     /// <summary>Докуда видна сторона книги, в bps от DepthRef. Пустая сторона — 0, а не NULL:
     /// измерение состоялось и дало «пусто». NULL — глубину не собирали.</summary>
     double? BookReachBid,
-    double? BookReachAsk)
+    double? BookReachAsk,
+
+    /// <summary>Открытый интерес в КОТИРУЕМОМ активе, как публикует площадка. Парная величина к
+    /// <see cref="OpenInterest"/> (количество); ни одна из другой не выводится.</summary>
+    double? OiQuote,
+
+    /// <summary>Торгуется ли инструмент прямо сейчас, по заявлению площадки. NULL = площадка
+    /// такого флага не публикует — и тогда судим по возрасту, как раньше: неизвестная сессия не
+    /// оправдание.</summary>
+    bool? MarketOpen,
+
+    /// <summary>Как устроен рынок сегмента: 'orderbook' или 'oracle_vault'. Не наблюдение —
+    /// свойство площадки, и именно оно объясняет, почему у строки пусты bid/ask, размеры, полосы
+    /// глубины и пара фандинга: «нет по природе», а не «не получили».</summary>
+    string MarketModel)
 {
     /// <summary>
     /// The spread in basis points of the mid. Quote-free by construction, which is why it is the

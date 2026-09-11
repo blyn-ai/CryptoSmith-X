@@ -186,7 +186,10 @@ public sealed record StripModel(
 
             calls.Add(new StripCall(
                 label, age, window, Ms(instant), position, placed,
-                Freshness.PastWindow(age, window, cadence), spent)
+                // The row's own session, so the header's count, the strip and the cell all reach
+                // the same verdict about the same call — a market the venue says is shut is not
+                // late anywhere, or the three would disagree on a Monday.
+                Freshness.PastWindow(age, window, cadence, r.MarketOpen), spent)
             {
                 CadenceSeconds = cadence,
             });
