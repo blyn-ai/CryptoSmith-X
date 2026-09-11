@@ -49,7 +49,9 @@
                 <span class="locked-value">@Model.Display</span>
                 <span class="locked-unit">@Model.Unit</span>
             </span>
-            <span class="locked-note">Suskaičiuotos taisyklės</span>
+            @* "Computed rules" is true of a locked field the profile DID compute. An absent key
+               computed nothing, and saying it did would be the screen inventing a provenance. *@
+            <span class="locked-note">@(Model.Missing ? "Nėra profilyje" : "Suskaičiuotos taisyklės")</span>
         </span>
     }
 

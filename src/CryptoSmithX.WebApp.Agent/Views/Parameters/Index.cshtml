@@ -23,13 +23,24 @@
     FieldCard FromParameter(StrategyParameterViewModel p)
     {
         var d = p.Definition;
+
+        // A parameter the profile does not carry: no binding name, so the form cannot post it and
+        // the server cannot be asked to write a key the bot was not reading. The card still appears
+        // — hiding it would make the screen claim the strategy has nineteen parameters when it has
+        // twenty, one of which is unaccounted for.
+        var missing = p.Value is null;
+
         return new FieldCard(
-            $"Parameters[{d.Id}]", d.Label, d.Unit, p.Value, d.Minimum, d.Maximum, d.Step, d.DecimalPlaces,
+            missing ? null : $"Parameters[{d.Id}]",
+            d.Label, d.Unit, p.Value ?? 0m, d.Minimum, d.Maximum, d.Step, d.DecimalPlaces,
             d.LowerCaption, d.HigherCaption, d.Description, d.Example,
             d.DetailIntro, d.LowerImpact, d.HigherImpact, d.Technical,
-            Editable: p.IsEnabled, Tag: null,
-            Hint: p.IsEnabled ? null : "Išjungta šio profilio ATR trailing režimu.",
-            Error: p.Error);
+            Editable: p.IsEnabled && !missing, Tag: null,
+            Hint: missing
+                ? "Šio nustatymo šiame strategijos profilyje nėra — boto worker jo neskaito."
+                : p.IsEnabled ? null : "Išjungta šio profilio ATR trailing režimu.",
+            Error: p.Error,
+            Missing: missing);
     }
 
     var tradeParameters = new[] { "markets", "volume", "longScore", "shortScore", "spread", "btcDrop", "btcBars" }
@@ -72,6 +83,17 @@
     <p>Viršuje — pinigai ir ekspozicija · žemiau — kaip agresyviai botas elgiasi · apačioje — išėjimo taisyklės.</p>
 </div>
 
+@* PAUZĖ. Nulinė marža reiškia, kad naujų pozicijų atidaryti nėra iš ko, ir tai vienintelė šio
+   ekrano reikšmė, kuri reiškia ne dydį, o būseną. Todėl ji sakoma garsiai ir viršuje — ne mažu
+   šriftu prie lauko, kurį reikia susirasti. Jau atidarytos pozicijos gyvena toliau: jos nuo šio
+   skaičiaus nepriklauso, ir tylėti apie tai reikštų pažadėti sustabdymą, kurio nėra. *@
+@if (Model.Profile.PositionMarginUsd == 0m)
+{
+    <p class="paused" role="alert">
+        <b>Botas pristabdytas</b>
+        Pozicijos marža — 0. Naujų pozicijų botas neatidarys. Jau atidarytos pozicijos lieka atidarytos ir valdomos įprastai.
+    </p>
+}
 @if (Model.JustSaved)
 {
     <p class="landed" role="status">Išsaugota. Nauji įėjimai naudos šią strategijos reviziją po kito worker atnaujinimo. Jau atidarytos pozicijos nesikeis.</p>

@@ -58,6 +58,15 @@ public sealed class ParametersController : Controller
             _log.LogError(e, "the bot database is unreachable");
             return View("BotUnreachable");
         }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // THE ONLY CATCH HERE USED TO BE THE ONE ABOVE, and everything else reached the reader
+            // as a blank page: a 500 with no body, on a screen whose entire job is to say what the
+            // bot is set to. One profile missing one key did exactly that, for as long as nobody
+            // read the container log. A page that cannot be built must still be a page that says so.
+            _log.LogError(e, "the parameters page could not be built for {Username}", User.Identity?.Name);
+            return View("ProfileUnreadable");
+        }
     }
 
     [HttpPost]
@@ -105,10 +114,13 @@ public sealed class ParametersController : Controller
                 request.Leverage!.Value,
                 request.MaxOpenPositions!.Value,
                 request.MaxOpenPositionsPerGroup!.Value);
+            // Resolved ONCE. It used to be rebuilt inside the predicate, so the whole profile was
+            // cloned and merged for every parameter in the catalogue.
+            var resolved = StrategyProfileStore.ResolveValues(strategy);
             var values = StrategyParameterCatalog.All
-                .Where(definition => StrategyParameterCatalog.IsEnabled(
-                    definition,
-                    StrategyProfileStore.ResolveValues(strategy)))
+                .Where(definition => StrategyParameterCatalog.IsPresent(definition, resolved)
+                    && StrategyParameterCatalog.IsEnabled(definition, resolved)
+                    && request.Parameters.TryGetValue(definition.Id, out var posted) && posted is not null)
                 .ToDictionary(
                     definition => definition.Id,
                     definition => request.Parameters[definition.Id]!.Value,
@@ -130,6 +142,13 @@ public sealed class ParametersController : Controller
         {
             _log.LogError(e, "the bot database refused the write");
             return View("BotUnreachable");
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // Same reasoning as Index, and it matters more here: a save that fell over silently
+            // leaves the reader unable to tell whether it landed.
+            _log.LogError(e, "the save could not be completed for {Username}", User.Identity?.Name);
+            return View("ProfileUnreadable");
         }
 
         // Post/redirect/get: the page that follows a write is a fresh read of what was written,
@@ -219,9 +238,14 @@ public sealed class ParametersController : Controller
             request.MaxOpenPositionsPerGroup);
         var errors = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        if (p.PositionMarginUsd is not { } margin || margin <= 0)
+        // ZERO IS ALLOWED, and it is the one value here that means something other than a size:
+        // no margin is no position to open. It used to be refused as a typo, which left an owner
+        // wanting to stop new entries with nothing on this screen to do it with. The bot's own
+        // table has no CHECK against it (bot_config_overrides, verified on the test host), so the
+        // value stores; what the screen owes the reader is to say loudly what it now means.
+        if (p.PositionMarginUsd is not { } margin || margin < 0)
         {
-            errors[TradeProfileKeys.PositionMarginUsd] = "Įvesk skaičių, didesnį už nulį";
+            errors[TradeProfileKeys.PositionMarginUsd] = "Įvesk nulį arba teigiamą skaičių";
         }
 
         if (p.Leverage is not { } lev || lev < 1 || lev > 10)
@@ -252,7 +276,11 @@ public sealed class ParametersController : Controller
         var values = StrategyProfileStore.ResolveValues(strategy);
         foreach (var definition in StrategyParameterCatalog.All)
         {
-            if (!StrategyParameterCatalog.IsEnabled(definition, values))
+            // A key this profile does not carry has no input on the page, so it is not missing from
+            // the post — it was never askable. Complaining "enter a number" about a field nobody was
+            // shown is the form blaming the reader for the profile's shape.
+            if (!StrategyParameterCatalog.IsPresent(definition, values)
+                || !StrategyParameterCatalog.IsEnabled(definition, values))
             {
                 continue;
             }
@@ -286,7 +314,7 @@ public sealed class ParametersController : Controller
             "Pozicijos marža",
             "USD",
             profile.PositionMarginUsd,
-            0.01m,
+            0m,
             5_000m,
             0.01m,
             2,

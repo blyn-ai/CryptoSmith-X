@@ -39,9 +39,12 @@ public sealed class ParametersViewModel
 
 }
 
+/// <param name="Value">NULL when this profile does not carry the key — the screen prints a dash and
+/// locks the field. See <see cref="Data.StrategyParameterCatalog.Read"/> for why that is a state
+/// rather than an error.</param>
 public sealed record StrategyParameterViewModel(
     StrategyParameterDefinition Definition,
-    decimal Value,
+    decimal? Value,
     bool IsEnabled,
     string? Error);
 

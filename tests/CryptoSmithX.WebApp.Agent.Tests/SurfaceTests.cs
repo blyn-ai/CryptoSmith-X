@@ -85,4 +85,41 @@ public sealed class SurfaceTests
         Assert.Contains("requestSubmit", js, StringComparison.Ordinal);
         Assert.Contains("dialog.returnValue !== 'save'", js, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void A_zero_margin_is_announced_as_a_pause_and_not_left_to_be_noticed()
+    {
+        // The one value on this screen that means a STATE rather than a size. It is said at the top
+        // of the page, in the loudest banner the page has, because an owner who stopped their bot
+        // must not have to find the field again to confirm it.
+        var page = Read("Index.cshtml");
+
+        Assert.Contains("Model.Profile.PositionMarginUsd == 0m", page, StringComparison.Ordinal);
+        Assert.Contains("class=\"paused\" role=\"alert\"", page, StringComparison.Ordinal);
+        Assert.Contains("Botas pristabdytas", page, StringComparison.Ordinal);
+
+        // And it says what a pause does NOT do. Silence there would promise a stop that is not one.
+        Assert.Contains("Jau atidarytos pozicijos lieka atidarytos", page, StringComparison.Ordinal);
+
+        var css = Read("agent.css");
+        Assert.Contains(".p-params .paused{", css, StringComparison.Ordinal);
+        Assert.Contains("border-left-width:4px", css, StringComparison.Ordinal);
+
+        // State has ONE colour in this product; the banner borrows it rather than minting a second.
+        Assert.Contains("background:var(--tint-hold)", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_parameter_the_profile_lacks_is_a_dash_that_says_why()
+    {
+        var page = Read("Index.cshtml");
+        Assert.Contains("var missing = p.Value is null;", page, StringComparison.Ordinal);
+
+        // No binding name: the form cannot post it, so no save can introduce the key.
+        Assert.Contains("missing ? null : $\"Parameters[{d.Id}]\"", page, StringComparison.Ordinal);
+
+        // "Computed rules" is true of a locked field; an absent key computed nothing.
+        var field = Read("_Field.cshtml");
+        Assert.Contains("Model.Missing ? \"Nėra profilyje\"", field, StringComparison.Ordinal);
+    }
 }

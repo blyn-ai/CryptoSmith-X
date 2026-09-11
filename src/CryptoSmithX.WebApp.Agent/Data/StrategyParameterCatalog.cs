@@ -121,15 +121,43 @@ public static class StrategyParameterCatalog
             && values[parts[0]]?[parts[1]]?.GetValue<bool>() == true;
     }
 
-    public static decimal Read(StrategyParameterDefinition definition, JsonObject values)
+    /// <summary>
+    /// The parameter's value as the screen prints it, or NULL when this profile does not carry the
+    /// key at all.
+    ///
+    /// IT USED TO THROW, and one absent key took the whole screen with it: the exception is not an
+    /// <see cref="Npgsql.NpgsqlException"/>, so the controller's only catch did not hold it, and a
+    /// signed-in owner got a blank page with nothing written on it anywhere. Measured on the test
+    /// host: the seeded LUKO profile has no <c>Exits.TrailingActivationRMultiple</c>, and every
+    /// request for that bot ended in a 500 — while the other nineteen parameters were readable.
+    ///
+    /// A key the profile does not hold is the same fact this product states everywhere else with a
+    /// dash: not measured, not zero, and not a reason to stop printing what IS known. The screen
+    /// shows the parameter locked and says why; <see cref="Write"/> refuses to save it, so the page
+    /// can never introduce a key the worker was not already reading.
+    /// </summary>
+    public static decimal? Read(StrategyParameterDefinition definition, JsonObject values)
     {
-        var raw = values[definition.Section]?[definition.Property]?.GetValue<decimal>()
-            ?? throw new InvalidOperationException($"Strategy profile is missing '{definition.Section}.{definition.Property}'.");
-        return definition.Transform.ToDisplay(raw);
+        var raw = values[definition.Section]?[definition.Property]?.GetValue<decimal>();
+        return raw is null ? null : definition.Transform.ToDisplay(raw.Value);
     }
+
+    /// <summary>Whether this profile carries the key at all — <see cref="Read"/>'s question without
+    /// its arithmetic, for the callers that decide rather than display.</summary>
+    public static bool IsPresent(StrategyParameterDefinition definition, JsonObject values) =>
+        values[definition.Section]?[definition.Property] is not null;
 
     public static void Write(StrategyParameterDefinition definition, JsonObject values, decimal displayValue)
     {
+        // A key this profile never had is not an empty field to fill in: writing it would hand the
+        // worker a parameter it was not reading, on the authority of a screen. The profile is the
+        // bot's, and this page edits what is in it — never what could be.
+        if (!IsPresent(definition, values))
+        {
+            throw new InvalidOperationException(
+                $"Strategy profile does not carry '{definition.Section}.{definition.Property}'.");
+        }
+
         if (!IsEnabled(definition, values))
         {
             throw new InvalidOperationException($"Strategy parameter '{definition.Id}' is not enabled by this profile.");

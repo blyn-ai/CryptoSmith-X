@@ -33,11 +33,18 @@ public sealed record FieldCard(
     bool Editable,
     string? Tag,
     string? Hint,
-    string? Error)
+    string? Error,
+    /// <summary>The profile does not carry this key. Not the same as a locked field: a locked field
+    /// holds a figure the profile computed, and this one holds nothing at all — so it prints a dash
+    /// and says so, rather than a number nobody measured.</summary>
+    bool Missing = false)
 {
     /// <summary>The value as the input prints it — the same string the server would validate, so a
-    /// reader comparing the field with the sheet sees one number and not two roundings of it.</summary>
-    public string Display => Value.ToString("F" + DecimalPlaces, CultureInfo.InvariantCulture);
+    /// reader comparing the field with the sheet sees one number and not two roundings of it.
+    /// A dash when the profile does not carry the key: no figure exists to round.</summary>
+    public string Display => Missing
+        ? "\u2014"
+        : Value.ToString("F" + DecimalPlaces, CultureInfo.InvariantCulture);
 
     public string Invariant(decimal d) => d.ToString(CultureInfo.InvariantCulture);
 }
