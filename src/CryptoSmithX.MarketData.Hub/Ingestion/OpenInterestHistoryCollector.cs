@@ -129,14 +129,22 @@ public sealed class OpenInterestHistoryCollector
         {
             foreach (var t in await _adapter.GetTickersAsync(ct))
             {
-                if (!idBySymbol.TryGetValue(t.ExchangeSymbol, out var id) || double.IsNaN(t.OpenInterest))
+                // Both halves are required and neither is guaranteed any more: a venue that
+                // publishes no open interest at all (spot, and any vault-backed perp that reports
+                // only notional) now reaches here with NULL instead of NaN, and a bucket needs an
+                // instant as much as it needs a number. No observation, no bucket — the gap is the
+                // honest record, and it is the same rule the snapshot path applies per column.
+                if (!idBySymbol.TryGetValue(t.ExchangeSymbol, out var id)
+                    || t.OpenInterest is not { } openInterest
+                    || double.IsNaN(openInterest)
+                    || t.OpenInterestAt is not { } openInterestAt)
                 {
                     continue;
                 }
 
                 fetched.Add((id, new OpenInterestBucket(
-                    t.ExchangeSymbol, SampledBucketSeconds, FloorTo(t.OpenInterestAt, SampledBucketSeconds),
-                    Open: null, High: null, Low: null, Close: t.OpenInterest, Quote: null, Source: "rest")));
+                    t.ExchangeSymbol, SampledBucketSeconds, FloorTo(openInterestAt, SampledBucketSeconds),
+                    Open: null, High: null, Low: null, Close: openInterest, Quote: null, Source: "rest")));
             }
         }
 

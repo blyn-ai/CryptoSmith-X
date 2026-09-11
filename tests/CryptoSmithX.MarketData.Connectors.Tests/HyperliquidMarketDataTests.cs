@@ -85,7 +85,7 @@ public sealed class HyperliquidMarketDataTests
         Assert.Equal(77269.7, btc.MarkPrice);
         Assert.Equal(77294.6, btc.IndexPrice);     // oraclePx stands in for index price
         Assert.Equal(0.0000125, btc.FundingRate);  // already a fraction of notional; no rescale
-        Assert.Equal(2527349740.7496991158, btc.Turnover24h, 3);
+        Assert.Equal(2527349740.7496991158, btc.Turnover24h!.Value, 3);
         Assert.Equal(39580.19938, btc.OpenInterest);
         Assert.Equal(btc.ReceivedAt, btc.OpenInterestAt); // batched with the ticker call itself
         Assert.Null(btc.Depth);                    // depth is a separate call; see GetOrderBookAsync

@@ -48,7 +48,7 @@ public sealed class KrakenFuturesMarketDataTests
 
         var xbt = tickers.Single(t => t.ExchangeSymbol == "PF_XBTUSD");
         // Kraken's ticker fundingRate is absolute; the schema wants the fraction, i.e. divided by mark.
-        Assert.Equal(0.4364457837055987 / 78873.23878806471, xbt.FundingRate, 12);
+        Assert.Equal(0.4364457837055987 / 78873.23878806471, xbt.FundingRate!.Value, 12);
         Assert.Equal(608756216.3351, xbt.Turnover24h);   // volumeQuote, in the quote asset
         Assert.Equal(1942.3394, xbt.OpenInterest);       // in the base asset
         Assert.Equal(new DateTimeOffset(2026, 8, 31, 21, 26, 7, 794, TimeSpan.Zero), xbt.ReceivedAt);

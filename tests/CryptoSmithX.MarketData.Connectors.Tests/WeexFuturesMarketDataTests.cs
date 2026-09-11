@@ -97,8 +97,8 @@ public sealed class WeexFuturesMarketDataTests
         Assert.Equal(78235.5, btc.AskPrice);
         Assert.Equal(2.7548, btc.BidSize);                 // merged from v3 bookTicker (BTCUSDT)
         Assert.Equal(2.5631, btc.AskSize);
-        Assert.Equal(0.00004120, btc.FundingRate, 10);     // already relative, used as-is
-        Assert.Equal(1887684695.30752, btc.Turnover24h, 5);
+        Assert.Equal(0.00004120, btc.FundingRate!.Value, 10);     // already relative, used as-is
+        Assert.Equal(1887684695.30752, btc.Turnover24h!.Value, 5);
         Assert.Equal(140557.0598, btc.OpenInterest);
         Assert.Equal(oiAt, btc.OpenInterestAt);            // OI's own, later time — not ReceivedAt
         Assert.Null(btc.Depth);

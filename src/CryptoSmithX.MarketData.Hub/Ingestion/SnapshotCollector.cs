@@ -9,8 +9,13 @@ namespace CryptoSmithX.MarketData.Hub.Ingestion;
 /// Writes the current state of every instrument. <c>market_snapshot_latest</c> is upserted on every
 /// pass; the same rows are appended to the history every <c>history_interval_s</c> seconds, which
 /// resolves per segment×dataset cell (0020).
-/// A row goes in whole or not at all — a half-written row would hide staleness behind a fresh
-/// received_at, and an observation missing a field is skipped rather than completed with a zero.
+/// A row carries one instant — its <c>received_at</c> — and every figure in it was observed at that
+/// instant or not observed at all. What CHANGED (0030, and the collector rewrite that followed it):
+/// a missing figure is now a NULL in its own column, where it used to cost the whole observation.
+/// The rule it replaced was right while the columns were NOT NULL and wrong the moment they were
+/// not: a spot market has no funding, a vault-backed perp has no bid, and under the old rule
+/// neither could be recorded at all. What has NOT changed is the reason that rule existed — an
+/// absence is never completed with a zero, and never with a NaN either (see <see cref="Figures"/>).
 /// </summary>
 public sealed class SnapshotCollector
 {
@@ -86,21 +91,21 @@ public sealed class SnapshotCollector
         // treats any IEnumerable parameter as a list to expand into @p1, @p2, … which turns
         // unnest(@ids) into unnest((@ids1,@ids2,…)) and fails. Arrays go through the provider
         // directly, typed.
-        var skipped = 0;
+        var partial = 0;
 
         var ids_ = new List<int>(tickers.Count);
         var receivedAt = new List<DateTimeOffset>(tickers.Count);
-        var last = new List<double>(tickers.Count);
-        var bid = new List<double>(tickers.Count);
-        var ask = new List<double>(tickers.Count);
-        var bidSize = new List<double>(tickers.Count);
-        var askSize = new List<double>(tickers.Count);
-        var mark = new List<double>(tickers.Count);
-        var index = new List<double>(tickers.Count);
-        var funding = new List<double>(tickers.Count);
-        var turnover = new List<double>(tickers.Count);
-        var oi = new List<double>(tickers.Count);
-        var oiAt = new List<DateTimeOffset>(tickers.Count);
+        var last = new List<double?>(tickers.Count);
+        var bid = new List<double?>(tickers.Count);
+        var ask = new List<double?>(tickers.Count);
+        var bidSize = new List<double?>(tickers.Count);
+        var askSize = new List<double?>(tickers.Count);
+        var mark = new List<double?>(tickers.Count);
+        var index = new List<double?>(tickers.Count);
+        var funding = new List<double?>(tickers.Count);
+        var turnover = new List<double?>(tickers.Count);
+        var oi = new List<double?>(tickers.Count);
+        var oiAt = new List<DateTimeOffset?>(tickers.Count);
         var d10b = new List<double?>(tickers.Count);
         var d10a = new List<double?>(tickers.Count);
         var d25b = new List<double?>(tickers.Count);
@@ -129,31 +134,37 @@ public sealed class SnapshotCollector
                 continue;
             }
 
-            // An adapter signals "the venue did not give me this number" as NaN, because the columns
-            // here are NOT NULL and a row is written whole or not at all. Writing it anyway would
-            // store a value we never observed, which is the one thing this system must not do — so
-            // the observation is skipped and the minute simply has no row for this instrument. That
-            // absence is honest; a zero would not be.
-            if (double.IsNaN(t.LastPrice) || double.IsNaN(t.BidPrice) || double.IsNaN(t.AskPrice)
-                || double.IsNaN(t.MarkPrice) || double.IsNaN(t.IndexPrice) || double.IsNaN(t.FundingRate)
-                || double.IsNaN(t.Turnover24h) || double.IsNaN(t.OpenInterest))
+            // The observation is WRITTEN, whatever it is missing. It used to be dropped whole if any
+            // one of eight figures was absent — right while the columns were NOT NULL, and wrong
+            // ever since 0030 lifted that: a spot market has no funding and no open interest by
+            // nature, a vault-backed perp has no bid and no ask by nature, and under the old rule
+            // neither could be recorded at all. A missing figure is now a NULL in its own column and
+            // the rest of the row stands.
+            //
+            // NaN is normalised to NULL rather than trusted through. Adapters signalled "not given"
+            // as NaN while that was the only channel for it, and Postgres accepts NaN in a double
+            // precision column perfectly happily — so a stray one would now be STORED, a value we
+            // never observed sitting where the absence should be. That is the exact failure the old
+            // skip existed to prevent, and it survives here as one line instead of a dropped row.
+            if (Figures.Absent(t.LastPrice) || Figures.Absent(t.BidPrice) || Figures.Absent(t.AskPrice)
+                || Figures.Absent(t.MarkPrice) || Figures.Absent(t.IndexPrice) || Figures.Absent(t.FundingRate)
+                || Figures.Absent(t.Turnover24h) || Figures.Absent(t.OpenInterest))
             {
-                skipped++;
-                continue;
+                partial++;
             }
 
             ids_.Add(id);
             receivedAt.Add(t.ReceivedAt);
-            last.Add(t.LastPrice);
-            bid.Add(t.BidPrice);
-            ask.Add(t.AskPrice);
-            bidSize.Add(t.BidSize);
-            askSize.Add(t.AskSize);
-            mark.Add(t.MarkPrice);
-            index.Add(t.IndexPrice);
-            funding.Add(t.FundingRate);
-            turnover.Add(t.Turnover24h);
-            oi.Add(t.OpenInterest);
+            last.Add(Figures.Num(t.LastPrice));
+            bid.Add(Figures.Num(t.BidPrice));
+            ask.Add(Figures.Num(t.AskPrice));
+            bidSize.Add(Figures.Num(t.BidSize));
+            askSize.Add(Figures.Num(t.AskSize));
+            mark.Add(Figures.Num(t.MarkPrice));
+            index.Add(Figures.Num(t.IndexPrice));
+            funding.Add(Figures.Num(t.FundingRate));
+            turnover.Add(Figures.Num(t.Turnover24h));
+            oi.Add(Figures.Num(t.OpenInterest));
             oiAt.Add(t.OpenInterestAt);
             d10b.Add(t.Depth?.Bid10Bps);
             d10a.Add(t.Depth?.Ask10Bps);
@@ -362,13 +373,13 @@ public sealed class SnapshotCollector
                 _adapter.SegmentCode, unchanged, historyInterval);
         }
 
-        if (skipped > 0)
+        if (partial > 0)
         {
             // Loud on purpose: a venue that stopped sending a field looks exactly like a quiet
             // market in the row count, and only this line says which it was.
             _logger.LogWarning(
-                "{Exchange}/snapshot skipped {Skipped} instruments whose ticker was missing a required field",
-                _adapter.SegmentCode, skipped);
+                "{Exchange}/snapshot wrote {Partial} instruments whose ticker was missing a figure",
+                _adapter.SegmentCode, partial);
         }
 
         return written;

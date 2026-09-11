@@ -1,8 +1,21 @@
 namespace CryptoSmithX.MarketData.Connectors.Market;
 
 /// <summary>
-/// One market snapshot row. Mirrors <c>market_snapshot_latest</c>; the row is written whole or
-/// not at all, so every field here except <see cref="Depth"/> is required.
+/// One market snapshot row. Mirrors <c>market_snapshot_latest</c>.
+///
+/// <b>Every figure is nullable, and that is the whole point.</b> This record used to require ten
+/// of them, because the columns behind it were NOT NULL and a row was written whole or not at all;
+/// an adapter that had not been given a number signalled it as <c>NaN</c>, and
+/// <c>SnapshotCollector</c> dropped the entire observation. That cost the honest venues nothing —
+/// all four publish everything — and cost every venue that does NOT the ability to be recorded at
+/// all. A spot market has no funding and no open interest by nature; a vault-backed perp has no
+/// bid and no ask by nature. Neither could be written, so neither could be listed.
+///
+/// Migration 0030 lifted NOT NULL from all eleven columns and said in its own §A that the lifting
+/// changes nothing until the collectors are rewritten. This is that rewrite. NULL here means
+/// exactly what it means in the column: <b>not measured</b> — either the venue does not publish it
+/// or we did not get it this pass. It never means zero, and a zero must never be written in its
+/// place: a zero is a measurement, and inventing one is the single thing this system must not do.
 /// </summary>
 /// <param name="FundingRate">
 /// Fraction of notional per funding interval, positive = longs pay shorts.
@@ -28,17 +41,17 @@ namespace CryptoSmithX.MarketData.Connectors.Market;
 public sealed record Ticker(
     string ExchangeSymbol,
     DateTimeOffset ReceivedAt,
-    double LastPrice,
-    double BidPrice,
-    double AskPrice,
-    double BidSize,
-    double AskSize,
-    double MarkPrice,
-    double IndexPrice,
-    double FundingRate,
-    double Turnover24h,
-    double OpenInterest,
-    DateTimeOffset OpenInterestAt,
+    double? LastPrice,
+    double? BidPrice,
+    double? AskPrice,
+    double? BidSize,
+    double? AskSize,
+    double? MarkPrice,
+    double? IndexPrice,
+    double? FundingRate,
+    double? Turnover24h,
+    double? OpenInterest,
+    DateTimeOffset? OpenInterestAt,
     Depth? Depth,
     DateTimeOffset? VenueTs = null,
     DateTimeOffset? LastTradeAt = null,

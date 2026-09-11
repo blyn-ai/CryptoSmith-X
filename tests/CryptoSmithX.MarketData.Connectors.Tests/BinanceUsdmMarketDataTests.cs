@@ -144,9 +144,9 @@ public sealed class BinanceUsdmMarketDataTests
         Assert.Equal(79919.30, btc.AskPrice);
         Assert.Equal(1.742, btc.AskSize);
         Assert.Equal(79919.30, btc.MarkPrice);        // premiumIndex
-        Assert.Equal(79955.90282609, btc.IndexPrice, 8);
-        Assert.Equal(0.00004374, btc.FundingRate, 10); // already a fraction per interval; used as-is
-        Assert.Equal(4396232143.81, btc.Turnover24h, 2);
+        Assert.Equal(79955.90282609, btc.IndexPrice!.Value, 8);
+        Assert.Equal(0.00004374, btc.FundingRate!.Value, 10); // already a fraction per interval; used as-is
+        Assert.Equal(4396232143.81, btc.Turnover24h!.Value, 2);
         Assert.Equal(106760.161, btc.OpenInterest);
         Assert.Equal(oiAt, btc.OpenInterestAt);        // OI's own, older time — not ReceivedAt
         Assert.Null(btc.Depth);                        // the book is a separate pass
