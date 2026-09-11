@@ -17,6 +17,8 @@
   var invalid = document.querySelector('[data-invalid]');
   var unsaved = document.querySelector('[data-unsaved]');
   var dialog = document.getElementById('confirm');
+  var paused = document.querySelector('[data-paused]');
+  var margin = form.querySelector('[name="positionMarginUsd"]');
 
   // ── 1. Состояние ─────────────────────────────────────────────────────────
   var idle = status ? (status.dataset.idle || 'Išsaugota') : '';
@@ -40,6 +42,14 @@
       status.textContent = changed ? 'Neišsaugoti pakeitimai' : idle;
     }
     if (invalid) { invalid.hidden = form.checkValidity(); }
+
+    // ПАУЗА — на набранном значении, а не на сохранённом. Ноль в марже это не размер, а
+    // состояние бота, и узнать о нём после нажатия «Išsaugoti» поздно: человек должен видеть,
+    // ЧТО он сейчас сохранит, пока курсор ещё в поле.
+    if (paused && margin) {
+      var typed = parseFloat(margin.value);
+      paused.hidden = !(margin.value !== '' && typed === 0);
+    }
   }
 
   form.addEventListener('input', dirty);

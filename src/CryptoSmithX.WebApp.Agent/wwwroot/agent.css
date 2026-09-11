@@ -142,6 +142,10 @@ body{min-height:100vh;display:flex;flex-direction:column;
   color:var(--state-hold-ink)}
 .p-params .paused b{font-weight:var(--fw-medium);font-size:var(--fs-body);letter-spacing:var(--track-label);
   text-transform:uppercase}
+/* display:flex aukščiau nugalėtų naršyklės [hidden]{display:none}, ir juosta liktų matoma amžinai.
+   Šiame projekte tas pats spąstas pagautas jau penktą kartą — todėl taisyklė rašoma kartu su
+   display, o ne paliekama numatytajai. */
+.p-params .paused[hidden]{display:none}
 
 .p-params .refused{margin:12px 0 0;padding:9px 10px;background:var(--tint-hold);border:1px solid var(--border-hold);font-family:var(--font-mono);font-size:var(--fs-data);line-height:1.4;letter-spacing:.02em;color:var(--state-hold-ink)}
 

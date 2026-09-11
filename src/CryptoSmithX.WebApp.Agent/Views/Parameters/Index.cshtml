@@ -87,13 +87,13 @@
    ekrano reikšmė, kuri reiškia ne dydį, o būseną. Todėl ji sakoma garsiai ir viršuje — ne mažu
    šriftu prie lauko, kurį reikia susirasti. Jau atidarytos pozicijos gyvena toliau: jos nuo šio
    skaičiaus nepriklauso, ir tylėti apie tai reikštų pažadėti sustabdymą, kurio nėra. *@
-@if (Model.Profile.PositionMarginUsd == 0m)
-{
-    <p class="paused" role="alert">
-        <b>Botas pristabdytas</b>
-        Pozicijos marža — 0. Naujų pozicijų botas neatidarys. Jau atidarytos pozicijos lieka atidarytos ir valdomos įprastai.
-    </p>
-}
+@* Visada dokumente, paslėptas atributu — kad parameters.js galėtų jį uždegti TĄ PAČIĄ AKIMIRKĄ,
+   kai į lauką įvedamas nulis, o ne tik po išsaugojimo. Serveris nustato pirmąją būseną, todėl be
+   JS puslapis vis tiek sako tiesą apie tai, kas išsaugota. *@
+<p class="paused" role="alert" data-paused hidden="@(Model.Profile.PositionMarginUsd == 0m ? null : "hidden")">
+    <b>Botas pristabdytas</b>
+    Pozicijos marža — 0. Naujų pozicijų botas neatidarys. Jau atidarytos pozicijos lieka atidarytos ir valdomos įprastai.
+</p>
 @if (Model.JustSaved)
 {
     <p class="landed" role="status">Išsaugota. Nauji įėjimai naudos šią strategijos reviziją po kito worker atnaujinimo. Jau atidarytos pozicijos nesikeis.</p>
@@ -318,5 +318,5 @@
 </dialog>
 
 @section Scripts {
-<script src="~/parameters.js?v=2"></script>
+<script src="~/parameters.js?v=3"></script>
 }

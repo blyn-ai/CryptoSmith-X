@@ -107,6 +107,29 @@ public sealed class SurfaceTests
 
         // State has ONE colour in this product; the banner borrows it rather than minting a second.
         Assert.Contains("background:var(--tint-hold)", css, StringComparison.Ordinal);
+
+        // THE [hidden] TRAP, caught here for the fifth time in this repository: an author display
+        // rule beats the user-agent sheet, so a banner declared display:flex would never hide.
+        Assert.Contains(".p-params .paused[hidden]{display:none}", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_pause_lights_on_the_number_being_typed_and_not_only_on_the_saved_one()
+    {
+        // Learning after pressing save that the bot is now paused is learning it too late. The
+        // banner is always in the document and the script flips it while the cursor is in the field;
+        // the server still sets the first state, so a page without scripts tells the truth about
+        // what is stored.
+        var page = Read("Index.cshtml");
+        Assert.Contains("data-paused", page, StringComparison.Ordinal);
+        Assert.Contains("hidden=\"@(Model.Profile.PositionMarginUsd == 0m ? null : \"hidden\")\"", page, StringComparison.Ordinal);
+
+        var js = Read("parameters.js");
+        Assert.Contains("[data-paused]", js, StringComparison.Ordinal);
+        Assert.Contains("[name=\"positionMarginUsd\"]", js, StringComparison.Ordinal);
+
+        // An empty field is not a zero: it is a field being retyped, and it must not announce a pause.
+        Assert.Contains("margin.value !== \'\' && typed === 0", js, StringComparison.Ordinal);
     }
 
     [Fact]
