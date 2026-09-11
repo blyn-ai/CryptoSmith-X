@@ -1,5 +1,6 @@
 using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Hub.Live;
+using CryptoSmithX.MarketData.Connectors.Avantis;
 using CryptoSmithX.MarketData.Connectors.Binance;
 using CryptoSmithX.MarketData.Connectors.Fake;
 using CryptoSmithX.MarketData.Connectors.Hyperliquid;
@@ -42,6 +43,10 @@ public sealed class ExchangeWorker : BackgroundService
         // dataset's own mode, because a spec version is a fact about a listing and discovery is
         // where a listing is read.
         "trades", "book", "open_interest", "liquidations", "candles_mark", "candles_index",
+        // 0044: the two sets a vault-backed venue has and a book-backed one has no equivalent for.
+        // Two cells rather than one so an operator can keep the pool and drop the per-pair series,
+        // and so coverage can name which of the two is missing.
+        "vault_pair_state", "vault_state",
     ];
 
     private readonly DbSettings _settings;
@@ -325,6 +330,7 @@ public sealed class ExchangeWorker : BackgroundService
         var book = new BookCollector(adapter, _db, _settings, _clock);
         var openInterest = new OpenInterestHistoryCollector(adapter, _settings, _db, _clock, gate);
         var liquidations = new LiquidationCollector(adapter, _settings, _db, _clock, gate);
+        var vault = new VaultCollector(adapter, _db, _loggers.CreateLogger<VaultCollector>());
         var markCandles = new PriceCandleCollector(adapter, _settings, _db, _clock, gate, "mark");
         var indexCandles = new PriceCandleCollector(adapter, _settings, _db, _clock, gate, "index");
 
@@ -341,6 +347,8 @@ public sealed class ExchangeWorker : BackgroundService
             ["liquidations"] = liquidations.RunAsync,
             ["candles_mark"] = markCandles.RunAsync,
             ["candles_index"] = indexCandles.RunAsync,
+            ["vault_pair_state"] = vault.PairStateAsync,
+            ["vault_state"] = vault.VaultAsync,
         };
     }
 
@@ -598,6 +606,7 @@ public sealed class ExchangeWorker : BackgroundService
         "weex-futures" => BuildWeex(config, gate, ct),
         "hyperliquid" => BuildHyperliquid(config, gate, ct),
         "binance-usdm" => BuildBinance(config, gate, ct),
+        "avantis-perp" => BuildAvantis(config, ct),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
@@ -606,6 +615,29 @@ public sealed class ExchangeWorker : BackgroundService
     // Kraken's live market comes over WS when exchange.ws_url is set; the feed starts here and dies
     // with this exchange's token. Without a ws_url the adapter is pure REST, exactly as before. WS
     // honesty knobs are read live from settings at build time.
+    // Avantis: a perp DEX whose counterparty is a liquidity pool, not a resting order. No gate is
+    // passed and that is deliberate — a VenueGate is a REST request ceiling, and this venue's whole
+    // market is ONE batched call (120 pairs, 362 KB, 0.81 s measured). There is no per-symbol sweep
+    // to pace, because there is no per-symbol endpoint worth calling.
+    //
+    // The socket is the venue's OWN catalogue broadcast, not the Pyth oracle — the distinction the
+    // plan insisted on, and it holds: connecting to it returns pairInfos with no price of any kind.
+    // Without a ws_url the adapter is pure REST at the snapshot cadence, exactly like its siblings.
+    private IExchangeMarketData BuildAvantis(ExchangeConfig config, CancellationToken ct)
+    {
+        var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
+        var client = new AvantisClient(baseUrl);
+
+        AvantisCatalogFeed? ws = null;
+        if (!string.IsNullOrWhiteSpace(config.WsUrl))
+        {
+            ws = new AvantisCatalogFeed(config.WsUrl, client, _loggers, _clock, _settings.Latest.WsStaleAfter);
+            ws.Start(ct);
+        }
+
+        return new AvantisMarketData(client, ws);
+    }
+
     private IExchangeMarketData BuildKraken(ExchangeConfig config, CancellationToken ct)
     {
         var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");

@@ -142,6 +142,20 @@ public interface IExchangeMarketData
         string exchangeSymbol, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<PriceCandle>>([]);
 
+    /// <summary>
+    /// Per-pair state that only a vault-backed venue has: open interest by side, its caps, and the
+    /// inputs to the price-impact function. Empty on every book-backed venue, and that emptiness is
+    /// a fact about the market model rather than a gap — see <see cref="Market.VaultPairState"/>.
+    /// </summary>
+    Task<IReadOnlyList<VaultPairState>> GetVaultPairStateAsync(CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<VaultPairState>>([]);
+
+    /// <summary>
+    /// The liquidity pool backing this venue, as one observation about the venue itself. Null where
+    /// the venue has no such pool, which is every book-backed one.
+    /// </summary>
+    Task<VaultState?> GetVaultStateAsync(CancellationToken ct) => Task.FromResult<VaultState?>(null);
+
     /// <summary>Aggregated liquidation volume per bucket in [from, to], from the venue's own
     /// analytics. Only Kraken publishes one; Binance's liquidations arrive as individual socket
     /// events and land in <c>trade</c> with trade_type='liquidation' instead.</summary>

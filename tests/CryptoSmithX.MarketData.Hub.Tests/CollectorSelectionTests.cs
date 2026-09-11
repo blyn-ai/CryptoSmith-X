@@ -100,6 +100,10 @@ public sealed class CollectorSelectionTests
                 "discovery", "snapshot", "depth", "candles", "funding", "rollup",
                 "trades", "book", "open_interest", "liquidations", "candles_mark", "candles_index",
                 "spec_versions",
+                // 0044: the two vault sets. Present here because this fixture stands for a policy
+                // matrix that knows every dataset — a catalogue missing one reads as "disabled",
+                // and that is the distinction the full cross exists to keep.
+                "vault_pair_state", "vault_state",
             }
             .ToDictionary(
                 c => c,

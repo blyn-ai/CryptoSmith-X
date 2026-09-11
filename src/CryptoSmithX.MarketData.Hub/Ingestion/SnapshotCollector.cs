@@ -118,6 +118,8 @@ public sealed class SnapshotCollector
         var fundingPredicted = new List<double?>(tickers.Count);
         var nextFundingAt = new List<DateTimeOffset?>(tickers.Count);
         var volume24hBase = new List<double?>(tickers.Count);
+        var oiQuote = new List<double?>(tickers.Count);
+        var marketOpen = new List<bool?>(tickers.Count);
         // Read from the ticker's own Depth, not recomputed here — DepthMath already produced them
         // (0039 phase 4 item 2). Depth null (not collected this frame) propagates through the
         // null-conditional as NULL on all three, distinct from a genuinely empty side (0 on
@@ -178,6 +180,8 @@ public sealed class SnapshotCollector
             fundingPredicted.Add(t.FundingRatePredicted);
             nextFundingAt.Add(t.NextFundingAt);
             volume24hBase.Add(t.Volume24hBase);
+            oiQuote.Add(Figures.Num(t.OiQuote));
+            marketOpen.Add(t.MarketOpen);
             depthRef.Add(t.Depth?.Mid);
             reachBid.Add(t.Depth?.ReachBidBps);
             reachAsk.Add(t.Depth?.ReachAskBps);
@@ -216,6 +220,8 @@ public sealed class SnapshotCollector
                 cmd.Parameters.AddWithValue("funding_rate_predicted", fundingPredicted.ToArray());
                 cmd.Parameters.AddWithValue("next_funding_at", nextFundingAt.ToArray());
                 cmd.Parameters.AddWithValue("volume_24h_base", volume24hBase.ToArray());
+                cmd.Parameters.AddWithValue("oi_quote", oiQuote.ToArray());
+                cmd.Parameters.AddWithValue("market_open", marketOpen.ToArray());
                 cmd.Parameters.AddWithValue("depth_ref", depthRef.ToArray());
                 cmd.Parameters.AddWithValue("reach_bid", reachBid.ToArray());
                 cmd.Parameters.AddWithValue("reach_ask", reachAsk.ToArray());
@@ -234,14 +240,14 @@ public sealed class SnapshotCollector
                     depth_bid_10bps, depth_ask_10bps, depth_bid_25bps, depth_ask_25bps,
                     depth_bid_50bps, depth_ask_50bps, depth_at,
                     venue_ts, last_trade_at, funding_rate_predicted, next_funding_at, volume_24h_base,
-                    depth_ref, book_reach_bid, book_reach_ask)
+                    depth_ref, book_reach_bid, book_reach_ask, oi_quote, market_open)
                 select * from unnest(
                     @ids, @received_at, @last_price, @bid_price, @ask_price,
                     @bid_size, @ask_size, @mark_price, @index_price, @funding_rate, @turnover_24h,
                     @open_interest, @open_interest_at,
                     @d10b, @d10a, @d25b, @d25a, @d50b, @d50a, @d_at,
                     @venue_ts, @last_trade_at, @funding_rate_predicted, @next_funding_at, @volume_24h_base,
-                    @depth_ref, @reach_bid, @reach_ask)
+                    @depth_ref, @reach_bid, @reach_ask, @oi_quote, @market_open)
                 on conflict (exchange_instrument_id) do update set
                     received_at      = excluded.received_at,
                     last_price       = excluded.last_price,
@@ -278,7 +284,11 @@ public sealed class SnapshotCollector
                     last_trade_at          = excluded.last_trade_at,
                     funding_rate_predicted = excluded.funding_rate_predicted,
                     next_funding_at        = excluded.next_funding_at,
-                    volume_24h_base        = excluded.volume_24h_base
+                    volume_24h_base        = excluded.volume_24h_base,
+                    -- Same rule as the five above: never out of band, and a venue that publishes
+                    -- neither always sends NULL, which is the honest answer for that venue.
+                    oi_quote               = excluded.oi_quote,
+                    market_open            = excluded.market_open
                 """,
                 conn, tx))
             {
@@ -313,7 +323,7 @@ public sealed class SnapshotCollector
                         depth_bid_10bps, depth_ask_10bps, depth_bid_25bps, depth_ask_25bps,
                         depth_bid_50bps, depth_ask_50bps, depth_at,
                         venue_ts, last_trade_at, funding_rate_predicted, next_funding_at, volume_24h_base,
-                        depth_ref, book_reach_bid, book_reach_ask)
+                        depth_ref, book_reach_bid, book_reach_ask, oi_quote, market_open)
                     select
                         v.id, v.received_at, v.last_price, v.bid_price, v.ask_price,
                         v.bid_size, v.ask_size, v.mark_price, v.index_price, v.funding_rate,
@@ -321,20 +331,20 @@ public sealed class SnapshotCollector
                         l.depth_bid_10bps, l.depth_ask_10bps, l.depth_bid_25bps, l.depth_ask_25bps,
                         l.depth_bid_50bps, l.depth_ask_50bps, l.depth_at,
                         v.venue_ts, v.last_trade_at, v.funding_rate_predicted, v.next_funding_at, v.volume_24h_base,
-                        l.depth_ref, l.book_reach_bid, l.book_reach_ask
+                        l.depth_ref, l.book_reach_bid, l.book_reach_ask, v.oi_quote, v.market_open
                       from unnest(
                             @ids, @received_at, @last_price, @bid_price, @ask_price,
                             @bid_size, @ask_size, @mark_price, @index_price, @funding_rate,
                             @turnover_24h, @open_interest, @open_interest_at,
                             @d10b, @d10a, @d25b, @d25a, @d50b, @d50a, @d_at,
                             @venue_ts, @last_trade_at, @funding_rate_predicted, @next_funding_at, @volume_24h_base,
-                            @depth_ref, @reach_bid, @reach_ask)
+                            @depth_ref, @reach_bid, @reach_ask, @oi_quote, @market_open)
                             as v(id, received_at, last_price, bid_price, ask_price,
                                  bid_size, ask_size, mark_price, index_price, funding_rate,
                                  turnover_24h, open_interest, open_interest_at,
                                  d10b, d10a, d25b, d25a, d50b, d50a, d_at,
                                  venue_ts, last_trade_at, funding_rate_predicted, next_funding_at, volume_24h_base,
-                                 depth_ref, reach_bid, reach_ask)
+                                 depth_ref, reach_bid, reach_ask, oi_quote, market_open)
                       join market_snapshot_latest l on l.exchange_instrument_id = v.id
                     on conflict (exchange_instrument_id, received_at) do nothing
                     """,

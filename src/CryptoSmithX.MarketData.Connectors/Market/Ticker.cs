@@ -57,4 +57,14 @@ public sealed record Ticker(
     DateTimeOffset? LastTradeAt = null,
     double? FundingRatePredicted = null,
     DateTimeOffset? NextFundingAt = null,
-    double? Volume24hBase = null);
+    double? Volume24hBase = null,
+
+    /// <summary>Open interest in the QUOTE asset, as the venue publishes it — never our own
+    /// open_interest × price. The pair to <see cref="OpenInterest"/>, which stays in base units;
+    /// a venue that publishes both (Avantis does) fills both and derives neither.</summary>
+    double? OiQuote = null,
+
+    /// <summary>Whether the instrument is trading at this observation, where the venue says so.
+    /// Null is "this venue publishes no such flag", which is every venue wired before Avantis —
+    /// and it is never inferred from a calendar we do not hold.</summary>
+    bool? MarketOpen = null);
