@@ -1,9 +1,9 @@
 # План: подключение Avantis
 
-**Статус источников.** Всё в §1 собрано по документации Avantis и SDK, а не измерено.
-В этой папке уже принят другой стандарт: очередь площадок переставлялась по ответам
-шестнадцати эндпоинтов, опрошенных живьём, а не по пересказу разведки. Поэтому §0 —
-не формальность: до него ни одно число ниже не считается фактом.
+**Статус источников.** §0 ОТРАБОТАН живьём 2026-09-11 — результаты в «§0. Результаты»
+ниже, и они меняют §2.5, §2.7, §3 и §4. Всё остальное в §1 по-прежнему собрано по
+документации, а не измерено. В этой папке принят стандарт: очередь площадок переставлялась
+по ответам шестнадцати эндпоинтов, опрошенных живьём, а не по пересказу разведки.
 
 ## Что такое Avantis
 
@@ -71,6 +71,103 @@
       шестнадцати.
 - [ ] Записать выводы в `plans/exchange-roadmap.md` — Avantis в очереди сегодня нет; там же
       поправить строки 37, 60, 165 про `not null`.
+
+---
+
+## §0. Результаты — замерено 2026-09-11
+
+Всё ниже получено запросами к живым хостам, без ключа. Это и есть ответ на «что площадка
+отдаёт»: собираем всё перечисленное, а не подмножество из §1.
+
+### Поверхность чтения — четыре источника, ни один не требует ключа
+
+| источник | что даёт | замер |
+|---|---|---|
+| `GET data.avantisfi.com/v2/trading` | каталог целиком: комиссии, OI, фандинг, borrow, входы импакта, плечи, расписание, фиды | **200, 362 КБ, 0.81 с, 120 пар, 119 полей на пару** |
+| Socket.IO на `data.avantisfi.com` | тот же payload диффами `RES:DATA`, без авторизации | документирован; бутстрап `/v2/trading`, затем deep-merge |
+| `GET tx-builder.avantisfi.com/v2/lp/state` | состояние ХРАНИЛИЩА: `totalAssets`, `totalSupply`, `utilizationRatio`, `depositCap`, `withdrawThreshold`, `sharePriceUsdc` | **200, 272 Б, 0.20 с** |
+| `GET tx-builder.avantisfi.com/v2/meta` | `chainId`, адреса контрактов, единицы, enum'ы — ключ к интерпретации остального | **200, 3.5 КБ, 0.20 с** |
+
+Пятый, но НЕ площадки: цена приходит только оракулом — Pyth Lazer (SSE) и Hermes (WS).
+`tx-builder.avantisfi.com` в плане не упоминался вовсе; его OpenAPI лежит на
+`/openapi.json` и объявляет `security: []` на всех 62 GET-маршрутах. Остальные из них —
+сборка транзакций и чтение по конкретному трейдеру; рынку они ничего не говорят.
+
+Темп: пять последовательных вызовов `/v2/trading` — 0.72 / 0.35 / 0.24 / 0.24 / 0.46 с,
+ни 429, ни троттлинга. Ключ не нужен: §2.8 закрывается ответом «публичного чтения хватает».
+
+### Чего у площадки НЕТ ни на одном эндпоинте
+
+Оборота за 24 часа, публичной ленты исполнений, OHLCV, last price. В каталоге нет ни
+одного поля с ценой или временем наблюдения. Отсюда: `turnover_24h` и `last_price` у
+Avantis — NULL «не отдаёт вовсе», а не «не получили», и §3 про свечи оракула в
+`market_price_candle` остаётся верным только если строить их самим из потока Pyth.
+
+### Четыре поправки к решениям
+
+**1. Сокет у площадки ЕСТЬ — §3 и §4 неверны в этом месте.** «`ws_url` пустой: у Avantis
+нашего сокета нет» — не так. `data.avantisfi.com` вещает Socket.IO без авторизации:
+фандинг, OI, спред, часы. Это поток ВЕНЬЮ, не оракула, и правило «live обязано означать
+«пришло от венью»» он не нарушает. Оракульный поток Pyth — отдельный вопрос и им остаётся.
+
+**2. OI отдаётся в ОБЕИХ единицах — §2.5 неверна.** Предполагалось, что количества нет и
+`open_interest` будет NULL. По факту на паре лежит и то, и другое:
+`openInterest {long: 2 548 348, short: 2 865 038}` — ноционал, `coinOI {long: 36.19,
+short: 35.96}` — количество. Заполняются оба поля из опубликованного, делить ничего не надо
+— запрет «не выводить делением» остаётся в силе и просто не наступает.
+
+**3. `isOpen` — заявление ОРАКУЛА, не площадки.** Флаг есть, но лежит в
+`feed.attributes.isOpen`, рядом с `schedule`, `nextOpen`, `nextClose` — это метаданные
+фида Pyth, которые Avantis ретранслирует. §2.7 называет `venue_open` «заявлением
+площадки»; провенанс здесь другой, и это стоит назвать в колонке честно. Календарь
+(`America/New_York;O,O,O,O,0000-2000,C,2000-2400;1125/…,1225/C,…`) в payload есть — и, как
+план и требует, мы его не храним. §4 фоллбэк («если §0 не найдёт флага») не понадобится.
+
+**4. У оракула две стороны есть.** `PriceUpdate` из Lazer несёт `best_bid` и `best_ask`
+рядом с `price`. Книги у Avantis по-прежнему нет, и главный вывод плана в силе — но
+формулировка «первая площадка, у которой нет двух сторон рынка» верна про ПЛОЩАДКУ, не про
+поток, которым она ценится. Писать их в `bid_price`/`ask_price` нельзя: это стороны
+чужого агрегата, а не этого рынка.
+
+### Классы активов — семь групп, одна строка `exchange`
+
+`groupInfo`: CRYPTO1 / CRYPTO2 / CRYPTO3 / FOREX / COMMODITIES + две группы с индексами и
+акциями (`US500`, `US100`, `COIN`, `NVDA`). По `feed.attributes.assetType`: crypto 51,
+equity 28, fx 10, metal 2, commodity 2, пустой 27. Пустой `assetType` совпадает с
+`isPairListed = false` (93 listed / 27 нет) — это делистинги и заглушки, одна даже с
+символом `/`. Решение §3 «один сегмент» подтверждается: хост, сокет, пространство символов
+и бюджет у всех классов общие, а группа — свойство инструмента.
+
+### Что именно собирать (полный список, а не подмножество)
+
+На паре 119 листовых полей. В общую строку снимка идут те, что уже есть в схеме; ВСЁ
+остальное — в набор `vault_state` (§2.6), потому что выкидывать опубликованное нельзя:
+
+- **OI и потолки:** `openInterest{long,short}`, `coinOI{long,short}`, `pairOI`, `pairMaxOI`,
+  `maxWalletOI`, `blockOILimit`, `assetOIParams{isHardCap,longOIHardCap,shortOIHardCap,
+  totalOIHardCap}`, `values.maxLongOiP/maxShortOiP/maxWalletOIP`, `groupInfo{groupOI,
+  groupMaxOI,maxOpenInterestP,isSpreadDynamic}`, `totalOi`, `maxOpenInterest`.
+- **Carry:** `fundingRate{long,short}`, `fundingFeePerHourP`, `marginFee{long,short}`,
+  `min/maxShortBorrowFee`, `storagePairParams.min/maxLongBorrowFee`, `accPerOiLong/Short`,
+  `fundingLastUpdateBlock`.
+- **Входы импакта:** `pairParams.onePercentDepthAbove/Below` (та самая «глубина одного
+  процента» линии gTrade), `liquidity{buy,sell}`, `priceImpactMultiplier`,
+  `skewImpactMultiplier`, `long/shortSkewConfig`, `skewEqParams`, `decayedVol`,
+  `spreadP`, `pairSpreadP`, `pnlSpreadP`, `uncappedSpread`, `storagePairParams.*SpreadCap`.
+- **Комиссии и лимиты:** `openFeeP`, `closeFeeP`, `additionalPairParams2.*` (maker/taker
+  на открытие и закрытие), `limitOrderFeeP`, `pairLimitOrderFeeP`, `pnlFees{numTiers,
+  tierP[],feesP[]}`, `minLevPosUSDC`, `leverages`, `values.maxGainP/maxSlP`,
+  `hedgingParams`, `pairTwapParams`, `timer`, `lossProtectionMultiplier`.
+- **Идентичность и состояние:** `index`, `from`, `to`, `groupIndex`, `isPairListed`,
+  `additionalPairParams2.closeOnlyMode`, `feed{feedId,maxOpen/CloseDeviationP,attributes}`,
+  `backupFeed`, `lazerFeed{feedId,exponent,minChannel,state}`.
+- **Хранилище (свой набор, венью-широкий, не на инструмент):** `/v2/lp/state` целиком.
+  Для vault-backed площадки это то же, чем для книжной является глубина: контрагент каждой
+  сделки. `utilizationRatio` в 1e10, суммы в USDC 1e6 — единицы из `/v2/meta`.
+
+**Порядок §0 → §2 не отменяется:** §2.1 (`market_model`), §2.3 (фандинг), §2.4 (цены) и
+§2.6 (граница общей строки и набора) — по-прежнему решения владельца; замеры их не
+принимают, а только убирают неизвестные.
 
 ---
 
