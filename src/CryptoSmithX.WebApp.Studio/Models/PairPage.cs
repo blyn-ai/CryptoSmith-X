@@ -232,6 +232,11 @@ public sealed record PairPageModel(
     /// </summary>
     public IReadOnlyDictionary<int, BookFrame> Books { get; init; } = new Dictionary<int, BookFrame>();
 
+    /// <summary>What a vault-backed listing has in place of a book: the inputs its price impact is
+    /// computed from. Empty for every book-backed venue — a property of the market model, not a
+    /// gap — so band 2 falls back to the levels it already draws.</summary>
+    public IReadOnlyDictionary<int, VaultPairRow> VaultPairs { get; init; } = new Dictionary<int, VaultPairRow>();
+
     public IReadOnlyList<TapeRow> Tape { get; init; } = [];
 
     /// <summary>

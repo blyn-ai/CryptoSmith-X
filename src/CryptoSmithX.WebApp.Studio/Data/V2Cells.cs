@@ -174,7 +174,7 @@ public static class V2Cells
         // физически. Обе цифры печатались как измерение.
         V2Field.BookReach => Reach(book, r.Row.DepthRef, Format.PriceDecimals(r.Row)),
 
-        V2Field.OpenInterest => Fig(r.Row.OpenInterest, 0),
+        V2Field.OpenInterest => OpenInterestCell(r),
         V2Field.Multiplier => Text(r.Row.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(r.Row.ContractMultiplier, 0)),
 
         // Normalised to a day so seven venues on three different intervals can be read down one
@@ -253,6 +253,28 @@ public static class V2Cells
 
         var next = r.Row.NextFundingAt is { } at ? "next " + Format.UtcClock(at) : null;
         return new V2Cell(hours, hours + " h", next);
+    }
+
+    /// <summary>
+    /// Open interest in BASE units, with the venue's own notional under it.
+    ///
+    /// Both, where both are published, and the same shape TURNOVER already uses for the same
+    /// reason: the two answer different questions and neither is derivable from the other without a
+    /// price at every moment inside the position, not just now. A quantity says how much of the
+    /// asset is committed; a notional says what that is worth, and only the venue can say which
+    /// prices it valued it at.
+    ///
+    /// A SUB-LINE rather than a column of its own, and that is a fitting decision as much as an
+    /// editorial one: band 1 fits 1920px exactly, and a twentieth track would put it back into a
+    /// horizontal scroll to show a figure only one venue publishes today.
+    /// </summary>
+    private static V2Cell OpenInterestCell(VenueRowModel r)
+    {
+        var notional = r.Row.OiQuote is { } q ? Format.Num(q, 0) + " " + r.Row.QuoteAsset : null;
+
+        return r.Row.OpenInterest is { } oi
+            ? new V2Cell(oi, Format.Num(oi, 0), notional)
+            : new V2Cell(null, "—", notional);
     }
 
     private static V2Cell Turnover24hCell(VenueRowModel r)

@@ -104,6 +104,15 @@
                            column is gone (folded here, its only home now), and ×1 reads as the
                            same fact in the same three characters every other multiplier uses. *@
                         <em>×@Format.Num(r.Row.ContractMultiplier, 0)</em>
+                        @* Сказано СЛОВОМ, а не только вычтено из счётчика. Закрытая сессия и
+                           умерший фид дают одну и ту же неподвижную цифру, и без подписи читатель
+                           видит свежий возраст под ценой, которая не менялась с пятницы, — ровно
+                           то недоразумение, ради которого колонка и заводилась. Пусто там, где
+                           площадка флага не публикует: неизвестная сессия — не утверждение. *@
+                        @if (Freshness.Closed(r.Row.MarketOpen))
+                        {
+                            <em class="v2-shut" title="The venue says this market is not trading right now. Its age is shown and not judged: nothing is due from a closed market.">shut</em>
+                        }
                     </span>
 
                     @* Три вызова на ОДНОЙ рампе, каждый по своей доле СВОЕГО окна: цена ждёт 30 с,

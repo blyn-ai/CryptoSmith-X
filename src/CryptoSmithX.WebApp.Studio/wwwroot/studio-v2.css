@@ -249,6 +249,22 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 
 /* D-4: the mode pair, in the button shape this page already uses for a pressed state. No colour of
    its own, no border of its own, no animation — see the markup's own note. */
+/* Закрытая сессия — ФАКТ о рынке, а не тревога: набрано тем же приглушённым, что и остальные
+   пометки в клетке листинга, и НЕ акцентом. Акцент на этой странице означает «просрочено», а
+   закрытый рынок именно что не просрочен — покрасить его тем же цветом значило бы сказать
+   обратное тому, ради чего флаг заведён. Ноль новых токенов. */
+.v2-shut{color:var(--text-faint);border:1px solid var(--border-hairline);padding:0 3px;margin-left:3px}
+
+/* Замена стакана у рынка без стакана. Набрано теми же моно-цифрами и тем же приглушённым, что
+   уровни рядом, — читатель сравнивает их глазами, и разный набор сказал бы, что это другого сорта
+   величина. Ноль новых токенов. */
+.v2-vault{margin:6px 0 0;display:flex;flex-direction:column;gap:3px;
+  font:400 var(--fs-age)/1.3 var(--font-mono);font-variant-numeric:tabular-nums}
+.v2-vault > div{display:flex;gap:6px;align-items:baseline}
+.v2-vault dt{min-width:56px;color:var(--text-faint)}
+.v2-vault dd{margin:0;color:var(--text-muted)}
+.v2-vault em{color:var(--text-faint);font-style:normal;margin:0 4px 0 1px}
+
 .v2-mode{display:inline-flex;align-items:center;gap:2px}
 .v2-mode-btn{width:auto;padding:0 6px;font:400 var(--fs-age)/1 var(--font-mono);letter-spacing:.02em}
 

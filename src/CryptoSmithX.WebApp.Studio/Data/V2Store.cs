@@ -21,6 +21,44 @@ public static class V2Store
 {
     /// <summary>The newest book frame per instrument. One row each — the profile is read as a
     /// shape, and twenty-five levels of history would be a chart, not a shape.</summary>
+    /// <summary>
+    /// What a market with no book has INSTEAD of one: the inputs its price impact is computed from,
+    /// its open interest by side, and the ceiling it is held under.
+    ///
+    /// Newest reading per instrument, and only a recent one — these are observations, and a stale
+    /// one presented beside a live book would be the same lie the whole page is built to avoid. Ten
+    /// minutes matches BooksAsync's own window for the same reason.
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<int, VaultPairRow>> VaultPairsAsync(
+        DbConnection conn, IReadOnlyList<int> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+        {
+            return new Dictionary<int, VaultPairRow>();
+        }
+
+        var rows = await conn.QueryAsync<VaultPairRow>(new CommandDefinition(
+            """
+            select distinct on (v.exchange_instrument_id)
+                   v.exchange_instrument_id as "InstrumentId",
+                   v.received_at            as "At",
+                   v.oi_long_quote          as "OiLongQuote",
+                   v.oi_short_quote         as "OiShortQuote",
+                   v.oi_max_quote           as "OiMaxQuote",
+                   v.depth_above_1pct       as "DepthAbove1Pct",
+                   v.depth_below_1pct       as "DepthBelow1Pct",
+                   v.liquidity_buy          as "LiquidityBuy",
+                   v.liquidity_sell         as "LiquiditySell"
+              from vault_pair_state v
+             where v.exchange_instrument_id = any(@ids)
+               and v.received_at > now() - interval '10 minutes'
+             order by v.exchange_instrument_id, v.received_at desc
+            """,
+            new { ids = ids.ToArray() }, cancellationToken: ct));
+
+        return rows.ToDictionary(r => r.InstrumentId);
+    }
+
     public static async Task<IReadOnlyDictionary<int, BookFrame>> BooksAsync(
         DbConnection conn, IReadOnlyList<int> ids, CancellationToken ct)
     {
@@ -379,6 +417,26 @@ public static class V2Store
                     .ToList());
     }
 }
+
+/// <summary>
+/// One vault-backed pair's state, as band 2 reads it. Every figure is the venue's own published
+/// input — nothing here is computed by us, and none of it belongs in depth_*bps, which are
+/// documented as a measurement of a book this market does not have.
+/// </summary>
+/// <param name="DepthAbove1Pct">The notional that moves the price one percent up, as published.
+/// An input to the impact function, and the nearest thing this market has to a book's thickness —
+/// but arrived at by a formula rather than by counting resting orders, which is why it is shown
+/// under its own name and never in a depth column.</param>
+public sealed record VaultPairRow(
+    int InstrumentId,
+    DateTime At,
+    double? OiLongQuote,
+    double? OiShortQuote,
+    double? OiMaxQuote,
+    double? DepthAbove1Pct,
+    double? DepthBelow1Pct,
+    double? LiquidityBuy,
+    double? LiquiditySell);
 
 public sealed record BookFrame(
     int InstrumentId, DateTime ObservedAt, short Levels,

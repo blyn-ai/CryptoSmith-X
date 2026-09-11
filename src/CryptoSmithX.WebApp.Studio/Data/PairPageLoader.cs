@@ -52,9 +52,12 @@ public static class PairPageLoader
                 var liquidations = await V2Store.LiquidationsAsync(conn, ids, at, token);
                 var modes = await V2Store.DatasetModesAsync(conn, segments, token);
                 var peak = await V2Store.TapePeakAsync(conn, ids, token);
+                // What a market with no book has instead of one. Empty for every
+                // book-backed venue, which is why it costs them nothing.
+                var vaultPairs = await V2Store.VaultPairsAsync(conn, ids, token);
 
                 return new PairData(
-                    comparison, candles, metrics, books, tape, coverage, gaps, stress, liquidations, modes, peak);
+                    comparison, candles, metrics, books, tape, coverage, gaps, stress, liquidations, modes, peak, vaultPairs);
             },
             ct);
 
@@ -114,6 +117,7 @@ public static class PairPageLoader
             now)
         {
             Books = data.Books,
+            VaultPairs = data.VaultPairs,
             Tape = data.Tape,
             Coverage = data.Coverage,
             Gaps = data.Gaps,
@@ -141,5 +145,6 @@ public static class PairPageLoader
         IReadOnlyDictionary<int, StressRow> Stress,
         IReadOnlyDictionary<int, IReadOnlyList<double?>> Liquidations,
         IReadOnlyDictionary<(string Segment, string Dataset), string> Modes,
-        int TapePeak);
+        int TapePeak,
+        IReadOnlyDictionary<int, VaultPairRow> VaultPairs);
 }

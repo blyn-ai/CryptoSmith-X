@@ -96,7 +96,31 @@
                                in this template: the next oracle-priced venue must need no edit. *@
                             @if (r.Row.MarketModel == "oracle_vault")
                             {
-                                <p class="v2-empty v2-empty--inline">This market has no book at all — the counterparty is a liquidity pool, not a resting order. Nothing missing.</p>
+                                <p class="v2-empty v2-empty--inline">No book — the counterparty is a liquidity pool, not a resting order. What sets the price instead:</p>
+                                @* Не пустота, а ЗАМЕНА. У этого рынка цена сделки складывается из
+                                   опубликованных входов функции импакта и скоса открытого интереса —
+                                   и это ровно те величины, по которым книжная площадка даёт стакан.
+                                   Показаны под своими именами и НИКОГДА не в полосах глубины: те
+                                   документированы как измерение книги (0035 §A), а здесь книги нет,
+                                   и подставить туда модельное число значило бы выдать расчёт за
+                                   наблюдение. *@
+                                @if (Model.VaultPairs.TryGetValue(r.Row.InstrumentId, out var vault))
+                                {
+                                    <dl class="v2-vault">
+                                        <div><dt title="Notional that moves the price one percent, as the venue publishes it — an input to its impact function, not a count of resting orders">1% depth</dt>
+                                            <dd>@(vault.DepthAbove1Pct is { } a ? Format.Num(a, 0) : Format.Dash) <em>up</em>
+                                                @(vault.DepthBelow1Pct is { } b ? Format.Num(b, 0) : Format.Dash) <em>down</em></dd></div>
+                                        <div><dt title="Open interest by side, in the quote asset — the skew is what pushes this venue's price away from the oracle">OI skew</dt>
+                                            <dd>@(vault.OiLongQuote is { } ol ? Format.Num(ol, 0) : Format.Dash) <em>long</em>
+                                                @(vault.OiShortQuote is { } os ? Format.Num(os, 0) : Format.Dash) <em>short</em></dd></div>
+                                        <div><dt title="How much open interest this pair may hold before the venue stops taking more — the ceiling a book has no equivalent of">OI cap</dt>
+                                            <dd>@(vault.OiMaxQuote is { } cap ? Format.Num(cap, 0) : Format.Dash) <em>@r.Row.QuoteAsset</em></dd></div>
+                                    </dl>
+                                }
+                                else
+                                {
+                                    <p class="v2-empty v2-empty--inline">— and that has not been observed in the last ten minutes.</p>
+                                }
                             }
                             else
                             {
