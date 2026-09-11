@@ -237,13 +237,17 @@ public sealed class AvantisMarketDataTests
     }
 
     [Fact]
-    public async Task An_instrument_carries_no_invented_price_step()
+    public async Task An_instrument_carries_no_invented_grid_only_the_notional_the_venue_states()
     {
         // The tick is the oracle's and the venue publishes no grid of its own. A fabricated step
         // would be read as the venue's own statement about its market.
         var i = Assert.Single(await Adapter(Catalog(BtcPair)).GetInstrumentsAsync(CancellationToken.None));
 
-        Assert.Equal(0m, i.PriceStep);
+        Assert.Null(i.PriceStep);
+        Assert.Null(i.QtyStep);
+        Assert.Null(i.MinQty);
+        // The one thing it DOES constrain, and the only one written.
+        Assert.Equal(100m, i.MinNotional);
         Assert.Null(i.FundingIntervalHours);
         Assert.Equal("BTC/USD", i.ExchangeSymbol);
     }

@@ -17,14 +17,21 @@ namespace CryptoSmithX.MarketData.Connectors.Market;
 /// <param name="ListedAt">When the contract listed on the venue (Kraken: openingDate); null if unknown.</param>
 /// <param name="Status">One of the values allowed by the CHECK on exchange_instrument.status.</param>
 /// <param name="RawJson">The venue's payload for this instrument, as received.</param>
+/// <remarks>
+/// <para><b>The grid can be absent.</b> price_step, qty_step and min_qty are nullable because a
+/// market whose price comes from an oracle rather than its own matching has no tick and no lot: it
+/// constrains the NOTIONAL instead, which is <see cref="MinNotional"/>. Migration 0045 lifted the
+/// NOT NULL after Avantis's discovery pass failed on the CHECK. A zero would have passed nothing
+/// and meant worse — it reads as a measured step of zero.</para>
+/// </remarks>
 public sealed record Instrument(
     string ExchangeSymbol,
     string BaseAssetRaw,
     string QuoteAssetRaw,
     decimal ContractMultiplier,
-    decimal PriceStep,
-    decimal QtyStep,
-    decimal MinQty,
+    decimal? PriceStep,
+    decimal? QtyStep,
+    decimal? MinQty,
     decimal? MinNotional,
     /// <summary>Hours between funding payments, as the venue states them. NULL means NOT MEASURED —
     /// the adapter did not get an interval and does not put a plausible number where the venue put

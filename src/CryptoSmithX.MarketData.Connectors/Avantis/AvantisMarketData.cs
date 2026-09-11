@@ -82,13 +82,16 @@ public sealed class AvantisMarketData : IExchangeMarketData
                 ExchangeSymbol: symbol,
                 BaseAssetRaw: p.From,
                 QuoteAssetRaw: p.To,
+                // A real fact about the contract rather than a gap, so it is not nullable and not
+                // null: one unit of exposure is one unit of the base asset here.
                 ContractMultiplier: 1m,
-                // The tick is the ORACLE's, and this venue publishes no grid of its own — so there
-                // is no step to copy and none is invented. A fabricated one would be read as the
-                // venue's own statement about its market.
-                PriceStep: 0m,
-                QtyStep: 0m,
-                MinQty: 0m,
+                // NULL, not zero. The tick is the ORACLE's and this venue publishes no grid of its
+                // own — the only thing it constrains is the notional, below. A zero would read as a
+                // measured step of zero, which is a claim nobody made; 0045 made the absence
+                // expressible after discovery failed on the CHECK that forbade both.
+                PriceStep: null,
+                QtyStep: null,
+                MinQty: null,
                 MinNotional: p.MinLevPosUsdc is { } min ? (decimal)min : null,
                 // No discrete funding payment here, so the pair (rate, interval) stays
                 // (NULL, NULL) and reads unambiguously under market_model. 0028 needs no change.
