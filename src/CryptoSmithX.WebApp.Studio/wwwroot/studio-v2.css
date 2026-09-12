@@ -477,6 +477,14 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-part--good i,.v2-part--tight i{background:var(--tag-best-bg);color:var(--tag-best-ink)}
 .v2-part--bad i,.v2-part--wide i{background:var(--tag-worst-bg);color:var(--tag-worst-ink)}
 
+/* Провенанс — не суждение (хорошо/плохо), а способ получения цифры, поэтому и цвет у него не тот:
+   ни tag-best, ни tag-worst, только нейтральная рамка --border-hairline и приглушённый
+   --text-faint, тем же приёмом, что уже несёт .v2-shut. Стоит ПОСЛЕ числа (margin-left, а не
+   -right — .v2-part i по умолчанию ставит чип ПЕРЕД текстом для MIN/MAX), потому что бейдж — это
+   сноска к цифре, а не её собственное имя. */
+.v2-prov{margin-left:3px;margin-right:0;background:transparent;color:var(--text-faint);
+  border:1px solid var(--border-hairline)}
+
 .v2-fig em,.v2-figsub em{font-style:normal;color:var(--text-faint);margin:0 3px}
 
 /* Бар окна в клетке TRUST: доля СВОЕГО окна у худшего вызова — то, чего полоска в клетке
@@ -940,6 +948,18 @@ body[data-cut="price"] .v2-nows--books[data-cut="price"]{display:grid}
   .v2-cutpicks{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:var(--space-3);
     padding-bottom:2px;-webkit-overflow-scrolling:touch}
   .v2-cutpick{flex:none}
+
+  /* .v2-band-head держит пять span'ов в ОДНОЙ строке (display:flex, без wrap) — на 1920px это
+     подпись слева и мелкие факты справа через margin-left:auto. На 375px тот же flex пытается
+     втиснуть все пять в одну строку и СЖИМАЕТ каждый span до полоски в несколько символов
+     шириной — текст внутри переносится по слову на строку, и «180 figures held · up to 25
+     levels a side · …» превращается в вертикальную колонку из одного слова на строке.
+     На телефоне это не сравнение пяти фактов в ряд, а один факт за другим: колонка, а не
+     сплющенная строка. Ширина у каждого — 100%, потому что width:auto внутри flex-column всё
+     ещё измеряет себя по контенту, а не по родителю, и .v2-band-rank/.v2-cols держат
+     margin-left:auto, который в column-направлении ничего не подвинет. */
+  .v2-band-head{flex-direction:column;align-items:flex-start;gap:var(--space-2)}
+  .v2-band-no,.v2-band-sub,.v2-band-unit,.v2-band-rank,.v2-cols{width:100%;margin-left:0}
 
   /* ── Режим по умолчанию: сравнение одного поля ── */
   body:not([data-mobile-mode="listing"]) #band-table{display:none}

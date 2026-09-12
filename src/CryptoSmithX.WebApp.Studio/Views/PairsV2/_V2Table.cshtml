@@ -219,6 +219,13 @@
                                 <span class="v2-part @(mark is null ? "" : "v2-part--" + mark + " v2-part--" + V2Ranks.ToneWord(rank))">
                                     @if (markText is not null) { <i title="@markTitle">@markText</i> }
                                     <span>@cell.Text</span>
+                                    @* A market with no resting book still answers this column, only by a
+                                       different method — the badge says which, so the number is never
+                                       read as the same kind of measurement a book venue's is. *@
+                                    @if (cell.Badge is not null)
+                                    {
+                                        <i class="v2-prov" title="@cell.BadgeTitle">@cell.Badge</i>
+                                    }
                                 </span>
                             </span>
                             @if (cell.Sub is not null)
@@ -242,10 +249,18 @@
                                 <span class="v2-part @(mark is null ? "" : "v2-part--" + mark + " v2-part--" + V2Ranks.ToneWord(rank)) @(cell.Value is null ? "v2-fig--none" : "")">
                                     @if (markText is not null) { <i title="@markTitle">@markText</i> }
                                     <span>@cell.Text</span>
+                                    @if (cell.Badge is not null)
+                                    {
+                                        <i class="v2-prov" title="@cell.BadgeTitle">@cell.Badge</i>
+                                    }
                                 </span>
                                 <span class="v2-part @(pairMark is null ? "" : "v2-part--" + pairMark + " v2-part--" + pairTone) @(pairCell.Value is null ? "v2-fig--none" : "")">
                                     @if (pairMarkText is not null) { <i title="@pairMarkTitle">@pairMarkText</i> }
                                     <span>@pairCell.Text</span>
+                                    @if (pairCell.Badge is not null)
+                                    {
+                                        <i class="v2-prov" title="@pairCell.BadgeTitle">@pairCell.Badge</i>
+                                    }
                                 </span>
                             </span>
                         }

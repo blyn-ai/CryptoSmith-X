@@ -126,7 +126,49 @@ public static class V2Cells
         _ => V2Cell.None,
     };
 
-    public static V2Cell Field(VenueRowModel r, V2Field f, StressRow? stress = null, BookFrame? book = null) => f switch
+    public static V2Cell Field(VenueRowModel r, V2Field f, StressRow? stress = null, BookFrame? book = null) =>
+        WithProvenance(r, f, FieldValue(r, f, stress, book));
+
+    /// <summary>
+    /// The badge and tooltip a DERIVED figure carries, on top of the value <see cref="FieldValue"/>
+    /// already decided. Applied here rather than inside each case, so every field that gets one goes
+    /// through the same rule instead of a badge being one more thing each branch above has to
+    /// remember.
+    ///
+    /// Keyed on <see cref="VenueRow.MarketModel"/>, never on a venue's name — the same rule
+    /// <see cref="Freshness.HasBook"/> already follows, so the next oracle-priced venue needs no
+    /// edit here. Only a market with no resting book gets one: everywhere else the figure IS what
+    /// its column has always meant, and a badge on it would be noise.
+    ///
+    /// NATIVE figures — Last, Last trade, Turnover, Liquidations, Open interest, the funding
+    /// columns — carry none: they come straight off the venue's own tape and catalogue and are not
+    /// a different kind of thing from a book venue's. Only what is computed FROM the venue's quote
+    /// engine rather than read off it is marked.
+    /// </summary>
+    private static V2Cell WithProvenance(VenueRowModel r, V2Field f, V2Cell cell)
+    {
+        if (cell.Value is null || !string.Equals(r.Row.MarketModel, "oracle_vault", StringComparison.Ordinal))
+        {
+            return cell;
+        }
+
+        var (badge, title) = f switch
+        {
+            V2Field.Bid or V2Field.Ask or V2Field.Spread =>
+                ("Q10K", "Executable Avantis quote at $10,000 notional per side (POST /risk/v2/spread) — a live price the venue will fill you at, not a resting order."),
+            V2Field.Mark or V2Field.Index =>
+                ("PYTH", "Pyth oracle feed. Avantis marks positions against this same unadjusted price — there is no separate venue mark to publish."),
+            V2Field.BidSize or V2Field.AskSize =>
+                ("CAP", "Directional capacity from the venue's own availableLiquidity — headroom against its own OI ceilings, not resting size at a level."),
+            V2Field.Depth25 or V2Field.BookReach =>
+                ("QUOTE", "Quote-curve depth: the size Avantis still quotes at or under this cost, found by bisecting POST /risk/v2/spread — not levels resting in a book."),
+            _ => (null, null),
+        };
+
+        return badge is null ? cell : cell with { Badge = badge, BadgeTitle = title };
+    }
+
+    private static V2Cell FieldValue(VenueRowModel r, V2Field f, StressRow? stress, BookFrame? book) => f switch
     {
         // Единица агрегата приходит СТРОКОЙ из базы: площадки считают объём ликвидаций
         // по-разному, и подставлять свою единицу значило бы переименовать чужую величину.
@@ -411,4 +453,15 @@ public sealed record V2Cell(double? Value, string Text, string? Sub)
     /// today, and nowhere else. An init property rather than a third positional parameter so
     /// every other <c>new V2Cell(...)</c> call in this file keeps meaning what it already means.</summary>
     public string? Sub2 { get; init; }
+
+    /// <summary>A short source/method tag — "Q10K", "PYTH", "CAP", "QUOTE" — for a figure this
+    /// market model does not measure the way a book venue's column usually does. Null on every
+    /// other cell on the page: the badge is the exception, not something every cell carries and
+    /// leaves blank.</summary>
+    public string? Badge { get; init; }
+
+    /// <summary>What the badge stands for, spelled out — the venue, the endpoint, and why this is
+    /// not the same kind of figure a book prints. Shown on hover; the badge itself stays three to
+    /// five letters so it never competes with the number for the reader's eye.</summary>
+    public string? BadgeTitle { get; init; }
 }
