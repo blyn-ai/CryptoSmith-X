@@ -93,12 +93,21 @@ public sealed class BybitClient
             + $"&intervalTime={intervalTime}&limit=200"
             + $"&startTime={Ms(from)}&endTime={Ms(to)}", ct);
 
-    /// <summary>The book, 200 levels a side — deep enough that the 50 bps band is reached on every
-    /// instrument this venue lists, which is the condition for the band being a sum rather than an
-    /// undercount.</summary>
+    /// <summary>
+    /// The book, five hundred levels a side — this venue's maximum for linear contracts.
+    ///
+    /// <b>The claim that used to stand here was wrong.</b> It said two hundred levels reach past the
+    /// 50 bps band on every instrument this venue lists. On BTCUSDT two hundred levels reach 3.9 bps,
+    /// measured, so all three depth columns were empty on the venue's most traded instrument — the
+    /// first row anyone looks at. Five hundred reach 10.9 bps, which bounds the 10 bps band.
+    ///
+    /// 25 and 50 stay unbounded on the tightest instruments and that is this venue's own limit:
+    /// there is no merge or precision parameter on this route to trade resolution for span. What the
+    /// book did reach is recorded beside the bands rather than left to be inferred.
+    /// </summary>
     internal Task<BybitOrderBook> GetOrderBookAsync(string symbol, CancellationToken ct) =>
         GetAsync<BybitOrderBook>(
-            $"{_baseUrl}/v5/market/orderbook?category={Category}&symbol={Uri.EscapeDataString(symbol)}&limit=200", ct);
+            $"{_baseUrl}/v5/market/orderbook?category={Category}&symbol={Uri.EscapeDataString(symbol)}&limit=500", ct);
 
     /// <summary>The public tape, newest first, up to a thousand prints. At the depth sweep's own
     /// cadence that covers every instrument this adapter collects — measured against the busiest of

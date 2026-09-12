@@ -14,6 +14,10 @@ namespace CryptoSmithX.MarketData.Connectors.Mexc;
 /// safe ceiling of about 2.5 per SECOND. See <see cref="MexcClient"/> for the 510-under-a-200
 /// translation that lets the venue slow us down at all.
 ///
+/// <b>Linear only.</b> Ten contracts settle in the base coin and are inverse; they are skipped on
+/// discovery, because on those a contract is worth <c>contractSize</c> of the QUOTE and every
+/// quantity this adapter reports would otherwise be out by a factor of the price.
+///
 /// <b>Sizes are CONTRACTS</b>, one being <c>contractSize</c> of the base asset — 0.0001 BTC on
 /// BTC_USDT. Stored raw with the multiplier on the instrument, like Gate and OKX.
 ///
@@ -78,6 +82,18 @@ public sealed class MexcPerpMarketData : IExchangeMarketData
                 continue;
             }
 
+            // INVERSE. Ten of the 1 192 settle in the base coin — BTC_USD and its nine siblings —
+            // and on those a contract is worth contractSize of the QUOTE, not of the base. This
+            // segment is linear perpetuals, as IExchangeMarketData says, and every other adapter
+            // already keeps them out; this one did not, and the contract size was read as base units
+            // regardless. BTC_USD's 100 became a hundred BITCOIN a contract, and the grid showed
+            // 2.8 trillion dollars of depth at 50 bps on a venue whose whole book is a few million.
+            // A number that wrong is worse than an empty column, because it reads as a measurement.
+            if (string.Equals(c.SettleCoin, b, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var multiplier = c.ContractSize is { } size && size > 0 ? size : 1d;
             _multiplier[c.Symbol] = multiplier;
 
@@ -119,6 +135,13 @@ public sealed class MexcPerpMarketData : IExchangeMarketData
             list.Add(new Ticker(
                 ExchangeSymbol: t.Symbol,
                 ReceivedAt: now,
+                // The instant of the newest print this venue's tape has handed us, which is what
+                // the Last-trade column holds. It comes from the tape rather than the ticker
+                // because none of these five publish a "time of last trade" on the ticker at all,
+                // and that column was empty for every venue but Avantis while five tapes sat in
+                // the same process already knowing the answer. As fresh as the tape's own pass,
+                // never fresher, and null until that pass has run.
+                LastTradeAt: _tape.Last(t.Symbol)?.At,
                 LastPrice: Fin(t.LastPrice),
                 BidPrice: Fin(t.Bid1),
                 AskPrice: Fin(t.Ask1),

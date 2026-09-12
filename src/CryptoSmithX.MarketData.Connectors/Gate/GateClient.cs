@@ -67,11 +67,24 @@ public sealed class GateClient
         GetAsync<IReadOnlyList<GateFundingRow>>(
             $"{_baseUrl}/api/v4/futures/{Settle}/funding_rate?contract={Uri.EscapeDataString(contract)}&limit=100", ct);
 
-    /// <summary>The book. Fifty levels a side is what this venue serves without an interval
-    /// parameter, and it reaches past the 50 bps band on every contract sampled.</summary>
+    /// <summary>
+    /// The book, three hundred levels a side — the deepest this route accepts; 400 is a 400.
+    ///
+    /// <b>The claim that used to stand here was wrong.</b> It said fifty levels reach past the 50 bps
+    /// band on every contract sampled. On BTC_USDT fifty levels reach about 3 bps and a hundred
+    /// reach 5.6, measured, so every depth column was empty on the venue's most traded contract.
+    /// Three hundred reach 16 bps.
+    ///
+    /// The route also takes an <c>interval</c> that aggregates the ladder onto a coarser price grid
+    /// and buys far more span — 300 levels at interval=5 reach 194 bps on BTC_USDT. It is not used,
+    /// because interval is an ABSOLUTE price step: the value that turns BTC's ladder into something
+    /// useful would swallow an altcoin priced under a dollar whole, and a per-instrument value would
+    /// have to be derived from a set of steps the venue accepts but does not publish (it takes 1 and
+    /// 5 and refuses 2). Span bought that way would cost the band edges their meaning.
+    /// </summary>
     internal Task<GateOrderBook> GetOrderBookAsync(string contract, CancellationToken ct) =>
         GetAsync<GateOrderBook>(
-            $"{_baseUrl}/api/v4/futures/{Settle}/order_book?contract={Uri.EscapeDataString(contract)}&limit=50", ct);
+            $"{_baseUrl}/api/v4/futures/{Settle}/order_book?contract={Uri.EscapeDataString(contract)}&limit=300", ct);
 
     /// <summary>The public tape, newest first.</summary>
     internal Task<IReadOnlyList<GateTrade>> GetTradesAsync(string contract, CancellationToken ct) =>

@@ -29,6 +29,21 @@ public sealed class CoinbaseIntxPerpMarketData : IExchangeMarketData
 
     private readonly CoinbaseIntxClient _client;
 
+    /// <summary>
+    /// The newest SETTLED rate per symbol, learned on the funding pass and served on the snapshot.
+    ///
+    /// This venue publishes no realised rate in any bulk frame — the instruments route carries a
+    /// forecast and nothing else, and the settled series is one call per instrument. Left at that,
+    /// the funding column was empty for this venue on every row of the grid while the settled
+    /// series sat in the database beside it, collected hourly.
+    ///
+    /// Nothing extra is asked of the venue for this: the funding collector already reads that route
+    /// once per instrument per pass, and this remembers what came back. So the column is empty only
+    /// until the first funding pass after a restart, and never emptier than the series itself.
+    /// </summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, double> _settled =
+        new(StringComparer.Ordinal);
+
     public CoinbaseIntxPerpMarketData(CoinbaseIntxClient client) => _client = client;
 
     public string SegmentCode => "coinbase-perp";
@@ -101,9 +116,10 @@ public sealed class CoinbaseIntxPerpMarketData : IExchangeMarketData
                 AskSize: Num(quote?.BestAskSize),
                 MarkPrice: Num(quote?.MarkPrice),
                 IndexPrice: Num(quote?.IndexPrice),
-                // ABSENT, and deliberately: what this venue offers here is a forecast, and the
-                // column holds the rate in force. See the class remarks.
-                FundingRate: null,
+                // The newest SETTLED rate, remembered from the funding pass — never the forecast
+                // beside it in this same frame, which goes to the column that means a forecast.
+                // See _settled.
+                FundingRate: _settled.TryGetValue(i.Symbol, out var settled) ? settled : null,
                 Turnover24h: Num(i.Notional24hr),
                 OpenInterest: Num(i.OpenInterest),
                 OpenInterestAt: now,
@@ -168,6 +184,19 @@ public sealed class CoinbaseIntxPerpMarketData : IExchangeMarketData
             }
 
             list.Add(new FundingRate(exchangeSymbol, at, rate));
+        }
+
+        // The rate in force, for the snapshot. Taken from the whole page rather than from the
+        // windowed list, because a catch-up asking for an old window would otherwise teach the
+        // snapshot an old rate.
+        var newest = rows
+            .Where(f => f.EventTime is not null && Num(f.FundingRate) is not null)
+            .OrderByDescending(f => f.EventTime!.Value)
+            .FirstOrDefault();
+
+        if (newest is not null && Num(newest.FundingRate) is { } inForce)
+        {
+            _settled[exchangeSymbol] = inForce;
         }
 
         return list;

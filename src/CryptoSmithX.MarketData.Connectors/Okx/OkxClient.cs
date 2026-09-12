@@ -90,8 +90,18 @@ public sealed class OkxClient
     /// 2.49 s, because this route's limit rule is keyed by UserID and we have no user. It is the one
     /// OKX route the endpoint × instId ceiling does not apply to.
     /// </summary>
+    /// <remarks>
+    /// <c>books-full</c> rather than <c>books</c>, and five thousand levels rather than four hundred.
+    /// Measured on BTC-USDT-SWAP: four hundred levels reach 7 bps from the mid, so the 10, 25 and 50
+    /// bps bands are all unbounded and all three columns stay empty on the venue's most traded
+    /// instrument. Five thousand reach 89 bps on the bid and 96 on the ask, which bounds every band.
+    ///
+    /// Not paid for in refusals: twenty-five of these in parallel returned 25x200 in 1.79 s,
+    /// measured, and the depth sweep issues one per collected symbol every five minutes.
+    /// </remarks>
     internal Task<IReadOnlyList<OkxBook>> GetBookAsync(string instId, CancellationToken ct) =>
-        GetAsync<OkxBook>($"{_baseUrl}/api/v5/market/books?instId={Uri.EscapeDataString(instId)}&sz=400", ct);
+        GetAsync<OkxBook>(
+            $"{_baseUrl}/api/v5/market/books-full?instId={Uri.EscapeDataString(instId)}&sz=5000", ct);
 
     internal Task<IReadOnlyList<OkxTrade>> GetTradesAsync(string instId, CancellationToken ct) =>
         GetAsync<OkxTrade>(

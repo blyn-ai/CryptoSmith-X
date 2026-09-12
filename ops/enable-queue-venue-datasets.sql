@@ -58,7 +58,12 @@ insert into wanted (segment_code, dataset_code, interval_s) values
     -- MEXC: the tape is folded out of the same call as the book, so trades cost nothing beyond the
     -- depth sweep. No open-interest history (403 on that one route), no liquidation flag, and no
     -- mark or index series behind its current fairPrice.
-    ('mexc-perp',    'depth',         300),
+    -- 600 rather than 300: this venue answered 510 ("too frequent", under an HTTP 200) on the
+    -- depth sweep at five minutes over sixty symbols. The client parks the venue for three minutes
+    -- when it says so, so nothing broke — but this is the one venue whose reconnaissance refused to
+    -- be pushed, on an unverified report of the host banning an IP outright, and the cost of being
+    -- wrong here is the whole host rather than one pass.
+    ('mexc-perp',    'depth',         600),
     ('mexc-perp',    'trades',         60);
 
 -- Nothing is created here. The segment x dataset cross is always complete, so a missing row would

@@ -119,6 +119,13 @@ public sealed class GatePerpMarketData : IExchangeMarketData
             list.Add(new Ticker(
                 ExchangeSymbol: t.Contract,
                 ReceivedAt: now,
+                // The instant of the newest print this venue's tape has handed us, which is what
+                // the Last-trade column holds. It comes from the tape rather than the ticker
+                // because none of these five publish a "time of last trade" on the ticker at all,
+                // and that column was empty for every venue but Avantis while five tapes sat in
+                // the same process already knowing the answer. As fresh as the tape's own pass,
+                // never fresher, and null until that pass has run.
+                LastTradeAt: _tape.Last(t.Contract)?.At,
                 LastPrice: Num(t.Last),
                 BidPrice: Num(t.HighestBid),
                 AskPrice: Num(t.LowestAsk),

@@ -134,8 +134,9 @@ public sealed class QueueVenuesTests
           "base_increment":"0.0001","quote_increment":"0.01","trading_state":"TRADING","quote":{}}]
         """;
 
-    private static CoinbaseIntxPerpMarketData Intx() =>
-        new(new CoinbaseIntxClient(Stub(("/api/v1/instruments", IntxInstruments)), "https://intx.test"));
+    private static CoinbaseIntxPerpMarketData Intx(params (string, string)[] extra) =>
+        new(new CoinbaseIntxClient(
+            Stub([("/api/v1/instruments", IntxInstruments), .. extra]), "https://intx.test"));
 
     [Fact]
     public async Task Intx_keeps_its_spot_listings_out_of_a_perp_segment()
@@ -169,6 +170,40 @@ public sealed class QueueVenuesTests
     }
 
     [Fact]
+    public async Task Intxs_snapshot_carries_the_settled_rate_once_the_funding_pass_has_run()
+    {
+        // The forecast must never reach funding_rate, and it does not. But leaving that column empty
+        // put a hole in this venue's row on every pair while the settled series sat in the database
+        // beside it, collected hourly. There is no bulk route for the realised rate here, so the
+        // adapter remembers what the funding pass already fetched rather than asking again.
+        var intx = Intx(("/instruments/BTC-PERP/funding", IntxFunding));
+
+        // Before the funding pass: empty, because nothing has been observed yet — not a guess from
+        // the forecast standing beside it.
+        var before = Assert.Single(await intx.GetTickersAsync(CancellationToken.None));
+        Assert.Null(before.FundingRate);
+        Assert.Equal(0.000012, before.FundingRatePredicted!.Value, 9);
+
+        await intx.GetFundingHistoryAsync(
+            "BTC-PERP",
+            DateTimeOffset.Parse("2026-09-12T00:00:00Z"),
+            DateTimeOffset.Parse("2026-09-12T23:00:00Z"),
+            CancellationToken.None);
+
+        var after = Assert.Single(await intx.GetTickersAsync(CancellationToken.None));
+
+        // The NEWEST settlement, not the oldest row on the page and not the forecast.
+        Assert.Equal(0.000031, after.FundingRate!.Value, 9);
+        Assert.Equal(0.000012, after.FundingRatePredicted!.Value, 9);
+    }
+
+    private const string IntxFunding = """
+        {"pagination":{"result_limit":25,"result_offset":0},"results":[
+          {"funding_rate":"0.000031","mark_price":"77143.3","event_time":"2026-09-12T21:00:00Z"},
+          {"funding_rate":"0.000044","mark_price":"77112","event_time":"2026-09-12T20:00:00Z"}]}
+        """;
+
+    [Fact]
     public async Task Intx_reads_the_venues_own_clock_off_an_iso_instant()
     {
         var t = Assert.Single(await Intx().GetTickersAsync(CancellationToken.None));
@@ -182,12 +217,15 @@ public sealed class QueueVenuesTests
 
     private const string MexcDetail = """
         {"success":true,"code":0,"data":[
-          {"symbol":"BTC_USDT","baseCoin":"BTC","quoteCoin":"USDT","contractSize":0.0001,
-           "priceUnit":0.1,"volUnit":1,"minVol":1,"state":0,"apiAllowed":true,
-           "createTime":1591242684000},
-          {"symbol":"DEAD_USDT","baseCoin":"DEAD","quoteCoin":"USDT","contractSize":1,
-           "priceUnit":0.1,"volUnit":1,"minVol":1,"state":0,"apiAllowed":false,
-           "createTime":1591242684000}]}
+          {"symbol":"BTC_USDT","baseCoin":"BTC","quoteCoin":"USDT","settleCoin":"USDT",
+           "contractSize":0.0001,"priceUnit":0.1,"volUnit":1,"minVol":1,"state":0,
+           "apiAllowed":true,"createTime":1591242684000},
+          {"symbol":"DEAD_USDT","baseCoin":"DEAD","quoteCoin":"USDT","settleCoin":"USDT",
+           "contractSize":1,"priceUnit":0.1,"volUnit":1,"minVol":1,"state":0,
+           "apiAllowed":false,"createTime":1591242684000},
+          {"symbol":"BTC_USD","baseCoin":"BTC","quoteCoin":"USD","settleCoin":"BTC",
+           "contractSize":100,"priceUnit":0.1,"volUnit":1,"minVol":1,"state":0,
+           "apiAllowed":true,"createTime":1591242684000}]}
         """;
 
     private const string MexcTicker = """
@@ -220,6 +258,23 @@ public sealed class QueueVenuesTests
 
         Assert.Equal("BTC_USDT", i.ExchangeSymbol);
         Assert.Equal(0.0001m, i.ContractMultiplier);
+    }
+
+    [Fact]
+    public async Task Mexc_keeps_its_inverse_contracts_out_of_a_linear_segment()
+    {
+        // BTC_USD settles in BTC: a contract there is worth 100 of the QUOTE, not 100 of the base.
+        // Read as base units — which is what every other contract on this venue means — one contract
+        // becomes a hundred BITCOIN, and the grid showed 2.8 trillion dollars of depth at 50 bps on
+        // a venue whose whole book is a few million. A number that wrong is worse than an empty
+        // column, because it reads as a measurement.
+        //
+        // Ten of the 1 192 are like this, all quoted in USD, and settleCoin equalling baseCoin is
+        // the only thing on the route that says so.
+        var instruments = await Mexc().GetInstrumentsAsync(CancellationToken.None);
+
+        Assert.DoesNotContain(instruments, i => i.ExchangeSymbol == "BTC_USD");
+        Assert.Equal("BTC_USDT", Assert.Single(instruments).ExchangeSymbol);
     }
 
     [Fact]
@@ -263,6 +318,25 @@ public sealed class QueueVenuesTests
         Assert.Equal(HttpStatusCode.TooManyRequests, ex.StatusCode);
         Assert.NotNull(ex.RetryAfter);
         Assert.True(ex.RetryAfter > TimeSpan.Zero);
+    }
+
+    [Fact]
+    public async Task Okxs_turnover_is_derived_because_this_route_publishes_no_quote_figure()
+    {
+        // vol24h is contracts and volCcy24h is the same volume in BASE units. There is no quote
+        // column on this route, alone among the venues here — so the turnover cell was empty for the
+        // exchange with the largest perpetual book on the grid.
+        //
+        // Base volume valued at the last traded price. Both terms come from this frame, and it is
+        // the same arithmetic OKX itself does for oiUsd, which is taken as published.
+        var t = (await Okx().GetTickersAsync(CancellationToken.None))
+            .Single(x => x.ExchangeSymbol == "BTC-USDT-SWAP");
+
+        Assert.Equal(25_166.247 * 77_164.1, t.Turnover24h!.Value, 0);
+
+        // And the base volume still goes to its own column rather than being consumed by the
+        // derivation.
+        Assert.Equal(25_166.247, t.Volume24hBase!.Value, 6);
     }
 
     [Fact]

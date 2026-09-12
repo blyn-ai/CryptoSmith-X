@@ -181,6 +181,13 @@ public sealed class OkxPerpMarketData : IExchangeMarketData
             list.Add(new Ticker(
                 ExchangeSymbol: t.InstId,
                 ReceivedAt: now,
+                // The instant of the newest print this venue's tape has handed us, which is what
+                // the Last-trade column holds. It comes from the tape rather than the ticker
+                // because none of these five publish a "time of last trade" on the ticker at all,
+                // and that column was empty for every venue but Avantis while five tapes sat in
+                // the same process already knowing the answer. As fresh as the tape's own pass,
+                // never fresher, and null until that pass has run.
+                LastTradeAt: _tape.Last(t.InstId)?.At,
                 LastPrice: Num(t.Last),
                 BidPrice: Num(t.BidPx),
                 AskPrice: Num(t.AskPx),
@@ -190,9 +197,21 @@ public sealed class OkxPerpMarketData : IExchangeMarketData
                 MarkPrice: marks.TryGetValue(t.InstId, out var mark) ? Num(mark.MarkPx) : null,
                 IndexPrice: idx,
                 FundingRate: Num(fund?.FundingRate),
-                // The venue publishes no 24-hour quote turnover on this route; volCcy24h is the
-                // BASE volume and goes to its own column rather than standing in for turnover.
-                Turnover24h: null,
+                // DERIVED, and the only column on this venue that is.
+                //
+                // This route publishes vol24h (contracts) and volCcy24h (the same volume in base
+                // units) and no quote figure at all — alone among the venues here, every one of
+                // which publishes turnover natively. Left empty, the column is a hole in the row
+                // for the exchange with the largest perpetual book on it.
+                //
+                // Base volume valued at the last traded price: both terms are the venue's own
+                // published figures for this instrument in this frame, and it is the same
+                // arithmetic OKX itself does for oiUsd, which we take as published two lines down.
+                // It is not the sum of each trade at its own price, and over a day that moved it
+                // will differ from one.
+                Turnover24h: Num(t.VolCcy24h) is { } baseVol && Num(t.Last) is { } traded && traded > 0
+                    ? baseVol * traded
+                    : null,
                 OpenInterest: Num(openInterest?.Oi),
                 OpenInterestAt: Instant(openInterest?.Ts) ?? now,
                 Depth: null,

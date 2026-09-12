@@ -52,6 +52,9 @@ internal sealed record MexcContract(
     [property: JsonPropertyName("symbol")] string Symbol,
     [property: JsonPropertyName("baseCoin")] string? BaseCoin,
     [property: JsonPropertyName("quoteCoin")] string? QuoteCoin,
+    /// <summary>What a position is margined and settled in. Equal to the BASE coin on this venue's
+    /// ten inverse contracts, and that equality is the only thing on the route that says so.</summary>
+    [property: JsonPropertyName("settleCoin")] string? SettleCoin,
     [property: JsonPropertyName("contractSize")] double? ContractSize,
     [property: JsonPropertyName("priceUnit")] double? PriceUnit,
     [property: JsonPropertyName("volUnit")] double? VolUnit,

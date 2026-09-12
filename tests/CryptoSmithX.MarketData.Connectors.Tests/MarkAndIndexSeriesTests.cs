@@ -308,6 +308,34 @@ public sealed class MarkAndIndexSeriesTests
     }
 
     [Fact]
+    public async Task Gates_ticker_learns_the_last_trades_instant_from_its_own_tape()
+    {
+        // None of the five polled venues publishes a "time of last trade" on its ticker, so that
+        // column was empty for every venue but Avantis — while five tapes sat in the same process
+        // already knowing the answer.
+        var gate = new GatePerpMarketData(new GateClient(
+            Stub(("/api/v4/futures/usdt/tickers", GateTickerOne),
+                 ("/api/v4/futures/usdt/trades", GateTrades),
+                 ("/api/v4/futures/usdt/order_book", GateBook)), "https://api.test"));
+
+        // Before the tape has run: null, not the request's own clock standing in for a trade.
+        Assert.Null(Assert.Single(await gate.GetTickersAsync(CancellationToken.None)).LastTradeAt);
+
+        await gate.GetOrderBookAsync("BTC_USDT", CancellationToken.None);
+
+        var after = Assert.Single(await gate.GetTickersAsync(CancellationToken.None));
+
+        // The NEWEST of the two prints on the page, read as seconds like every other instant here.
+        Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(1_789_244_984_294), after.LastTradeAt);
+    }
+
+    private const string GateTickerOne = """
+        [{"contract":"BTC_USDT","last":"77162.8","highest_bid":"77162.7","lowest_ask":"77162.8",
+          "highest_size":"10","lowest_size":"12","mark_price":"77163.1","index_price":"77190.2",
+          "funding_rate":"0.000031","volume_24h_settle":"1103745290","total_size":"63769"}]
+        """;
+
+    [Fact]
     public async Task Gate_hands_on_a_bucket_once_even_though_two_pages_carry_it()
     {
         // The cursor is set TO the newest bucket of the page just read, so the next page opens on
@@ -384,6 +412,44 @@ public sealed class MarkAndIndexSeriesTests
     private const string GateStatsPage = """
         [{"time":1789232400,"open_interest":1234567,"long_liq_size":120,"short_liq_size":80},
          {"time":1789236000,"open_interest":1234999,"long_liq_size":0,"short_liq_size":40}]
+        """;
+
+    [Fact]
+    public async Task Okx_reads_the_deep_book_whose_levels_are_one_field_shorter()
+    {
+        // books-full, not books — four hundred levels reach 7 bps from the mid on BTC-USDT-SWAP,
+        // measured, so all three depth bands were empty on this venue's most traded instrument.
+        // Five thousand reach 89 bps.
+        //
+        // The two routes DO NOT SEND THE SAME ROW. books is [px, sz, liqSz, orderCount] and
+        // books-full is [px, sz, orderCount] — one field shorter, with a COUNT sitting where a
+        // liquidation size used to be. Both fixtures are live rows.
+        var seen = new List<string>();
+        var okx = new OkxPerpMarketData(new OkxClient(
+            Recording(seen,
+                ("/api/v5/public/instruments", OkxInstruments),
+                ("/api/v5/public/funding-rate", OkxFunding),
+                ("/api/v5/market/books-full", OkxBooksFull)),
+            "https://okx.test"));
+
+        await okx.GetInstrumentsAsync(CancellationToken.None);
+        var depth = await okx.GetOrderBookAsync("BTC-USDT-SWAP", CancellationToken.None);
+
+        Assert.Contains("books-full", seen.Single(u => u.Contains("books", StringComparison.Ordinal)));
+        Assert.NotNull(depth);
+
+        // Contracts x 0.01 BTC x price. Reading the third field as the size — as the shorter row
+        // invites — would make the order COUNT the quantity, and the band would be off by whatever
+        // ratio those two happen to have.
+        Assert.NotNull(depth.Bid50Bps);
+        Assert.NotNull(depth.Ask50Bps);
+        Assert.True(depth.Bid50Bps > 0);
+    }
+
+    /// <summary>Live rows, with the book reaching past 50 bps so the bands are bounded.</summary>
+    private const string OkxBooksFull = """
+        {"code":"0","msg":"","data":[{"asks":[["77175","470.73","33"],["77950","0.14","5"]],
+         "bids":[["77174.9","820.77","69"],["76400","16.82","6"]],"ts":"1789246940009"}]}
         """;
 
     // ── MEXC ────────────────────────────────────────────────────────────────────────
