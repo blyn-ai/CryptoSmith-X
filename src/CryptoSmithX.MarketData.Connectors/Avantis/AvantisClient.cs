@@ -33,6 +33,16 @@ public sealed class AvantisClient
     /// 1/5/60/240/D all answer, and 1440 one-minute bars come back for a full day with no gaps.</summary>
     private const string FeedHost = "https://feed-v3.avantisfi.com";
 
+    /// <summary>The risk engine and the core backend, both behind one routing host. The engine is
+    /// what answers "at what price would you fill me, this size, this side" — the venue's own
+    /// replacement for a book, and the reason the quote columns are not empty. Measured anonymously
+    /// on mainnet: HTTP 201 in 0.19 s, 53.6 req/s at concurrency 16 with no throttling.</summary>
+    private const string ApiHost = "https://prod-api.avantisfi.com";
+
+    /// <summary>Settled history, including the venue's own public trade tape. A separate host again,
+    /// and again not ours to fold into a segment column.</summary>
+    private const string HistoryHost = "https://api.avantisfi.com";
+
     private static readonly HttpClient Shared = VenueHttp.Shared;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -83,6 +93,72 @@ public sealed class AvantisClient
             + $"&from={from.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)}"
             + $"&to={to.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)}",
             ct);
+
+    /// <summary>
+    /// One quoted spread, for one size and one side.
+    ///
+    /// <b>Anonymous on purpose.</b> The zero address is the venue's own UI fallback for an
+    /// unconnected visitor (the SDK says so in as many words), so this is a read of a public price,
+    /// not an order and not an impersonation.
+    ///
+    /// <b>A refusal is an answer, not a failure.</b> 403 is a shut or blocked market and 503 is
+    /// SM004 — "the mechanism matched but no spread is computable". Both mean "no quote at this
+    /// size", which is exactly what the search above is looking for when it walks outward; throwing
+    /// would turn the end of the curve into a collector error. Measured: across 32 calls the split
+    /// was identical at concurrency 1, 8 and 16 (17 × 201, 11 × 403, 4 × 503), which is what proves
+    /// these are properties of the PAIR rather than throttling.
+    ///
+    /// Returns the quoted percentage — the with-flow estimate when the engine offers one, else the
+    /// without-flow figure, the same precedence the SDK applies.
+    /// </summary>
+    internal async Task<double?> GetSpreadPctAsync(
+        int pairIndex, double coinSize, bool isLong, CancellationToken ct)
+    {
+        var body = new AvSpreadRequest(
+            pairIndex,
+            "0x0000000000000000000000000000000000000000",
+            Raw10(coinSize),
+            isLong,
+            IsOpen: true,
+            OrderType: 0);
+
+        using var response = await _http.PostAsJsonAsync($"{ApiHost}/risk/v2/spread", body, Json, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var quote = await response.Content.ReadFromJsonAsync<AvSpreadResponse>(Json, ct);
+        var withFlow = Scaled(quote?.EstimatedSpreadPctWithFlow10, Pct10Scale);
+        return withFlow ?? Scaled(quote?.SpreadPctWithoutFlow10, Pct10Scale);
+    }
+
+    /// <summary>
+    /// The venue's own public trade tape for one pair — market-wide, not per trader.
+    ///
+    /// This is the surface an earlier audit missed, and missing it is what produced the conclusion
+    /// that Last, Turnover and Liquidations could never be filled. Measured: ten records per call,
+    /// and those ten span four hours on ETH, so a once-a-minute poll cannot lose a trade.
+    /// </summary>
+    internal async Task<IReadOnlyList<AvTrade>> GetRecentTradesAsync(int pairIndex, CancellationToken ct) =>
+        (await GetAsync<AvTradeEnvelope>(
+            $"{HistoryHost}/v1/history/recent-trades/{pairIndex.ToString(CultureInfo.InvariantCulture)}",
+            ct)).History ?? [];
+
+    /// <summary>Open interest with the PENDING legs, which the catalogue snapshot does not
+    /// carry — orders the operator has accepted but not yet filled.</summary>
+    internal async Task<IReadOnlyList<AvOpenInterest>> GetOpenInterestsAsync(CancellationToken ct) =>
+        (await GetAsync<AvOpenInterestEnvelope>($"{ApiHost}/core/v2/open-interests", ct)).OpenInterests ?? [];
+
+    /// <summary>A size, into the engine's own fixed-point. Invariant culture and no exponent: the
+    /// field is a decimal STRING on the wire, and "1E+11" is not one.</summary>
+    private static string Raw10(double size) =>
+        ((long)Math.Round(size * 1e10, MidpointRounding.AwayFromZero))
+        .ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>The engine publishes percentages at 1e10, the same fixed-point it uses for prices
+    /// and leverage.</summary>
+    private const double Pct10Scale = 1e10;
 
     private async Task<T> GetAsync<T>(string url, CancellationToken ct)
     {

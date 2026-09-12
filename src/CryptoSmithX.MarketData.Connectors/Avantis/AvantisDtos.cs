@@ -112,3 +112,46 @@ internal sealed record AvCandle(
     [property: JsonPropertyName("high")] double High,
     [property: JsonPropertyName("low")] double Low,
     [property: JsonPropertyName("close")] double Close);
+
+/// <summary>The quote request. <c>coinSize10</c> is a decimal STRING at 1e10 — the engine's own
+/// fixed point, and a string because the numbers outgrow a double's exact range.</summary>
+internal sealed record AvSpreadRequest(
+    int PairIndex, string Trader, string CoinSize10, bool IsLong, bool IsOpen, int OrderType);
+
+/// <summary>What the engine answers. <c>spreadMechanism</c> names which of SM001-SM006 priced it;
+/// kept for the raw record rather than read, because the mechanism is the venue's business and the
+/// figure is ours.</summary>
+internal sealed record AvSpreadResponse(
+    string? SpreadPctWithoutFlow10,
+    string? EstimatedSpreadPctWithFlow10,
+    int? SpreadMechanism,
+    bool? ByPass);
+
+internal sealed record AvTradeEnvelope(IReadOnlyList<AvTrade>? History, bool? Success);
+
+/// <summary>One settled trade on the venue. <c>positionSize</c> is the notional in the quote asset;
+/// <c>isLiquidation</c> is what separates the liquidation column from the turnover one, and both are
+/// read from the same tape so they can never disagree about what happened.</summary>
+internal sealed record AvTrade(
+    string? Id,
+    string? Hash,
+    long Timestamp,
+    double? Price,
+    double? OpenPrice,
+    double? PositionSize,
+    bool? Buy,
+    bool? IsLong,
+    bool? IsOpen,
+    bool? IsLiquidation,
+    string? TxnType);
+
+internal sealed record AvOpenInterestEnvelope(IReadOnlyList<AvOpenInterest>? OpenInterests);
+
+/// <summary>OI per pair including the pending legs — accepted by the operator, not yet on the
+/// book's books. The catalogue snapshot carries neither.</summary>
+internal sealed record AvOpenInterest(
+    int PairIndex,
+    double? LongOI, double? ShortOI,
+    double? PendingLongOI, double? PendingShortOI,
+    double? LongCoinOI, double? ShortCoinOI,
+    double? PendingLongCoinOI, double? PendingShortCoinOI);

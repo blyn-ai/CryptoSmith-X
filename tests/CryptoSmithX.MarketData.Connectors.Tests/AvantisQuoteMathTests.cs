@@ -85,21 +85,25 @@ public sealed class AvantisQuoteMathTests
     }
 
     [Fact]
-    public void The_depth_search_halves_the_bracket_and_keeps_the_size_that_still_fit()
+    public void The_depth_search_reaches_out_geometrically_and_keeps_the_size_that_still_fit()
     {
         // Depth here is "the largest size the venue still quotes at or under this cost". The search
-        // is a bisection on size, and the ANSWER is always a size that was actually quoted — never
-        // the midpoint it stopped on, which may be the first size that was too expensive.
+        // reaches outward by a factor while it has no ceiling, then closes in; and the ANSWER is
+        // always a size that was actually quoted — never the midpoint it stopped on, which may be
+        // the first size that was too expensive.
         var s = AvantisQuoteMath.Bracket.Start(seed: 4d);
 
-        s = s.Observe(probe: 4d, withinThreshold: true);      // fits, reach upward
+        s = s.Observe(probe: 4d, withinThreshold: true);       // fits, so reach outward
+        Assert.Equal(16d, s.NextProbe, 9);
+
+        s = s.Observe(probe: 16d, withinThreshold: false);     // too dear: now there is a bracket
+        // Geometric midpoint of [4, 16] — not 10. The bracket spans a factor, and an arithmetic
+        // midpoint would spend most of its steps in the top half of it.
         Assert.Equal(8d, s.NextProbe, 9);
 
-        s = s.Observe(probe: 8d, withinThreshold: false);     // too dear, bisect back
-        Assert.Equal(6d, s.NextProbe, 9);
-
-        s = s.Observe(probe: 6d, withinThreshold: true);
-        Assert.Equal(6d, s.Best!.Value, 9);
+        s = s.Observe(probe: 8d, withinThreshold: true);
+        Assert.Equal(8d, s.Best!.Value, 9);
+        Assert.Equal(Math.Sqrt(8d * 16d), s.NextProbe, 9);
     }
 
     [Fact]
@@ -109,8 +113,34 @@ public sealed class AvantisQuoteMathTests
         // past the threshold, and then the bracket has to open below it rather than above.
         var s = AvantisQuoteMath.Bracket.Start(seed: 4d).Observe(probe: 4d, withinThreshold: false);
 
-        Assert.Equal(2d, s.NextProbe, 9);
+        Assert.Equal(1d, s.NextProbe, 9);
         Assert.Null(s.Best);
+    }
+
+    [Fact]
+    public void The_widest_real_answer_on_this_venue_still_converges_inside_the_step_bound()
+    {
+        // A REGRESSION, and it was found by running the search against the live venue rather than
+        // by reading it. ETH's true reach is about $41M against a $10 000 seed — four thousand
+        // times the opening size. While the search doubled, the step bound fired during the reach
+        // phase and every answer came back as an exact power of two times the seed: a lower bound
+        // wearing a measurement's clothes, and it looked entirely plausible in the output.
+        const double seed = 1d;
+        const double truth = 4096d;
+
+        var s = AvantisQuoteMath.Bracket.Start(seed);
+        var steps = 0;
+        while (!s.Done && steps < 100)
+        {
+            s = s.Observe(s.NextProbe, withinThreshold: s.NextProbe <= truth);
+            steps++;
+        }
+
+        Assert.True(s.Done);
+        Assert.True(steps <= AvantisQuoteMath.Bracket.MaxSteps, $"took {steps} steps");
+        Assert.NotNull(s.Best);
+        // Converged onto the boundary from below, not stopped at some 2^n short of it.
+        Assert.InRange(s.Best!.Value, truth * 0.98, truth);
     }
 
     [Fact]
@@ -151,6 +181,6 @@ public sealed class AvantisQuoteMathTests
         Assert.True(steps <= AvantisQuoteMath.Bracket.MaxSteps, $"took {steps} steps");
         Assert.NotNull(s.Best);
         // Converged onto the true boundary from below, within the tolerance.
-        Assert.InRange(s.Best!.Value, 137d * 0.97, 137d);
+        Assert.InRange(s.Best!.Value, 137d * (1 - AvantisQuoteMath.Bracket.Tolerance * 2), 137d);
     }
 }

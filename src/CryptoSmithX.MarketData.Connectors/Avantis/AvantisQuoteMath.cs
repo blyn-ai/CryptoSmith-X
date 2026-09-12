@@ -109,12 +109,28 @@ public static class AvantisQuoteMath
     public readonly record struct Bracket
     {
         /// <summary>How close the bracket has to be before the answer stops being worth a request.
-        /// One percent is finer than this figure is ever read to.</summary>
+        /// A RATIO, not a difference: the answers span four orders of magnitude across this venue's
+        /// own listings — measured, $16 563 of depth on PENGU against $5 120 000 on ETH — and an
+        /// absolute tolerance would be pointless at one end and ruinous at the other.</summary>
         public const double Tolerance = 0.01d;
 
+        /// <summary>
+        /// How fast the search reaches outward while it has no ceiling yet.
+        ///
+        /// FOUR, not two, and this was found by running the search against the live venue rather
+        /// than by reasoning. Doubling from a ten-thousand-dollar seed to ETH's real reach of about
+        /// $41M takes twelve probes on its own; the step bound then fired during the reach phase and
+        /// every answer came back as an exact power of two times the seed — a lower bound wearing a
+        /// measurement's clothes. Quadrupling gets there in six and leaves the rest of the budget
+        /// for actually converging.
+        /// </summary>
+        private const double Growth = 4d;
+
         /// <summary>A hard stop independent of the tolerance, so a pathological venue response can
-        /// never turn one instrument's sweep into an unbounded loop.</summary>
-        public const int MaxSteps = 14;
+        /// never turn one instrument's sweep into an unbounded loop. Eighteen is what the geometry
+        /// needs: six to bracket the widest real answer, then seven to close a four-fold bracket to
+        /// one percent, with a margin.</summary>
+        public const int MaxSteps = 18;
 
         /// <summary>Below this fraction of the opening size the search gives up rather than keep
         /// halving. A thousandth of the standard notional is ten dollars: a market that will not
@@ -180,25 +196,27 @@ public static class AvantisQuoteMath
                 high = probe;
             }
 
-            // No ceiling yet: reach upward by doubling rather than guessing one.
+            // No ceiling yet: reach outward geometrically rather than guessing one.
             if (high <= 0)
             {
-                var next = low > 0 ? low * 2d : probe * 2d;
+                var next = (low > 0 ? low : probe) * Growth;
                 return new Bracket(low, high, _seed, best, next, steps, steps >= MaxSteps);
             }
 
             // No floor yet: close in on zero from above, the thin-market case.
             if (low <= 0)
             {
-                var next = high / 2d;
+                var next = high / Growth;
                 var exhausted = steps >= MaxSteps
                     || next <= 0 || !double.IsFinite(next)
                     || next < _seed * Negligible;
                 return new Bracket(low, high, _seed, best, next, steps, exhausted);
             }
 
-            var tight = high - low <= low * Tolerance;
-            var mid = (low + high) / 2d;
+            // GEOMETRIC midpoint. An arithmetic one would spend most of its steps in the top half
+            // of a bracket that spans a factor of four, and the tolerance is a ratio.
+            var tight = high <= low * (1 + Tolerance);
+            var mid = Math.Sqrt(low * high);
             return new Bracket(low, high, _seed, best, mid, steps, tight || steps >= MaxSteps);
         }
     }
