@@ -174,7 +174,7 @@ public static class V2Cells
         // физически. Обе цифры печатались как измерение.
         V2Field.BookReach => Reach(
             book, r.Row.DepthRef, Format.PriceDecimals(r.Row),
-            r.Row.BookReachBid, r.Row.BookReachAsk),
+            r.Row.BookReachBid, r.Row.BookReachAsk, r.Row.MarketModel),
 
         V2Field.OpenInterest => OpenInterestCell(r),
         V2Field.Multiplier => Text(r.Row.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(r.Row.ContractMultiplier, 0)),
@@ -309,7 +309,7 @@ public static class V2Cells
     /// <c>.Value</c>/<c>.Text</c>.</summary>
     public static V2Cell Reach(
         BookFrame? book, double? depthRef, int priceDecimals,
-        double? storedBidBps = null, double? storedAskBps = null)
+        double? storedBidBps = null, double? storedAskBps = null, string? marketModel = null)
     {
         var refText = depthRef is { } dr ? "ref " + Format.Num(dr, priceDecimals) : null;
 
@@ -323,7 +323,7 @@ public static class V2Cells
             // The stored pair is what the depth collector wrote, in the same unit this cell prints:
             // bps from the mid it used. Reading it is not a fallback to a lesser number, it IS the
             // number; recomputing from levels is the special case, for venues that have levels.
-            return Bps(storedBidBps, storedAskBps, refText, sane: false);
+            return Bps(storedBidBps, storedAskBps, refText, sane: Freshness.HasBook(marketModel));
         }
 
         var mid = (book.BidPx.Max() + book.AskPx.Min()) / 2;
@@ -341,16 +341,20 @@ public static class V2Cells
     /// <summary>The cell itself, once the two sides are in bps however they were arrived at: the
     /// farther of them as the figure, both of them under it. One place, so a book venue and a
     /// quote venue cannot drift apart on how the same column reads.</summary>
-    /// <param name="sane">Whether to apply <see cref="ReachCeilingBps"/>. TRUE only for a figure
-    /// recomputed here from stored LEVELS, where the ceiling does the job its own comment describes
-    /// — rejecting a broken frame, because no venue's book has ever reached half the price.
+    /// <param name="sane">Whether to apply <see cref="ReachCeilingBps"/>, and the test is THE MARKET
+    /// MODEL rather than which path produced the figure.
     ///
-    /// FALSE for a figure the depth collector measured and wrote. On a venue that quotes instead of
-    /// resting, the reach is the cost at the largest size it will still quote, and measured on this
-    /// venue's own listings nine of fifty-one are past 5 000 bps, the widest at 9 609. That is not a
-    /// broken frame — it is a thin market saying that at that size it wants almost the whole
-    /// notional. Silencing it would be applying a book's sanity check to something that is not a
-    /// book, and printing "—" over a number we went and measured.</param>
+    /// TRUE wherever the venue has a book. The ceiling does the job its own comment describes —
+    /// rejecting a broken frame, because no venue's book has ever reached half the price — and that
+    /// stays true of a book venue whose stored reach is read back after its live frame went stale.
+    /// Keying on the path instead was a first cut and it was wrong: it let WEEX print ±72 893 bps
+    /// the moment its depth aged out, which is exactly the nonsense the ceiling exists to catch.
+    ///
+    /// FALSE only where the model has no book at all. There the reach is the cost at the largest
+    /// size the venue will still quote, and measured on such a venue's own listings nine of
+    /// fifty-one are past 5 000 bps, the widest at 9 609 — a thin market asking for almost the whole
+    /// notional at that size. Not a broken frame, and printing "—" over it would be applying a
+    /// book's sanity check to something that is not a book.</param>
     private static V2Cell Bps(double? bidBps, double? askBps, string? refText, bool sane)
     {
         if (bidBps is not { } bid || askBps is not { } ask)

@@ -151,4 +151,15 @@ public static class Freshness
 
         return (now - new DateTimeOffset(utc)).TotalSeconds;
     }
+
+    /// <summary>
+    /// Whether this market model has a resting book at all.
+    ///
+    /// Asked of the MODEL and never of a venue's name — the same rule the closed-market column
+    /// follows, and for the same reason: the next bookless venue must need no edit here. Unknown
+    /// reads as "has a book", because every venue wired before the column existed has one and an
+    /// unknown model is not a claim that this one is different.
+    /// </summary>
+    public static bool HasBook(string? marketModel) =>
+        !string.Equals(marketModel, "oracle_vault", StringComparison.Ordinal);
 }
