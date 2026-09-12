@@ -172,7 +172,9 @@ public static class V2Cells
         // а не берётся из колонок 0030. Оттуда приходило ±108 734 bps (десятикратная цена: где-то
         // абсолютная цена принята за bps) и ±0 bps при двадцати пяти уровнях, чего не бывает
         // физически. Обе цифры печатались как измерение.
-        V2Field.BookReach => Reach(book, r.Row.DepthRef, Format.PriceDecimals(r.Row)),
+        V2Field.BookReach => Reach(
+            book, r.Row.DepthRef, Format.PriceDecimals(r.Row),
+            r.Row.BookReachBid, r.Row.BookReachAsk),
 
         V2Field.OpenInterest => OpenInterestCell(r),
         V2Field.Multiplier => Text(r.Row.ContractMultiplier == 1 ? "1 : 1" : "× " + Format.Num(r.Row.ContractMultiplier, 0)),
@@ -305,13 +307,23 @@ public static class V2Cells
     /// when the live book is not — the sweep can be measured on a snapshot the level book behind it
     /// has already aged out of. Band 2's call to this method ignores it: it only reads
     /// <c>.Value</c>/<c>.Text</c>.</summary>
-    public static V2Cell Reach(BookFrame? book, double? depthRef, int priceDecimals)
+    public static V2Cell Reach(
+        BookFrame? book, double? depthRef, int priceDecimals,
+        double? storedBidBps = null, double? storedAskBps = null)
     {
         var refText = depthRef is { } dr ? "ref " + Format.Num(dr, priceDecimals) : null;
 
         if (book is null || book.BidPx.Length == 0 || book.AskPx.Length == 0)
         {
-            return refText is null ? V2Cell.None : new V2Cell(null, "—", refText);
+            // NO BOOK IS NOT NO REACH. This cell recomputed the figure from the stored levels and
+            // had no other source, so a venue that answers depth without keeping a book — a vault
+            // venue, whose reach is where its quote engine stops quoting at all — printed nothing
+            // but a reference price while market_snapshot.book_reach_bid/ask held the measurement.
+            //
+            // The stored pair is what the depth collector wrote, in the same unit this cell prints:
+            // bps from the mid it used. Reading it is not a fallback to a lesser number, it IS the
+            // number; recomputing from levels is the special case, for venues that have levels.
+            return Bps(storedBidBps, storedAskBps, refText, sane: false);
         }
 
         var mid = (book.BidPx.Max() + book.AskPx.Min()) / 2;
@@ -322,9 +334,32 @@ public static class V2Cells
 
         var bid = (mid - book.BidPx.Min()) / mid * 10000;
         var ask = (book.AskPx.Max() - mid) / mid * 10000;
-        var far = Math.Max(bid, ask);
 
-        if (far <= 0 || far > ReachCeilingBps)
+        return Bps(bid, ask, refText, sane: true);
+    }
+
+    /// <summary>The cell itself, once the two sides are in bps however they were arrived at: the
+    /// farther of them as the figure, both of them under it. One place, so a book venue and a
+    /// quote venue cannot drift apart on how the same column reads.</summary>
+    /// <param name="sane">Whether to apply <see cref="ReachCeilingBps"/>. TRUE only for a figure
+    /// recomputed here from stored LEVELS, where the ceiling does the job its own comment describes
+    /// — rejecting a broken frame, because no venue's book has ever reached half the price.
+    ///
+    /// FALSE for a figure the depth collector measured and wrote. On a venue that quotes instead of
+    /// resting, the reach is the cost at the largest size it will still quote, and measured on this
+    /// venue's own listings nine of fifty-one are past 5 000 bps, the widest at 9 609. That is not a
+    /// broken frame — it is a thin market saying that at that size it wants almost the whole
+    /// notional. Silencing it would be applying a book's sanity check to something that is not a
+    /// book, and printing "—" over a number we went and measured.</param>
+    private static V2Cell Bps(double? bidBps, double? askBps, string? refText, bool sane)
+    {
+        if (bidBps is not { } bid || askBps is not { } ask)
+        {
+            return refText is null ? V2Cell.None : new V2Cell(null, "—", refText);
+        }
+
+        var far = Math.Max(bid, ask);
+        if (far <= 0 || (sane && far > ReachCeilingBps))
         {
             return refText is null ? V2Cell.None : new V2Cell(null, "—", refText);
         }
