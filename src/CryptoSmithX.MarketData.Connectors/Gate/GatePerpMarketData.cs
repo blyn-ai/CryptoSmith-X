@@ -287,7 +287,7 @@ public sealed class GatePerpMarketData : IExchangeMarketData
         // The one grain <c>contract_stats</c> serves, stamped on every bucket this returns.
         const int intervalSeconds = 3600;
 
-        var rows = await _client.GetContractStatsAsync(exchangeSymbol, from, limit: 100, ct);
+        var rows = await AllStatsAsync(exchangeSymbol, from, to, ct);
 
         var list = new List<OpenInterestBucket>(rows.Count);
         foreach (var r in rows)
@@ -314,6 +314,59 @@ public sealed class GatePerpMarketData : IExchangeMarketData
         return list;
     }
 
+
+    /// <summary>
+    /// Every hourly stat between <paramref name="from"/> and <paramref name="to"/>, walked a page at
+    /// a time.
+    ///
+    /// <b>Why the walk.</b> The route serves at most a hundred buckets — a hundred HOURS — per call.
+    /// A collector that asked once per pass and ran hourly would therefore close a thirty-day
+    /// backfill at four days per hour, and the column would read as stale for most of a working day
+    /// after the venue was switched on. Observed doing exactly that: every symbol sat a hundred
+    /// buckets ahead of the floor and no further.
+    ///
+    /// Bounded by the page count, not by trust in the venue's timestamps: a page that fails to
+    /// advance past the newest bucket already held ends the walk, so a route answering the same page
+    /// forever cannot spin here.
+    /// </summary>
+    private async Task<IReadOnlyList<GateContractStat>> AllStatsAsync(
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        // Thirty days of hourly buckets is the deepest backfill this venue is asked for, and that is
+        // eight pages. Twelve leaves room without letting a misbehaving route run away.
+        const int MaxPages = 12;
+        const int PageSize = 100;
+
+        var all = new List<GateContractStat>();
+        var cursor = from;
+
+        for (var page = 0; page < MaxPages; page++)
+        {
+            var rows = await _client.GetContractStatsAsync(exchangeSymbol, cursor, PageSize, ct);
+            if (rows.Count == 0)
+            {
+                break;
+            }
+
+            all.AddRange(rows);
+
+            var newest = rows.Max(r => r.Time);
+            if (newest <= cursor.ToUnixTimeSeconds())
+            {
+                // The page did not move forward. Asking again would return it again.
+                break;
+            }
+
+            cursor = DateTimeOffset.FromUnixTimeSeconds(newest);
+            if (rows.Count < PageSize || cursor >= to)
+            {
+                break;
+            }
+        }
+
+        return all;
+    }
+
     /// <summary>
     /// Liquidated size per hour, both sides summed — from the same <c>contract_stats</c> response the
     /// open-interest series comes from, so the two can never disagree about a period.
@@ -324,7 +377,7 @@ public sealed class GatePerpMarketData : IExchangeMarketData
     public async Task<IReadOnlyList<LiquidationBucket>> GetLiquidationVolumeAsync(
         string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
-        var rows = await _client.GetContractStatsAsync(exchangeSymbol, from, limit: 100, ct);
+        var rows = await AllStatsAsync(exchangeSymbol, from, to, ct);
 
         var list = new List<LiquidationBucket>(rows.Count);
         foreach (var r in rows)

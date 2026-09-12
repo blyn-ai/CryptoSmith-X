@@ -270,6 +270,48 @@ public sealed class MarkAndIndexSeriesTests
         Assert.Null(b.Low);
     }
 
+    [Fact]
+    public async Task Gate_walks_its_hourly_stats_forward_instead_of_creeping_a_hundred_hours_a_pass()
+    {
+        // contract_stats serves at most a hundred buckets — a hundred HOURS — per call. Asked once
+        // per pass by an hourly collector, a thirty-day backfill closes at four days per hour, and
+        // the column reads as stale for most of a working day after the venue is switched on.
+        // Observed doing exactly that: every symbol a hundred buckets past the floor and no further.
+        var seen = new List<string>();
+        var gate = new GatePerpMarketData(new GateClient(
+            Recording(seen, ("/api/v4/futures/usdt/contract_stats", GateStatsPage)), "https://api.test"));
+
+        var from = DateTimeOffset.FromUnixTimeSeconds(1_789_000_000);
+        await gate.GetOpenInterestHistoryAsync("BTC_USDT", from, From + TimeSpan.FromDays(30), CancellationToken.None);
+
+        // The stub answers a short page — fewer rows than the venue's own limit — which is the end
+        // of the series and the end of the walk.
+        Assert.Single(seen);
+        Assert.Contains("from=1789000000", seen[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Gate_stops_walking_when_a_page_fails_to_move_the_cursor_forward()
+    {
+        // The guard that keeps the walk from being a spin. A route that answers the same page
+        // whatever it is asked would otherwise be paged until the bound ran out, once per symbol,
+        // every pass.
+        var seen = new List<string>();
+        var gate = new GatePerpMarketData(new GateClient(
+            Recording(seen, ("/api/v4/futures/usdt/contract_stats", GateStatsPage)), "https://api.test"));
+
+        // Starting AT the page's newest bucket: the answer cannot advance past where we already are.
+        var stuck = DateTimeOffset.FromUnixTimeSeconds(1_789_236_000);
+        await gate.GetOpenInterestHistoryAsync("BTC_USDT", stuck, stuck + TimeSpan.FromDays(30), CancellationToken.None);
+
+        Assert.Single(seen);
+    }
+
+    private const string GateStatsPage = """
+        [{"time":1789232400,"open_interest":1234567,"long_liq_size":120,"short_liq_size":80},
+         {"time":1789236000,"open_interest":1234999,"long_liq_size":0,"short_liq_size":40}]
+        """;
+
     // ── MEXC ────────────────────────────────────────────────────────────────────────
 
     private const string MexcContracts = """
