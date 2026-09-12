@@ -184,3 +184,80 @@ public sealed class AvantisQuoteMathTests
         Assert.InRange(s.Best!.Value, 137d * (1 - AvantisQuoteMath.Bracket.Tolerance * 2), 137d);
     }
 }
+
+/// <summary>
+/// The tape's own guards. Both were found by running against the live venue rather than by reading
+/// the code, which is the only reason they are here rather than in production.
+/// </summary>
+public sealed class AvantisTapeTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 9, 12, 12, 0, 0, TimeSpan.Zero);
+
+    private static AvTrade Trade(string hash, long ts, double price, double size, bool liq = false) =>
+        new(Id: hash, Hash: hash, Timestamp: ts, Price: price, OpenPrice: price,
+            PositionSize: size, Buy: true, IsLong: true, IsOpen: true, IsLiquidation: liq,
+            TxnType: "OPEN");
+
+    [Fact]
+    public void A_trade_with_no_clock_is_dropped_rather_than_dated_to_1970()
+    {
+        // FOUND ON THE HOST. The collector failed with `no partition of relation "trade" found for
+        // row`: an absent timestamp became the epoch, and the trade table is partitioned by event
+        // time. Failing loudly was the good case — the bad one is a row landing in the earliest
+        // partition that happens to exist, fifty-six years wrong and silent.
+        var tape = new AvantisTape();
+
+        var fresh = tape.Observe("ETH/USD", [Trade("0xa", 0, 2_500, 1_000)], Now);
+
+        Assert.Empty(fresh);
+        Assert.Null(tape.Last("ETH/USD"));
+    }
+
+    [Fact]
+    public void The_same_trade_seen_twice_is_counted_once()
+    {
+        // The tape is re-read in full every minute and ten records span hours, so all but the newest
+        // are always ones we have already counted. Without identity the turnover column would grow
+        // by the whole tape every pass.
+        var tape = new AvantisTape();
+        var t = Trade("0xa", Now.ToUnixTimeSeconds() - 60, 2_500, 1_000);
+
+        Assert.Single(tape.Observe("ETH/USD", [t], Now));
+        Assert.Empty(tape.Observe("ETH/USD", [t], Now));
+        Assert.Equal(1_000d, tape.Turnover("ETH/USD", Now)!.Value, 6);
+    }
+
+    [Fact]
+    public void Liquidations_are_summed_apart_from_the_turnover_they_are_part_of()
+    {
+        var tape = new AvantisTape();
+        tape.Observe("ETH/USD",
+        [
+            Trade("0xa", Now.ToUnixTimeSeconds() - 60, 2_500, 1_000),
+            Trade("0xb", Now.ToUnixTimeSeconds() - 30, 2_510, 400, liq: true),
+        ], Now);
+
+        Assert.Equal(1_400d, tape.Turnover("ETH/USD", Now)!.Value, 6);
+        Assert.Equal(400d, tape.Liquidations("ETH/USD", Now)!.Value, 6);
+    }
+
+    [Fact]
+    public void A_trade_older_than_the_window_leaves_the_sum_but_the_last_price_stands()
+    {
+        // Turnover is a rolling day; "the last trade" has no window at all. A quiet market must not
+        // lose its last price just because that price is more than a day old.
+        var tape = new AvantisTape();
+        tape.Observe("ETH/USD", [Trade("0xa", Now.AddHours(-30).ToUnixTimeSeconds(), 2_500, 1_000)], Now);
+
+        Assert.Equal(0d, tape.Turnover("ETH/USD", Now)!.Value, 6);
+        Assert.Equal(2_500d, tape.Last("ETH/USD")!.Value.Price, 6);
+    }
+
+    [Fact]
+    public void A_symbol_never_polled_reports_nothing_rather_than_a_zero_day()
+    {
+        // "Nothing traded" and "we have not looked" are different facts and only one belongs in a
+        // column.
+        Assert.Null(new AvantisTape().Turnover("ETH/USD", Now));
+    }
+}

@@ -98,6 +98,21 @@ public sealed class AvantisTape
                         continue;
                     }
 
+                    // A TRADE WITH NO CLOCK IS NOT A TRADE. Found on the host, not in review: the
+                    // collector failed with `no partition of relation "trade" found for row` —
+                    // a record whose timestamp was absent became the first of January 1970, and the
+                    // trade table is partitioned by event time, so there is no partition that far
+                    // back and never will be. It failed loudly, which is the good case; the bad one
+                    // is a row in the earliest partition that exists, dated fifty-six years wrong.
+                    //
+                    // The bound is deliberately wide — anything this side of 2020 and before 2033 —
+                    // because its job is to catch a MISSING field, not to second-guess the venue
+                    // about when something happened.
+                    if (t.Timestamp < 1_600_000_000 || t.Timestamp > 2_000_000_000)
+                    {
+                        continue;
+                    }
+
                     var uid = $"{t.Hash}:{t.Id}";
                     if (!_seen.Add(uid))
                     {
