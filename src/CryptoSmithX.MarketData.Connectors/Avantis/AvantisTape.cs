@@ -124,6 +124,31 @@ public sealed class AvantisTape
                     var liquidation = t.IsLiquidation == true;
                     _rows.Add((uid, at, notional, price, liquidation));
 
+                    // The last price has no window — a quiet market must not lose it just because
+                    // its last print is old — so this stands before the age test below.
+                    if (Last is not { } seen || at >= seen.At)
+                    {
+                        Last = (price, at);
+                    }
+
+                    // OLDER THAN THE WINDOW: remembered, not reported.
+                    //
+                    // Found on the host, and the epoch guard above did not catch it. "Recent trades"
+                    // on a pair the venue has DELISTED can be months old — the adapter polls every
+                    // pair in the catalogue, not only the listed ones — and `trade` is partitioned
+                    // by event time with the current and next month in place. A print from August
+                    // has no partition to land in, so the whole batch failed:
+                    //
+                    //   Npgsql 23514: no partition of relation "trade" found for row
+                    //
+                    // Cutting at the window is not a workaround for the partitioning: it is what
+                    // this tape is FOR. Anything outside the rolling day is already outside every
+                    // figure computed from it, so handing it on would persist a row no column reads.
+                    if (at < now - Window)
+                    {
+                        continue;
+                    }
+
                     fresh.Add(new TradeEvent(
                         ExchangeSymbol: exchangeSymbol,
                         EventTime: at,
@@ -138,11 +163,6 @@ public sealed class AvantisTape
                         // pool, so there is a taker and no maker.
                         TakerSide: t.Buy == true ? "buy" : "sell",
                         TradeType: liquidation ? "liquidation" : null));
-
-                    if (Last is not { } last || at >= last.At)
-                    {
-                        Last = (price, at);
-                    }
                 }
 
                 Prune(now);

@@ -254,6 +254,27 @@ public sealed class AvantisTapeTests
     }
 
     [Fact]
+    public void A_print_from_outside_the_window_is_remembered_but_never_handed_on()
+    {
+        // FOUND ON THE HOST, and the epoch guard did not catch it. A pair the venue has DELISTED
+        // still answers "recent trades" — with prints that can be months old. The trade table is
+        // partitioned by event time and holds this month and next, so an August print failed the
+        // whole batch: `no partition of relation "trade" found for row`.
+        //
+        // Cutting at the window is not a patch over the partitioning. Anything outside the rolling
+        // day is outside every figure computed from it, so passing it on would store a row no
+        // column ever reads.
+        var tape = new AvantisTape();
+
+        var fresh = tape.Observe(
+            "DEAD/USD", [Trade("0xa", Now.AddDays(-40).ToUnixTimeSeconds(), 7, 100)], Now);
+
+        Assert.Empty(fresh);
+        // Remembered, though: the venue's last print is still the venue's last print.
+        Assert.Equal(7d, tape.Last("DEAD/USD")!.Value.Price, 6);
+    }
+
+    [Fact]
     public void A_symbol_never_polled_reports_nothing_rather_than_a_zero_day()
     {
         // "Nothing traded" and "we have not looked" are different facts and only one belongs in a
