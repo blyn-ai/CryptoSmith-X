@@ -316,6 +316,30 @@ public sealed class GatePerpMarketData : IExchangeMarketData
 
 
     /// <summary>
+    /// When a print happened.
+    ///
+    /// <b><c>create_time_ms</c> does not hold milliseconds.</b> The venue sends 1789244984.294 in
+    /// it — the same value as <c>create_time</c> beside it, which is SECONDS carrying a millisecond
+    /// fraction. Taken at its name, every print on this venue is stamped 1970-01-21, which is
+    /// outside the range the store keeps partitions for, so the tape failed its whole batch on
+    /// "no partition of relation trade found for row" and this venue recorded no trades at all.
+    ///
+    /// Decided by MAGNITUDE rather than by the field's name, because the name has already been
+    /// wrong once and a magnitude is something a reader can check: a millisecond epoch for any date
+    /// this decade is about 1.7e12, three orders of magnitude above what arrives here.
+    /// </summary>
+    private static DateTimeOffset? PrintedAt(double? createTimeMs)
+    {
+        if (createTimeMs is not { } v || !double.IsFinite(v) || v <= 0)
+        {
+            return null;
+        }
+
+        var ms = v < 1e11 ? v * 1000 : v;
+        return DateTimeOffset.FromUnixTimeMilliseconds((long)Math.Round(ms));
+    }
+
+    /// <summary>
     /// Every hourly stat between <paramref name="from"/> and <paramref name="to"/>, walked a page at
     /// a time.
     ///
@@ -338,6 +362,7 @@ public sealed class GatePerpMarketData : IExchangeMarketData
         const int PageSize = 100;
 
         var all = new List<GateContractStat>();
+        var byTime = new Dictionary<long, GateContractStat>();
         var cursor = from;
 
         for (var page = 0; page < MaxPages; page++)
@@ -348,7 +373,17 @@ public sealed class GatePerpMarketData : IExchangeMarketData
                 break;
             }
 
-            all.AddRange(rows);
+            foreach (var r in rows)
+            {
+                // The cursor is set TO the newest bucket of the page just read, so the next page
+                // opens on that same bucket. Handed on twice, the two land in one write batch and
+                // Postgres refuses it outright: "ON CONFLICT DO UPDATE command cannot affect row a
+                // second time". A bucket is one bucket however many pages carry it.
+                if (byTime.TryAdd(r.Time, r))
+                {
+                    all.Add(r);
+                }
+            }
 
             var newest = rows.Max(r => r.Time);
             if (newest <= cursor.ToUnixTimeSeconds())
@@ -407,12 +442,10 @@ public sealed class GatePerpMarketData : IExchangeMarketData
         {
             if (Num(t.Price) is not { } price || price <= 0
                 || t.Size is not { } signed
-                || t.CreateTimeMs is not { } ms || ms <= 0)
+                || PrintedAt(t.CreateTimeMs) is not { } at)
             {
                 continue;
             }
-
-            var at = DateTimeOffset.FromUnixTimeMilliseconds((long)ms);
 
             events.Add(new TradeEvent(
                 exchangeSymbol, at,

@@ -307,6 +307,80 @@ public sealed class MarkAndIndexSeriesTests
         Assert.Single(seen);
     }
 
+    [Fact]
+    public async Task Gate_hands_on_a_bucket_once_even_though_two_pages_carry_it()
+    {
+        // The cursor is set TO the newest bucket of the page just read, so the next page opens on
+        // that same bucket and returns it again. Both copies land in one write batch, and Postgres
+        // refuses the batch outright — "ON CONFLICT DO UPDATE command cannot affect row a second
+        // time" — which is how this showed up: every open-interest pass on the venue failed while
+        // liquidations, written through a different path, went through.
+        var gate = new GatePerpMarketData(new GateClient(
+            new HttpClient(new SequenceStub([GateStatsFull, GateStatsOverlap])), "https://api.test"));
+
+        var from = DateTimeOffset.FromUnixTimeSeconds(1_789_000_000);
+        var buckets = await gate.GetOpenInterestHistoryAsync(
+            "BTC_USDT", from, from + TimeSpan.FromDays(30), CancellationToken.None);
+
+        Assert.Equal(buckets.Select(b => b.BucketTime).Distinct().Count(), buckets.Count);
+
+        // And the walk did carry on past the first page rather than stopping at it.
+        Assert.True(buckets.Count > 100);
+    }
+
+    [Fact]
+    public async Task Gates_create_time_ms_is_seconds_and_its_prints_are_not_stamped_in_1970()
+    {
+        // The field is NAMED create_time_ms and holds 1789244984.294 — the same value as create_time
+        // beside it, which is seconds carrying a millisecond fraction. Read as its name promises,
+        // every print on this venue lands on 1970-01-21, outside the range the store keeps
+        // partitions for, and the tape fails its whole batch on "no partition of relation trade
+        // found for row". This venue recorded no trades at all until it was read by magnitude.
+        var gate = new GatePerpMarketData(new GateClient(
+            Stub(("/api/v4/futures/usdt/trades", GateTrades),
+                 ("/api/v4/futures/usdt/order_book", GateBook)), "https://api.test"));
+
+        await gate.GetOrderBookAsync("BTC_USDT", CancellationToken.None);
+        var trades = gate.DrainTrades();
+
+        Assert.NotEmpty(trades);
+
+        // 2026, not 1970 — and to the millisecond the venue actually sent.
+        Assert.Equal(
+            DateTimeOffset.FromUnixTimeMilliseconds(1_789_244_984_294),
+            trades.Single(t => t.VenueUid == "833182919").EventTime);
+
+        // The sign of the size is the side; the magnitude is the quantity.
+        Assert.Equal("sell", trades.Single(t => t.VenueUid == "833182919").TakerSide);
+        Assert.Equal(1, trades.Single(t => t.VenueUid == "833182919").Qty, 6);
+    }
+
+    /// <summary>A live response. Both time fields carry the same value, which is the whole
+    /// problem.</summary>
+    private const string GateTrades = """
+        [{"id":833182919,"contract":"BTC_USDT","create_time":1789244984.294,
+          "create_time_ms":1789244984.294,"size":-1,"price":"77162.8"},
+         {"id":833182918,"contract":"BTC_USDT","create_time":1789244983.279,
+          "create_time_ms":1789244983.279,"size":-4977,"price":"77162.8"}]
+        """;
+
+    private const string GateBook = """
+        {"current":1789244984.294,"update":1789244984.294,
+         "bids":[{"p":"77100","s":4000},{"p":"76000","s":9000}],
+         "asks":[{"p":"77200","s":4000},{"p":"78300","s":9000}]}
+        """;
+
+    /// <summary>A full page — the venue's own limit — so the walk asks for another.</summary>
+    private static readonly string GateStatsFull = Page(1_789_000_000, 100);
+
+    /// <summary>The next page, opening ON the previous page's newest bucket.</summary>
+    private static readonly string GateStatsOverlap = Page(1_789_000_000 + (99 * 3600), 40);
+
+    private static string Page(long firstBucket, int count) =>
+        "[" + string.Join(",", Enumerable.Range(0, count).Select(i =>
+            $$"""{"time":{{firstBucket + (i * 3600)}},"open_interest":{{1_000_000 + i}},"long_liq_size":1,"short_liq_size":2}"""))
+        + "]";
+
     private const string GateStatsPage = """
         [{"time":1789232400,"open_interest":1234567,"long_liq_size":120,"short_liq_size":80},
          {"time":1789236000,"open_interest":1234999,"long_liq_size":0,"short_liq_size":40}]
@@ -455,6 +529,23 @@ public sealed class MarkAndIndexSeriesTests
     /// parameter.</summary>
     private static HttpClient Recording(List<string> seen, params (string PathEndsWith, string Body)[] routes) =>
         new(new RouteStub(routes, seen));
+
+    /// <summary>Answers a different body each call, so a paged walk can be watched crossing a page
+    /// boundary. The last body repeats once the sequence runs out.</summary>
+    private sealed class SequenceStub(string[] bodies) : HttpMessageHandler
+    {
+        private int _next;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var body = bodies[Math.Min(_next++, bodies.Length - 1)];
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+            });
+        }
+    }
 
     private sealed class RouteStub((string PathEndsWith, string Body)[] routes, List<string>? seen)
         : HttpMessageHandler
