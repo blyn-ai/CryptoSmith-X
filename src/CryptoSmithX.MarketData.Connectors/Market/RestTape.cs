@@ -24,6 +24,23 @@ public sealed class RestTape
     /// bounded so a process that runs for weeks does not accumulate one entry per trade ever seen.</summary>
     private const int Remembered = 4_000;
 
+    /// <summary>
+    /// How far back a print handed to <see cref="Observe"/> may be stamped.
+    ///
+    /// A "recent trades" route on a DELISTED pair answers with the last prints it ever had, which
+    /// can be months old — the pair stopped trading, the route did not stop answering. Those are
+    /// real trades, but they are not recent ones, and storing them writes rows outside the range the
+    /// store keeps partitions for: one such symbol failed the whole batch it travelled in, taking
+    /// every live pair's tape down with it. Seen once on Avantis and again on Gate.
+    ///
+    /// Generous enough that a collector catching up after an outage still stores what it polls.
+    /// </summary>
+    private static readonly TimeSpan Window = TimeSpan.FromDays(2);
+
+    /// <summary>The other side of the same guard: a venue whose clock runs ahead, or a field read as
+    /// the wrong unit, lands in a future no partition covers either.</summary>
+    private static readonly TimeSpan Ahead = TimeSpan.FromHours(1);
+
     private readonly ConcurrentDictionary<string, SymbolSeen> _seen = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<TradeEvent> _pending = new();
 
@@ -36,9 +53,18 @@ public sealed class RestTape
     public void Observe(string exchangeSymbol, IEnumerable<TradeEvent> trades)
     {
         var seen = _seen.GetOrAdd(exchangeSymbol, _ => new SymbolSeen());
+        var now = DateTimeOffset.UtcNow;
 
         foreach (var trade in trades)
         {
+            if (trade.EventTime < now - Window || trade.EventTime > now + Ahead)
+            {
+                // Still marked as seen, so a delisted pair's unchanging page is not re-examined
+                // print by print on every poll for as long as the process lives.
+                seen.Add(trade.VenueUid);
+                continue;
+            }
+
             if (seen.Add(trade.VenueUid))
             {
                 _pending.Enqueue(trade);

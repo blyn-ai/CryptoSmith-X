@@ -109,6 +109,11 @@ internal sealed record MexcDepth(
 /// <param name="T">The taker's direction as an integer: 1 is a buy, 2 a sell. A number standing for
 /// a side, which is why the mapping is written out rather than left to a truthiness test.</param>
 /// <param name="V">Volume in CONTRACTS.</param>
+/// <summary>
+/// One public print. <b>The case of the key is load-bearing:</b> "T" is the side and "t" is the
+/// timestamp, two different fields one capital apart — read case-insensitively they are the same
+/// field, and <see cref="MexcClient"/> reads this route strictly for exactly that reason.
+/// </summary>
 internal sealed record MexcDeal(
     [property: JsonPropertyName("i")] string? I,
     [property: JsonPropertyName("p")] double? P,

@@ -270,7 +270,33 @@ public sealed class MarkAndIndexSeriesTests
         Assert.Null(b.Low);
     }
 
-    // ── MEXC ─────────────────────────────────────────────────────────────────────────────────
+    // ── MEXC ────────────────────────────────────────────────────────────────────────
+
+    private const string MexcContracts = """
+        {"success":true,"code":0,"data":[
+          {"symbol":"BTC_USDT","baseCoin":"BTC","quoteCoin":"USDT","contractSize":0.0001,
+           "priceUnit":0.1,"volUnit":1,"minVol":1,"state":0,"apiAllowed":true,
+           "createTime":1573557408000}]}
+        """;
+
+    private const string MexcFundingCurrent = """
+        {"success":true,"code":0,"data":[
+          {"symbol":"BTC_USDT","fundingRate":0.000051,"collectCycle":8,
+           "nextSettleTime":1789257600000}]}
+        """;
+
+    private const string MexcDepth = """
+        {"success":true,"code":0,"data":{"timestamp":1789243719152,
+         "bids":[[77100,4000,3],[76000,9000,5]],"asks":[[77140,4000,2],[78200,9000,4]]}}
+        """;
+
+    /// <summary>A live response, capitals intact: "T" beside "t", and "O"/"M" beside neither.</summary>
+    private const string MexcDeals = """
+        {"success":true,"code":0,"data":[
+          {"p":77134,"v":16,"T":1,"O":3,"M":1,"t":1789243719152,"i":"16160177491","cts":"1789243719152"},
+          {"p":77133.9,"v":5,"T":2,"O":3,"M":1,"t":1789243718153,"i":"16160177365","cts":"1789243718153"},
+          {"p":77133.9,"v":5,"T":2,"O":3,"M":1,"t":1789243718152,"i":"16160177364","cts":"1789243718152"}]}
+        """;
 
     private const string MexcFundingPage = """
         {"success":true,"code":0,"data":{"pageSize":100,"totalCount":1618,"totalPage":540,
@@ -342,6 +368,39 @@ public sealed class MarkAndIndexSeriesTests
 
         Assert.Equal(2, rows.Count);
         Assert.DoesNotContain(rows, r => r.FundingTime == DateTimeOffset.FromUnixTimeMilliseconds(1_789_228_800_000));
+    }
+
+    [Fact]
+    public async Task Mexc_reads_the_side_and_the_timestamp_as_the_two_fields_they_are()
+    {
+        // "T" is the side and "t" is the timestamp — one capital apart, and the web defaults this
+        // codebase reads every other venue with treat them as ONE property. System.Text.Json does
+        // not pick a winner: it refuses the type at the first response, which took the book and the
+        // tape down together on every MEXC symbol until this route was read strictly.
+        //
+        // The fixture is a live response, capitals and all.
+        var mexc = new MexcPerpMarketData(new MexcClient(
+            Stub(("/api/v1/contract/detail", MexcContracts),
+                 ("/api/v1/contract/funding_rate", MexcFundingCurrent),
+                 ("/api/v1/contract/depth/BTC_USDT", MexcDepth),
+                 ("/api/v1/contract/deals/BTC_USDT", MexcDeals)),
+            "https://contract.test"));
+
+        // Discovery first: the contract size is what turns a ladder of contracts into a notional.
+        await mexc.GetInstrumentsAsync(CancellationToken.None);
+        Assert.NotNull(await mexc.GetOrderBookAsync("BTC_USDT", CancellationToken.None));
+
+        var trades = mexc.DrainTrades();
+        Assert.Equal(3, trades.Count);
+
+        // 1 is a buy and 2 a sell. Read the timestamp into this field instead and every print on the
+        // venue becomes a sell, because no epoch millisecond equals 1.
+        Assert.Equal("buy", trades[0].TakerSide);
+        Assert.Equal("sell", trades[1].TakerSide);
+
+        // And the timestamp is the timestamp, not the side.
+        Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(1_789_243_719_152), trades[0].EventTime);
+        Assert.Equal(77134, trades[0].Price, 6);
     }
 
     // ── stubs ────────────────────────────────────────────────────────────────────────────────

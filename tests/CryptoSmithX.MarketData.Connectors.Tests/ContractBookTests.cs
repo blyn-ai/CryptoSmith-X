@@ -13,7 +13,10 @@ namespace CryptoSmithX.MarketData.Connectors.Tests;
 /// </summary>
 public sealed class ContractBookTests
 {
-    private static readonly DateTimeOffset At = new(2026, 9, 12, 20, 0, 0, TimeSpan.Zero);
+    /// <summary>Now, not a fixed instant. The tape drops prints stamped outside a window around the
+    /// current time, so a hard-coded date would pass on the day it was written and fail two days
+    /// later for a reason that has nothing to do with what the test is about.</summary>
+    private static readonly DateTimeOffset At = DateTimeOffset.UtcNow;
 
     /// <summary>
     /// A book whose top level on each side sits inside the 25 bps band and whose second level sits
@@ -101,7 +104,10 @@ public sealed class ContractBookTests
 /// </summary>
 public sealed class RestTapeTests
 {
-    private static readonly DateTimeOffset At = new(2026, 9, 12, 20, 0, 0, TimeSpan.Zero);
+    /// <summary>Now, not a fixed instant. The tape drops prints stamped outside a window around the
+    /// current time, so a hard-coded date would pass on the day it was written and fail two days
+    /// later for a reason that has nothing to do with what the test is about.</summary>
+    private static readonly DateTimeOffset At = DateTimeOffset.UtcNow;
 
     private static TradeEvent Trade(string id, DateTimeOffset at, double price = 100, double qty = 1) =>
         new("SYM", at, id, null, price, qty, "buy", null);
@@ -139,6 +145,51 @@ public sealed class RestTapeTests
         tape.Observe("TWO", [Trade("1", At)]);
 
         Assert.Equal(2, tape.Drain().Count);
+    }
+
+    [Fact]
+    public void A_delisted_pairs_months_old_print_is_not_handed_on_as_a_recent_trade()
+    {
+        // A "recent trades" route keeps answering after a pair stops trading, and what it answers
+        // with is the last prints it ever had. Those are real trades and they are not recent ones.
+        // Stored, they land outside the range the store keeps partitions for, and the failure is not
+        // confined to the offending symbol: it fails the whole batch that symbol travelled in, so
+        // one delisted pair takes down every live pair's tape with it. Seen on Avantis, then again
+        // on Gate.
+        var tape = new RestTape();
+
+        tape.Observe("SYM", [Trade("old", At - TimeSpan.FromDays(90)), Trade("now", At)]);
+
+        var drained = tape.Drain();
+
+        Assert.Equal("now", Assert.Single(drained).VenueUid);
+    }
+
+    [Fact]
+    public void A_print_stamped_in_the_future_is_dropped_from_the_same_guard()
+    {
+        // The other direction of the same mistake: a field read as the wrong unit, or a venue whose
+        // clock runs ahead, lands in a future no partition covers either.
+        var tape = new RestTape();
+
+        tape.Observe("SYM", [Trade("ahead", At + TimeSpan.FromDays(1))]);
+
+        Assert.Empty(tape.Drain());
+    }
+
+    [Fact]
+    public void An_ancient_print_is_remembered_so_a_dead_pairs_page_is_not_re_examined_forever()
+    {
+        // Dropped is not the same as unseen. A delisted pair's page never changes, so without
+        // remembering it the same prints would be walked and rejected on every poll for the life of
+        // the process.
+        var tape = new RestTape();
+        var ancient = Trade("old", At - TimeSpan.FromDays(90));
+
+        tape.Observe("SYM", [ancient]);
+        tape.Observe("SYM", [ancient]);
+
+        Assert.Empty(tape.Drain());
     }
 
     [Fact]

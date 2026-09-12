@@ -38,6 +38,20 @@ public sealed class MexcClient
     private static readonly HttpClient Shared = VenueHttp.Shared;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
+    /// <summary>
+    /// The same options with case-insensitive matching turned OFF, for the one route that needs it.
+    ///
+    /// <c>contract/deals</c> sends BOTH <c>"T"</c> (the side, 1 or 2) and <c>"t"</c> (the timestamp).
+    /// Under the web defaults those two names are the same name, and the serializer refuses the type
+    /// outright — "The JSON property name for MexcDeal.t collides with another property" — at the
+    /// first response, which took the book and the tape down together on this venue.
+    ///
+    /// Safe to read this route strictly because every property on the shapes it touches carries an
+    /// explicit <see cref="JsonPropertyNameAttribute"/> spelled exactly as the venue sends it.
+    /// </summary>
+    private static readonly JsonSerializerOptions CaseSensitiveJson =
+        new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = false };
+
     /// <summary>The venue's own "too frequent" code, delivered under a 200.</summary>
     private const int TooFrequent = 510;
 
@@ -102,17 +116,18 @@ public sealed class MexcClient
 
     /// <summary>The public tape, newest first.</summary>
     internal Task<IReadOnlyList<MexcDeal>> GetDealsAsync(string symbol, CancellationToken ct) =>
-        GetAsync<IReadOnlyList<MexcDeal>>($"{_baseUrl}/api/v1/contract/deals/{Uri.EscapeDataString(symbol)}", ct);
+        GetAsync<IReadOnlyList<MexcDeal>>(
+            $"{_baseUrl}/api/v1/contract/deals/{Uri.EscapeDataString(symbol)}", ct, CaseSensitiveJson);
 
     private static string Sec(DateTimeOffset at) =>
         at.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
 
-    private async Task<T> GetAsync<T>(string url, CancellationToken ct)
+    private async Task<T> GetAsync<T>(string url, CancellationToken ct, JsonSerializerOptions? json = null)
     {
         using var response = await _http.GetAsync(url, ct);
         response.EnsureVenueSuccess();
 
-        var envelope = await response.Content.ReadFromJsonAsync<MexcEnvelope<T>>(Json, ct)
+        var envelope = await response.Content.ReadFromJsonAsync<MexcEnvelope<T>>(json ?? Json, ct)
                        ?? throw new InvalidOperationException($"MEXC returned an empty body for {url}");
 
         // See the class remarks: this is the whole point of the class.
