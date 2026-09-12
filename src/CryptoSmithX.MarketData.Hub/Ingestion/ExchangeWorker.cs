@@ -4,10 +4,13 @@ using CryptoSmithX.MarketData.Connectors.Avantis;
 using CryptoSmithX.MarketData.Connectors.Binance;
 using CryptoSmithX.MarketData.Connectors.Bitget;
 using CryptoSmithX.MarketData.Connectors.Bybit;
+using CryptoSmithX.MarketData.Connectors.CoinbaseIntx;
 using CryptoSmithX.MarketData.Connectors.Fake;
 using CryptoSmithX.MarketData.Connectors.Gate;
 using CryptoSmithX.MarketData.Connectors.Hyperliquid;
 using CryptoSmithX.MarketData.Connectors.Kraken;
+using CryptoSmithX.MarketData.Connectors.Mexc;
+using CryptoSmithX.MarketData.Connectors.Okx;
 using CryptoSmithX.MarketData.Connectors.Pacing;
 using CryptoSmithX.MarketData.Connectors.Weex;
 using CryptoSmithX.MarketData.Hub.Retention;
@@ -622,6 +625,13 @@ public sealed class ExchangeWorker : BackgroundService
         "bybit-perp" => new BybitPerpMarketData(new BybitClient(BaseUrl(config))),
         "bitget-perp" => new BitgetPerpMarketData(new BitgetClient(BaseUrl(config))),
         "gate-perp" => new GatePerpMarketData(new GateClient(BaseUrl(config))),
+        // Rows 7, 9 and 10. Same shape as the three above — bulk REST, no feed yet — with three
+        // differences each adapter documents for itself: OKX spreads the snapshot over five bulk
+        // routes, INTX carries the whole venue in one and pays per symbol only for realised
+        // funding, and MEXC must translate a 510-under-a-200 into a real penalty.
+        "okx-perp" => new OkxPerpMarketData(new OkxClient(BaseUrl(config))),
+        "coinbase-perp" => new CoinbaseIntxPerpMarketData(new CoinbaseIntxClient(BaseUrl(config))),
+        "mexc-perp" => new MexcPerpMarketData(new MexcClient(BaseUrl(config))),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
