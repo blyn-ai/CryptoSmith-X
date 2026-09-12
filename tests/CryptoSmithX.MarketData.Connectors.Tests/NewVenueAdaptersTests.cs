@@ -26,13 +26,24 @@ public sealed class NewVenueAdaptersTests
 
     // ── Bybit ────────────────────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Two rows on purpose, and the second one is why. The venue's linear category carries 833
+    /// perpetuals and 40 DATED futures, and on the dated ones <c>fundingIntervalHour</c>,
+    /// <c>fundingRate</c> and <c>fundingCap</c> are EMPTY STRINGS — a dated future pays no funding.
+    /// A fixture of perpetuals alone is what let a wrong type ship.
+    /// </summary>
     private const string BybitTickers = """
         {"retCode":0,"retMsg":"OK","result":{"list":[
           {"symbol":"BTCUSDT","lastPrice":"77146.50","bid1Price":"77146.50","bid1Size":"1.528",
            "ask1Price":"77146.60","ask1Size":"9.153","markPrice":"77146.50","indexPrice":"77179.83",
-           "fundingRate":"0.00008216","fundingIntervalHour":8,"nextFundingTime":"1789257600000",
+           "fundingRate":"0.00008216","fundingIntervalHour":"8","nextFundingTime":"1789257600000",
            "openInterest":"53367.43","openInterestValue":"4117110438.50",
-           "turnover24h":"1653746238.7555","volume24h":"21418.4940"}]}}
+           "turnover24h":"1653746238.7555","volume24h":"21418.4940"},
+          {"symbol":"BTCUSDT-25DEC26","lastPrice":"78210.10","bid1Price":"78200.00","bid1Size":"0.5",
+           "ask1Price":"78220.00","ask1Size":"0.4","markPrice":"78210.10","indexPrice":"77179.83",
+           "fundingRate":"","fundingIntervalHour":"","nextFundingTime":"0",
+           "openInterest":"120.5","openInterestValue":"9424317.05",
+           "turnover24h":"1000000.0","volume24h":"12.8"}]}}
         """;
 
     private const string BybitInstruments = """
@@ -53,12 +64,40 @@ public sealed class NewVenueAdaptersTests
         var adapter = new BybitPerpMarketData(new BybitClient(
             Stub(("/v5/market/tickers", BybitTickers)), "https://api.test"));
 
-        var t = Assert.Single(await adapter.GetTickersAsync(CancellationToken.None));
+        var t = (await adapter.GetTickersAsync(CancellationToken.None))
+            .Single(x => x.ExchangeSymbol == "BTCUSDT");
 
         Assert.Equal(53367.43, t.OpenInterest!.Value, 6);
         // The venue publishes the notional itself, so it is written as published — 53 367.43 × the
         // mark would be OUR arithmetic in a column that holds the venue's.
         Assert.Equal(4117110438.50, t.OiQuote!.Value, 2);
+    }
+
+    [Fact]
+    public async Task A_dated_future_with_empty_funding_fields_does_not_fail_the_whole_batch()
+    {
+        // FOUND ON THE HOST, on the first pass after deploy, and the unit tests could not have
+        // caught it: the fixture was a perpetual, and only the dated futures carry the empty string.
+        //
+        //   JsonException: could not convert ... Path: $.result.list[159].fundingIntervalHour
+        //
+        // 159 is where the dated contracts begin in the live response. Every numeric field on this
+        // venue arrives as a STRING — all 873 rows, even the ones holding a plain 4 — so a strongly
+        // typed int? parsed the perpetuals, reached the first dated future's "" and threw, taking
+        // the snapshot AND the open-interest pass down with it. One empty field on one contract, and
+        // 829 instruments stop being collected.
+        var adapter = new BybitPerpMarketData(new BybitClient(
+            Stub(("/v5/market/tickers", BybitTickers)), "https://api.test"));
+
+        var all = await adapter.GetTickersAsync(CancellationToken.None);
+
+        Assert.Equal(2, all.Count);
+
+        var dated = all.Single(x => x.ExchangeSymbol == "BTCUSDT-25DEC26");
+        // Its prices are real and are kept; only what a dated future genuinely lacks is absent.
+        Assert.Equal(78210.10, dated.LastPrice!.Value, 6);
+        Assert.Null(dated.FundingRate);
+        Assert.Null(dated.NextFundingAt);
     }
 
     [Fact]

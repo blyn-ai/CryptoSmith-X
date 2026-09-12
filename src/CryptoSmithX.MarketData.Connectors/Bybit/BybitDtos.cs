@@ -21,10 +21,19 @@ internal sealed record BybitList<T>(
 /// One row of <c>/v5/market/tickers?category=linear</c> — the call that closes every snapshot column
 /// this venue can fill, in one request for the whole segment.
 /// </summary>
-/// <param name="FundingIntervalHour">HOURS, and the trap on this venue: the instruments endpoint
-/// publishes <c>fundingInterval</c> in MINUTES (240) while this one publishes
-/// <c>fundingIntervalHour</c> in hours (8). Same venue, same concept, two units and two spellings —
-/// so each is read only where it is named, and neither is converted into the other's field.</param>
+/// <param name="FundingIntervalHour">
+/// HOURS, and the trap on this venue: the instruments endpoint publishes <c>fundingInterval</c> in
+/// MINUTES (240) while this one publishes <c>fundingIntervalHour</c> in hours (8). Same venue, same
+/// concept, two units and two spellings — so each is read only where it is named, and neither is
+/// converted into the other's field.
+///
+/// A STRING, and declared as one because the venue sends it as one — all 873 rows, even the ones
+/// holding a plain 4. Typed as <c>int?</c> it parsed for 159 rows and then threw: the dated futures
+/// carry an EMPTY string here, because a dated future pays no funding, and an empty string is not a
+/// number in any reading. Found on the host, on the first pass, because the fixture behind the unit
+/// tests was a perpetual and only a perpetual. <c>fundingCap</c> and <c>fundingRate</c> go empty on
+/// exactly the same forty rows.
+/// </param>
 internal sealed record BybitTicker(
     [property: JsonPropertyName("symbol")] string Symbol,
     [property: JsonPropertyName("lastPrice")] string? LastPrice,
@@ -35,7 +44,7 @@ internal sealed record BybitTicker(
     [property: JsonPropertyName("markPrice")] string? MarkPrice,
     [property: JsonPropertyName("indexPrice")] string? IndexPrice,
     [property: JsonPropertyName("fundingRate")] string? FundingRate,
-    [property: JsonPropertyName("fundingIntervalHour")] int? FundingIntervalHour,
+    [property: JsonPropertyName("fundingIntervalHour")] string? FundingIntervalHour,
     [property: JsonPropertyName("nextFundingTime")] string? NextFundingTime,
     [property: JsonPropertyName("openInterest")] string? OpenInterest,
     [property: JsonPropertyName("openInterestValue")] string? OpenInterestValue,
