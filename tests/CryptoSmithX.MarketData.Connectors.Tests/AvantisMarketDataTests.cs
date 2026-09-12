@@ -96,27 +96,60 @@ public sealed class AvantisMarketDataTests
     }
 
     [Fact]
-    public async Task It_declares_no_depth_and_never_returns_a_book()
+    public void Depth_is_declared_because_the_venue_quotes_a_cost_for_a_size()
     {
-        // The two together are what stop a DepthCollector starting for a market with no book. The
-        // precedent is the fake adapter, which declares none for the same reason.
+        // THIS TEST USED TO ASSERT THE OPPOSITE, and it was wrong for the same reason the adapter
+        // was: it generalised from one endpoint. Avantis keeps no resting book, but its risk engine
+        // quotes a cost for a size and a side — measured anonymously on mainnet, 0.0100 % up to
+        // 10 ETH and 26.0 bps at 5 000 — which answers every question the depth columns ask.
+        //
+        // What has NOT changed is the distinction: these are quotes, not resting orders. That lives
+        // in the column's badge, not in the absence of the dataset.
+        var caps = Adapter(Catalog(BtcPair)).Capabilities.Select(c => c.DatasetCode).ToArray();
+
+        Assert.Contains("depth", caps);
+    }
+
+    [Fact]
+    public async Task A_book_is_not_returned_without_an_oracle_price_to_size_the_quote_from()
+    {
+        // A quote needs a size, a size needs the standard notional divided by a price, and this
+        // adapter learns the price from the candle pass. Before that has run, null is the honest
+        // answer — "depth was not collected this frame", which 0030 keeps distinct from "measured
+        // and found nothing".
         var adapter = Adapter(Catalog(BtcPair));
 
-        Assert.DoesNotContain(adapter.Capabilities, c => c.DatasetCode == "depth");
         Assert.Null(await adapter.GetOrderBookAsync("BTC/USD", CancellationToken.None));
     }
 
     [Fact]
-    public void It_declares_no_tape_and_no_market_candles()
+    public void The_tape_is_declared_because_the_venue_publishes_one_and_market_candles_are_not()
     {
-        // No public tape exists on any endpoint, so market candles cannot exist either — the shim's
-        // bars carry no volume and are the oracle's price, which is candles_index.
+        // The other half of the same correction. GET /v1/history/recent-trades/{pairIndex} is
+        // public, market-wide and anonymous; it carries price, size, timestamp, transaction hash
+        // and an isLiquidation flag, which is everything Last, Turnover and Liquidations need.
+        //
+        // `candles` stays absent, and that is NOT the old mistake repeating: the oracle shim's bars
+        // carry no volume and are the oracle's price rather than this venue's executions, so they
+        // are candles_index. Bars of the tape are a separate question from whether the tape exists.
         var caps = Adapter(Catalog(BtcPair)).Capabilities.Select(c => c.DatasetCode).ToArray();
 
-        Assert.DoesNotContain("trades", caps);
-        Assert.DoesNotContain("liquidations", caps);
-        Assert.DoesNotContain("candles", caps);
+        Assert.Contains("trades", caps);
+        Assert.Contains("liquidations", caps);
         Assert.Contains("candles_index", caps);
+        Assert.DoesNotContain("candles", caps);
+    }
+
+    [Fact]
+    public void Liquidations_are_not_drained_twice_off_a_tape_that_marks_them_inline()
+    {
+        // The hazard the interface's own remarks warn about. This venue flags a liquidation on the
+        // ordinary tape — Kraken's shape, not Binance's — so the events are already in DrainTrades
+        // with trade_type = 'liquidation'. A second drain here would count the same executed
+        // notional twice, in the one table that exists to state it once.
+        IExchangeMarketData adapter = Adapter(Catalog(BtcPair));
+
+        Assert.Empty(adapter.DrainLiquidations());
     }
 
     [Fact]

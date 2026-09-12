@@ -50,6 +50,21 @@ public sealed class AvantisMarketData : IExchangeMarketData
     /// </summary>
     private readonly ConcurrentDictionary<string, (double Close, DateTimeOffset At)> _lastBar = new(StringComparer.Ordinal);
 
+    /// <summary>The venue's own tape, kept as a rolling day. See <see cref="AvantisTape"/> for why
+    /// the window is accumulated rather than fetched.</summary>
+    private readonly AvantisTape _tape = new();
+
+    /// <summary>Trades seen on the tape but not yet handed to the collector. A REST poll filling a
+    /// buffer a push stream would fill is the same contract from the collector's side, and it is
+    /// what lets the shared TradeCollector persist this venue without knowing any of the
+    /// above.</summary>
+    private readonly ConcurrentQueue<TradeEvent> _pendingTrades = new();
+
+    /// <summary>How many quote requests may be in flight at once. Measured: the engine sustained
+    /// 53.6 req/s at this concurrency with no throttling and an identical status split to
+    /// concurrency 1, so this is politeness rather than a limit we found.</summary>
+    private const int QuoteConcurrency = 8;
+
     public AvantisMarketData(AvantisClient client, IAvantisCatalogFeed? ws = null)
     {
         _client = client;
@@ -59,12 +74,21 @@ public sealed class AvantisMarketData : IExchangeMarketData
     public string SegmentCode => "avantis-perp";
 
     /// <summary>
-    /// Only what this venue honestly serves. DEPTH IS ABSENT ON PURPOSE — the precedent is the
-    /// fake adapter, which declares none because <c>GetOrderBookAsync</c> always answers null, and
-    /// declaring it would start a <c>DepthCollector</c> for a market that has no book to collect.
-    /// Trades and liquidations are absent for the same reason: no public tape exists on any
-    /// endpoint. Candles are declared as <c>candles_index</c> only — the shim's bars are the
-    /// oracle's price and carry no volume, so they are not market candles.
+    /// Only what this venue honestly serves — and four of these were declared absent on a mistake
+    /// that took a full audit to find.
+    ///
+    /// <b>What the mistake was.</b> The first pass read <c>/v2/trading</c>, saw no book and no tape
+    /// in it, and generalised from one endpoint to a venue. <c>depth</c>, <c>trades</c> and
+    /// <c>liquidations</c> were declared impossible on that basis. They are not: the risk engine
+    /// quotes a cost for a size and a side, and <c>/v1/history/recent-trades</c> is a public,
+    /// market-wide tape. Both were found by reading the SDK rather than guessing at it, and both
+    /// answer anonymously — measured on mainnet.
+    ///
+    /// <b>depth is a QUOTE curve, not resting size.</b> The collector and the column are shared with
+    /// book venues, and the figure is comparable — cumulative notional executable within a band —
+    /// but nobody is standing there offering it. That distinction lives in the column's badge and in
+    /// <see cref="AvantisQuotes"/>'s own remarks, and it must not be lost just because the numbers
+    /// now line up.
     ///
     /// <c>snapshot</c> is "rest,ws": the catalogue arrives either way, and the socket is the venue's
     /// own rather than the oracle's — verified by connecting to it.
@@ -74,6 +98,9 @@ public sealed class AvantisMarketData : IExchangeMarketData
         new("discovery", "rest"),
         new("snapshot", "rest,ws"),
         new("candles_index", "rest"),
+        new("depth", "rest"),
+        new("trades", "rest"),
+        new("liquidations", "rest"),
         new("vault_pair_state", "rest,ws"),
         new("vault_state", "rest"),
         new("spec_versions", "rest"),
@@ -151,7 +178,9 @@ public sealed class AvantisMarketData : IExchangeMarketData
                 continue;
             }
 
-            var bar = _lastBar.TryGetValue(Symbol(p), out var seen) ? seen : ((double Close, DateTimeOffset At)?)null;
+            var symbol = Symbol(p);
+            _pairIndex[symbol] = p.Index;
+            var bar = _lastBar.TryGetValue(symbol, out var seen) ? seen : ((double Close, DateTimeOffset At)?)null;
 
             list.Add(new Ticker(
                 ExchangeSymbol: Symbol(p),
@@ -191,13 +220,170 @@ public sealed class AvantisMarketData : IExchangeMarketData
             });
         }
 
+        // The catalogue is one response; these are one request per pair, so they are done together
+        // and under a bound rather than in the loop above. Two quote calls and one tape read per
+        // pair: 153 requests a minute across fifty-one listings, which at the measured 53.6 req/s
+        // is about three seconds of the pass.
+        await EnrichAsync(list, now, ct);
         return list;
     }
 
-    /// <summary>Null forever, and <c>depth</c> is not in <see cref="Capabilities"/> — the two
-    /// together are what stop a depth loop starting for a market with no book.</summary>
-    public Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct) =>
-        Task.FromResult<Depth?>(null);
+    /// <summary>
+    /// Fills the columns that come from outside the catalogue: the executable quote, and the tape.
+    ///
+    /// <b>Why these are not in the catalogue loop.</b> Each costs a round trip, and the loop above
+    /// costs none — it walks a response already in hand. Keeping them apart is what makes the
+    /// cost of this pass legible instead of hidden in an iteration.
+    /// </summary>
+    private async Task EnrichAsync(List<Ticker> list, DateTimeOffset now, CancellationToken ct)
+    {
+        var quotes = new AvantisQuotes(_client);
+        using var gate = new SemaphoreSlim(QuoteConcurrency);
+
+        // Materialised, and writing into an array rather than back into `list`. Select is lazy, so
+        // a task that mutated `list` while WhenAll was still pulling tasks out of that same Select
+        // threw "Collection was modified" — caught by the adapter's own tests before it ever ran
+        // against a venue.
+        var filled = new Ticker[list.Count];
+        var work = list.Select(async (ticker, i) =>
+        {
+            filled[i] = ticker;
+            if (!_pairIndex.TryGetValue(ticker.ExchangeSymbol, out var pairIndex))
+            {
+                return;
+            }
+
+            await gate.WaitAsync(ct);
+            try
+            {
+                // The tape first: it is one request and it never fails the way a quote can, so a
+                // venue that stops quoting still prints a last trade.
+                try
+                {
+                    var trades = await _client.GetRecentTradesAsync(pairIndex, ct);
+                    foreach (var fresh in _tape.Observe(ticker.ExchangeSymbol, trades, now))
+                    {
+                        _pendingTrades.Enqueue(fresh);
+                    }
+                }
+                catch (HttpRequestException)
+                {
+                    // One pair's tape being unreachable is not the pass failing. The window keeps
+                    // what it had, and the age on the figure is what tells the reader.
+                }
+
+                AvantisQuote quote = AvantisQuote.None;
+                if (ticker.IndexPrice is { } index)
+                {
+                    try
+                    {
+                        quote = await quotes.BaselineAsync(pairIndex, index, multiplier: 1m, ct);
+                    }
+                    catch (HttpRequestException)
+                    {
+                    }
+                }
+
+                var last = _tape.Last(ticker.ExchangeSymbol);
+                filled[i] = ticker with
+                {
+                    // Executable, at a stated size — not a resting order. The size travels with the
+                    // figure (AvantisQuote.QuotedNotional) and the column's badge says so.
+                    BidPrice = quote.Bid,
+                    AskPrice = quote.Ask,
+                    // The venue's own last print, market-wide. Public and anonymous, which an
+                    // earlier reading of this venue concluded did not exist.
+                    LastPrice = last?.Price,
+                    LastTradeAt = last?.At,
+                    Turnover24h = _tape.Turnover(ticker.ExchangeSymbol, now),
+                };
+            }
+            finally
+            {
+                gate.Release();
+            }
+        });
+
+        await Task.WhenAll(work.ToList());
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            list[i] = filled[i];
+        }
+    }
+
+    /// <summary>Everything the tape turned up since the last pass. A REST poll on the producing
+    /// side, the same contract on the consuming one.</summary>
+    public IReadOnlyList<TradeEvent> DrainTrades()
+    {
+        var drained = new List<TradeEvent>();
+        while (_pendingTrades.TryDequeue(out var trade))
+        {
+            drained.Add(trade);
+        }
+
+        return drained;
+    }
+
+    /// <summary>
+    /// Bucketed liquidation volume, from the same tape the trades came off.
+    ///
+    /// NOT a second drain. This venue marks a liquidation inline on its own tape — exactly the
+    /// shape Kraken has — so the events are already in <see cref="DrainTrades"/> with
+    /// <c>trade_type = 'liquidation'</c>, and draining them again here would count the same
+    /// executed notional twice. That double count is the precise hazard the interface's own remarks
+    /// warn about, and this is the side of the fork that avoids it.
+    /// </summary>
+    public Task<IReadOnlyList<LiquidationBucket>> GetLiquidationVolumeAsync(
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
+        Task.FromResult(_tape.LiquidationBuckets(
+            exchangeSymbol, from, to, intervalSeconds: 3600, unit: "quote"));
+
+    /// <summary>
+    /// The venue's quote curve, read as a book.
+    ///
+    /// There are no resting orders to walk, so the same questions are asked directly: how much will
+    /// you take at ten basis points, at twenty-five, at fifty, and where do you stop quoting
+    /// altogether. The answers come back in the shape every other venue's book produces —
+    /// cumulative notional in the quote asset per side — so the column compares like with like.
+    ///
+    /// Measured on four instruments spanning four orders of magnitude of liquidity (ETH $11.5M at
+    /// 25 bps against PENGU's $61k), ~79 requests per symbol with the sweep's own cost cache. That
+    /// is why this hangs off <c>DepthCollector</c>'s cadence rather than the minute pass.
+    /// </summary>
+    public async Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct)
+    {
+        if (!Index(exchangeSymbol, out var pairIndex, out var multiplier)
+            || !_lastBar.TryGetValue(exchangeSymbol, out var bar))
+        {
+            // No oracle price means no size to quote — see AvantisQuoteMath.CoinSize. Null is
+            // "depth was not collected this frame", which 0030 keeps distinct from "measured and
+            // found nothing".
+            return null;
+        }
+
+        var (depth, _, _) = await new AvantisQuotes(_client)
+            .CurveAsync(pairIndex, bar.Close, multiplier, DateTimeOffset.UtcNow, ct);
+        return depth;
+    }
+
+    /// <summary>The pair's index in the venue's own catalogue — the handle every risk-engine call
+    /// takes — and its contract multiplier, both from the catalogue already in hand.</summary>
+    private bool Index(string exchangeSymbol, out int pairIndex, out decimal multiplier)
+    {
+        // From the ticker pass's own cache rather than from Fresh(): the socket is an accelerator,
+        // not a dependency, and a depth sweep must not go quiet because the websocket happens to be
+        // reconnecting. One unit of exposure is one base unit here, which is a fact about the venue
+        // and not a default — see the discovery pass, which states it for the same reason.
+        multiplier = 1m;
+        return _pairIndex.TryGetValue(exchangeSymbol, out pairIndex);
+    }
+
+    /// <summary>Symbol to the venue's own pair index — the handle every risk-engine call takes.
+    /// Filled by the ticker pass from the catalogue it reads anyway, for the same reason
+    /// <see cref="_lastBar"/> is: the figure is already in hand, and fetching it again from the
+    /// depth path would be a request per symbol for something we just read.</summary>
+    private readonly ConcurrentDictionary<string, int> _pairIndex = new(StringComparer.Ordinal);
 
     /// <summary>No market candles: the venue publishes no tape, so a bar of executions does not
     /// exist to fetch. The oracle's bars are served by
