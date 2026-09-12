@@ -57,6 +57,13 @@ public sealed class RestTape
 
         foreach (var trade in trades)
         {
+            if (!Quantified(trade))
+            {
+                // Not remembered: an entry with no quantity is not an execution this tape has seen,
+                // and a later poll that reports a real size for the same id must still get through.
+                continue;
+            }
+
             if (trade.EventTime < now - Window || trade.EventTime > now + Ahead)
             {
                 // Still marked as seen, so a delisted pair's unchanging page is not re-examined
@@ -71,6 +78,22 @@ public sealed class RestTape
             }
         }
     }
+
+    /// <summary>
+    /// Whether this entry states an executed quantity at a price.
+    ///
+    /// Gate's tape carries entries with <c>"size": 0</c> — thirteen of a hundred on PEPE_USDT,
+    /// measured, beside a price and an id like any other row. Whatever they record, it is not a
+    /// quantity that changed hands, and the store says so in its own words: the trade table checks
+    /// <c>qty > 0</c>, and one such row fails the entire batch it travelled in, so a handful of them
+    /// on one symbol cost every symbol's tape for that pass.
+    ///
+    /// Safe to decide centrally, unlike a timestamp: no misread scale turns a real size into zero,
+    /// so this cannot quietly swallow a unit bug the way a window guard can.
+    /// </summary>
+    private static bool Quantified(TradeEvent trade) =>
+        double.IsFinite(trade.Qty) && trade.Qty > 0
+        && double.IsFinite(trade.Price) && trade.Price > 0;
 
     /// <summary>Everything new since the last call, and the buffer is emptied by it — the same
     /// contract a socket-fed adapter's own drain has.</summary>

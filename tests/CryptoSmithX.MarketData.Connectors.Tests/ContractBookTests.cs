@@ -148,6 +148,34 @@ public sealed class RestTapeTests
     }
 
     [Fact]
+    public void An_entry_with_no_quantity_is_not_an_execution()
+    {
+        // Gate's tape carries entries with "size": 0 — thirteen of a hundred on PEPE_USDT,
+        // measured — beside a price and an id like any other row. The store checks qty > 0, and one
+        // such row fails the whole batch it travelled in: a handful on one symbol cost every
+        // symbol's tape for that pass.
+        var tape = new RestTape();
+
+        tape.Observe("SYM", [Trade("empty", At, qty: 0), Trade("real", At, qty: 3)]);
+
+        Assert.Equal("real", Assert.Single(tape.Drain()).VenueUid);
+    }
+
+    [Fact]
+    public void An_entry_with_no_quantity_is_not_remembered_either()
+    {
+        // Unlike an ancient print, which is real and simply not recent, this one is not an
+        // execution at all — so if the venue later reports a size against the same id, that must
+        // still get through.
+        var tape = new RestTape();
+
+        tape.Observe("SYM", [Trade("id", At, qty: 0)]);
+        tape.Observe("SYM", [Trade("id", At, qty: 3)]);
+
+        Assert.Equal(3, Assert.Single(tape.Drain()).Qty, 6);
+    }
+
+    [Fact]
     public void A_delisted_pairs_months_old_print_is_not_handed_on_as_a_recent_trade()
     {
         // A "recent trades" route keeps answering after a pair stops trading, and what it answers
