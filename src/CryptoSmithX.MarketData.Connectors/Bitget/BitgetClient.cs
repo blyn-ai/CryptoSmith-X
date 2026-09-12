@@ -89,6 +89,23 @@ public sealed class BitgetClient
             $"{_baseUrl}/api/v2/mix/market/fills?symbol={Uri.EscapeDataString(symbol)}"
             + $"&productType={ProductType}&limit=100", ct);
 
+    /// <summary>Mark or index bars, same array shape as the traded ones. Two routes, two series.</summary>
+    internal Task<IReadOnlyList<string[]>> GetPriceCandles1mAsync(
+        string symbol, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        var route = series switch
+        {
+            "mark" => "history-mark-candles",
+            "index" => "history-index-candles",
+            _ => throw new ArgumentOutOfRangeException(nameof(series), series, "Only 'mark' and 'index' exist here"),
+        };
+
+        return GetAsync<IReadOnlyList<string[]>>(
+            $"{_baseUrl}/api/v2/mix/market/{route}?symbol={Uri.EscapeDataString(symbol)}"
+            + $"&productType={ProductType}&granularity=1m&limit=200"
+            + $"&startTime={Ms(from)}&endTime={Ms(to)}", ct);
+    }
+
     private static string Ms(DateTimeOffset at) =>
         at.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture);
 

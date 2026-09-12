@@ -41,6 +41,8 @@ public sealed class BitgetPerpMarketData : IExchangeMarketData
         new("funding", "rest"),
         new("depth", "rest"),
         new("trades", "rest"),
+        new("candles_mark", "rest"),
+        new("candles_index", "rest"),
         // open_interest is ABSENT on purpose and it is the one real gap here: the venue publishes a
         // current number and no history at all, so there is nothing for the history collector to
         // fetch. The current value still reaches the snapshot every pass through the ticker.
@@ -212,6 +214,39 @@ public sealed class BitgetPerpMarketData : IExchangeMarketData
     }
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _tape.Drain();
+
+    /// <summary>Mark or index bars — the same array shape the traded candles use, minus any meaning
+    /// for the volume columns, which is why only the four prices are read.</summary>
+    public async Task<IReadOnlyList<PriceCandle>> GetPriceCandles1mAsync(
+        string exchangeSymbol, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        if (series is not ("mark" or "index"))
+        {
+            return [];
+        }
+
+        var rows = await _client.GetPriceCandles1mAsync(exchangeSymbol, series, from, to, ct);
+
+        var list = new List<PriceCandle>(rows.Count);
+        foreach (var c in rows)
+        {
+            if (c.Length < 5 || !long.TryParse(c[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var ms))
+            {
+                continue;
+            }
+
+            var openTime = DateTimeOffset.FromUnixTimeMilliseconds(ms);
+            if (openTime + TimeSpan.FromMinutes(1) > to)
+            {
+                continue;
+            }
+
+            list.Add(new PriceCandle(
+                exchangeSymbol, series, openTime, Req(c[1]), Req(c[2]), Req(c[3]), Req(c[4])));
+        }
+
+        return list;
+    }
 
     private void Fold(string exchangeSymbol, IReadOnlyList<BitgetFill> fills)
     {

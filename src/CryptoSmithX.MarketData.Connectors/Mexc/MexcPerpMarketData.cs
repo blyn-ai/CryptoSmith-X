@@ -21,8 +21,10 @@ namespace CryptoSmithX.MarketData.Connectors.Mexc;
 /// only, so those two columns stay absent rather than borrowing a number from somewhere it does not
 /// mean the same thing.
 ///
-/// <b>No open-interest history</b> — <c>contract/openInterest/{symbol}</c> is a 404 — so that
-/// dataset is not declared, and the current figure still reaches the snapshot every pass.
+/// <b>No open-interest history</b> — <c>contract/openInterest/{symbol}</c> answers 403 with an HTML
+/// body, which is the host refusing the route rather than rate-limiting us; every other route
+/// answers 200 from the same address in the same second. That dataset is not declared, and the
+/// current figure still reaches the snapshot every pass.
 /// </summary>
 public sealed class MexcPerpMarketData : IExchangeMarketData
 {
@@ -186,36 +188,74 @@ public sealed class MexcPerpMarketData : IExchangeMarketData
     }
 
     /// <summary>
-    /// The current rate for every symbol, as one observation each.
+    /// Settled funding, walked back page by page until the window is covered.
     ///
-    /// This venue publishes no settled-funding series on any public route, so what the funding
-    /// dataset holds here is our own reading of the current rate at the instant we asked — the same
-    /// honest shape WEEX's open interest already has. The rate is stamped at the settlement the
-    /// venue itself names, not at our clock, so two passes inside one period collide on the key
-    /// rather than inventing two payments.
+    /// <b>This replaced a hack.</b> The first version of this adapter stated that the venue publishes
+    /// no settled series and stored our own reading of the CURRENT rate, stamped at the next
+    /// settlement — a number that would have been wrong the moment the rate moved before that
+    /// settlement arrived. <c>contract/funding_rate/history</c> exists and is 1 618 payments deep on
+    /// BTC_USDT, measured.
+    ///
+    /// Newest first, so the walk stops at the first page whose OLDEST row is already behind
+    /// <paramref name="from"/> — there is nothing older worth another request.
     /// </summary>
     public async Task<IReadOnlyList<FundingRate>> GetFundingHistoryAsync(
         string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
-        var rows = await _client.GetFundingRatesAsync(ct);
+        const int PageSize = 100;
 
-        foreach (var f in rows)
+        // A backstop, not a window: a catch-up over a long gap is bounded by 'from' above, and this
+        // only stops a venue that answered with a page count we cannot walk from spending the whole
+        // collector pass on one symbol.
+        const int MaxPages = 20;
+
+        var list = new List<FundingRate>();
+
+        for (var page = 1; page <= MaxPages; page++)
         {
-            if (!string.Equals(f.Symbol, exchangeSymbol, StringComparison.Ordinal))
+            var body = await _client.GetFundingHistoryAsync(exchangeSymbol, page, PageSize, ct);
+            var rows = body.ResultList;
+            if (rows is null || rows.Count == 0)
             {
-                continue;
+                break;
             }
 
-            if (Fin(f.FundingRate) is not { } rate || f.NextSettleTime is not { } next || next <= 0)
+            var oldestOnPage = DateTimeOffset.MaxValue;
+
+            foreach (var r in rows)
             {
-                return [];
+                if (Fin(r.FundingRate) is not { } rate
+                    || r.SettleTime is not { } ms || ms <= 0)
+                {
+                    continue;
+                }
+
+                var at = DateTimeOffset.FromUnixTimeMilliseconds(ms);
+                if (at < oldestOnPage)
+                {
+                    oldestOnPage = at;
+                }
+
+                if (at >= from && at <= to)
+                {
+                    list.Add(new FundingRate(exchangeSymbol, at, rate));
+                }
             }
 
-            var at = DateTimeOffset.FromUnixTimeMilliseconds(next);
-            return at >= from && at <= to ? [new FundingRate(exchangeSymbol, at, rate)] : [];
+            // Newest first: once a page reaches back past the window, every later page is older
+            // still. Also covers the last page, where the venue returns fewer rows than asked.
+            if (oldestOnPage <= from || rows.Count < PageSize)
+            {
+                break;
+            }
+
+            if (body.TotalPage is { } total && page >= total)
+            {
+                break;
+            }
         }
 
-        return [];
+        return list;
     }
 
     /// <summary>The book, and the tape with it. Levels are CONTRACTS, so the band is formed through

@@ -69,6 +69,27 @@ internal sealed record MexcFundingRow(
     [property: JsonPropertyName("collectCycle")] int? CollectCycle,
     [property: JsonPropertyName("nextSettleTime")] long? NextSettleTime);
 
+/// <summary>
+/// One page of <c>contract/funding_rate/history</c>. The envelope's <c>data</c> is an OBJECT here
+/// rather than the array every other route answers with, and the rows live one level down in
+/// <c>resultList</c> — which is why this route needs its own shape instead of reusing
+/// <see cref="MexcFundingRow"/> directly.
+/// </summary>
+internal sealed record MexcFundingPage(
+    [property: JsonPropertyName("pageSize")] int? PageSize,
+    [property: JsonPropertyName("totalCount")] int? TotalCount,
+    [property: JsonPropertyName("totalPage")] int? TotalPage,
+    [property: JsonPropertyName("currentPage")] int? CurrentPage,
+    [property: JsonPropertyName("resultList")] IReadOnlyList<MexcSettledFunding>? ResultList);
+
+/// <summary>A funding payment that HAS SETTLED — <c>settleTime</c> is the moment it was charged,
+/// not the next one due, which is the whole difference from <see cref="MexcFundingRow"/>.</summary>
+internal sealed record MexcSettledFunding(
+    [property: JsonPropertyName("symbol")] string? Symbol,
+    [property: JsonPropertyName("fundingRate")] double? FundingRate,
+    [property: JsonPropertyName("settleTime")] long? SettleTime,
+    [property: JsonPropertyName("collectCycle")] int? CollectCycle);
+
 internal sealed record MexcKline(
     [property: JsonPropertyName("time")] IReadOnlyList<long>? Time,
     [property: JsonPropertyName("open")] IReadOnlyList<double>? Open,

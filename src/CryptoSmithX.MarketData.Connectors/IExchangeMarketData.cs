@@ -136,8 +136,14 @@ public interface IExchangeMarketData
         string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<OpenInterestBucket>>([]);
 
-    /// <summary>Closed 1-minute mark- or index-price bars in [from, to]. Only Binance publishes
-    /// either; the other three have no such endpoint on any transport.</summary>
+    /// <summary>
+    /// Closed 1-minute mark- or index-price bars in [from, to].
+    ///
+    /// Five venues publish both — Binance, Bybit, Bitget, Gate and OKX. MEXC serves only a current
+    /// fair price with no series behind it, and Coinbase INTX answers its MARK and INDEX candle
+    /// types with bars IDENTICAL to the traded ones, which is one measurement under three names
+    /// rather than three measurements; both return empty here instead.
+    /// </summary>
     Task<IReadOnlyList<PriceCandle>> GetPriceCandles1mAsync(
         string exchangeSymbol, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<PriceCandle>>([]);

@@ -61,9 +61,12 @@ public sealed class OkxPerpMarketData : IExchangeMarketData
         new("depth", "rest"),
         new("trades", "rest"),
         new("liquidations", "rest"),
-        // open_interest is absent: this venue's only public series is rubik's per-CURRENCY
-        // aggregate, which is every contract on that coin added together and not this instrument's
-        // own figure. The current value still reaches the snapshot every pass.
+        new("candles_mark", "rest"),
+        new("candles_index", "rest"),
+        // rubik's open-interest-HISTORY, which takes an instId — not open-interest-VOLUME, which is
+        // keyed by currency and sums every contract on the coin. The first draft of this adapter
+        // found the second route, concluded there was no per-instrument series, and was wrong.
+        new("open_interest", "rest"),
         new("spec_versions", "rest"),
     ];
 
@@ -290,6 +293,103 @@ public sealed class OkxPerpMarketData : IExchangeMarketData
     }
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _tape.Drain();
+
+    /// <summary>
+    /// Mark or index bars.
+    ///
+    /// THE TWO ROUTES TAKE DIFFERENT KEYS. Mark-price candles are addressed by the instrument;
+    /// index candles by the PAIR, the same way the index ticker is — so the index series for
+    /// BTC-USDT-SWAP lives under "BTC-USDT". Asking the index route for the instrument's own name
+    /// returns nothing, which would read as a venue that publishes no index.
+    /// </summary>
+    public async Task<IReadOnlyList<PriceCandle>> GetPriceCandles1mAsync(
+        string exchangeSymbol, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        if (series is not ("mark" or "index"))
+        {
+            return [];
+        }
+
+        string key;
+        if (series == "index")
+        {
+            if (!_spec.TryGetValue(exchangeSymbol, out var spec))
+            {
+                // Discovery has not run, so the pair is not known yet. Empty rather than asking the
+                // index route for a name it does not use.
+                return [];
+            }
+
+            key = spec.Family;
+        }
+        else
+        {
+            key = exchangeSymbol;
+        }
+
+        var rows = await _client.GetPriceCandles1mAsync(key, series, from, to, ct);
+
+        var list = new List<PriceCandle>(rows.Count);
+        foreach (var c in rows)
+        {
+            if (c.Length < 5 || !long.TryParse(c[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var ms))
+            {
+                continue;
+            }
+
+            var openTime = DateTimeOffset.FromUnixTimeMilliseconds(ms);
+            if (openTime + TimeSpan.FromMinutes(1) > to)
+            {
+                continue;
+            }
+
+            // Written under the INSTRUMENT's symbol even when fetched by the pair: the series
+            // belongs to the instrument in our schema, and the pair is only how this venue
+            // addresses it.
+            list.Add(new PriceCandle(
+                exchangeSymbol, series, openTime, Req(c[1]), Req(c[2]), Req(c[3]), Req(c[4])));
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// The venue's own open-interest series for this instrument, with the quote notional it computes
+    /// itself — <c>[ts, oiContracts, oiCcy, oiUsd]</c>.
+    /// </summary>
+    public async Task<IReadOnlyList<OpenInterestBucket>> GetOpenInterestHistoryAsync(
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        const int intervalSeconds = 3600;
+
+        var rows = await _client.GetOpenInterestHistoryAsync(exchangeSymbol, "1H", from, to, ct);
+
+        var list = new List<OpenInterestBucket>(rows.Count);
+        foreach (var r in rows)
+        {
+            if (r.Length < 2 || Instant(r[0]) is not { } at || Num(r[1]) is not { } oi)
+            {
+                continue;
+            }
+
+            if (at < from || at > to)
+            {
+                continue;
+            }
+
+            list.Add(new OpenInterestBucket(
+                exchangeSymbol, intervalSeconds, at,
+                Open: null, High: null, Low: null,
+                // Contracts, the same unit the snapshot's own open-interest column holds for this
+                // venue — so the two are one measurement at two cadences rather than two numbers.
+                Close: oi,
+                // The venue's own notional, never our own oi × mark.
+                Quote: r.Length >= 4 ? Num(r[3]) : null,
+                Source: "analytics"));
+        }
+
+        return list;
+    }
 
     /// <summary>
     /// Filled liquidations, bucketed hourly.

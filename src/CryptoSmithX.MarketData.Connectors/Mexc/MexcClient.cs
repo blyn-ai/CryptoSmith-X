@@ -72,6 +72,20 @@ public sealed class MexcClient
     internal Task<IReadOnlyList<MexcFundingRow>> GetFundingRatesAsync(CancellationToken ct) =>
         GetAsync<IReadOnlyList<MexcFundingRow>>($"{_baseUrl}/api/v1/contract/funding_rate", ct);
 
+    /// <summary>
+    /// SETTLED funding, one page at a time, newest first.
+    ///
+    /// The first draft of this adapter reported that MEXC publishes no funding series and stored its
+    /// own reading of the current rate instead. It does publish one: 1 618 payments deep on BTC_USDT,
+    /// measured, back to the contract's listing. Paginated — <c>totalPage</c> says how far it goes —
+    /// so the caller walks pages until the rows fall behind the window it asked for.
+    /// </summary>
+    internal Task<MexcFundingPage> GetFundingHistoryAsync(
+        string symbol, int page, int pageSize, CancellationToken ct) =>
+        GetAsync<MexcFundingPage>(
+            $"{_baseUrl}/api/v1/contract/funding_rate/history?symbol={Uri.EscapeDataString(symbol)}"
+            + $"&page_num={page}&page_size={pageSize}", ct);
+
     /// <summary>Column-oriented candles: parallel arrays under one object, timestamps in SECONDS.
     /// Measured: minute bars live about a month, and are gone at T−60d.</summary>
     internal Task<MexcKline> GetCandles1mAsync(

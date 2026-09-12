@@ -104,6 +104,41 @@ public sealed class OkxClient
             $"{_baseUrl}/api/v5/public/liquidation-orders?instType={InstType}&state=filled"
             + $"&uly={Uri.EscapeDataString(uly)}&limit=100", ct);
 
+    /// <summary>
+    /// Mark or index bars. The two routes take DIFFERENT keys and that is the trap: mark-price
+    /// candles are addressed by the instrument ("BTC-USDT-SWAP"), index candles by the PAIR
+    /// ("BTC-USDT"), exactly as the index ticker is. The caller passes whichever the route wants.
+    /// </summary>
+    internal Task<IReadOnlyList<string[]>> GetPriceCandles1mAsync(
+        string key, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        var route = series switch
+        {
+            "mark" => "mark-price-candles",
+            "index" => "index-candles",
+            _ => throw new ArgumentOutOfRangeException(nameof(series), series, "Only 'mark' and 'index' exist here"),
+        };
+
+        return GetAsync<string[]>(
+            $"{_baseUrl}/api/v5/market/{route}?instId={Uri.EscapeDataString(key)}"
+            + $"&bar=1m&limit=100&before={Ms(from)}&after={Ms(to)}", ct);
+    }
+
+    /// <summary>
+    /// The venue's own open-interest series FOR ONE INSTRUMENT.
+    ///
+    /// Not <c>open-interest-volume</c>, which is keyed by CURRENCY and sums every contract on that
+    /// coin — a different measurement that would look entirely plausible in this column. This route
+    /// takes an instId and answers <c>[ts, oiContracts, oiCcy, oiUsd]</c>, so both the count and the
+    /// venue's own quote notional come back ready-made.
+    /// </summary>
+    internal Task<IReadOnlyList<string[]>> GetOpenInterestHistoryAsync(
+        string instId, string period, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
+        GetAsync<string[]>(
+            $"{_baseUrl}/api/v5/rubik/stat/contracts/open-interest-history"
+            + $"?instId={Uri.EscapeDataString(instId)}&period={period}"
+            + $"&begin={Ms(from)}&end={Ms(to)}&limit=100", ct);
+
     private static string Ms(DateTimeOffset at) =>
         at.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture);
 

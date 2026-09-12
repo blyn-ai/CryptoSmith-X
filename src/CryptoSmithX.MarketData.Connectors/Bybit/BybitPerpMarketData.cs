@@ -57,6 +57,9 @@ public sealed class BybitPerpMarketData : IExchangeMarketData
         // with it — see GetOrderBookAsync. No socket is claimed, because there is none.
         new("depth", "rest"),
         new("trades", "rest"),
+        // Two separate routes on this venue, so two genuinely different series.
+        new("candles_mark", "rest"),
+        new("candles_index", "rest"),
         new("spec_versions", "rest"),
     ];
 
@@ -210,18 +213,18 @@ public sealed class BybitPerpMarketData : IExchangeMarketData
         return list;
     }
 
+    /// <summary>
+    /// The venue's own open-interest series at <see cref="OpenInterestBucketSeconds"/> — the finest
+    /// grain it publishes. The ADAPTER chooses the grain and stamps it on each bucket; there is no
+    /// parameter for it, because nothing upstream knows which grains this venue serves.
+    /// </summary>
     public async Task<IReadOnlyList<OpenInterestBucket>> GetOpenInterestHistoryAsync(
-        string exchangeSymbol, int intervalSeconds, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
-        var interval = IntervalName(intervalSeconds);
-        if (interval is null)
-        {
-            // A grain the venue does not publish. Empty rather than the nearest one: a bucket
-            // labelled 1h holding a 4h reading is a wrong number, not a coarse one.
-            return [];
-        }
+        const int intervalSeconds = OpenInterestBucketSeconds;
 
-        var page = await _client.GetOpenInterestAsync(exchangeSymbol, interval, from, to, ct);
+        var page = await _client.GetOpenInterestAsync(
+            exchangeSymbol, IntervalName(intervalSeconds)!, from, to, ct);
         var rows = page.List ?? [];
 
         var list = new List<OpenInterestBucket>(rows.Count);
@@ -252,6 +255,9 @@ public sealed class BybitPerpMarketData : IExchangeMarketData
 
     /// <summary>The venue's own grain names. Only the five it publishes, and nothing mapped onto a
     /// neighbour — see the caller for why a near miss is worse than an empty answer.</summary>
+    /// <summary>Five minutes — the finest open-interest grain this venue publishes.</summary>
+    private const int OpenInterestBucketSeconds = 300;
+
     private static string? IntervalName(int seconds) => seconds switch
     {
         300 => "5min",
@@ -297,6 +303,40 @@ public sealed class BybitPerpMarketData : IExchangeMarketData
     }
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _tape.Drain();
+
+    /// <summary>Mark or index bars. <c>[startMs, o, h, l, c]</c> — five fields, no volume, because
+    /// neither series trades.</summary>
+    public async Task<IReadOnlyList<PriceCandle>> GetPriceCandles1mAsync(
+        string exchangeSymbol, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        if (series is not ("mark" or "index"))
+        {
+            return [];
+        }
+
+        var page = await _client.GetPriceKline1mAsync(exchangeSymbol, series, from, to, ct);
+        var rows = page.List ?? [];
+
+        var list = new List<PriceCandle>(rows.Count);
+        foreach (var c in rows)
+        {
+            if (c.Length < 5 || !long.TryParse(c[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var ms))
+            {
+                continue;
+            }
+
+            var openTime = DateTimeOffset.FromUnixTimeMilliseconds(ms);
+            if (openTime + TimeSpan.FromMinutes(1) > to)
+            {
+                continue;
+            }
+
+            list.Add(new PriceCandle(
+                exchangeSymbol, series, openTime, Req(c[1]), Req(c[2]), Req(c[3]), Req(c[4])));
+        }
+
+        return list;
+    }
 
     private void Fold(string exchangeSymbol, IReadOnlyList<BybitTrade> trades)
     {

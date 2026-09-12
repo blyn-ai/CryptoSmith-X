@@ -107,6 +107,28 @@ public sealed class BybitClient
         GetAsync<BybitList<BybitTrade>>(
             $"{_baseUrl}/v5/market/recent-trade?category={Category}&symbol={Uri.EscapeDataString(symbol)}&limit=1000", ct);
 
+    /// <summary>
+    /// The mark or index price as closed 1-minute bars — two separate routes on this venue, and two
+    /// genuinely different series rather than one relabelled twice.
+    ///
+    /// Five fields per bar and no volume, which is right: neither series trades, so a volume on one
+    /// would be a number with nothing behind it.
+    /// </summary>
+    internal Task<BybitList<string[]>> GetPriceKline1mAsync(
+        string symbol, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        var route = series switch
+        {
+            "mark" => "mark-price-kline",
+            "index" => "index-price-kline",
+            _ => throw new ArgumentOutOfRangeException(nameof(series), series, "Only 'mark' and 'index' exist here"),
+        };
+
+        return GetAsync<BybitList<string[]>>(
+            $"{_baseUrl}/v5/market/{route}?category={Category}&symbol={Uri.EscapeDataString(symbol)}"
+            + $"&interval=1&limit=1000&start={Ms(from)}&end={Ms(to)}", ct);
+    }
+
     private static string Ms(DateTimeOffset at) =>
         at.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture);
 

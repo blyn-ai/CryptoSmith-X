@@ -274,13 +274,20 @@ public sealed class QueueVenuesTests
         var intx = Intx().Capabilities.Select(c => c.DatasetCode).ToArray();
         var mexc = Mexc().Capabilities.Select(c => c.DatasetCode).ToArray();
 
-        // OKX serves a book ladder, a tape, and liquidations keyed by underlying. Its only public
-        // open-interest series is rubik's per-CURRENCY aggregate — every contract on that coin added
-        // together — which is not this instrument's own figure and is therefore not claimed.
+        // OKX serves a book ladder, a tape, liquidations keyed by underlying, mark and index bars,
+        // and its own per-instrument open-interest series.
+        //
+        // That last one is here because the first draft of this adapter DENIED it. rubik has two
+        // routes whose names differ by one word: open-interest-VOLUME is keyed by currency and sums
+        // every contract on the coin, while open-interest-HISTORY takes an instId and answers this
+        // instrument's own figure. Finding the first and concluding there was no series is exactly
+        // the mistake this assertion now prevents from coming back.
         Assert.Contains("depth", okx);
         Assert.Contains("trades", okx);
         Assert.Contains("liquidations", okx);
-        Assert.DoesNotContain("open_interest", okx);
+        Assert.Contains("open_interest", okx);
+        Assert.Contains("candles_mark", okx);
+        Assert.Contains("candles_index", okx);
 
         // INTX publishes NEITHER a book ladder (its /quote is top-of-book only) nor a trades route
         // (404). Both absences are the venue's, and this is the test that says so out loud so the
@@ -289,11 +296,24 @@ public sealed class QueueVenuesTests
         Assert.DoesNotContain("trades", intx);
         Assert.DoesNotContain("liquidations", intx);
 
-        // MEXC serves both, and neither an open-interest history (404) nor a liquidation flag.
+        // Nor mark or index candles — and this one is a refusal rather than an absence. The candle
+        // route accepts type=MARK and type=INDEX and answers 200, but the bars that come back are
+        // IDENTICAL to type=TRADE, to the last decimal. Storing them would be one measurement filed
+        // under three names, which reads in the grid as three independent prices agreeing perfectly.
+        Assert.DoesNotContain("candles_mark", intx);
+        Assert.DoesNotContain("candles_index", intx);
+
+        // MEXC serves both, plus a settled-funding series 1 618 payments deep. No open-interest
+        // history (contract/openInterest/{symbol} answers 403 with an HTML body while every other
+        // route answers 200 from the same address), no liquidation flag on its tape, and no mark or
+        // index candles — it publishes a current fairPrice with no series behind it.
         Assert.Contains("depth", mexc);
         Assert.Contains("trades", mexc);
+        Assert.Contains("funding", mexc);
         Assert.DoesNotContain("open_interest", mexc);
         Assert.DoesNotContain("liquidations", mexc);
+        Assert.DoesNotContain("candles_mark", mexc);
+        Assert.DoesNotContain("candles_index", mexc);
 
         foreach (var codes in new[] { okx, intx, mexc })
         {

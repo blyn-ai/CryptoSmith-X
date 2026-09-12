@@ -50,6 +50,8 @@ public sealed class GatePerpMarketData : IExchangeMarketData
         new("funding", "rest"),
         new("depth", "rest"),
         new("trades", "rest"),
+        new("candles_mark", "rest"),
+        new("candles_index", "rest"),
         // Both from contract_stats — see the class remarks.
         new("open_interest", "rest"),
         new("liquidations", "rest"),
@@ -237,19 +239,53 @@ public sealed class GatePerpMarketData : IExchangeMarketData
     public IReadOnlyList<TradeEvent> DrainTrades() => _tape.Drain();
 
     /// <summary>
+    /// Mark or index bars. This venue serves them from the SAME candle route as the traded ones,
+    /// selected by a prefix on the contract name — <c>mark_BTC_USDT</c>, <c>index_BTC_USDT</c> —
+    /// which is why there is no second client method for them.
+    ///
+    /// The bars carry <c>v</c> and <c>sum</c> of zero, correctly: neither series trades.
+    /// </summary>
+    public async Task<IReadOnlyList<PriceCandle>> GetPriceCandles1mAsync(
+        string exchangeSymbol, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        if (series is not ("mark" or "index"))
+        {
+            return [];
+        }
+
+        var rows = await _client.GetCandles1mAsync($"{series}_{exchangeSymbol}", from, to, ct);
+
+        var list = new List<PriceCandle>(rows.Count);
+        foreach (var c in rows)
+        {
+            if (c.T <= 0)
+            {
+                continue;
+            }
+
+            var openTime = DateTimeOffset.FromUnixTimeSeconds(c.T);
+            if (openTime + TimeSpan.FromMinutes(1) > to)
+            {
+                continue;
+            }
+
+            list.Add(new PriceCandle(
+                exchangeSymbol, series, openTime, Req(c.O), Req(c.H), Req(c.L), Req(c.C)));
+        }
+
+        return list;
+    }
+
+    /// <summary>
     /// The venue's own hourly open-interest series, in CONTRACTS as the venue states it — the same
     /// unit the snapshot's own open-interest column holds, so the two are the same measurement at
     /// two cadences rather than two numbers.
     /// </summary>
     public async Task<IReadOnlyList<OpenInterestBucket>> GetOpenInterestHistoryAsync(
-        string exchangeSymbol, int intervalSeconds, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
-        if (intervalSeconds != 3600)
-        {
-            // The route serves one grain. A bucket labelled with a different one would be a wrong
-            // number rather than a coarse one.
-            return [];
-        }
+        // The one grain <c>contract_stats</c> serves, stamped on every bucket this returns.
+        const int intervalSeconds = 3600;
 
         var rows = await _client.GetContractStatsAsync(exchangeSymbol, from, limit: 100, ct);
 
