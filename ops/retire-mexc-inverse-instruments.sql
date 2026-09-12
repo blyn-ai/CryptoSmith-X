@@ -15,6 +15,17 @@
 -- observations that were genuinely taken is a separate decision from stopping collection, and not
 -- one this script makes.
 
+-- HOW TO RUN IT
+--
+--   test   ssh csx-prod 'docker exec -i cryptosmithx-postgres \
+--              psql -U marketdata -d marketdata -v ON_ERROR_STOP=1' < ops/retire-mexc-inverse-instruments.sql
+--
+--   prod   ssh -F .local/ssh-config csx-datahub-jump \
+--              'sudo -n -u postgres psql -d marketdata -v ON_ERROR_STOP=1' < ops/retire-mexc-inverse-instruments.sql
+--
+-- Peer authentication as the postgres user on both, so no connection string is read, copied or
+-- passed anywhere. The whole file is one transaction: it either applies or it does not.
+--
 begin;
 
 create temporary table retired on commit drop as

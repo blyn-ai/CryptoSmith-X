@@ -13,6 +13,17 @@
 -- than the venue aggregates returns the same bucket again, and asking less often leaves the newest
 -- one stale for the difference.
 
+-- HOW TO RUN IT
+--
+--   test   ssh csx-prod 'docker exec -i cryptosmithx-postgres \
+--              psql -U marketdata -d marketdata -v ON_ERROR_STOP=1' < ops/enable-queue-venue-datasets.sql
+--
+--   prod   ssh -F .local/ssh-config csx-datahub-jump \
+--              'sudo -n -u postgres psql -d marketdata -v ON_ERROR_STOP=1' < ops/enable-queue-venue-datasets.sql
+--
+-- Peer authentication as the postgres user on both, so no connection string is read, copied or
+-- passed anywhere. The whole file is one transaction: it either applies or it does not.
+--
 begin;
 
 create temporary table wanted (
