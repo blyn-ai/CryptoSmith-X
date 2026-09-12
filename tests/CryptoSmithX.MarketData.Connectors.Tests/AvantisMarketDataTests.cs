@@ -166,21 +166,31 @@ public sealed class AvantisMarketDataTests
     }
 
     [Fact]
-    public void The_tape_is_declared_because_the_venue_publishes_one_and_market_candles_are_not()
+    public void The_tape_is_declared_because_the_venue_publishes_one()
     {
-        // The other half of the same correction. GET /v1/history/recent-trades/{pairIndex} is
-        // public, market-wide and anonymous; it carries price, size, timestamp, transaction hash
-        // and an isLiquidation flag, which is everything Last, Turnover and Liquidations need.
-        //
-        // `candles` stays absent, and that is NOT the old mistake repeating: the oracle shim's bars
-        // carry no volume and are the oracle's price rather than this venue's executions, so they
-        // are candles_index. Bars of the tape are a separate question from whether the tape exists.
+        // GET /v1/history/recent-trades/{pairIndex} is public, market-wide and anonymous; it
+        // carries price, size, timestamp, transaction hash and an isLiquidation flag, which is
+        // everything Last, Turnover and Liquidations need.
         var caps = Adapter(Catalog(BtcPair)).Capabilities.Select(c => c.DatasetCode).ToArray();
 
         Assert.Contains("trades", caps);
         Assert.Contains("liquidations", caps);
         Assert.Contains("candles_index", caps);
-        Assert.DoesNotContain("candles", caps);
+    }
+
+    [Fact]
+    public void Traded_and_mark_candles_are_declared_once_the_tape_can_build_them()
+    {
+        // THIS USED TO ASSERT THE OPPOSITE. `candles` stayed absent on the reasoning that the
+        // oracle shim's bars carry no volume and are not this venue's executions — true, and
+        // beside the point once the tape (AvantisTape.Bars1m) can fold its own trades into OHLCV.
+        // `candles_mark` stayed absent on "a mark series would need an adjusted price" — also true,
+        // and also beside the point: Mark = Index here (the ticker row's own MarkPrice remarks say
+        // so), so candles_mark is the same bars as candles_index, not a fabricated second series.
+        var caps = Adapter(Catalog(BtcPair)).Capabilities.Select(c => c.DatasetCode).ToArray();
+
+        Assert.Contains("candles", caps);
+        Assert.Contains("candles_mark", caps);
     }
 
     [Fact]
@@ -313,6 +323,54 @@ public sealed class AvantisMarketDataTests
     }
 
     [Fact]
+    public async Task Declares_the_reference_depth_dataset_because_the_risk_engine_watches_other_books()
+    {
+        var caps = Adapter(Catalog(BtcPair)).Capabilities.Select(c => c.DatasetCode).ToArray();
+
+        Assert.Contains("reference_depth", caps);
+    }
+
+    [Fact]
+    public async Task Reference_depth_rows_are_labelled_by_the_external_venue_they_are_actually_about()
+    {
+        // The whole point of a separate dataset: a row about Hyperliquid's book must never be
+        // written, or read, as if it were Avantis's own liquidity.
+        const string books = """
+            [{"source":"hyperliquid","pairIndex":1,"cumulativeCoinLiquidityBid":120993.9,
+              "cumulativeCoinLiquidityAsk":114103.4,"ageMs":7088}]
+            """;
+        var adapter = Adapter(Catalog(BtcPair), books);
+
+        // Resolve the pair index -> symbol map the same way the ticker pass would.
+        await adapter.GetTickersAsync(CancellationToken.None);
+        var rows = await adapter.GetReferenceDepthAsync(CancellationToken.None);
+
+        var row = Assert.Single(rows);
+        Assert.Equal("hyperliquid", row.Source);
+        Assert.Equal("BTC/USD", row.ExchangeSymbol);
+        Assert.Equal(120993.9, row.CumulativeBidQty!.Value, 3);
+        Assert.Equal(114103.4, row.CumulativeAskQty!.Value, 3);
+        Assert.Equal(7.088, row.VenueAgeSeconds!.Value, 3);
+    }
+
+    [Fact]
+    public async Task A_pair_index_not_yet_resolved_by_the_ticker_pass_is_skipped_not_guessed_at()
+    {
+        // GetReferenceDepthAsync can race the catalogue pass on a cold start. Rather than invent a
+        // symbol for a pairIndex it has not seen, the row is dropped — it comes back on the next
+        // poll once the ticker pass has run.
+        const string books = """
+            [{"source":"lighter","pairIndex":999,"cumulativeCoinLiquidityBid":1,
+              "cumulativeCoinLiquidityAsk":1,"ageMs":100}]
+            """;
+        var adapter = Adapter(Catalog(BtcPair), books);
+
+        var rows = await adapter.GetReferenceDepthAsync(CancellationToken.None);
+
+        Assert.Empty(rows);
+    }
+
+    [Fact]
     public async Task An_instrument_carries_no_invented_grid_only_the_notional_the_venue_states()
     {
         // The tick is the oracle's and the venue publishes no grid of its own. A fabricated step
@@ -332,16 +390,17 @@ public sealed class AvantisMarketDataTests
         Assert.Equal("BTC/USD", i.ExchangeSymbol);
     }
 
-    private static AvantisMarketData Adapter(string catalog) =>
-        new(new AvantisClient(new HttpClient(new StubHandler(catalog)), "https://data.test"));
+    private static AvantisMarketData Adapter(string catalog, string? referenceBooks = null) =>
+        new(new AvantisClient(new HttpClient(new StubHandler(catalog, referenceBooks: referenceBooks)), "https://data.test"));
 
-    private sealed class StubHandler(string catalog, string? vault = null) : HttpMessageHandler
+    private sealed class StubHandler(string catalog, string? vault = null, string? referenceBooks = null) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             var path = request.RequestUri!.AbsolutePath;
             var body = path.EndsWith("/v2/trading", StringComparison.Ordinal) ? catalog
                 : path.EndsWith("/v2/lp/state", StringComparison.Ordinal) ? vault
+                : path.EndsWith("/risk/v2/orderbook/snapshots", StringComparison.Ordinal) ? referenceBooks
                 : null;
 
             return Task.FromResult(body is null

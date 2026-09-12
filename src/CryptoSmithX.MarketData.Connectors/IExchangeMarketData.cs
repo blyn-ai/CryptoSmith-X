@@ -162,6 +162,15 @@ public interface IExchangeMarketData
     Task<IReadOnlyList<LiquidationBucket>> GetLiquidationVolumeAsync(
         string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<LiquidationBucket>>([]);
+
+    /// <summary>
+    /// An external venue's own book, as read by THIS venue's own risk engine — never this venue's
+    /// resting liquidity, which is why it comes back labelled by source rather than folded into
+    /// <see cref="GetOrderBookAsync"/>. Empty everywhere but a vault-backed venue whose quote curve
+    /// is priced against other books rather than holding one of its own.
+    /// </summary>
+    Task<IReadOnlyList<ReferenceDepth>> GetReferenceDepthAsync(CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<ReferenceDepth>>([]);
 }
 
 /// <summary>One declared capability: this adapter implements <paramref name="DatasetCode"/>, using

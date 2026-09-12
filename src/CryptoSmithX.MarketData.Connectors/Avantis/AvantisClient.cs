@@ -150,6 +150,19 @@ public sealed class AvantisClient
     internal async Task<IReadOnlyList<AvOpenInterest>> GetOpenInterestsAsync(CancellationToken ct) =>
         (await GetAsync<AvOpenInterestEnvelope>($"{ApiHost}/core/v2/open-interests", ct)).OpenInterests ?? [];
 
+    /// <summary>
+    /// The risk engine's own watch on external venues' books — every source, every pair, one call.
+    /// Bare JSON array on the wire, not wrapped in an envelope; measured anonymously on mainnet:
+    /// HTTP 200, ~28 KB, 194 rows across four sources (hyperliquid, lighter, binance_futures_depth,
+    /// binance_spot_depth).
+    ///
+    /// NOT Avantis's own book — there isn't one. This is what its engine watches to price its own
+    /// quote curve, kept here strictly labelled by <see cref="AvReferenceBook.Source"/> so it can
+    /// never be written as if it were this venue's resting liquidity.
+    /// </summary>
+    internal async Task<IReadOnlyList<AvReferenceBook>> GetReferenceBooksAsync(CancellationToken ct) =>
+        await GetAsync<IReadOnlyList<AvReferenceBook>>($"{ApiHost}/risk/v2/orderbook/snapshots", ct);
+
     /// <summary>A size, into the engine's own fixed-point. Invariant culture and no exponent: the
     /// field is a decimal STRING on the wire, and "1E+11" is not one.</summary>
     private static string Raw10(double size) =>

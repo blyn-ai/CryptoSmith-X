@@ -44,6 +44,9 @@ public static class Names
         "discovery" => "Discovery",
         "rollup" => "Rollup",
         "spec_versions" => "Spec versions",
+        "vault_pair_state" => "Vault pair state",
+        "vault_state" => "Vault state",
+        "reference_depth" => "Reference depth",
         _ => Tidy(code),
     };
 

@@ -104,6 +104,9 @@ public sealed class CollectorSelectionTests
                 // matrix that knows every dataset — a catalogue missing one reads as "disabled",
                 // and that is the distinction the full cross exists to keep.
                 "vault_pair_state", "vault_state",
+                // 0052: an external venue's own book, as watched by a vault-backed venue's risk
+                // engine — never this venue's own liquidity. Same reason as the two above.
+                "reference_depth",
             }
             .ToDictionary(
                 c => c,

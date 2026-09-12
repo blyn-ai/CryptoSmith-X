@@ -282,3 +282,88 @@ public sealed class AvantisTapeTests
         Assert.Null(new AvantisTape().Turnover("ETH/USD", Now));
     }
 }
+
+/// <summary>
+/// Traded candles built from the tape rather than fetched — the honest ceiling on candle history
+/// for a venue whose own "recent trades" answers with ten prints, not a history endpoint.
+/// </summary>
+public sealed class AvantisTapeCandleTests
+{
+    private static readonly DateTimeOffset Base = new(2026, 9, 12, 12, 0, 0, TimeSpan.Zero);
+
+    private static AvTrade Trade(string id, DateTimeOffset at, double price, double notional) =>
+        new(Id: id, Hash: id, Timestamp: at.ToUnixTimeSeconds(), Price: price, OpenPrice: price,
+            PositionSize: notional, Buy: true, IsLong: true, IsOpen: true, IsLiquidation: false,
+            TxnType: "OPEN");
+
+    [Fact]
+    public void One_trade_makes_a_bar_whose_four_prices_are_all_that_one_print()
+    {
+        var tape = new AvantisTape();
+        tape.Observe("ETH/USD", [Trade("a", Base, 2_500, 1_000)], Base.AddMinutes(1));
+
+        var bar = Assert.Single(tape.Bars1m("ETH/USD", Base.AddMinutes(-1), Base.AddMinutes(1)));
+
+        Assert.Equal(2_500d, bar.Open, 6);
+        Assert.Equal(2_500d, bar.High, 6);
+        Assert.Equal(2_500d, bar.Low, 6);
+        Assert.Equal(2_500d, bar.Close, 6);
+        Assert.Equal(1, bar.TradeCount);
+        Assert.Equal(1_000d, bar.VolumeQuote, 6);
+    }
+
+    [Fact]
+    public void Open_and_close_are_by_TIME_not_by_the_order_trades_arrived_in()
+    {
+        // The tape's own ten-deep endpoint has been observed to answer with a later trade ahead of
+        // an earlier one in the same response, so a fold keyed on arrival order would print the
+        // wrong open on roughly half of all two-trade minutes.
+        var tape = new AvantisTape();
+        var t0 = Base;
+        var t1 = Base.AddSeconds(20);
+
+        // Handed to Observe in REVERSE time order on purpose.
+        tape.Observe("ETH/USD", [Trade("late", t1, 2_510, 100), Trade("early", t0, 2_490, 100)], Base.AddMinutes(1));
+
+        var bar = Assert.Single(tape.Bars1m("ETH/USD", Base.AddMinutes(-1), Base.AddMinutes(1)));
+
+        Assert.Equal(2_490d, bar.Open, 6);
+        Assert.Equal(2_510d, bar.Close, 6);
+        Assert.Equal(2_510d, bar.High, 6);
+        Assert.Equal(2_490d, bar.Low, 6);
+    }
+
+    [Fact]
+    public void Two_trades_in_different_minutes_make_two_bars_not_one()
+    {
+        var tape = new AvantisTape();
+        tape.Observe("ETH/USD",
+        [
+            Trade("a", Base, 2_500, 100),
+            Trade("b", Base.AddMinutes(3), 2_520, 100),
+        ], Base.AddMinutes(4));
+
+        var bars = tape.Bars1m("ETH/USD", Base.AddMinutes(-1), Base.AddMinutes(4));
+
+        Assert.Equal(2, bars.Count);
+    }
+
+    [Fact]
+    public void The_bar_still_forming_is_never_returned()
+    {
+        var tape = new AvantisTape();
+        var now = Base.AddSeconds(20);
+        tape.Observe("ETH/USD", [Trade("a", Base, 2_500, 100)], now);
+
+        // `to` lands inside the same minute the trade printed in — that minute has not closed yet.
+        var bars = tape.Bars1m("ETH/USD", Base.AddMinutes(-1), now);
+
+        Assert.Empty(bars);
+    }
+
+    [Fact]
+    public void A_symbol_with_no_trades_at_all_returns_no_bars_rather_than_throwing()
+    {
+        Assert.Empty(new AvantisTape().Bars1m("ETH/USD", Base, Base.AddHours(1)));
+    }
+}

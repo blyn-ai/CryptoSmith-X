@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq;
 using CryptoSmithX.MarketData.Connectors.Market;
 
 namespace CryptoSmithX.MarketData.Connectors.Avantis;
@@ -72,6 +73,19 @@ public sealed class AvantisTape
         _bySymbol.TryGetValue(exchangeSymbol, out var t)
             ? t.Buckets(exchangeSymbol, from, to, intervalSeconds, unit)
             : [];
+
+    /// <summary>
+    /// Closed one-minute OHLCV bars, built from the executions this tape has actually watched.
+    ///
+    /// This is the honest ceiling on "traded candle history" for a venue whose own tape answers
+    /// with only its ten newest prints (measured: those ten span hours, not days). There is no
+    /// deeper history to backfill — the venue does not publish one — so the bars below start at
+    /// whenever this process first observed the pair and go no further back. That is a fact about
+    /// the venue's own API, stated once here rather than as a caller having to discover it as a
+    /// silently short history.
+    /// </summary>
+    public IReadOnlyList<TapeBar> Bars1m(string exchangeSymbol, DateTimeOffset from, DateTimeOffset to) =>
+        _bySymbol.TryGetValue(exchangeSymbol, out var t) ? t.Bars1m(from, to) : [];
 
     private sealed class SymbolTape
     {
@@ -197,6 +211,56 @@ public sealed class AvantisTape
             }
         }
 
+        public IReadOnlyList<TapeBar> Bars1m(DateTimeOffset from, DateTimeOffset to)
+        {
+            // One snapshot copy under the lock, then all folding happens over that private list —
+            // a two-pass read (accumulate, then re-walk for open/close) raced against Observe's own
+            // pruning between the passes and could fold a row into one minute's high/low while its
+            // price never made it into that minute's open/close. A single copy has no such window.
+            List<(DateTimeOffset At, double Price, double Notional)> snapshot;
+            lock (_gate)
+            {
+                snapshot = _rows
+                    .Where(r => r.At >= from && r.At < to)
+                    .Select(r => (r.At, r.Price, r.Notional))
+                    .OrderBy(r => r.At)
+                    .ToList();
+            }
+
+            var byMinute = new SortedDictionary<long, (double Open, double High, double Low, double Close,
+                double Qty, double Notional, int Count)>();
+
+            foreach (var (at, price, notional) in snapshot)
+            {
+                var minute = at.ToUnixTimeSeconds() / 60 * 60;
+                var qty = price > 0 ? notional / price : 0d;
+
+                byMinute[minute] = byMinute.TryGetValue(minute, out var bar)
+                    // Rows were sorted by time above, so the running Open is already the earliest
+                    // price in this minute and only Close, High and Low move as later rows fold in.
+                    ? (bar.Open, Math.Max(bar.High, price), Math.Min(bar.Low, price), price,
+                        bar.Qty + qty, bar.Notional + notional, bar.Count + 1)
+                    : (price, price, price, price, qty, notional, 1);
+            }
+
+            var bars = new List<TapeBar>(byMinute.Count);
+            foreach (var (minute, agg) in byMinute)
+            {
+                var openTime = DateTimeOffset.FromUnixTimeSeconds(minute);
+                if (openTime.AddMinutes(1) > to)
+                {
+                    // The bar still forming — never returned, the same rule every price and
+                    // traded-candle path on this page already applies to its own newest bar.
+                    continue;
+                }
+
+                bars.Add(new TapeBar(
+                    openTime, agg.Open, agg.High, agg.Low, agg.Close, agg.Qty, agg.Notional, agg.Count));
+            }
+
+            return bars;
+        }
+
         public IReadOnlyList<LiquidationBucket> Buckets(
             string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, int intervalSeconds, string unit)
         {
@@ -255,3 +319,16 @@ public sealed class AvantisTape
         }
     }
 }
+
+/// <summary>One minute of the tape, folded into OHLCV. <see cref="VolumeBase"/> is derived the same
+/// way <see cref="TradeEvent.Qty"/> is — notional over the trade's own price — never a later
+/// one.</summary>
+public sealed record TapeBar(
+    DateTimeOffset OpenTime,
+    double Open,
+    double High,
+    double Low,
+    double Close,
+    double VolumeBase,
+    double VolumeQuote,
+    int TradeCount);

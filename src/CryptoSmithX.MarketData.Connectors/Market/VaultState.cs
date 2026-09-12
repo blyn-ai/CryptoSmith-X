@@ -65,3 +65,26 @@ public sealed record VaultState(
     double? UtilizationRatio,
     double? DepositCapQuote,
     double? WithdrawThresholdQuote);
+
+/// <summary>
+/// One EXTERNAL venue's own cumulative depth against this instrument's underlying — never this
+/// venue's own book, because a vault-backed venue has none.
+///
+/// This exists because Avantis's risk engine keeps a running watch on the books of the most liquid
+/// venues for the same underlying (Hyperliquid, Lighter, Binance spot and futures depth), to price
+/// its own quote curve against them. Reading it is honest exactly because it is labelled as what it
+/// is: <see cref="Source"/> names the venue this row is actually about, so a reader can never
+/// mistake it for Avantis's own resting liquidity. <see cref="AvantisQuotes"/>'s own bisection
+/// against <c>/risk/v2/spread</c> is what answers "how much will AVANTIS take" — this answers "how
+/// much do the venues it watches show".
+/// </summary>
+public sealed record ReferenceDepth(
+    string ExchangeSymbol,
+    string Source,
+    double? CumulativeBidQty,
+    double? CumulativeAskQty,
+    /// <summary>How old the venue itself says this reading is, at the instant it was reported —
+    /// not our own received_at minus observed_at, because the risk engine's polling cadence for
+    /// each external venue is not ours to guess at.</summary>
+    double? VenueAgeSeconds,
+    DateTimeOffset At);

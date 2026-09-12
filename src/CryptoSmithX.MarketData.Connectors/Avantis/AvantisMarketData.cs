@@ -98,12 +98,20 @@ public sealed class AvantisMarketData : IExchangeMarketData
         new("discovery", "rest"),
         new("snapshot", "rest,ws"),
         new("candles_index", "rest"),
+        // candles_mark is the same bars as candles_index (Mark = the unadjusted oracle here —
+        // see GetPriceCandles1mAsync's own remarks) and candles is the traded ladder, folded from
+        // the tape this process has actually watched (AvantisTape.Bars1m) rather than fetched from
+        // a history endpoint the venue does not have.
+        new("candles_mark", "rest"),
+        new("candles", "rest"),
         new("depth", "rest"),
         new("trades", "rest"),
         new("liquidations", "rest"),
         new("vault_pair_state", "rest,ws"),
         new("vault_state", "rest"),
         new("spec_versions", "rest"),
+        // 0052: the risk engine's watch on external venues' books — GetReferenceDepthAsync.
+        new("reference_depth", "rest"),
     ];
 
     /// <summary>Linear USD-quoted perpetuals across every asset class the venue lists — crypto,
@@ -184,6 +192,7 @@ public sealed class AvantisMarketData : IExchangeMarketData
 
             var symbol = Symbol(p);
             _pairIndex[symbol] = p.Index;
+            _symbolByIndex[p.Index] = symbol;
 
             var group = trading?.GroupInfo is { } groups
                         && groups.TryGetValue(
@@ -358,6 +367,36 @@ public sealed class AvantisMarketData : IExchangeMarketData
         }
     }
 
+    /// <summary>
+    /// The risk engine's watch on external venues' books — see <see cref="ReferenceDepth"/>'s own
+    /// remarks for why this is stored labelled by source and never as Avantis's own liquidity.
+    ///
+    /// One call covers every pair and every source (measured: 194 rows across four sources), so
+    /// this is cheaper than the quote curve rather than an addition to its cost.
+    /// </summary>
+    public async Task<IReadOnlyList<ReferenceDepth>> GetReferenceDepthAsync(CancellationToken ct)
+    {
+        var rows = await _client.GetReferenceBooksAsync(ct);
+        var now = DateTimeOffset.UtcNow;
+        var list = new List<ReferenceDepth>(rows.Count);
+        foreach (var r in rows)
+        {
+            if (r.Source is not { Length: > 0 } source || !_symbolByIndex.TryGetValue(r.PairIndex, out var symbol))
+            {
+                // A pair index the ticker pass has not resolved yet (this call can race the
+                // catalogue pass on a cold start) — skipped rather than guessed at, and picked up
+                // on the next poll once the ticker pass has run.
+                continue;
+            }
+
+            list.Add(new ReferenceDepth(
+                symbol, source, r.CumulativeCoinLiquidityBid, r.CumulativeCoinLiquidityAsk,
+                r.AgeMs is { } ms ? ms / 1000d : null, now));
+        }
+
+        return list;
+    }
+
     /// <summary>Everything the tape turned up since the last pass. A REST poll on the producing
     /// side, the same contract on the consuming one.</summary>
     public IReadOnlyList<TradeEvent> DrainTrades()
@@ -436,12 +475,25 @@ public sealed class AvantisMarketData : IExchangeMarketData
     /// depth path would be a request per symbol for something we just read.</summary>
     private readonly ConcurrentDictionary<string, int> _pairIndex = new(StringComparer.Ordinal);
 
-    /// <summary>No market candles: the venue publishes no tape, so a bar of executions does not
-    /// exist to fetch. The oracle's bars are served by
-    /// <see cref="GetPriceCandles1mAsync"/> instead.</summary>
+    /// <summary>The reverse of <see cref="_pairIndex"/> — the risk engine's own reference-book
+    /// response is keyed by pairIndex, not symbol, and resolving it any other way would mean a
+    /// second catalogue read for a mapping the ticker pass already built.</summary>
+    private readonly ConcurrentDictionary<int, string> _symbolByIndex = new();
+
+    /// <summary>
+    /// Traded 1-minute bars, folded from the tape this adapter has actually watched — see
+    /// <see cref="AvantisTape.Bars1m"/> for why that ceiling is honest rather than a shortcut: the
+    /// venue's own "recent trades" answers with ten prints, not a history endpoint, so there is
+    /// nothing deeper to backfill. A window this process was not yet running for comes back with
+    /// gaps, and gaps are what the coverage columns already know how to say.
+    /// </summary>
     public Task<IReadOnlyList<Candle>> GetCandles1mAsync(
         string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
-        Task.FromResult<IReadOnlyList<Candle>>([]);
+        Task.FromResult<IReadOnlyList<Candle>>(_tape.Bars1m(exchangeSymbol, from, to)
+            .Select(b => new Candle(
+                exchangeSymbol, b.OpenTime, b.Open, b.High, b.Low, b.Close,
+                b.VolumeBase, b.TradeCount, b.VolumeQuote))
+            .ToList());
 
     /// <summary>No funding history: there is no discrete payment to have a history of.</summary>
     public Task<IReadOnlyList<FundingRate>> GetFundingHistoryAsync(
@@ -452,14 +504,18 @@ public sealed class AvantisMarketData : IExchangeMarketData
     /// The ORACLE's closed minute bars, from the venue's own TradingView shim, addressed by the
     /// Pyth symbol the catalogue already carries on every pair.
     ///
-    /// Only <c>index</c> is served. A mark series would need the venue to publish marking against
-    /// an adjusted price, and it publishes no such thing; answering the index bars for a mark
-    /// request would be relabelling one measurement as another.
+    /// <b>Both index and mark are served, and both are the SAME bars.</b> That used to read as a
+    /// contradiction of the "relabelling one measurement as another" rule, and it is not one: the
+    /// ticker pass already states, in <c>MarkPrice</c>'s own remarks, that this venue marks
+    /// positions against the unadjusted oracle because it publishes no marking of its own. Writing
+    /// candles_mark as a copy of candles_index is not inventing a second series — it is the venue's
+    /// own "there is no second series" carried through to history, in the shape the coverage matrix
+    /// already expects every venue to fill.
     /// </summary>
     public async Task<IReadOnlyList<PriceCandle>> GetPriceCandles1mAsync(
         string exchangeSymbol, string series, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
-        if (!string.Equals(series, "index", StringComparison.Ordinal))
+        if (series is not ("index" or "mark"))
         {
             return [];
         }

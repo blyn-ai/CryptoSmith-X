@@ -47,6 +47,9 @@ public sealed class ExchangeWorker : BackgroundService
         // Two cells rather than one so an operator can keep the pool and drop the per-pair series,
         // and so coverage can name which of the two is missing.
         "vault_pair_state", "vault_state",
+        // 0052: an external venue's own book, as watched by a vault-backed venue's risk engine —
+        // never this venue's own resting liquidity. See ReferenceDepthCollector.
+        "reference_depth",
     ];
 
     private readonly DbSettings _settings;
@@ -331,6 +334,7 @@ public sealed class ExchangeWorker : BackgroundService
         var openInterest = new OpenInterestHistoryCollector(adapter, _settings, _db, _clock, gate);
         var liquidations = new LiquidationCollector(adapter, _settings, _db, _clock, gate);
         var vault = new VaultCollector(adapter, _db, _loggers.CreateLogger<VaultCollector>());
+        var referenceDepth = new ReferenceDepthCollector(adapter, _db);
         var markCandles = new PriceCandleCollector(adapter, _settings, _db, _clock, gate, "mark");
         var indexCandles = new PriceCandleCollector(adapter, _settings, _db, _clock, gate, "index");
 
@@ -349,6 +353,7 @@ public sealed class ExchangeWorker : BackgroundService
             ["candles_index"] = indexCandles.RunAsync,
             ["vault_pair_state"] = vault.PairStateAsync,
             ["vault_state"] = vault.VaultAsync,
+            ["reference_depth"] = referenceDepth.RunAsync,
         };
     }
 

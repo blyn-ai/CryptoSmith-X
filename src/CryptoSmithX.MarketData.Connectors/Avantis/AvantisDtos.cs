@@ -171,3 +171,12 @@ internal sealed record AvOpenInterest(
     double? PendingLongOI, double? PendingShortOI,
     double? LongCoinOI, double? ShortCoinOI,
     double? PendingLongCoinOI, double? PendingShortCoinOI);
+
+/// <summary>One row of the risk engine's watch on an external venue's book — cumulative liquidity
+/// within its own visible depth, by side, and how stale the engine says that reading is.</summary>
+internal sealed record AvReferenceBook(
+    [property: JsonPropertyName("source")] string? Source,
+    [property: JsonPropertyName("pairIndex")] int PairIndex,
+    [property: JsonPropertyName("cumulativeCoinLiquidityBid")] double? CumulativeCoinLiquidityBid,
+    [property: JsonPropertyName("cumulativeCoinLiquidityAsk")] double? CumulativeCoinLiquidityAsk,
+    [property: JsonPropertyName("ageMs")] double? AgeMs);
