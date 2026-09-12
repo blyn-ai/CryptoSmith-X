@@ -145,4 +145,31 @@ public sealed class SurfaceTests
         var field = Read("_Field.cshtml");
         Assert.Contains("Model.Missing ? \"Nėra profilyje\"", field, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void The_lockup_stacks_only_where_it_cannot_fit_in_a_row()
+    {
+        // Measured on the real page at 375px: the row lockup is 387.7px and the card header gives
+        // 269, so the overflow went LEFT (the header is right-aligned) and the magenta plate sat at
+        // left:-65.7 — 92px off the edge of the screen. Shrinking type instead was not available:
+        // the subline is tracked to the wordmark's exact width, 276px against 275.7, and fitting it
+        // beside the plate in 269px would have meant ~7.6px type.
+        //
+        // The threshold is 500 and not the file's existing 520: the header gives (viewport - 106),
+        // so a row stops fitting below 494. Above the threshold nothing changes at all — the same
+        // measurement on 1280 still reports flex-direction:row and a 387.7px lockup.
+        var css = Read("agent.css");
+
+        Assert.Contains("@media (max-width:500px){", css, StringComparison.Ordinal);
+        Assert.Contains(".p-login .lockup{flex-direction:column", css, StringComparison.Ordinal);
+
+        // The desktop rule keeps its own direction, and no media query may restate it.
+        Assert.Contains(".p-login .lockup{display:flex;align-items:center;gap:16px}", css, StringComparison.Ordinal);
+
+        // No type is resized on the phone: the wordmark/subline widths are the design's own
+        // alignment, and changing one without the other breaks it.
+        var mobile = css[css.IndexOf("@media (max-width:500px){", StringComparison.Ordinal)..];
+        mobile = mobile[..mobile.IndexOf('}', mobile.IndexOf("lockup", StringComparison.Ordinal))];
+        Assert.DoesNotContain("font-size", mobile, StringComparison.Ordinal);
+    }
 }

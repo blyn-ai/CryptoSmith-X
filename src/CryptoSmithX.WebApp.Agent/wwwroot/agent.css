@@ -200,6 +200,22 @@ body{min-height:100vh;display:flex;flex-direction:column;
 .p-params .revision-history p{grid-column:1 / -1;margin:2px 0 0;color:var(--text-muted)}
 .p-params .empty{margin:0;padding:12px;font-size:var(--fs-meta);color:var(--text-muted)}
 
+/* ЛОКАП НА УЗКОМ ЭКРАНЕ — В СТОЛБИК, И ТОЛЬКО ТАМ, ГДЕ В СТРОКУ ОН ФИЗИЧЕСКИ НЕ ВЛЕЗАЕТ.
+   Замерено на 375px: локап требует 387.7px, голова карточки даёт 269 — и так как .head выровнена
+   по правому краю, лишние 119px уходят ВЛЕВО, плашка встаёт на left:-65.7 и висит на 92px за
+   краем экрана.
+   Уменьшить шрифты вместо переноса нельзя: подпись MULTI-VENUE · TRADING AGENT в натуральную
+   ширину — 276px, ровно ширина вордмарка (46px даёт 275.7). Это замысел, а не совпадение —
+   подпись растрекана под вордмарк, — и чтобы она влезла рядом с плашкой в 269px, её пришлось бы
+   опустить до ~7.6px. Поэтому плашка уезжает НАД словами, а все кегли остаются десктопными:
+   в столбик локап занимает 276px против 281 доступных.
+   Порог 500px, а не существующие 520: голова даёт (ширина экрана − 106), значит в строку локап
+   перестаёт влезать ниже 494px. Выше порога десктопная раскладка не меняется ничем. */
+@media (max-width:500px){
+  .p-login .head{justify-content:flex-start;padding:18px 20px}
+  .p-login .lockup{flex-direction:column;align-items:flex-start;gap:12px}
+}
+
 @media (max-width:520px){
   .p-params .modeler-grid{grid-template-columns:1fr}
   .p-params .revision-history li{grid-template-columns:1fr}
