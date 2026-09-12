@@ -65,6 +65,13 @@ public sealed class VaultCollector
         var skew = new List<double?>(states.Count);
         var spread = new List<double?>(states.Count);
         var vol = new List<double?>(states.Count);
+        // Carry, both kinds and both sides. Four lists rather than two because funding and
+        // borrow are different quantities (0051), and two sides rather than one because on a
+        // vault venue the short side is not the long side negated.
+        var fLong = new List<double?>(states.Count);
+        var fShort = new List<double?>(states.Count);
+        var mLong = new List<double?>(states.Count);
+        var mShort = new List<double?>(states.Count);
 
         foreach (var s in states)
         {
@@ -90,6 +97,10 @@ public sealed class VaultCollector
             skew.Add(Figures.Num(s.SkewImpactMultiplier));
             spread.Add(Figures.Num(s.SpreadPercent));
             vol.Add(Figures.Num(s.DecayedVol));
+            fLong.Add(Figures.Num(s.FundingLongPHour));
+            fShort.Add(Figures.Num(s.FundingShortPHour));
+            mLong.Add(Figures.Num(s.MarginFeeLongPHour));
+            mShort.Add(Figures.Num(s.MarginFeeShortPHour));
         }
 
         if (id.Count == 0)
@@ -104,12 +115,15 @@ public sealed class VaultCollector
                 oi_long_base, oi_short_base, oi_long_quote, oi_short_quote,
                 oi_max_quote, oi_block_limit,
                 depth_above_1pct, depth_below_1pct, liquidity_buy, liquidity_sell,
-                price_impact_mult, skew_impact_mult, spread_p, decayed_vol)
+                price_impact_mult, skew_impact_mult, spread_p, decayed_vol,
+                funding_long_p_hour, funding_short_p_hour,
+                margin_fee_long_p_hour, margin_fee_short_p_hour)
             select * from unnest(
                 @ids, @at,
                 @oi_lb, @oi_sb, @oi_lq, @oi_sq, @oi_max, @oi_block,
                 @d_above, @d_below, @liq_b, @liq_s,
-                @impact, @skew, @spread, @vol)
+                @impact, @skew, @spread, @vol,
+                @f_long, @f_short, @m_long, @m_short)
             on conflict (exchange_instrument_id, received_at) do nothing
             """,
             conn);
@@ -122,6 +136,10 @@ public sealed class VaultCollector
         cmd.Parameters.AddWithValue("oi_sq", oiSq.ToArray());
         cmd.Parameters.AddWithValue("oi_max", oiMax.ToArray());
         cmd.Parameters.AddWithValue("oi_block", oiBlock.ToArray());
+        cmd.Parameters.AddWithValue("f_long", fLong.ToArray());
+        cmd.Parameters.AddWithValue("f_short", fShort.ToArray());
+        cmd.Parameters.AddWithValue("m_long", mLong.ToArray());
+        cmd.Parameters.AddWithValue("m_short", mShort.ToArray());
         cmd.Parameters.AddWithValue("d_above", dAbove.ToArray());
         cmd.Parameters.AddWithValue("d_below", dBelow.ToArray());
         cmd.Parameters.AddWithValue("liq_b", liqB.ToArray());

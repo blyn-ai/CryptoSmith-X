@@ -31,7 +31,23 @@ public sealed record VaultPairState(
     double? PriceImpactMultiplier,
     double? SkewImpactMultiplier,
     double? SpreadPercent,
-    double? DecayedVol);
+    double? DecayedVol,
+
+    /// <summary>Funding for the long and short side, PERCENT PER HOUR — the unit measured in 0051
+    /// against the venue's own documented "below 3% a year on RWAs", which only WTI's 2.50%/yr
+    /// satisfies under this reading and no asset satisfies under the other.
+    ///
+    /// Two fields and not one, and not one negated: the counterparty here is the pool, so the sides
+    /// are independent. ETH at the time of writing pays 0.00109998 long against 0.00114364
+    /// received short.</summary>
+    double? FundingLongPHour = null,
+    double? FundingShortPHour = null,
+
+    /// <summary>The borrow half of the venue's "net rate" — paid to liquidity providers rather than
+    /// exchanged with traders. Kept apart from funding in storage because they are different
+    /// quantities; a reader who wants the net adds them, having both.</summary>
+    double? MarginFeeLongPHour = null,
+    double? MarginFeeShortPHour = null);
 
 /// <summary>
 /// The liquidity pool itself — an observation about the VENUE, not about any instrument on it.

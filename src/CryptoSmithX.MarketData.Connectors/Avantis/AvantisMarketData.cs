@@ -144,7 +144,11 @@ public sealed class AvantisMarketData : IExchangeMarketData
                 MinNotional: p.MinLevPosUsdc is { } min ? (decimal)min : null,
                 // No discrete funding payment here, so the pair (rate, interval) stays
                 // (NULL, NULL) and reads unambiguously under market_model. 0028 needs no change.
-                FundingIntervalHours: null,
+                // Continuous accrual, quoted hourly — the venue's own fundingFeePerHourP is
+                // documented in percent per hour and these rates are the same family, confirmed by
+                // the annualisation check in 0051. One hour is the honest interval: it is what the
+                // figure beside it is per.
+                FundingIntervalHours: 1,
                 ListedAt: null,
                 // Delisted and placeholder entries answer isPairListed = false — 27 of 120 did on
                 // the day this was written, and one of them had no symbol at all.
@@ -180,6 +184,27 @@ public sealed class AvantisMarketData : IExchangeMarketData
 
             var symbol = Symbol(p);
             _pairIndex[symbol] = p.Index;
+
+            var group = trading?.GroupInfo is { } groups
+                        && groups.TryGetValue(
+                            p.GroupIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            out var g)
+                ? g
+                : null;
+            var capacity = AvantisCapacity.Available(
+                maxOpenInterest: trading?.MaxOpenInterest,
+                totalOi: trading?.TotalOi,
+                groupMaxOi: group?.GroupMaxOi,
+                groupOi: group?.GroupOi,
+                maxWalletOi: p.MaxWalletOi,
+                groupOpenInterestPercentageP: p.Values?.GroupOpenInterestPercentageP,
+                maxLongOiP: p.Values?.MaxLongOiP,
+                maxShortOiP: p.Values?.MaxShortOiP,
+                pairMaxOi: p.PairMaxOi,
+                longOi: p.OpenInterest?.Long,
+                shortOi: p.OpenInterest?.Short,
+                liquidityBuy: p.Liquidity?.Buy,
+                liquiditySell: p.Liquidity?.Sell);
             var bar = _lastBar.TryGetValue(symbol, out var seen) ? seen : ((double Close, DateTimeOffset At)?)null;
 
             list.Add(new Ticker(
@@ -187,24 +212,45 @@ public sealed class AvantisMarketData : IExchangeMarketData
                 ReceivedAt: now,
                 // Every price is absent on this venue's own surfaces. See the class remarks: this
                 // is measured, and filling any of them would be inventing an observation.
+                // Filled by EnrichAsync below, from the tape and the quote engine — the catalogue
+                // this loop walks carries neither.
                 LastPrice: null,
                 BidPrice: null,
                 AskPrice: null,
-                BidSize: null,
-                AskSize: null,
+                // HOW MUCH MORE THIS VENUE WILL TAKE, per side, from its own availableLiquidity.
+                // Costs nothing: every input is a ceiling already in this response. Base units,
+                // because that is what the column holds for every other venue — and the division is
+                // by the oracle price this same row carries, never a later one.
+                BidSize: Base(capacity.Short, bar?.Close),
+                AskSize: Base(capacity.Long, bar?.Close),
                 // Marking is against the oracle unadjusted, which the venue does not publish as a
                 // figure of its own — so this stays absent rather than being the index under
                 // another name.
-                MarkPrice: null,
+                // THE ORACLE, because that is what this venue marks against. Confirmed from the
+                // SDK rather than assumed: compute.position_net_pnl takes the feed price as its
+                // current_price, and the API's own liquidation price is computed against the same
+                // feed — there is no separate venue mark to publish, and marking is unadjusted.
+                //
+                // So Mark and Index carry the same number here, and that is the finding rather than
+                // a duplication: on a book venue they differ because the venue marks against its own
+                // book; this one has none. The provenance badge is what says so.
+                MarkPrice: bar?.Close,
                 // THE ORACLE'S PRICE, which is what index_price is documented to be: a reference
                 // from outside this venue, written as published. Taken from the newest closed bar
                 // the candle pass already fetched (see _lastBar) — never from
                 // /v1/price-feeds/last-price, which carries the right name and a price one to two
                 // days old, measured.
                 IndexPrice: bar?.Close,
-                // No discrete payment: the carry is continuous and its components are a different
-                // quantity. Writing a carry rate here would misstate the unit as well as the thing.
-                FundingRate: null,
+                // THE LONG SIDE, as a fraction of notional per the interval below — the same unit
+                // and the same meaning the column holds for every book venue ("what a long pays
+                // this interval"). This was null until 0051 because the venue's unit was not
+                // measured, not because the figure did not exist; it is a percent per hour, hence
+                // the hundred.
+                //
+                // The SHORT side is not here and must not be: it is not the negative of this one
+                // (0.00109998 against 0.00114364 on ETH), because the counterparty is a pool. It
+                // lives in vault_pair_state with its own column, and the cell prints both.
+                FundingRate: p.FundingRate?.Long is { } fl ? fl / 100d : null,
                 Turnover24h: null,
                 // Both units published, so both are written and neither is derived.
                 OpenInterest: Sum(p.CoinOi),
@@ -369,6 +415,11 @@ public sealed class AvantisMarketData : IExchangeMarketData
 
     /// <summary>The pair's index in the venue's own catalogue — the handle every risk-engine call
     /// takes — and its contract multiplier, both from the catalogue already in hand.</summary>
+    /// <summary>A notional in the quote asset into base units, at the price the row itself carries.
+    /// Null when either is missing — a size divided by no price is not a size.</summary>
+    private static double? Base(double? quote, double? price) =>
+        quote is { } q && price is { } p && p > 0 ? q / p : null;
+
     private bool Index(string exchangeSymbol, out int pairIndex, out decimal multiplier)
     {
         // From the ticker pass's own cache rather than from Fresh(): the socket is an accelerator,
@@ -474,7 +525,13 @@ public sealed class AvantisMarketData : IExchangeMarketData
                 PriceImpactMultiplier: p.PriceImpactMultiplier,
                 SkewImpactMultiplier: p.SkewImpactMultiplier,
                 SpreadPercent: p.SpreadP,
-                DecayedVol: p.DecayedVol));
+                DecayedVol: p.DecayedVol,
+                // Both sides, as published. Percent per hour — see 0051 for the measurement that
+                // established the unit against the venue's own documentation.
+                FundingLongPHour: p.FundingRate?.Long,
+                FundingShortPHour: p.FundingRate?.Short,
+                MarginFeeLongPHour: p.MarginFee?.Long,
+                MarginFeeShortPHour: p.MarginFee?.Short));
         }
 
         return list;

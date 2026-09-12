@@ -45,6 +45,10 @@ internal sealed record AvPair(
     [property: JsonPropertyName("pairMaxOI")] double? PairMaxOi,
     [property: JsonPropertyName("blockOILimit")] double? BlockOiLimit,
     [property: JsonPropertyName("liquidity")] AvLiquidity? Liquidity,
+    // Carry, both sides, percent per hour — the unit measured in 0051. AvSides rather than a scalar
+    // because on a vault venue the two sides are independent rather than mirrored.
+    [property: JsonPropertyName("fundingRate")] AvSides? FundingRate,
+    [property: JsonPropertyName("marginFee")] AvSides? MarginFee,
     [property: JsonPropertyName("pairParams")] AvPairParams? PairParams,
     [property: JsonPropertyName("priceImpactMultiplier")] double? PriceImpactMultiplier,
     [property: JsonPropertyName("skewImpactMultiplier")] double? SkewImpactMultiplier,
@@ -52,7 +56,19 @@ internal sealed record AvPair(
     [property: JsonPropertyName("decayedVol")] double? DecayedVol,
     [property: JsonPropertyName("minLevPosUSDC")] double? MinLevPosUsdc,
     [property: JsonPropertyName("leverages")] AvLeverages? Leverages,
+    // Inputs to the venue's own availableLiquidity — the directional capacity the Bid/Ask size
+    // columns hold. Every one of these is a CEILING the venue publishes, and the smallest binding
+    // one is the answer; see AvantisCapacity, which is a port of the venue's own function rather
+    // than a rule of ours.
+    [property: JsonPropertyName("maxWalletOI")] double? MaxWalletOi,
+    [property: JsonPropertyName("values")] AvValues? Values,
     [property: JsonPropertyName("feed")] AvFeed? Feed);
+
+/// <summary>The per-pair share of its group's open-interest ceiling, by side.</summary>
+internal sealed record AvValues(
+    [property: JsonPropertyName("groupOpenInterestPercentageP")] double? GroupOpenInterestPercentageP,
+    [property: JsonPropertyName("maxLongOiP")] double? MaxLongOiP,
+    [property: JsonPropertyName("maxShortOiP")] double? MaxShortOiP);
 
 internal sealed record AvSides(
     [property: JsonPropertyName("long")] double? Long,

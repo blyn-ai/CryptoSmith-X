@@ -46,17 +46,60 @@ public sealed class AvantisMarketDataTests
     }
 
     [Fact]
-    public async Task It_fills_no_quote_and_no_funding_with_anything_at_all()
+    public async Task No_quote_is_invented_when_the_engine_has_not_been_asked()
     {
-        // The plan's first "do not": no bid = ask = last, no oracle-minus-half-spread, no zero. An
-        // absent side is a fact about this market and has to read as one.
+        // The plan's first "do not", and it still stands: no bid = ask = last, no
+        // oracle-minus-half-spread, no zero. What changed is only WHERE the prices come from when
+        // they do exist — the risk engine, asked for a size and a side. With no oracle price yet
+        // learned, no size can be formed, so nothing is asked and nothing is filled.
         var t = Assert.Single(await Adapter(Catalog(BtcPair)).GetTickersAsync(CancellationToken.None));
 
         Assert.Null(t.BidPrice);
         Assert.Null(t.AskPrice);
+    }
+
+    [Fact]
+    public async Task Funding_is_written_for_the_long_side_as_a_fraction_of_the_hour_it_is_per()
+    {
+        // THIS USED TO ASSERT NULL. It was right to, while the venue's unit was unmeasured — and
+        // wrong to keep asserting once it had been. 0051 establishes percent per hour against the
+        // venue's own "below 3% a year on RWAs", which only WTI's 2.50%/yr satisfies under that
+        // reading and no asset satisfies under the other.
+        //
+        // The column holds a FRACTION per interval, as it does for every book venue, so the fixture's
+        // 0.0012 % per hour is 0.000012 here — and the interval beside it says which hour.
+        var t = Assert.Single(await Adapter(Catalog(BtcPair)).GetTickersAsync(CancellationToken.None));
+
+        Assert.Equal(0.000012d, t.FundingRate!.Value, 12);
+    }
+
+    [Fact]
+    public async Task The_short_side_of_the_carry_is_not_the_long_side_negated()
+    {
+        // The fact that makes one column insufficient. On a book venue longs pay shorts exactly, so
+        // one figure is the whole truth. Here the counterparty is the pool, and the two sides are
+        // published independently — so both are kept, in the set that exists for what book venues
+        // have no equivalent of.
+        var state = Assert.Single(
+            await Adapter(Catalog(BtcPair)).GetVaultPairStateAsync(CancellationToken.None));
+
+        Assert.Equal(0.0012d, state.FundingLongPHour!.Value, 12);
+        Assert.Equal(-0.0012d, state.FundingShortPHour!.Value, 12);
+    }
+
+    [Fact]
+    public async Task Directional_capacity_is_the_smallest_ceiling_the_venue_states()
+    {
+        // Bid/Ask size on a venue where nothing rests: how much more it will take on each side,
+        // from its own availableLiquidity. The fixture's binding cap is pairMaxOI (8 446 867) less
+        // the 5 413 386 already open, which is 3 033 480 of notional — and the column holds base
+        // units, so it is that over the price the same row carries.
+        var t = Assert.Single(await Adapter(Catalog(BtcPair)).GetTickersAsync(CancellationToken.None));
+
+        // No oracle price has been learned, so there is nothing to divide by and the honest answer
+        // is absent rather than a notional wearing a quantity's column.
         Assert.Null(t.BidSize);
         Assert.Null(t.AskSize);
-        Assert.Null(t.FundingRate);
     }
 
     [Fact]
@@ -281,7 +324,11 @@ public sealed class AvantisMarketDataTests
         Assert.Null(i.MinQty);
         // The one thing it DOES constrain, and the only one written.
         Assert.Equal(100m, i.MinNotional);
-        Assert.Null(i.FundingIntervalHours);
+        // And the interval IS written, at one hour — which used to be null here for a reason that
+        // has since been measured away (0051). The carry accrues continuously and is quoted per
+        // hour; an hour is what the rate beside it is per, so writing it is stating the venue's
+        // unit rather than inventing a schedule of payments it does not keep.
+        Assert.Equal((short)1, i.FundingIntervalHours);
         Assert.Equal("BTC/USD", i.ExchangeSymbol);
     }
 
