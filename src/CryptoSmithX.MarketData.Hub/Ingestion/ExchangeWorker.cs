@@ -2,7 +2,10 @@ using CryptoSmithX.MarketData.Connectors;
 using CryptoSmithX.MarketData.Hub.Live;
 using CryptoSmithX.MarketData.Connectors.Avantis;
 using CryptoSmithX.MarketData.Connectors.Binance;
+using CryptoSmithX.MarketData.Connectors.Bitget;
+using CryptoSmithX.MarketData.Connectors.Bybit;
 using CryptoSmithX.MarketData.Connectors.Fake;
+using CryptoSmithX.MarketData.Connectors.Gate;
 using CryptoSmithX.MarketData.Connectors.Hyperliquid;
 using CryptoSmithX.MarketData.Connectors.Kraken;
 using CryptoSmithX.MarketData.Connectors.Pacing;
@@ -612,6 +615,13 @@ public sealed class ExchangeWorker : BackgroundService
         "hyperliquid" => BuildHyperliquid(config, gate, ct),
         "binance-usdm" => BuildBinance(config, gate, ct),
         "avantis-perp" => BuildAvantis(config, ct),
+        // The three REST-first venues from plans/exchange-roadmap.md rows 5, 6 and 8. Each closes
+        // the whole snapshot in ONE bulk call, so none of them needs a feed to be useful — the
+        // socket, and with it depth/book/trades, is the next slice. No ws_url is read here for the
+        // same reason: an adapter that does not take a feed must not look as though it might.
+        "bybit-perp" => new BybitPerpMarketData(new BybitClient(BaseUrl(config))),
+        "bitget-perp" => new BitgetPerpMarketData(new BitgetClient(BaseUrl(config))),
+        "gate-perp" => new GatePerpMarketData(new GateClient(BaseUrl(config))),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
@@ -628,6 +638,11 @@ public sealed class ExchangeWorker : BackgroundService
     // The socket is the venue's OWN catalogue broadcast, not the Pyth oracle — the distinction the
     // plan insisted on, and it holds: connecting to it returns pairInfos with no price of any kind.
     // Without a ws_url the adapter is pure REST at the snapshot cadence, exactly like its siblings.
+    /// <summary>The segment's own base address, or a refusal that names which row is incomplete.
+    /// Every adapter needs it and the message is the same one three times over, so it is said once.</summary>
+    private static string BaseUrl(ExchangeConfig config) =>
+        config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
+
     private IExchangeMarketData BuildAvantis(ExchangeConfig config, CancellationToken ct)
     {
         var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
