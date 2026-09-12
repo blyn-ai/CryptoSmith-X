@@ -100,6 +100,78 @@ public sealed class RollupJob
     internal static int SourceFor(int tf, IReadOnlyCollection<int> configured) =>
         configured.Where(s => s < tf && tf % s == 0).DefaultIfEmpty(1).Max();
 
+    /// <summary>
+    /// The same cascade over <c>market_price_candle</c> — the mark and index series, which 0032
+    /// created and nothing has ever rolled up, so they existed at one minute and at no other grain.
+    /// Measured on prod before this was written: 123,165 index bars for Avantis, every one of them
+    /// <c>timeframe = 1</c>, under a page whose candle panel opens on the hourly grain.
+    ///
+    /// <b>Why a statement of its own rather than a parameter on the traded one.</b> The two tables
+    /// do not have the same columns. There is no volume, no trade_count and no bar_count here, on
+    /// purpose (0032: mark and index are not traded, so an "amount" on them is not a measurement);
+    /// and there is no <c>updated_at</c> at all, so the touch marker has to be <c>received_at</c>,
+    /// which <see cref="Ingestion.PriceCandleCollector"/> restamps on every write and rewrite. A
+    /// shared statement would have to paper over all of that, and the papering is where a wrong row
+    /// gets written.
+    ///
+    /// <b>series is a grouping key, not a filter.</b> One pass covers both series, because the only
+    /// thing that distinguishes them here is a text column — and a GROUP BY that forgot it would
+    /// produce a bar whose high came from the mark and whose low from the index. That bar would
+    /// satisfy every CHECK on the table and would describe nothing that happened.
+    /// </summary>
+    /// <param name="boundedBase">True while reading the 1-minute base, whose slice is the unit of
+    /// progress and is bounded on both sides; false for a cascade step, which consumes only what
+    /// this very pass rewrote and so has no upper bound to apply.</param>
+    internal static string PriceSql(bool boundedBase) =>
+        $"""
+        with touched as (
+            select distinct
+                   c.exchange_instrument_id,
+                   c.series,
+                   to_timestamp(floor(extract(epoch from c.open_time) / @seconds) * @seconds) as window_start
+              from market_price_candle c
+             where c.timeframe = @source
+               {(boundedBase
+                   ? "and c.received_at >= @since and c.received_at < @until"
+                   : "and c.received_at >= @passStart")}
+        ),
+        windows as (
+            select t.exchange_instrument_id,
+                   t.series,
+                   t.window_start,
+                   (array_agg(c.open  order by c.open_time asc))[1]      as open,
+                   max(c.high)                                           as high,
+                   min(c.low)                                            as low,
+                   (array_agg(c.close order by c.open_time desc))[1]     as close
+              from touched t
+              join market_price_candle c
+                on  c.exchange_instrument_id = t.exchange_instrument_id
+                and c.series = t.series
+                and c.timeframe = @source
+                and c.open_time >= t.window_start
+                and c.open_time <  t.window_start + make_interval(secs => @seconds)
+             where t.window_start + make_interval(secs => @seconds) <= now()
+             group by t.exchange_instrument_id, t.series, t.window_start
+        )
+        insert into market_price_candle (
+            exchange_instrument_id, series, timeframe, open_time,
+            open, high, low, close, received_at, source)
+        select exchange_instrument_id, series, @tf, window_start,
+               open, high, low, close, now(), 'derived'
+          from windows
+        on conflict (exchange_instrument_id, series, timeframe, open_time) do update set
+            open        = excluded.open,
+            high        = excluded.high,
+            low         = excluded.low,
+            close       = excluded.close,
+            -- received_at doubles as this table's touch marker, so a rebuilt bar has to restamp it
+            -- or the level above would never learn it changed. It reads the same way market_candle's
+            -- own column comment reads for a derived row (0035): fetched at one minute, computed
+            -- above it.
+            received_at = excluded.received_at,
+            source      = excluded.source
+        """;
+
     public async Task<int> RunAsync(CancellationToken ct)
     {
         var startedAt = _clock.GetUtcNow();
@@ -223,6 +295,28 @@ public sealed class RollupJob
                 commandTimeout: AggregateTimeoutSeconds,
                 cancellationToken: ct));
             written += affected;
+        }
+
+        // The same ladder over the oracle's own series. Ordered after the traded cascade rather than
+        // interleaved with it so a slow price pass can never delay the table the rest of the surface
+        // is written against, and counted into the same total: both are bars this pass derived.
+        foreach (var tf in configured)
+        {
+            var source = SourceFor(tf, configured);
+
+            written += await conn.ExecuteAsync(new CommandDefinition(
+                PriceSql(boundedBase: source == 1),
+                new
+                {
+                    seconds = (double)(tf * 60L),
+                    since,
+                    until,
+                    passStart,
+                    tf = (short)tf,
+                    source = (short)source,
+                },
+                commandTimeout: AggregateTimeoutSeconds,
+                cancellationToken: ct));
         }
 
         // Last step: the hourly microstructure slice. Open interest, spread and depth die with the
