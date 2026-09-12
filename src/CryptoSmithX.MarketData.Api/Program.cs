@@ -37,6 +37,34 @@ builder.Services.AddResponseCompression(o =>
     o.MimeTypes = [.. Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes, "application/json"];
 });
 
+// ── Browsers may read this surface from the public site ──────────────────────────────────────
+//
+// FOUND BY LOOKING AT THE SITE, not at this project. blynai.eu renders its venue coverage from
+// /api/v1/exchanges and /api/v1/coverage, and every one of those calls had been failing since the
+// day it was written: the site is a DIFFERENT ORIGIN (blynai.eu against
+// cryptosmithx.blynai.eu), no Access-Control-Allow-Origin came back, and the browser refused the
+// read. curl saw 200 the whole time, which is exactly why it went unnoticed.
+//
+// What the page did instead is the honest part of the failure and is why nobody noticed sooner: it
+// keeps the last known text in its own markup and leaves it standing when the call fails. So the
+// site kept saying "4 live · 13 planned · 370 instruments" — true when that HTML was written and
+// wrong for every venue enabled since, Avantis included.
+//
+// Named origins rather than "*": this surface is public and read-only, but a wildcard is a
+// statement about every site on the internet, and the two that actually render it can be named.
+// Localhost is here so the site can be developed against the live API without a proxy.
+const string SiteOrigins = "site";
+builder.Services.AddCors(o => o.AddPolicy(SiteOrigins, p => p
+    .WithOrigins(
+        "https://blynai.eu",
+        "https://www.blynai.eu",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080")
+    .WithMethods("GET")
+    // No credentials and no custom request headers: a public read needs neither, and asking for
+    // them would widen what this policy permits for nothing.
+    .WithHeaders("Accept", "Content-Type")));
+
 var app = builder.Build();
 
 if (!string.IsNullOrWhiteSpace(sentryDsn))
@@ -72,6 +100,10 @@ app.Use(async (context, next) =>
 // what the rewrite does afterwards. Verified both ways against a running server before landing.
 app.UseRouting();
 
+// After UseRouting and before the endpoints, which is where the CORS middleware is required to sit
+// for a preflight to be answered rather than routed.
+app.UseCors(SiteOrigins);
+
 // /openapi/v1.json (the document) and /scalar/v1 (the interactive page).
 app.UseResponseCompression();
 
@@ -82,6 +114,9 @@ app.MapScalarApiReference();
 // Compose ordering makes this a formality, the check makes a mis-start loud instead of weird.
 await Migrator.VerifyAsync(app.Services.GetRequiredService<Db>(), CancellationToken.None);
 
+// No per-endpoint RequireCors: these two return void, and UseCors above already applies the named
+// policy to everything that passes through the pipeline. Chaining it per endpoint would be the
+// same policy said twice, in a place the compiler cannot even accept it.
 app.MapMarketDataApi();
 app.MapHistoryApi();
 
