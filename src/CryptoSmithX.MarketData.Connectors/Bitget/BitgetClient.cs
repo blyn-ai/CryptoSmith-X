@@ -78,10 +78,10 @@ public sealed class BitgetClient
     /// <summary>The book at the venue's finest merge. Forty of these in parallel returned 40×200 in
     /// 1.11 s with no refusal, measured — this adapter issues them one per collected symbol on the
     /// depth sweep, which is far below that.</summary>
-    internal Task<BitgetDepth> GetDepthAsync(string symbol, CancellationToken ct) =>
+    internal Task<BitgetDepth> GetDepthAsync(string symbol, string precision, CancellationToken ct) =>
         GetAsync<BitgetDepth>(
             $"{_baseUrl}/api/v2/mix/market/merge-depth?symbol={Uri.EscapeDataString(symbol)}"
-            + $"&productType={ProductType}&limit=max", ct);
+            + $"&productType={ProductType}&limit=max&precision={precision}", ct);
 
     /// <summary>The public tape, newest first.</summary>
     internal Task<IReadOnlyList<BitgetFill>> GetFillsAsync(string symbol, CancellationToken ct) =>

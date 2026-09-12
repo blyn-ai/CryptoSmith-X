@@ -202,9 +202,37 @@ public sealed class BitgetPerpMarketData : IExchangeMarketData
 
     /// <summary>The book, and the tape with it — see the Bybit adapter's own remarks on why the two
     /// share a call site, and why a tape failure never costs the book.</summary>
+    /// <summary>
+    /// The book, and the tape with it.
+    ///
+    /// <b>Why this may ask twice.</b> <c>limit=max</c> is a hundred levels and no more, and a
+    /// hundred levels of BTCUSDT at native precision reach 3.7 bps from the mid — measured — so all
+    /// three depth bands were unbounded and all three columns empty on this venue's most traded
+    /// contract. The route's <c>precision</c> parameter buys span by merging the ladder onto a
+    /// coarser price grid, one decimal per step, and that step is RELATIVE: scale1 is ten ticks
+    /// whatever the price.
+    ///
+    /// Relative is not the same as harmless. Ten ticks is 0.14 bps on BTCUSDT and 11.8 bps on
+    /// DOGEUSDT, measured on the same afternoon — coarser there than the narrowest band we report,
+    /// which would leave that band's edges meaning nothing. So the coarser ladder is asked for only
+    /// when the native one falls short, and kept only when its own grid is still fine against the
+    /// bands: see <see cref="Wider"/>.
+    /// </summary>
     public async Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct)
     {
-        var book = await _client.GetDepthAsync(exchangeSymbol, ct);
+        var book = await _client.GetDepthAsync(exchangeSymbol, NativePrecision, ct);
+
+        if (Wider(book) is { } merged)
+        {
+            book = await _client.GetDepthAsync(exchangeSymbol, MergedPrecision, ct);
+
+            if (!Usable(book))
+            {
+                // The coarser grid would cost more than the span is worth. Back to the native
+                // ladder, whose bands are narrower but mean what they say.
+                book = merged;
+            }
+        }
 
         try
         {
@@ -218,6 +246,75 @@ public sealed class BitgetPerpMarketData : IExchangeMarketData
         return ContractBook.Compute(
             Levels(book.Bids), Levels(book.Asks), contractMultiplier: 1,
             at: Instant(book.Ts) ?? DateTimeOffset.UtcNow);
+    }
+
+    /// <summary>The venue's own tick — the finest ladder it serves.</summary>
+    private const string NativePrecision = "scale0";
+
+    /// <summary>Ten ticks a level. One step, not two: scale2 is a hundred ticks, which is 1.4 bps on
+    /// BTCUSDT and past the point where a 10 bps band still has edges.</summary>
+    private const string MergedPrecision = "scale1";
+
+    /// <summary>The widest band this adapter reports, and so the span a ladder has to cover for all
+    /// three to be sums rather than undercounts.</summary>
+    private const double WidestBandBps = 50;
+
+    /// <summary>
+    /// The coarsest price grid that still leaves the narrowest band meaningful — a tenth of 10 bps.
+    /// A level wider than this and the 10 bps band's edge is decided by where a bucket happened to
+    /// fall rather than by where the orders are.
+    /// </summary>
+    private const double FinestBandBps = 1;
+
+    /// <summary>The native ladder, when it falls short of <see cref="WidestBandBps"/> and a wider
+    /// one is worth asking for; null when it already spans the bands.</summary>
+    private static BitgetDepth? Wider(BitgetDepth book) =>
+        Span(book) is { } span && span < WidestBandBps ? book : null;
+
+    /// <summary>Whether a merged ladder's own grid is still fine enough to put an edge on the
+    /// narrowest band.</summary>
+    private static bool Usable(BitgetDepth book)
+    {
+        var bids = Levels(book.Bids);
+        if (bids.Count < 2 || Mid(book) is not { } mid || mid <= 0)
+        {
+            return false;
+        }
+
+        var lowest = double.MaxValue;
+        var highest = double.MinValue;
+        foreach (var (price, _) in bids)
+        {
+            lowest = Math.Min(lowest, price);
+            highest = Math.Max(highest, price);
+        }
+
+        var step = (highest - lowest) / (bids.Count - 1) / mid * 10_000.0;
+        return step < FinestBandBps;
+    }
+
+    /// <summary>How far the thinner side of this ladder reaches from the mid, in bps.</summary>
+    private static double? Span(BitgetDepth book)
+    {
+        var bids = Levels(book.Bids);
+        var asks = Levels(book.Asks);
+        if (bids.Count == 0 || asks.Count == 0 || Mid(book) is not { } mid || mid <= 0)
+        {
+            return null;
+        }
+
+        var bidReach = (mid - bids.Min(l => l.Price)) / mid * 10_000.0;
+        var askReach = (asks.Max(l => l.Price) - mid) / mid * 10_000.0;
+        return Math.Min(bidReach, askReach);
+    }
+
+    private static double? Mid(BitgetDepth book)
+    {
+        var bids = Levels(book.Bids);
+        var asks = Levels(book.Asks);
+        return bids.Count == 0 || asks.Count == 0
+            ? null
+            : (bids.Max(l => l.Price) + asks.Min(l => l.Price)) / 2;
     }
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _tape.Drain();

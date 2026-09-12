@@ -123,6 +123,114 @@ public sealed class MarkAndIndexSeriesTests
         Assert.Equal(77084.6, b.Low, 6);
     }
 
+    [Fact]
+    public async Task Bitget_asks_for_a_coarser_ladder_only_when_the_native_one_falls_short()
+    {
+        // limit=max is a hundred levels and no more, and a hundred levels of BTCUSDT at native
+        // precision reach 3.7 bps from the mid — measured — so every depth column was empty on this
+        // venue's most traded contract.
+        var seen = new List<string>();
+        var bitget = new BitgetPerpMarketData(new BitgetClient(
+            new HttpClient(new PrecisionStub(seen, tight: BitgetTightBook, merged: BitgetMergedBook)),
+            "https://api.test"));
+
+        var depth = await bitget.GetOrderBookAsync("BTCUSDT", CancellationToken.None);
+
+        Assert.Equal(["scale0", "scale1"], seen);
+        Assert.NotNull(depth);
+
+        // The merged ladder is the one that answered, so the band is a sum rather than an
+        // undercount.
+        Assert.NotNull(depth.Bid50Bps);
+    }
+
+    [Fact]
+    public async Task Bitget_leaves_a_ladder_that_already_spans_the_bands_alone()
+    {
+        // DOGEUSDT's hundred native levels reach 120 bps, measured. Merging it would cost 11.8 bps a
+        // level — coarser than the narrowest band this adapter reports — to buy span it does not
+        // need, and the 10 bps band's edge would be decided by where a bucket fell.
+        var seen = new List<string>();
+        var bitget = new BitgetPerpMarketData(new BitgetClient(
+            new HttpClient(new PrecisionStub(seen, tight: BitgetMergedBook, merged: BitgetMergedBook)),
+            "https://api.test"));
+
+        await bitget.GetOrderBookAsync("DOGEUSDT", CancellationToken.None);
+
+        Assert.Equal(["scale0"], seen);
+    }
+
+    /// <summary>A hundred levels within four bps of the mid — the native ladder on a tight
+    /// contract.</summary>
+    private static readonly string BitgetTightBook = BitgetBook(77_000, stepBps: 0.04, levels: 100);
+
+    /// <summary>The same hundred levels on a ten-times-coarser grid, reaching past 50 bps while each
+    /// level is still well under a basis point — the BTCUSDT case.</summary>
+    private static readonly string BitgetMergedBook = BitgetBook(77_000, stepBps: 0.8, levels: 100);
+
+    /// <summary>A merged ladder on a cheap contract: enormous span, and 12 bps a level — coarser
+    /// than the narrowest band this adapter reports. The DOGEUSDT case, measured.</summary>
+    private static readonly string BitgetTooCoarseBook = BitgetBook(0.19, stepBps: 12, levels: 100);
+
+    private static string BitgetBook(double mid, double stepBps, int levels)
+    {
+        var step = mid * stepBps / 10_000.0;
+
+        static string Level(double price) =>
+            "[\"" + price.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) + "\",\"1.5\"]";
+
+        var bids = string.Join(",", Enumerable.Range(0, levels).Select(i => Level(mid - (step * (i + 1)))));
+        var asks = string.Join(",", Enumerable.Range(0, levels).Select(i => Level(mid + (step * (i + 1)))));
+
+        return "{\"code\":\"00000\",\"msg\":\"success\",\"data\":{\"ts\":\"1789246940009\","
+               + "\"bids\":[" + bids + "],\"asks\":[" + asks + "]}}";
+    }
+
+    [Fact]
+    public async Task Bitget_keeps_the_native_ladder_when_merging_would_cost_the_bands_their_edges()
+    {
+        // The guard. A merged ladder on a cheap contract is 12 bps a level, measured — coarser than
+        // the 10 bps band itself, so that band's edge would be decided by where a bucket happened to
+        // fall rather than by where the orders are. Span bought at that price is not worth having,
+        // and the native ladder's narrower answer is the honest one.
+        var seen = new List<string>();
+        var bitget = new BitgetPerpMarketData(new BitgetClient(
+            new HttpClient(new PrecisionStub(seen, tight: BitgetTightBook, merged: BitgetTooCoarseBook)),
+            "https://api.test"));
+
+        var depth = await bitget.GetOrderBookAsync("SOMEUSDT", CancellationToken.None);
+
+        // It asked, and then declined what came back.
+        Assert.Equal(["scale0", "scale1"], seen);
+
+        // The native mid, not the coarse one — this is the ladder that was kept.
+        Assert.NotNull(depth);
+        Assert.Equal(77_000, depth.Mid!.Value, 0);
+    }
+
+    /// <summary>Answers the depth route by the precision asked for, recording each one, and 404s
+    /// everything else — the tape's own route included, which the adapter tolerates.</summary>
+    private sealed class PrecisionStub(List<string> seen, string tight, string merged) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var uri = request.RequestUri!;
+            if (!uri.AbsolutePath.EndsWith("merge-depth", StringComparison.Ordinal))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+            }
+
+            var precision = System.Web.HttpUtility.ParseQueryString(uri.Query)["precision"]!;
+            seen.Add(precision);
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    precision == "scale0" ? tight : merged, Encoding.UTF8, "application/json"),
+            });
+        }
+    }
+
     // ── Gate ─────────────────────────────────────────────────────────────────────────────────
 
     private const string GateMark = """
