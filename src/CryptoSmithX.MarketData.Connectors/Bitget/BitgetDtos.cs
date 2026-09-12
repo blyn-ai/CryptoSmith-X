@@ -57,3 +57,17 @@ internal sealed record BitgetFundingRow(
     [property: JsonPropertyName("symbol")] string? Symbol,
     [property: JsonPropertyName("fundingRate")] string? FundingRate,
     [property: JsonPropertyName("fundingTime")] string? FundingTime);
+
+/// <summary>The merged book. Levels are [price, size] pairs of JSON NUMBERS here, not strings —
+/// the same venue sends its tickers as strings, which is why neither is assumed from the other.</summary>
+internal sealed record BitgetDepth(
+    [property: JsonPropertyName("bids")] IReadOnlyList<double[]>? Bids,
+    [property: JsonPropertyName("asks")] IReadOnlyList<double[]>? Asks,
+    [property: JsonPropertyName("ts")] string? Ts);
+
+internal sealed record BitgetFill(
+    [property: JsonPropertyName("tradeId")] string? TradeId,
+    [property: JsonPropertyName("price")] string? Price,
+    [property: JsonPropertyName("size")] string? Size,
+    [property: JsonPropertyName("side")] string? Side,
+    [property: JsonPropertyName("ts")] string? Ts);

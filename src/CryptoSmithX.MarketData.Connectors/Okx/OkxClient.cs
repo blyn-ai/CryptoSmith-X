@@ -83,6 +83,27 @@ public sealed class OkxClient
             $"{_baseUrl}/api/v5/public/funding-rate-history?instId={Uri.EscapeDataString(instId)}"
             + $"&limit=100&before={Ms(from)}&after={Ms(to)}", ct);
 
+    /// <summary>
+    /// The book, 400 levels a side.
+    ///
+    /// Practically free for us, and measured: 200 requests to the SAME instId all returned 200 in
+    /// 2.49 s, because this route's limit rule is keyed by UserID and we have no user. It is the one
+    /// OKX route the endpoint × instId ceiling does not apply to.
+    /// </summary>
+    internal Task<IReadOnlyList<OkxBook>> GetBookAsync(string instId, CancellationToken ct) =>
+        GetAsync<OkxBook>($"{_baseUrl}/api/v5/market/books?instId={Uri.EscapeDataString(instId)}&sz=400", ct);
+
+    internal Task<IReadOnlyList<OkxTrade>> GetTradesAsync(string instId, CancellationToken ct) =>
+        GetAsync<OkxTrade>(
+            $"{_baseUrl}/api/v5/market/trades?instId={Uri.EscapeDataString(instId)}&limit=500", ct);
+
+    /// <summary>Filled liquidations for one UNDERLYING — the key this route takes. Events arrive
+    /// nested under a group per instrument.</summary>
+    internal Task<IReadOnlyList<OkxLiquidationGroup>> GetLiquidationsAsync(string uly, CancellationToken ct) =>
+        GetAsync<OkxLiquidationGroup>(
+            $"{_baseUrl}/api/v5/public/liquidation-orders?instType={InstType}&state=filled"
+            + $"&uly={Uri.EscapeDataString(uly)}&limit=100", ct);
+
     private static string Ms(DateTimeOffset at) =>
         at.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture);
 

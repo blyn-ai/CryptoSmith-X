@@ -266,22 +266,41 @@ public sealed class QueueVenuesTests
     }
 
     [Fact]
-    public void All_three_declare_only_what_they_implement()
+    public void Each_of_the_three_declares_exactly_what_its_own_venue_serves()
     {
-        foreach (var caps in new[]
-                 {
-                     Okx().Capabilities, Intx().Capabilities, Mexc().Capabilities,
-                 })
-        {
-            var codes = caps.Select(c => c.DatasetCode).ToArray();
+        // Not a shared list, because these three genuinely differ — and the differences are facts
+        // about the venues rather than about how far the work got.
+        var okx = Okx().Capabilities.Select(c => c.DatasetCode).ToArray();
+        var intx = Intx().Capabilities.Select(c => c.DatasetCode).ToArray();
+        var mexc = Mexc().Capabilities.Select(c => c.DatasetCode).ToArray();
 
-            Assert.DoesNotContain("depth", codes);
-            Assert.DoesNotContain("book", codes);
-            Assert.DoesNotContain("trades", codes);
-            // MEXC has no OI history (404) and OKX/INTX are not wired for one either.
-            Assert.DoesNotContain("open_interest", codes);
+        // OKX serves a book ladder, a tape, and liquidations keyed by underlying. Its only public
+        // open-interest series is rubik's per-CURRENCY aggregate — every contract on that coin added
+        // together — which is not this instrument's own figure and is therefore not claimed.
+        Assert.Contains("depth", okx);
+        Assert.Contains("trades", okx);
+        Assert.Contains("liquidations", okx);
+        Assert.DoesNotContain("open_interest", okx);
+
+        // INTX publishes NEITHER a book ladder (its /quote is top-of-book only) nor a trades route
+        // (404). Both absences are the venue's, and this is the test that says so out loud so the
+        // next reader does not go looking for work that does not exist.
+        Assert.DoesNotContain("depth", intx);
+        Assert.DoesNotContain("trades", intx);
+        Assert.DoesNotContain("liquidations", intx);
+
+        // MEXC serves both, and neither an open-interest history (404) nor a liquidation flag.
+        Assert.Contains("depth", mexc);
+        Assert.Contains("trades", mexc);
+        Assert.DoesNotContain("open_interest", mexc);
+        Assert.DoesNotContain("liquidations", mexc);
+
+        foreach (var codes in new[] { okx, intx, mexc })
+        {
             Assert.Contains("snapshot", codes);
             Assert.Contains("candles", codes);
+            // book_topn is socket-fed everywhere; a REST ladder is not one.
+            Assert.DoesNotContain("book", codes);
         }
     }
 

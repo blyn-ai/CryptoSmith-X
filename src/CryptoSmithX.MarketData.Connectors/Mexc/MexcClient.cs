@@ -80,6 +80,16 @@ public sealed class MexcClient
             $"{_baseUrl}/api/v1/contract/kline/{Uri.EscapeDataString(symbol)}"
             + $"?interval=Min1&start={Sec(from)}&end={Sec(to)}", ct);
 
+    /// <summary>The book. One call per collected symbol on the depth sweep — the route the
+    /// reconnaissance measured, and the pace it measured at (about 2.5/s) is orders of magnitude
+    /// above what this adapter asks of it.</summary>
+    internal Task<MexcDepth> GetDepthAsync(string symbol, CancellationToken ct) =>
+        GetAsync<MexcDepth>($"{_baseUrl}/api/v1/contract/depth/{Uri.EscapeDataString(symbol)}", ct);
+
+    /// <summary>The public tape, newest first.</summary>
+    internal Task<IReadOnlyList<MexcDeal>> GetDealsAsync(string symbol, CancellationToken ct) =>
+        GetAsync<IReadOnlyList<MexcDeal>>($"{_baseUrl}/api/v1/contract/deals/{Uri.EscapeDataString(symbol)}", ct);
+
     private static string Sec(DateTimeOffset at) =>
         at.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
 

@@ -67,6 +67,28 @@ public sealed class GateClient
         GetAsync<IReadOnlyList<GateFundingRow>>(
             $"{_baseUrl}/api/v4/futures/{Settle}/funding_rate?contract={Uri.EscapeDataString(contract)}&limit=100", ct);
 
+    /// <summary>The book. Fifty levels a side is what this venue serves without an interval
+    /// parameter, and it reaches past the 50 bps band on every contract sampled.</summary>
+    internal Task<GateOrderBook> GetOrderBookAsync(string contract, CancellationToken ct) =>
+        GetAsync<GateOrderBook>(
+            $"{_baseUrl}/api/v4/futures/{Settle}/order_book?contract={Uri.EscapeDataString(contract)}&limit=50", ct);
+
+    /// <summary>The public tape, newest first.</summary>
+    internal Task<IReadOnlyList<GateTrade>> GetTradesAsync(string contract, CancellationToken ct) =>
+        GetAsync<IReadOnlyList<GateTrade>>(
+            $"{_baseUrl}/api/v4/futures/{Settle}/trades?contract={Uri.EscapeDataString(contract)}&limit=100", ct);
+
+    /// <summary>
+    /// The venue's own hourly statistics: open interest AND the period's liquidated size on each
+    /// side. Two datasets from one call, which is the only reason this venue has an open-interest
+    /// history at all — the plain OI routes elsewhere give a current number and nothing else.
+    /// </summary>
+    internal Task<IReadOnlyList<GateContractStat>> GetContractStatsAsync(
+        string contract, DateTimeOffset from, int limit, CancellationToken ct) =>
+        GetAsync<IReadOnlyList<GateContractStat>>(
+            $"{_baseUrl}/api/v4/futures/{Settle}/contract_stats?contract={Uri.EscapeDataString(contract)}"
+            + $"&interval=1h&limit={limit}&from={Sec(from)}", ct);
+
     private static string Sec(DateTimeOffset at) =>
         at.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
 

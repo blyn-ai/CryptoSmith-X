@@ -93,6 +93,20 @@ public sealed class BybitClient
             + $"&intervalTime={intervalTime}&limit=200"
             + $"&startTime={Ms(from)}&endTime={Ms(to)}", ct);
 
+    /// <summary>The book, 200 levels a side — deep enough that the 50 bps band is reached on every
+    /// instrument this venue lists, which is the condition for the band being a sum rather than an
+    /// undercount.</summary>
+    internal Task<BybitOrderBook> GetOrderBookAsync(string symbol, CancellationToken ct) =>
+        GetAsync<BybitOrderBook>(
+            $"{_baseUrl}/v5/market/orderbook?category={Category}&symbol={Uri.EscapeDataString(symbol)}&limit=200", ct);
+
+    /// <summary>The public tape, newest first, up to a thousand prints. At the depth sweep's own
+    /// cadence that covers every instrument this adapter collects — measured against the busiest of
+    /// them, which is the only one where it could fail to.</summary>
+    internal Task<BybitList<BybitTrade>> GetRecentTradesAsync(string symbol, CancellationToken ct) =>
+        GetAsync<BybitList<BybitTrade>>(
+            $"{_baseUrl}/v5/market/recent-trade?category={Category}&symbol={Uri.EscapeDataString(symbol)}&limit=1000", ct);
+
     private static string Ms(DateTimeOffset at) =>
         at.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture);
 

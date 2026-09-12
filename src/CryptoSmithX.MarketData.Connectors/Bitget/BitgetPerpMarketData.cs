@@ -18,14 +18,16 @@ namespace CryptoSmithX.MarketData.Connectors.Bitget;
 /// by not collecting today, and it is lost for every day we are not running. That is the argument
 /// for enabling it now rather than later, and it is the only one this venue needs.
 ///
-/// <b>Depth is not declared yet.</b> Bid and ask size come off the ticker, so those columns fill;
-/// the cumulative bands need a maintained book, and this venue's book rule
+/// <b>Depth and the tape are REST, per symbol, on the depth sweep's own cadence.</b> Measured:
+/// forty parallel <c>merge-depth</c> calls returned 40×200 in 1.11 s with no refusal, and this
+/// adapter issues one per collected symbol. The socket would be cheaper — this venue's book rule
 /// (<c>update.pseq == prev.seq</c> with a snapshot on the socket) is word for word
-/// <see cref="Weex.WeexBookBuilder"/>'s — already written, already debugged, and the next slice.
+/// <see cref="Weex.WeexBookBuilder"/>'s — but nothing here waits for it.
 /// </summary>
 public sealed class BitgetPerpMarketData : IExchangeMarketData
 {
     private readonly BitgetClient _client;
+    private readonly RestTape _tape = new();
 
     public BitgetPerpMarketData(BitgetClient client) => _client = client;
 
@@ -37,9 +39,12 @@ public sealed class BitgetPerpMarketData : IExchangeMarketData
         new("snapshot", "rest"),
         new("candles", "rest"),
         new("funding", "rest"),
+        new("depth", "rest"),
+        new("trades", "rest"),
         // open_interest is ABSENT on purpose and it is the one real gap here: the venue publishes a
         // current number and no history at all, so there is nothing for the history collector to
         // fetch. The current value still reaches the snapshot every pass through the ticker.
+        // liquidations likewise — no public route, and the tape carries no flag to derive one from.
         new("spec_versions", "rest"),
     ];
 
@@ -186,10 +191,66 @@ public sealed class BitgetPerpMarketData : IExchangeMarketData
         return list;
     }
 
-    /// <summary>Null forever until the socket is wired — the cumulative bands need a maintained
-    /// book, and this venue's REST depth is one call per symbol.</summary>
-    public Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct) =>
-        Task.FromResult<Depth?>(null);
+    /// <summary>The book, and the tape with it — see the Bybit adapter's own remarks on why the two
+    /// share a call site, and why a tape failure never costs the book.</summary>
+    public async Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct)
+    {
+        var book = await _client.GetDepthAsync(exchangeSymbol, ct);
+
+        try
+        {
+            Fold(exchangeSymbol, await _client.GetFillsAsync(exchangeSymbol, ct));
+        }
+        catch (HttpRequestException)
+        {
+        }
+
+        // Base units on this venue, so the multiplier is one.
+        return ContractBook.Compute(
+            Levels(book.Bids), Levels(book.Asks), contractMultiplier: 1,
+            at: Instant(book.Ts) ?? DateTimeOffset.UtcNow);
+    }
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _tape.Drain();
+
+    private void Fold(string exchangeSymbol, IReadOnlyList<BitgetFill> fills)
+    {
+        var events = new List<TradeEvent>(fills.Count);
+        foreach (var f in fills)
+        {
+            if (f.TradeId is not { Length: > 0 } id
+                || Num(f.Price) is not { } price || price <= 0
+                || Num(f.Size) is not { } size
+                || Instant(f.Ts) is not { } at)
+            {
+                continue;
+            }
+
+            events.Add(new TradeEvent(
+                exchangeSymbol, at, id, null, price, size,
+                string.Equals(f.Side, "buy", StringComparison.OrdinalIgnoreCase) ? "buy" : "sell",
+                null));
+
+            _tape.Saw(exchangeSymbol, price, at);
+        }
+
+        _tape.Observe(exchangeSymbol, events);
+    }
+
+    /// <summary>[price, size] pairs of JSON numbers into levels.</summary>
+    private static List<(double Price, double Qty)> Levels(IReadOnlyList<double[]>? raw)
+    {
+        var levels = new List<(double Price, double Qty)>(raw?.Count ?? 0);
+        foreach (var l in raw ?? [])
+        {
+            if (l.Length >= 2 && double.IsFinite(l[0]) && l[0] > 0 && double.IsFinite(l[1]) && l[1] > 0)
+            {
+                levels.Add((l[0], l[1]));
+            }
+        }
+
+        return levels;
+    }
 
     /// <summary>
     /// The venue's composite tick: <c>priceEndStep</c> scaled by <c>pricePlace</c> decimals, because

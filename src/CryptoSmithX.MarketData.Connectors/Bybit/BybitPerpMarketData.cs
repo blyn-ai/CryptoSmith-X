@@ -15,10 +15,11 @@ namespace CryptoSmithX.MarketData.Connectors.Bybit;
 /// volume in both units. Measured live: 873 rows, 649 KB, 0.65 s, and zero empty fields across the
 /// perpetuals. There is nothing to merge and no per-symbol sweep in the snapshot path at all.
 ///
-/// <b>Depth is not declared yet, and that is a scope statement rather than a gap.</b> The top of
-/// book arrives on the ticker, so the bid/ask SIZE columns fill from the snapshot; the cumulative
-/// depth bands need a maintained book, which on this venue means the socket (its <c>u</c> increments
-/// by exactly one, so no REST seed and no resequencing machinery) — the next slice, not this one.
+/// <b>Depth and the tape are REST, per symbol, on the depth sweep's own cadence.</b> The top of book
+/// arrives on the ticker, so the size columns fill from the snapshot; the cumulative bands need the
+/// ladder, which this venue serves 200 levels a side. The socket would be cheaper still — its
+/// <c>u</c> increments by exactly one, so no REST seed and no resequencing machinery — but cheaper
+/// is not the same as missing, and nothing here waits for it.
 ///
 /// <b>Dated futures are dropped, perpetuals kept.</b> The linear category carries both; the
 /// instruments endpoint names which is which in <c>contractType</c>, so the split is the venue's own
@@ -28,15 +29,20 @@ public sealed class BybitPerpMarketData : IExchangeMarketData
 {
     private readonly BybitClient _client;
 
+    /// <summary>The polled tape. Filled from the depth sweep — see <see cref="GetOrderBookAsync"/>
+    /// for why the two ride together — and drained by the shared TradeCollector.</summary>
+    private readonly RestTape _tape = new();
+
     public BybitPerpMarketData(BybitClient client) => _client = client;
 
     public string SegmentCode => "bybit-perp";
 
     /// <summary>
-    /// What this adapter actually implements today. Depth, book and trades are absent because the
-    /// socket is not wired yet — declaring them would start loops with nothing behind them, which is
-    /// the precedent the fake adapter sets and the mistake the Avantis adapter had to be corrected
-    /// for. They arrive with the feed.
+    /// Everything this venue serves publicly. <c>book</c> is absent and stays absent: that dataset is
+    /// <c>book_topn</c>, which is fed from a maintained socket book (<c>TryGetBookFrame</c>) and not
+    /// from a REST ladder — declaring it would start a loop with nothing behind it. <c>liquidations</c>
+    /// is absent because this venue publishes none on any public REST route; its tape carries no
+    /// liquidation flag either, so there is nothing to derive one from.
     /// </summary>
     public IReadOnlyList<DatasetCapability> Capabilities { get; } =
     [
@@ -47,6 +53,10 @@ public sealed class BybitPerpMarketData : IExchangeMarketData
         // The venue's own series, not our sampling of a current value — see
         // BybitClient.GetOpenInterestAsync for the measurement that says so.
         new("open_interest", "rest"),
+        // The book is a REST call per symbol on the depth sweep's own cadence, and the tape rides
+        // with it — see GetOrderBookAsync. No socket is claimed, because there is none.
+        new("depth", "rest"),
+        new("trades", "rest"),
         new("spec_versions", "rest"),
     ];
 
@@ -253,11 +263,87 @@ public sealed class BybitPerpMarketData : IExchangeMarketData
         _ => null,
     };
 
-    /// <summary>Null forever: the cumulative bands need a maintained book, and the socket that
-    /// carries one is not wired yet. Null is "not collected this frame", which is what the depth
-    /// columns already know how to read.</summary>
-    public Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct) =>
-        Task.FromResult<Depth?>(null);
+    /// <summary>
+    /// The book, and the tape with it.
+    ///
+    /// <b>Why the two are one call site.</b> This method is invoked by <c>DepthCollector</c> for
+    /// exactly the instruments an operator has switched on — which is the symbol set the tape wants
+    /// too, and the only place this adapter learns it. A separate trade loop would either need its
+    /// own copy of that set or poll all 829 listings to find the 46 that matter.
+    ///
+    /// A tape failure never costs the book: the depth reading is what this method owes its caller,
+    /// and one unreachable route must not take the other down with it.
+    /// </summary>
+    public async Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct)
+    {
+        var book = await _client.GetOrderBookAsync(exchangeSymbol, ct);
+
+        try
+        {
+            var trades = await _client.GetRecentTradesAsync(exchangeSymbol, ct);
+            Fold(exchangeSymbol, trades.List ?? []);
+        }
+        catch (HttpRequestException)
+        {
+            // The book still stands. See the remarks.
+        }
+
+        // Sizes are base units on this venue, so the multiplier is one and the levels go through
+        // unscaled — stated rather than assumed, because three of this batch's six venues are the
+        // other way.
+        return ContractBook.Compute(
+            Levels(book.Bids), Levels(book.Asks), contractMultiplier: 1,
+            at: book.Ts is { } ms && ms > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(ms) : DateTimeOffset.UtcNow);
+    }
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _tape.Drain();
+
+    private void Fold(string exchangeSymbol, IReadOnlyList<BybitTrade> trades)
+    {
+        var events = new List<TradeEvent>(trades.Count);
+        foreach (var t in trades)
+        {
+            if (t.ExecId is not { Length: > 0 } id
+                || Num(t.Price) is not { } price || price <= 0
+                || Num(t.Size) is not { } size
+                || Instant(t.Time) is not { } at)
+            {
+                continue;
+            }
+
+            events.Add(new TradeEvent(
+                ExchangeSymbol: exchangeSymbol,
+                EventTime: at,
+                VenueUid: id,
+                Seq: null,
+                Price: price,
+                Qty: size,
+                // The venue capitalises it; the comparison does not depend on that.
+                TakerSide: string.Equals(t.Side, "Buy", StringComparison.OrdinalIgnoreCase) ? "buy" : "sell",
+                // This route carries no liquidation flag, so no trade here claims to be one.
+                TradeType: null));
+
+            _tape.Saw(exchangeSymbol, price, at);
+        }
+
+        _tape.Observe(exchangeSymbol, events);
+    }
+
+    /// <summary>[price, size] string pairs into levels. A malformed pair is dropped rather than
+    /// zero-filled: a level at price zero would drag the band's own mid.</summary>
+    private static List<(double Price, double Qty)> Levels(IReadOnlyList<string[]>? raw)
+    {
+        var levels = new List<(double Price, double Qty)>(raw?.Count ?? 0);
+        foreach (var l in raw ?? [])
+        {
+            if (l.Length >= 2 && Num(l[0]) is { } px && px > 0 && Num(l[1]) is { } qty && qty > 0)
+            {
+                levels.Add((px, qty));
+            }
+        }
+
+        return levels;
+    }
 
     private static double? Num(string? s) =>
         double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && double.IsFinite(v)

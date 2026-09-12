@@ -27,6 +27,12 @@ namespace CryptoSmithX.MarketData.Connectors.Mexc;
 public sealed class MexcPerpMarketData : IExchangeMarketData
 {
     private readonly MexcClient _client;
+    private readonly RestTape _tape = new();
+
+    /// <summary>Contract size per symbol, learned on discovery — the depth bands need it at the
+    /// moment they are formed.</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, double> _multiplier =
+        new(StringComparer.Ordinal);
 
     public MexcPerpMarketData(MexcClient client) => _client = client;
 
@@ -38,6 +44,10 @@ public sealed class MexcPerpMarketData : IExchangeMarketData
         new("snapshot", "rest"),
         new("candles", "rest"),
         new("funding", "rest"),
+        new("depth", "rest"),
+        new("trades", "rest"),
+        // open_interest and liquidations are absent because this venue publishes neither:
+        // contract/openInterest/{symbol} is a 404, and its tape carries no liquidation flag.
         new("spec_versions", "rest"),
     ];
 
@@ -66,11 +76,14 @@ public sealed class MexcPerpMarketData : IExchangeMarketData
                 continue;
             }
 
+            var multiplier = c.ContractSize is { } size && size > 0 ? size : 1d;
+            _multiplier[c.Symbol] = multiplier;
+
             list.Add(new Instrument(
                 ExchangeSymbol: c.Symbol,
                 BaseAssetRaw: b,
                 QuoteAssetRaw: q,
-                ContractMultiplier: c.ContractSize is { } size && size > 0 ? (decimal)size : 1m,
+                ContractMultiplier: (decimal)multiplier,
                 PriceStep: c.PriceUnit is { } p && p > 0 ? (decimal)p : null,
                 // In contracts, like every quantity here.
                 QtyStep: c.VolUnit is { } v && v > 0 ? (decimal)v : null,
@@ -205,9 +218,80 @@ public sealed class MexcPerpMarketData : IExchangeMarketData
         return [];
     }
 
-    /// <summary>Null until a socket is wired.</summary>
-    public Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct) =>
-        Task.FromResult<Depth?>(null);
+    /// <summary>The book, and the tape with it. Levels are CONTRACTS, so the band is formed through
+    /// the contract size here rather than downstream.</summary>
+    public async Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct)
+    {
+        var book = await _client.GetDepthAsync(exchangeSymbol, ct);
+
+        try
+        {
+            Fold(exchangeSymbol, await _client.GetDealsAsync(exchangeSymbol, ct));
+        }
+        catch (HttpRequestException)
+        {
+            // Including a 510 translated into a rate limit: the book reading still stands, and the
+            // gate has already been told to slow down by the exception itself.
+        }
+
+        if (!_multiplier.TryGetValue(exchangeSymbol, out var multiplier))
+        {
+            return null;
+        }
+
+        return ContractBook.Compute(
+            Levels(book.Bids), Levels(book.Asks), multiplier,
+            at: book.Timestamp is { } ms && ms > 0
+                ? DateTimeOffset.FromUnixTimeMilliseconds(ms)
+                : DateTimeOffset.UtcNow);
+    }
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _tape.Drain();
+
+    private void Fold(string exchangeSymbol, IReadOnlyList<MexcDeal> deals)
+    {
+        var events = new List<TradeEvent>(deals.Count);
+        foreach (var d in deals)
+        {
+            if (d.I is not { Length: > 0 } id
+                || Fin(d.P) is not { } price || price <= 0
+                || Fin(d.V) is not { } size
+                || d.Time is not { } ms || ms <= 0)
+            {
+                continue;
+            }
+
+            var at = DateTimeOffset.FromUnixTimeMilliseconds(ms);
+
+            events.Add(new TradeEvent(
+                exchangeSymbol, at, id, null, price, size,
+                // 1 is a buy and 2 a sell on this venue — a number standing for a side, mapped
+                // explicitly so an unfamiliar third value reads as a sell rather than as a buy by
+                // accident of truthiness.
+                d.T == 1 ? "buy" : "sell",
+                null));
+
+            _tape.Saw(exchangeSymbol, price, at);
+        }
+
+        _tape.Observe(exchangeSymbol, events);
+    }
+
+    /// <summary>[price, volume, orders] into levels — the third field is an order count, not a
+    /// quantity.</summary>
+    private static List<(double Price, double Qty)> Levels(IReadOnlyList<double[]>? raw)
+    {
+        var levels = new List<(double Price, double Qty)>(raw?.Count ?? 0);
+        foreach (var l in raw ?? [])
+        {
+            if (l.Length >= 2 && double.IsFinite(l[0]) && l[0] > 0 && double.IsFinite(l[1]) && l[1] > 0)
+            {
+                levels.Add((l[0], l[1]));
+            }
+        }
+
+        return levels;
+    }
 
     /// <summary>These arrive as JSON numbers rather than strings, so the only guard needed is
     /// against a venue sending a non-finite one into a column that means a price.</summary>

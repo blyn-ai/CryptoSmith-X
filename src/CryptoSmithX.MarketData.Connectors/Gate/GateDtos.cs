@@ -58,3 +58,32 @@ internal sealed record GateCandle(
 internal sealed record GateFundingRow(
     [property: JsonPropertyName("t")] long T,
     [property: JsonPropertyName("r")] string? R);
+
+/// <summary>A book level: <c>s</c> is the size in CONTRACTS (an integer) and <c>p</c> the price as a
+/// string. Everything about this venue's sizes is contracts, the book included.</summary>
+internal sealed record GateBookLevel(
+    [property: JsonPropertyName("s")] double S,
+    [property: JsonPropertyName("p")] string? P);
+
+internal sealed record GateOrderBook(
+    [property: JsonPropertyName("bids")] IReadOnlyList<GateBookLevel>? Bids,
+    [property: JsonPropertyName("asks")] IReadOnlyList<GateBookLevel>? Asks,
+    [property: JsonPropertyName("current")] double? Current);
+
+/// <param name="Size">SIGNED contracts: the sign is the taker's direction, negative for a sell.
+/// So the traded quantity is its magnitude and the side is its sign — one field carrying two facts,
+/// which is why neither is read without the other.</param>
+internal sealed record GateTrade(
+    [property: JsonPropertyName("id")] long Id,
+    [property: JsonPropertyName("create_time_ms")] double? CreateTimeMs,
+    [property: JsonPropertyName("size")] double? Size,
+    [property: JsonPropertyName("price")] string? Price);
+
+/// <param name="OpenInterest">CONTRACTS, like every size here. This route is the venue's own
+/// open-interest series and carries liquidation sizes beside it.</param>
+internal sealed record GateContractStat(
+    [property: JsonPropertyName("time")] long Time,
+    [property: JsonPropertyName("open_interest")] double? OpenInterest,
+    [property: JsonPropertyName("mark_price")] double? MarkPrice,
+    [property: JsonPropertyName("long_liq_size")] double? LongLiqSize,
+    [property: JsonPropertyName("short_liq_size")] double? ShortLiqSize);

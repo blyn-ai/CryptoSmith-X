@@ -24,9 +24,14 @@ namespace CryptoSmithX.MarketData.Connectors.Okx;
 /// One quote currency per call, so a swap settled in something else has no index row and its index
 /// stays absent — borrowed from another currency it would be a different measurement.
 ///
-/// <b>Depth is not declared.</b> The book needs a socket, and this is the one venue in the queue
-/// that needs TWO of them (<c>candle1m</c> answers 60018 on /public and only serves on /business) —
-/// which is exactly why the roadmap moved it down two places. Next slice.
+/// <b>Depth, the tape and liquidations are REST here.</b> The book route is practically free on this
+/// venue and measured so: 200 requests to the same instId all returned 200 in 2.49 s, because that
+/// route's limit is keyed by UserID and we have no user. Liquidations are keyed by UNDERLYING rather
+/// than instrument, so the adapter asks per <c>instFamily</c>.
+///
+/// The bands are formed through the contract size BEFORE storage — a band is a notional, computed
+/// here and stored finished, while every other size on this venue is stored raw and multiplied
+/// downstream. See <see cref="ContractBook"/>.
 /// </summary>
 public sealed class OkxPerpMarketData : IExchangeMarketData
 {
@@ -36,6 +41,12 @@ public sealed class OkxPerpMarketData : IExchangeMarketData
     private static readonly string[] IndexQuotes = ["USDT", "USDC", "USD"];
 
     private readonly OkxClient _client;
+    private readonly RestTape _tape = new();
+
+    /// <summary>Contract size and underlying per instrument, learned on discovery: the bands need the
+    /// first at the moment they are computed, and the liquidation route takes the second as its key.</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (double Multiplier, string Family)>
+        _spec = new(StringComparer.Ordinal);
 
     public OkxPerpMarketData(OkxClient client) => _client = client;
 
@@ -47,6 +58,12 @@ public sealed class OkxPerpMarketData : IExchangeMarketData
         new("snapshot", "rest"),
         new("candles", "rest"),
         new("funding", "rest"),
+        new("depth", "rest"),
+        new("trades", "rest"),
+        new("liquidations", "rest"),
+        // open_interest is absent: this venue's only public series is rubik's per-CURRENCY
+        // aggregate, which is every contract on that coin added together and not this instrument's
+        // own figure. The current value still reaches the snapshot every pass.
         new("spec_versions", "rest"),
     ];
 
@@ -80,12 +97,15 @@ public sealed class OkxPerpMarketData : IExchangeMarketData
                 continue;
             }
 
+            var multiplier = Dec(i.CtVal) is { } v && v > 0 ? v : 1m;
+            _spec[i.InstId] = ((double)multiplier, family);
+
             list.Add(new Instrument(
                 ExchangeSymbol: i.InstId,
                 BaseAssetRaw: family[..cut],
                 QuoteAssetRaw: family[(cut + 1)..],
                 // See the class remarks: every size on this venue is a count of contracts.
-                ContractMultiplier: Dec(i.CtVal) is { } v && v > 0 ? v : 1m,
+                ContractMultiplier: multiplier,
                 PriceStep: Dec(i.TickSz),
                 QtyStep: Dec(i.LotSz),
                 MinQty: Dec(i.MinSz),
@@ -239,9 +259,128 @@ public sealed class OkxPerpMarketData : IExchangeMarketData
         return list;
     }
 
-    /// <summary>Null until a socket is wired — and this venue needs two of them.</summary>
-    public Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct) =>
-        Task.FromResult<Depth?>(null);
+    /// <summary>The book, and the tape with it.</summary>
+    public async Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct)
+    {
+        var pages = await _client.GetBookAsync(exchangeSymbol, ct);
+        var book = pages.FirstOrDefault();
+        if (book is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            Fold(exchangeSymbol, await _client.GetTradesAsync(exchangeSymbol, ct));
+        }
+        catch (HttpRequestException)
+        {
+        }
+
+        if (!_spec.TryGetValue(exchangeSymbol, out var spec))
+        {
+            // Discovery has not reached this instrument. Null rather than a band against an assumed
+            // contract size — a hundredfold error on this venue, invisible once stored.
+            return null;
+        }
+
+        return ContractBook.Compute(
+            Levels(book.Bids), Levels(book.Asks), spec.Multiplier,
+            at: Instant(book.Ts) ?? DateTimeOffset.UtcNow);
+    }
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _tape.Drain();
+
+    /// <summary>
+    /// Filled liquidations, bucketed hourly.
+    ///
+    /// The route is keyed by UNDERLYING, so one call covers every contract on that family and the
+    /// response is filtered back down to the instrument asked for. Sizes are CONTRACTS and the unit
+    /// is stated on the row rather than converted — the column's schema keeps the venue's own unit
+    /// precisely because venues count this differently.
+    /// </summary>
+    public async Task<IReadOnlyList<LiquidationBucket>> GetLiquidationVolumeAsync(
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        if (!_spec.TryGetValue(exchangeSymbol, out var spec))
+        {
+            return [];
+        }
+
+        var groups = await _client.GetLiquidationsAsync(spec.Family, ct);
+
+        var byHour = new Dictionary<long, double>();
+        foreach (var g in groups)
+        {
+            // A family covers several contracts; only this one's events belong to this series.
+            if (!string.Equals(g.InstId, exchangeSymbol, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            foreach (var d in g.Details ?? [])
+            {
+                if (Instant(d.Ts) is not { } at || Num(d.Sz) is not { } sz || sz <= 0)
+                {
+                    continue;
+                }
+
+                if (at < from || at > to)
+                {
+                    continue;
+                }
+
+                var hour = at.ToUnixTimeSeconds() / 3600 * 3600;
+                byHour[hour] = byHour.GetValueOrDefault(hour) + sz;
+            }
+        }
+
+        return byHour
+            .OrderBy(kv => kv.Key)
+            .Select(kv => new LiquidationBucket(
+                exchangeSymbol, 3600, DateTimeOffset.FromUnixTimeSeconds(kv.Key), kv.Value, "base"))
+            .ToList();
+    }
+
+    private void Fold(string exchangeSymbol, IReadOnlyList<OkxTrade> trades)
+    {
+        var events = new List<TradeEvent>(trades.Count);
+        foreach (var t in trades)
+        {
+            if (t.TradeId is not { Length: > 0 } id
+                || Num(t.Px) is not { } price || price <= 0
+                || Num(t.Sz) is not { } size
+                || Instant(t.Ts) is not { } at)
+            {
+                continue;
+            }
+
+            events.Add(new TradeEvent(
+                exchangeSymbol, at, id, null, price, size,
+                string.Equals(t.Side, "buy", StringComparison.OrdinalIgnoreCase) ? "buy" : "sell",
+                null));
+
+            _tape.Saw(exchangeSymbol, price, at);
+        }
+
+        _tape.Observe(exchangeSymbol, events);
+    }
+
+    /// <summary>[price, size, "0", orders] into levels — the two trailing fields are the venue's own
+    /// bookkeeping and neither is a quantity.</summary>
+    private static List<(double Price, double Qty)> Levels(IReadOnlyList<string[]>? raw)
+    {
+        var levels = new List<(double Price, double Qty)>(raw?.Count ?? 0);
+        foreach (var l in raw ?? [])
+        {
+            if (l.Length >= 2 && Num(l[0]) is { } px && px > 0 && Num(l[1]) is { } qty && qty > 0)
+            {
+                levels.Add((px, qty));
+            }
+        }
+
+        return levels;
+    }
 
     /// <summary>The gap between the settlement now due and the one after it, as whole hours. The
     /// venue states both instants; this is its arithmetic, not a guess at its schedule.</summary>

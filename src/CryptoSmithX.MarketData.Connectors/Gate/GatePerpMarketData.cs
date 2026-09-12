@@ -18,14 +18,25 @@ namespace CryptoSmithX.MarketData.Connectors.Gate;
 /// shows the venue's own untouched figure in the title. The venue proves the arithmetic itself:
 /// 207 254 174 contracts × 0.0001 is 20 725, and its own <c>volume_24h_base</c> reads 20 725.
 ///
-/// <b>Depth is not declared yet.</b> Top-of-book size comes off the ticker; the cumulative bands
-/// need a maintained book, which here means the socket — <c>futures.order_book</c> gives a snapshot
-/// whose <c>id</c> equals the <c>u</c> of the synchronous update stream, the same shape WEEX has,
-/// except the chain rule is <c>U == prev.u + 1</c>, which is not written yet. Next slice.
+/// <b>Depth, the tape, open interest and liquidations are all REST here.</b> The book is one call
+/// per collected symbol on the depth sweep; the tape rides with it; and <c>contract_stats</c> gives
+/// the venue's own hourly open-interest series AND the liquidated size on each side in the same
+/// response — which is why this is the only venue of the six with a real open-interest history and
+/// a liquidation series both.
+///
+/// The depth bands are the one place this venue's contracts must be converted BEFORE storage rather
+/// than after: a band is a notional, computed here and stored finished. See
+/// <see cref="ContractBook"/>.
 /// </summary>
 public sealed class GatePerpMarketData : IExchangeMarketData
 {
     private readonly GateClient _client;
+    private readonly RestTape _tape = new();
+
+    /// <summary>Contract size per symbol, learned on the discovery pass. The depth bands need it at
+    /// the moment they are computed, and this is the only place the adapter has it.</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, double> _multiplier =
+        new(StringComparer.Ordinal);
 
     public GatePerpMarketData(GateClient client) => _client = client;
 
@@ -37,6 +48,11 @@ public sealed class GatePerpMarketData : IExchangeMarketData
         new("snapshot", "rest"),
         new("candles", "rest"),
         new("funding", "rest"),
+        new("depth", "rest"),
+        new("trades", "rest"),
+        // Both from contract_stats — see the class remarks.
+        new("open_interest", "rest"),
+        new("liquidations", "rest"),
         new("spec_versions", "rest"),
     ];
 
@@ -56,6 +72,9 @@ public sealed class GatePerpMarketData : IExchangeMarketData
                 continue;
             }
 
+            var multiplier = Dec(c.QuantoMultiplier) is { } q && q > 0 ? q : 1m;
+            _multiplier[c.Name] = (double)multiplier;
+
             list.Add(new Instrument(
                 ExchangeSymbol: c.Name,
                 BaseAssetRaw: c.Name[..cut],
@@ -64,7 +83,7 @@ public sealed class GatePerpMarketData : IExchangeMarketData
                 // make every size on the venue silently wrong by orders of magnitude, so it falls
                 // back to 1 only when the venue itself published nothing, and that case is visible
                 // as a multiplier of ×1 on a venue where nothing else has one.
-                ContractMultiplier: Dec(c.QuantoMultiplier) is { } q && q > 0 ? q : 1m,
+                ContractMultiplier: multiplier,
                 PriceStep: Dec(c.OrderPriceRound),
                 // The venue states a minimum in contracts and no separate increment; one contract is
                 // the increment by construction.
@@ -185,9 +204,155 @@ public sealed class GatePerpMarketData : IExchangeMarketData
         return list;
     }
 
-    /// <summary>Null until the socket is wired — see the class remarks.</summary>
-    public Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct) =>
-        Task.FromResult<Depth?>(null);
+    /// <summary>The book, and the tape with it. The levels are CONTRACTS, so the band is formed
+    /// through the contract size — the conversion that has to happen here rather than downstream,
+    /// because a band is already a notional by the time it is stored.</summary>
+    public async Task<Depth?> GetOrderBookAsync(string exchangeSymbol, CancellationToken ct)
+    {
+        var book = await _client.GetOrderBookAsync(exchangeSymbol, ct);
+
+        try
+        {
+            Fold(exchangeSymbol, await _client.GetTradesAsync(exchangeSymbol, ct));
+        }
+        catch (HttpRequestException)
+        {
+        }
+
+        if (!_multiplier.TryGetValue(exchangeSymbol, out var multiplier))
+        {
+            // Discovery has not run for this symbol yet. Null rather than a band computed against an
+            // assumed contract size — off by ten thousand on this venue, and indistinguishable from
+            // a real figure once stored.
+            return null;
+        }
+
+        return ContractBook.Compute(
+            Levels(book.Bids), Levels(book.Asks), multiplier,
+            at: book.Current is { } sec && sec > 0
+                ? DateTimeOffset.FromUnixTimeMilliseconds((long)(sec * 1000))
+                : DateTimeOffset.UtcNow);
+    }
+
+    public IReadOnlyList<TradeEvent> DrainTrades() => _tape.Drain();
+
+    /// <summary>
+    /// The venue's own hourly open-interest series, in CONTRACTS as the venue states it — the same
+    /// unit the snapshot's own open-interest column holds, so the two are the same measurement at
+    /// two cadences rather than two numbers.
+    /// </summary>
+    public async Task<IReadOnlyList<OpenInterestBucket>> GetOpenInterestHistoryAsync(
+        string exchangeSymbol, int intervalSeconds, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        if (intervalSeconds != 3600)
+        {
+            // The route serves one grain. A bucket labelled with a different one would be a wrong
+            // number rather than a coarse one.
+            return [];
+        }
+
+        var rows = await _client.GetContractStatsAsync(exchangeSymbol, from, limit: 100, ct);
+
+        var list = new List<OpenInterestBucket>(rows.Count);
+        foreach (var r in rows)
+        {
+            if (r.Time <= 0 || r.OpenInterest is not { } oi)
+            {
+                continue;
+            }
+
+            var at = DateTimeOffset.FromUnixTimeSeconds(r.Time);
+            if (at < from || at > to)
+            {
+                continue;
+            }
+
+            list.Add(new OpenInterestBucket(
+                exchangeSymbol, intervalSeconds, at,
+                Open: null, High: null, Low: null, Close: oi,
+                // No quote figure on this route; never our own oi × mark.
+                Quote: null,
+                Source: "analytics"));
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// Liquidated size per hour, both sides summed — from the same <c>contract_stats</c> response the
+    /// open-interest series comes from, so the two can never disagree about a period.
+    ///
+    /// The unit is CONTRACTS, and it is stated on the row rather than converted: the column's own
+    /// schema keeps the venue's unit precisely because venues count this differently.
+    /// </summary>
+    public async Task<IReadOnlyList<LiquidationBucket>> GetLiquidationVolumeAsync(
+        string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        var rows = await _client.GetContractStatsAsync(exchangeSymbol, from, limit: 100, ct);
+
+        var list = new List<LiquidationBucket>(rows.Count);
+        foreach (var r in rows)
+        {
+            if (r.Time <= 0)
+            {
+                continue;
+            }
+
+            var at = DateTimeOffset.FromUnixTimeSeconds(r.Time);
+            if (at < from || at > to)
+            {
+                continue;
+            }
+
+            var size = (r.LongLiqSize ?? 0) + (r.ShortLiqSize ?? 0);
+            list.Add(new LiquidationBucket(exchangeSymbol, 3600, at, size, "base"));
+        }
+
+        return list;
+    }
+
+    private void Fold(string exchangeSymbol, IReadOnlyList<GateTrade> trades)
+    {
+        var events = new List<TradeEvent>(trades.Count);
+        foreach (var t in trades)
+        {
+            if (Num(t.Price) is not { } price || price <= 0
+                || t.Size is not { } signed
+                || t.CreateTimeMs is not { } ms || ms <= 0)
+            {
+                continue;
+            }
+
+            var at = DateTimeOffset.FromUnixTimeMilliseconds((long)ms);
+
+            events.Add(new TradeEvent(
+                exchangeSymbol, at,
+                t.Id.ToString(CultureInfo.InvariantCulture), t.Id,
+                price,
+                // The magnitude is the quantity and the SIGN is the side — see GateTrade.Size.
+                Math.Abs(signed),
+                signed >= 0 ? "buy" : "sell",
+                null));
+
+            _tape.Saw(exchangeSymbol, price, at);
+        }
+
+        _tape.Observe(exchangeSymbol, events);
+    }
+
+    private static List<(double Price, double Qty)> Levels(IReadOnlyList<GateBookLevel>? raw)
+    {
+        var levels = new List<(double Price, double Qty)>(raw?.Count ?? 0);
+        foreach (var l in raw ?? [])
+        {
+            if (Num(l.P) is { } px && px > 0 && l.S > 0)
+            {
+                levels.Add((px, l.S));
+            }
+        }
+
+        return levels;
+    }
 
     private static double? Num(string? s) =>
         double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && double.IsFinite(v)

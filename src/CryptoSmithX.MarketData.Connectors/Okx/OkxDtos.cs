@@ -81,3 +81,30 @@ internal sealed record OkxFundingHistoryRow(
     [property: JsonPropertyName("instId")] string? InstId,
     [property: JsonPropertyName("fundingRate")] string? FundingRate,
     [property: JsonPropertyName("fundingTime")] string? FundingTime);
+
+/// <summary>A book page. Levels are [price, size, "0", orderCount] string arrays, and the size is in
+/// CONTRACTS.</summary>
+internal sealed record OkxBook(
+    [property: JsonPropertyName("bids")] IReadOnlyList<string[]>? Bids,
+    [property: JsonPropertyName("asks")] IReadOnlyList<string[]>? Asks,
+    [property: JsonPropertyName("ts")] string? Ts);
+
+internal sealed record OkxTrade(
+    [property: JsonPropertyName("tradeId")] string? TradeId,
+    [property: JsonPropertyName("px")] string? Px,
+    [property: JsonPropertyName("sz")] string? Sz,
+    [property: JsonPropertyName("side")] string? Side,
+    [property: JsonPropertyName("ts")] string? Ts);
+
+/// <summary>Liquidations come nested: one row per instrument family, with the events under
+/// <c>details</c>. The route is keyed by UNDERLYING rather than by instrument, which is why the
+/// adapter asks per instFamily and not per instId.</summary>
+internal sealed record OkxLiquidationGroup(
+    [property: JsonPropertyName("instId")] string? InstId,
+    [property: JsonPropertyName("uly")] string? Uly,
+    [property: JsonPropertyName("details")] IReadOnlyList<OkxLiquidationDetail>? Details);
+
+internal sealed record OkxLiquidationDetail(
+    [property: JsonPropertyName("bkPx")] string? BkPx,
+    [property: JsonPropertyName("sz")] string? Sz,
+    [property: JsonPropertyName("ts")] string? Ts);

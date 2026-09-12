@@ -293,10 +293,12 @@ public sealed class NewVenueAdaptersTests
     }
 
     [Fact]
-    public void All_three_declare_only_what_they_implement()
+    public void All_three_now_serve_depth_and_the_tape_over_rest()
     {
-        // None of the three has a socket yet, so none may claim depth, book or trades — the mistake
-        // the Avantis adapter had to be corrected for, in the opposite direction.
+        // THIS TEST USED TO ASSERT THE OPPOSITE, on the reasoning that depth needs a socket. It does
+        // not: all three serve a book ladder and a public tape over REST, one call per collected
+        // symbol on the depth sweep's own cadence. A socket would be cheaper and is still worth
+        // having; cheaper was never the same as missing.
         foreach (var caps in new[]
                  {
                      new BybitPerpMarketData(new BybitClient(Stub(), "https://x")).Capabilities,
@@ -306,11 +308,15 @@ public sealed class NewVenueAdaptersTests
         {
             var codes = caps.Select(c => c.DatasetCode).ToArray();
 
-            Assert.DoesNotContain("depth", codes);
-            Assert.DoesNotContain("book", codes);
-            Assert.DoesNotContain("trades", codes);
+            Assert.Contains("depth", codes);
+            Assert.Contains("trades", codes);
             Assert.Contains("discovery", codes);
             Assert.Contains("snapshot", codes);
+
+            // `book` stays absent and that is not the old mistake repeating: that dataset is
+            // book_topn, fed from a maintained SOCKET book through TryGetBookFrame, and a REST
+            // ladder is not one.
+            Assert.DoesNotContain("book", codes);
         }
     }
 

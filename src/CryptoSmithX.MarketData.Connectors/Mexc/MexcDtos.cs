@@ -77,3 +77,20 @@ internal sealed record MexcKline(
     [property: JsonPropertyName("close")] IReadOnlyList<double>? Close,
     [property: JsonPropertyName("vol")] IReadOnlyList<double>? Vol,
     [property: JsonPropertyName("amount")] IReadOnlyList<double>? Amount);
+
+/// <summary>The book. Levels are [price, volume, orderCount] arrays of JSON numbers, and the volume
+/// is in CONTRACTS.</summary>
+internal sealed record MexcDepth(
+    [property: JsonPropertyName("bids")] IReadOnlyList<double[]>? Bids,
+    [property: JsonPropertyName("asks")] IReadOnlyList<double[]>? Asks,
+    [property: JsonPropertyName("timestamp")] long? Timestamp);
+
+/// <param name="T">The taker's direction as an integer: 1 is a buy, 2 a sell. A number standing for
+/// a side, which is why the mapping is written out rather than left to a truthiness test.</param>
+/// <param name="V">Volume in CONTRACTS.</param>
+internal sealed record MexcDeal(
+    [property: JsonPropertyName("i")] string? I,
+    [property: JsonPropertyName("p")] double? P,
+    [property: JsonPropertyName("v")] double? V,
+    [property: JsonPropertyName("T")] int? T,
+    [property: JsonPropertyName("t")] long? Time);

@@ -83,3 +83,19 @@ internal sealed record BybitFundingRow(
 internal sealed record BybitOpenInterestRow(
     [property: JsonPropertyName("openInterest")] string? OpenInterest,
     [property: JsonPropertyName("timestamp")] string? Timestamp);
+
+/// <summary>The book: <c>b</c> bids and <c>a</c> asks, each a [price, size] pair of strings. Sizes
+/// are BASE units on this venue, so nothing scales.</summary>
+internal sealed record BybitOrderBook(
+    [property: JsonPropertyName("b")] IReadOnlyList<string[]>? Bids,
+    [property: JsonPropertyName("a")] IReadOnlyList<string[]>? Asks,
+    [property: JsonPropertyName("ts")] long? Ts);
+
+/// <param name="Side">The TAKER's direction — "Buy" or "Sell", capitalised, which is why the
+/// comparison that reads it is case-insensitive rather than trusting a venue's shift key.</param>
+internal sealed record BybitTrade(
+    [property: JsonPropertyName("execId")] string? ExecId,
+    [property: JsonPropertyName("price")] string? Price,
+    [property: JsonPropertyName("size")] string? Size,
+    [property: JsonPropertyName("side")] string? Side,
+    [property: JsonPropertyName("time")] string? Time);
