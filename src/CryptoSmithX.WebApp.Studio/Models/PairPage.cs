@@ -237,6 +237,10 @@ public sealed record PairPageModel(
     /// gap — so band 2 falls back to the levels it already draws.</summary>
     public IReadOnlyDictionary<int, VaultPairRow> VaultPairs { get; init; } = new Dictionary<int, VaultPairRow>();
 
+    /// <summary>The liquidity pool behind each vault-backed venue, keyed by segment. Empty for
+    /// book-backed venues, which have no pool to describe.</summary>
+    public IReadOnlyDictionary<string, VaultStateRow> VaultStates { get; init; } = new Dictionary<string, VaultStateRow>(StringComparer.Ordinal);
+
     public IReadOnlyList<TapeRow> Tape { get; init; } = [];
 
     /// <summary>

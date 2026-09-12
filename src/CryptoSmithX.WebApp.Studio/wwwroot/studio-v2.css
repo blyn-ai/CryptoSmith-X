@@ -264,6 +264,10 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
 .v2-vault dt{min-width:56px;color:var(--text-faint)}
 .v2-vault dd{margin:0;color:var(--text-muted)}
 .v2-vault em{color:var(--text-faint);font-style:normal;margin:0 4px 0 1px}
+/* Пул — про венью целиком, а не про эту пару, и отделён чертой именно поэтому: читатель не должен
+   принять его цифры за свойство листинга, под которым они стоят. */
+.v2-vault--pool{margin-top:5px;padding-top:5px;border-top:1px solid var(--border-hairline)}
+.v2-vault--pool dt{min-width:56px}
 
 .v2-mode{display:inline-flex;align-items:center;gap:2px}
 .v2-mode-btn{width:auto;padding:0 6px;font:400 var(--fs-age)/1 var(--font-mono);letter-spacing:.02em}

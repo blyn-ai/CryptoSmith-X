@@ -122,11 +122,39 @@
                                            другую значило бы повторить ошибку, которой мы избегаем в depth_*bps. *@
                                         <div><dt title="The venue's own stated spread, applied to the oracle price before size-dependent impact. Not a book's (ask − bid) / mid, which is why it is not in the spread column.">Stated spread</dt>
                                             <dd>@(vault.SpreadPercent is { } statedSpread ? Format.Num(statedSpread, 3) : Format.Dash) <em>%</em></dd></div>
+                                        <div><dt title="How much the pool will take on each side right now — the figure a book answers with its levels">Takes now</dt>
+                                            <dd>@(vault.LiquidityBuy is { } lb ? Format.Num(lb, 0) : Format.Dash) <em>buy</em>
+                                                @(vault.LiquiditySell is { } ls ? Format.Num(ls, 0) : Format.Dash) <em>sell</em></dd></div>
+                                        <div><dt title="The most this pair may take in a single block — a ceiling a book has no equivalent of, because a book is not filled in blocks">Block cap</dt>
+                                            <dd>@(vault.OiBlockLimit is { } bl ? Format.Num(bl, 0) : Format.Dash) <em>@r.Row.QuoteAsset</em></dd></div>
+                                        @* Коэффициенты и волатильность — то, из чего функция импакта СЧИТАЕТСЯ.
+                                           Без них три цифры выше можно прочитать, но нельзя воспроизвести
+                                           стоимость произвольного размера, а ради этого набор и хранит входы,
+                                           а не отсчёты при выбранных кем-то размерах. *@
+                                        <div><dt title="The coefficients the venue's impact function uses, and its own decaying volatility estimate — published so the cost of any size is reproducible afterwards">Impact · skew · vol</dt>
+                                            <dd>@(vault.PriceImpactMult is { } pim ? Format.Num(pim, 2) : Format.Dash) ·
+                                                @(vault.SkewImpactMult is { } sim ? Format.Num(sim, 2) : Format.Dash) ·
+                                                @(vault.DecayedVol is { } dv ? Format.Num(dv, 3) : Format.Dash)</dd></div>
                                     </dl>
                                 }
                                 else
                                 {
                                     <p class="v2-empty v2-empty--inline">— and that has not been observed in the last ten minutes.</p>
+                                }
+                                @* ПУЛ. Он про венью целиком, а не про пару, и стоит здесь потому, что
+                                   именно он — вторая сторона каждой сделки на этом рынке: сколько его
+                                   уже занято, отвечает на тот же вопрос, на который у книжной площадки
+                                   отвечает глубина. Собирался с 0044 и не показывался нигде. *@
+                                @if (Model.VaultStates.TryGetValue(r.Row.SegmentCode, out var pool))
+                                {
+                                    <dl class="v2-vault v2-vault--pool">
+                                        <div><dt title="How much of the liquidity pool is already committed to open positions. This pool is the counterparty of every trade here, so this is the venue's own answer to «how much is left».">Pool used</dt>
+                                            <dd>@(pool.UtilizationRatio is { } u ? Format.Num(u * 100, 1) : Format.Dash) <em>%</em>
+                                                of @(pool.TotalAssetsQuote is { } ta ? Format.Num(ta, 0) : Format.Dash) <em>@r.Row.QuoteAsset</em></dd></div>
+                                        <div><dt title="What one vault share is worth, and the deposit ceiling the venue has set for the pool">Share · cap</dt>
+                                            <dd>@(pool.SharePriceQuote is { } spq ? Format.Num(spq, 4) : Format.Dash) ·
+                                                @(pool.DepositCapQuote is { } dc ? Format.Num(dc, 0) : Format.Dash)</dd></div>
+                                    </dl>
                                 }
                             }
                             else

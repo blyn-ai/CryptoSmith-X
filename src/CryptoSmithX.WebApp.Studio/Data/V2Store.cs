@@ -29,6 +29,40 @@ public static class V2Store
     /// one presented beside a live book would be the same lie the whole page is built to avoid. Ten
     /// minutes matches BooksAsync's own window for the same reason.
     /// </summary>
+    /// <summary>
+    /// The liquidity pool behind a venue — one row for the whole venue, because that is what it is.
+    ///
+    /// On a vault-backed market this pool takes the other side of every trade, so how much of it is
+    /// already committed is the nearest thing the venue has to "how deep is the book". It had been
+    /// collected since 0044 and shown nowhere.
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<string, VaultStateRow>> VaultStatesAsync(
+        DbConnection conn, IReadOnlyList<string> segments, CancellationToken ct)
+    {
+        if (segments.Count == 0)
+        {
+            return new Dictionary<string, VaultStateRow>(StringComparer.Ordinal);
+        }
+
+        var rows = await conn.QueryAsync<VaultStateRow>(new CommandDefinition(
+            """
+            select distinct on (v.segment_code)
+                   v.segment_code             as "SegmentCode",
+                   v.received_at              as "At",
+                   v.total_assets_quote       as "TotalAssetsQuote",
+                   v.share_price_quote        as "SharePriceQuote",
+                   v.utilization_ratio        as "UtilizationRatio",
+                   v.deposit_cap_quote        as "DepositCapQuote"
+              from vault_state v
+             where v.segment_code = any(@segments)
+               and v.received_at > now() - interval '10 minutes'
+             order by v.segment_code, v.received_at desc
+            """,
+            new { segments = segments.ToArray() }, cancellationToken: ct));
+
+        return rows.ToDictionary(r => r.SegmentCode, StringComparer.Ordinal);
+    }
+
     public static async Task<IReadOnlyDictionary<int, VaultPairRow>> VaultPairsAsync(
         DbConnection conn, IReadOnlyList<int> ids, CancellationToken ct)
     {
@@ -49,7 +83,12 @@ public static class V2Store
                    v.depth_below_1pct       as "DepthBelow1Pct",
                    v.liquidity_buy          as "LiquidityBuy",
                    v.liquidity_sell         as "LiquiditySell",
-                   v.spread_p               as "SpreadPercent"
+                   v.spread_p               as "SpreadPercent",
+                   v.liquidity_buy          as "LiquidityBuy2",
+                   v.oi_block_limit         as "OiBlockLimit",
+                   v.price_impact_mult      as "PriceImpactMult",
+                   v.skew_impact_mult       as "SkewImpactMult",
+                   v.decayed_vol            as "DecayedVol"
               from vault_pair_state v
              where v.exchange_instrument_id = any(@ids)
                and v.received_at > now() - interval '10 minutes'
@@ -428,6 +467,15 @@ public static class V2Store
 /// An input to the impact function, and the nearest thing this market has to a book's thickness —
 /// but arrived at by a formula rather than by counting resting orders, which is why it is shown
 /// under its own name and never in a depth column.</param>
+/// <summary>The venue-wide liquidity pool, as band 2 reads it.</summary>
+public sealed record VaultStateRow(
+    string SegmentCode,
+    DateTime At,
+    double? TotalAssetsQuote,
+    double? SharePriceQuote,
+    double? UtilizationRatio,
+    double? DepositCapQuote);
+
 public sealed record VaultPairRow(
     int InstrumentId,
     DateTime At,
@@ -444,7 +492,25 @@ public sealed record VaultPairRow(
     /// charge applied to the oracle price before size-dependent impact. Shown here, beside the
     /// other inputs, and deliberately never in the spread column — putting it there would be the
     /// same category error as putting these depth figures into depth_*bps.</summary>
-    double? SpreadPercent);
+    double? SpreadPercent,
+
+    /// <summary>Repeated from <see cref="LiquidityBuy"/> only because Dapper binds a positional
+    /// record by position; the column is read once.</summary>
+    double? LiquidityBuy2,
+
+    /// <summary>The most this pair may take in ONE block — a ceiling a book has no equivalent of,
+    /// because a book is not filled in blocks.</summary>
+    double? OiBlockLimit,
+
+    /// <summary>The coefficients the venue's own impact function uses. Published so that the cost
+    /// of any notional is reproducible afterwards — which is the whole reason this set stores
+    /// inputs rather than samples at sizes somebody chose.</summary>
+    double? PriceImpactMult,
+    double? SkewImpactMult,
+
+    /// <summary>The venue's decaying volatility estimate, which feeds the impact. Its own number,
+    /// not ours.</summary>
+    double? DecayedVol);
 
 public sealed record BookFrame(
     int InstrumentId, DateTime ObservedAt, short Levels,
