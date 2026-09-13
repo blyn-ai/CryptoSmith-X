@@ -1,0 +1,58 @@
+{
+ "trades": [
+  {
+   "id": "06461f6f0000000200000008",
+   "side": "BUY",
+   "size": "0.0004",
+   "price": "76657",
+   "type": "LIMIT",
+   "createdAt": "2026-09-13T11:25:21.067Z",
+   "createdAtHeight": "105258863"
+  },
+  {
+   "id": "06461f6f0000000200000005",
+   "side": "BUY",
+   "size": "0.0002",
+   "price": "76653",
+   "type": "LIMIT",
+   "createdAt": "2026-09-13T11:25:21.067Z",
+   "createdAtHeight": "105258863"
+  },
+  {
+   "id": "06461f6f0000000200000002",
+   "side": "BUY",
+   "size": "0.0005",
+   "price": "76653",
+   "type": "LIMIT",
+   "createdAt": "2026-09-13T11:25:21.067Z",
+   "createdAtHeight": "105258863"
+  },
+  {
+   "id": "06461de40000000200000002",
+   "side": "BUY",
+   "size": "0.0005",
+   "price": "76632",
+   "type": "LIMIT",
+   "createdAt": "2026-09-13T11:20:32.699Z",
+   "createdAtHeight": "105258468"
+  },
+  {
+   "id": "06461c570000000200000002",
+   "side": "SELL",
+   "size": "0.0003",
+   "price": "76505",
+   "type": "LIQUIDATED",
+   "createdAt": "2026-09-13T11:15:48.500Z",
+   "createdAtHeight": "105258071"
+  },
+  {
+   "id": "06461c4b0000000200000002",
+   "side": "SELL",
+   "size": "0.2613",
+   "price": "76519",
+   "type": "LIQUIDATED",
+   "createdAt": "2026-09-13T11:15:39.786Z",
+   "createdAtHeight": "105258059"
+  }
+ ]
+}

@@ -9,6 +9,7 @@ using CryptoSmithX.MarketData.Connectors.Fake;
 using CryptoSmithX.MarketData.Connectors.Gate;
 using CryptoSmithX.MarketData.Connectors.Hyperliquid;
 using CryptoSmithX.MarketData.Connectors.Kraken;
+using CryptoSmithX.MarketData.Connectors.Dydx;
 using CryptoSmithX.MarketData.Connectors.Mexc;
 using CryptoSmithX.MarketData.Connectors.Okx;
 using CryptoSmithX.MarketData.Connectors.Pacing;
@@ -708,6 +709,8 @@ public sealed class ExchangeWorker : BackgroundService
         "binance-spot" => new BinanceSpotMarketData(new BinanceSpotClient(BaseUrl(config))),
         "bybit-spot" => new BybitSpotMarketData(new BybitClient(BaseUrl(config), BybitClient.Spot)),
         "okx-spot" => new OkxSpotMarketData(new OkxClient(BaseUrl(config), OkxClient.Spot)),
+        // DEX. dYdX v4 first: the one of the five with a real order book (plans/dex-five-venues.md §3).
+        "dydx-perp" => new DydxPerpMarketData(new DydxClient(BaseUrl(config))),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
