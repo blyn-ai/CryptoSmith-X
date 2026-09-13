@@ -28,6 +28,48 @@ public sealed class VerdictScopeTests
         Assert.Equal(Verdict.None, v.Of(2, PairColumn.Bid));
     }
 
+    /// <summary>
+    /// The DEX brief's last step. An oracle venue's spread is a quote engine asked at $10,000; a book's is
+    /// two resting orders. With both columns filled, one population would put a chip over a comparison
+    /// of two different quantities — so the model cuts the population under every scope.
+    /// </summary>
+    [Fact]
+    public void An_oracle_vault_row_never_shares_a_chip_population_with_an_orderbook_row()
+    {
+        var book = Rows.Venue(1, quote: "USD", bid: 100, ask: 101, bidSize: 5, askSize: 5, turnover: 1_000, openInterest: 10, depthBid25: 900, depthAsk25: 900);
+        var vault = Rows.Venue(2, quote: "USD", segment: "gmx-perp", marketModel: "oracle_vault",
+            bid: 100.4, ask: 100.5, bidSize: 50, askSize: 50, turnover: 9_000, openInterest: 90, depthBid25: 9_000, depthAsk25: 9_000);
+
+        foreach (var column in Enum.GetValues<PairColumn>().Where(c => Verdicts.Scope(c) != VerdictScope.Unranked))
+        {
+            Assert.NotEqual(Verdicts.RankGroup(book, column), Verdicts.RankGroup(vault, column));
+        }
+
+        // Alone in its population the vault row is ranked against nothing: no chip, though its spread,
+        // sizes and depth would all have "won" against the book.
+        var v = Verdicts.Compute(Rows.Live([book, Rows.Venue(3, quote: "USD", bid: 99, ask: 101, bidSize: 1, askSize: 1, depthBid25: 100, depthAsk25: 100), vault]));
+        foreach (var column in Enum.GetValues<PairColumn>())
+        {
+            Assert.Equal(Verdict.None, v.Of(2, column));
+        }
+
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.SpreadBps));
+        Assert.Equal(Verdict.Worst, v.Of(3, PairColumn.SpreadBps));
+    }
+
+    [Fact]
+    public void Derived_quotes_rank_among_themselves()
+    {
+        var v = Verdicts.Compute(Rows.Live(
+        [
+            Rows.Venue(1, quote: "USD", segment: "gmx-perp", marketModel: "oracle_vault", bid: 100.4, ask: 100.5),
+            Rows.Venue(2, quote: "USD", segment: "avantis-perp", marketModel: "oracle_vault", bid: 100.2, ask: 100.7),
+        ]));
+
+        Assert.Equal(Verdict.Best, v.Of(1, PairColumn.SpreadBps));
+        Assert.Equal(Verdict.Worst, v.Of(2, PairColumn.SpreadBps));
+    }
+
     [Fact]
     public void Inside_one_quote_asset_both_ends_are_marked()
     {

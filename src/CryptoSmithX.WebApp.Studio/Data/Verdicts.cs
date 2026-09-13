@@ -359,7 +359,14 @@ public static class Verdicts
     /// bars both group by this, and two copies of the rule would eventually put a chip and a bar on
     /// one cell describing two different comparisons.
     /// </summary>
-    public static string GroupKey(PairVenueRow row, VerdictScope scope) => scope switch
+    ///
+    /// <b>And per market model, under every scope.</b> An oracle venue's bid, ask, spread, sizes and depth
+    /// are DERIVED — a quote engine asked at a stated size, a pool's stated capacity — and a book venue's
+    /// are MEASURED off resting orders. While the derived columns were empty they never entered a
+    /// ranking; filled (Avantis, GMX), a green chip would stand over a comparison of two different
+    /// quantities, which <see cref="Compute"/> cannot see from the numbers alone. So the model is one
+    /// more dimension of the same key: derived figures rank among themselves.
+    public static string GroupKey(PairVenueRow row, VerdictScope scope) => row.MarketModel + "|" + scope switch
     {
         VerdictScope.PerQuoteAsset => row.QuoteAsset,
         VerdictScope.PerQuoteFamily => row.QuoteFamily,
