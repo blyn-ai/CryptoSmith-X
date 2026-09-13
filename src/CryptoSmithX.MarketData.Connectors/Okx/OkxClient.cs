@@ -149,6 +149,21 @@ public sealed class OkxClient
             + $"?instId={Uri.EscapeDataString(instId)}&period={period}"
             + $"&begin={Ms(from)}&end={Ms(to)}&limit=100", ct);
 
+    /// <summary>
+    /// The codes that mean "you are asking too fast", as opposed to "you asked for the wrong thing".
+    ///
+    /// 50011 is the rate limit proper. 50013 is the venue declaring itself busy and asking everyone
+    /// to retry, which is the same instruction to us whatever its cause. Nothing else belongs here:
+    /// a bad parameter must stay a loud fault rather than being answered with a slower pace.
+    /// </summary>
+    private static readonly HashSet<string> RateLimited =
+        new(StringComparer.Ordinal) { "50011", "50013" };
+
+    /// <summary>How long to park the venue when it says so. Short, because this venue publishes its
+    /// limits per endpoint and recovers within a window of seconds rather than minutes — long enough
+    /// that the pass that caused it is over before the next one starts.</summary>
+    private static readonly TimeSpan RateLimitCooldown = TimeSpan.FromSeconds(30);
+
     private static string Ms(DateTimeOffset at) =>
         at.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture);
 
@@ -159,6 +174,19 @@ public sealed class OkxClient
 
         var envelope = await response.Content.ReadFromJsonAsync<OkxEnvelope<T>>(Json, ct)
                        ?? throw new InvalidOperationException($"OKX returned an empty body for {url}");
+
+        // A 200 is not a success here, and one particular failure is not an error: this venue
+        // reports "too fast" the way MEXC reports it, as a CODE inside an HTTP 200. Raised as a
+        // plain fault it is invisible to the pacing — VenuePenalty only knows how to read a 429 —
+        // so the gate would keep the pace that caused it and the collector would fail on every pass
+        // while the number that decides the pace never moved. Seen doing exactly that on both
+        // contours the hour books-full went in.
+        if (envelope.Code is { } code && RateLimited.Contains(code))
+        {
+            throw new VenueRateLimitedException(
+                $"OKX refused {url} as too frequent (code {code}, {envelope.Msg}, under an HTTP 200)",
+                RateLimitCooldown);
+        }
 
         if (!string.Equals(envelope.Code, "0", StringComparison.Ordinal))
         {

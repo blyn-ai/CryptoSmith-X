@@ -55,13 +55,14 @@ public sealed class QueueVenuesTests
 
     private const string OkxIndex = """{"code":"0","data":[{"instId":"BTC-USDT","idxPx":"77188.1"}]}""";
 
-    private static OkxPerpMarketData Okx() => new(new OkxClient(Stub(
+    private static OkxPerpMarketData Okx(params (string, string)[] extra) => new(new OkxClient(Stub([
         ("/api/v5/public/instruments", OkxInstruments),
         ("/api/v5/market/tickers", OkxTickers),
         ("/api/v5/public/mark-price", OkxMark),
         ("/api/v5/public/open-interest", OkxOi),
         ("/api/v5/public/funding-rate", OkxFunding),
-        ("/api/v5/market/index-tickers", OkxIndex)), "https://okx.test"));
+        ("/api/v5/market/index-tickers", OkxIndex),
+        .. extra]), "https://okx.test"));
 
     [Fact]
     public async Task Okx_carries_the_contract_size_that_makes_its_quantities_coins()
@@ -318,6 +319,38 @@ public sealed class QueueVenuesTests
         Assert.Equal(HttpStatusCode.TooManyRequests, ex.StatusCode);
         Assert.NotNull(ex.RetryAfter);
         Assert.True(ex.RetryAfter > TimeSpan.Zero);
+    }
+
+    [Fact]
+    public async Task Okxs_rate_limit_arrives_as_a_code_under_a_200_and_is_read_as_one()
+    {
+        // The same shape MEXC uses and for the same reason it was worth translating: raised as a
+        // plain fault, "you are asking too fast" is invisible to the pacing — VenuePenalty only
+        // knows how to read a 429 — so the gate keeps the pace that caused it and the collector
+        // fails on every pass while the number that decides the pace never moves. Seen doing exactly
+        // that on both contours the hour books-full went in.
+        var adapter = Okx(("/api/v5/market/tickers",
+            """{"code":"50011","msg":"Rate limit reached. Please refer to API documentation.","data":[]}"""));
+
+        var ex = await Assert.ThrowsAsync<VenueRateLimitedException>(
+            () => adapter.GetTickersAsync(CancellationToken.None));
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, ex.StatusCode);
+        Assert.NotNull(ex.RetryAfter);
+        Assert.True(ex.RetryAfter > TimeSpan.Zero);
+    }
+
+    [Fact]
+    public async Task A_wrong_parameter_stays_a_loud_fault_rather_than_becoming_a_slower_pace()
+    {
+        // The other half of the same decision. Only "too fast" belongs in the rate-limit branch;
+        // asking for something that does not exist must keep failing loudly rather than being
+        // answered with a back-off that would hide it forever.
+        var adapter = Okx(("/api/v5/market/tickers",
+            """{"code":"51001","msg":"Instrument ID does not exist","data":[]}"""));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => adapter.GetTickersAsync(CancellationToken.None));
     }
 
     [Fact]
