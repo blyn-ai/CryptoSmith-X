@@ -57,18 +57,15 @@ public sealed class LiveStateTests
     {
         var js = Read("studio-v2.js");
 
-        // The order answers the question a click asked, and holds until the next click. Re-sorting
-        // on every push moved rows past each other every few seconds — measured as 28 layout shifts
-        // in fourteen seconds and all of the remaining CLS, with row heights never changing once.
-        // A table that re-sorts under the reader answers nothing: by the time the eye reaches the
-        // second row, the first one has moved.
+        // Re-sorting on every push moved rows past each other every few seconds — measured as 28 layout
+        // shifts in fourteen seconds and all of the remaining CLS, with row heights never changing once.
         Assert.DoesNotContain("csx-studio-live", js, StringComparison.Ordinal);
 
-        // And when a click does sort, it reorders by STYLE. studio-live.js matches children by
-        // index, so moving a row in the DOM would make the next push rewrite every row with another
-        // venue's data.
-        Assert.Contains("r.style.order = want", js, StringComparison.Ordinal);
-        Assert.DoesNotContain("grid.appendChild(r)", js, StringComparison.Ordinal);
+        // And no click re-sorts either (owner, 2026-09-13): band 1's order is the server's — quote,
+        // perp before spot, venue by name — with a rule between quotes, and rows that moved when a band
+        // below changed would break those blocks. Nothing reorders by style or by DOM.
+        Assert.DoesNotContain("style.order", js, StringComparison.Ordinal);
+        Assert.DoesNotContain("appendChild(r)", js, StringComparison.Ordinal);
         Assert.Contains("if (!quiet) { window.dispatchEvent(new Event('resize')); }", js, StringComparison.Ordinal);
     }
 }

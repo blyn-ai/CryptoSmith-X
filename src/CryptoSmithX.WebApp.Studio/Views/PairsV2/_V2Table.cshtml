@@ -76,12 +76,12 @@
             }
         </div>
 
-        @foreach (var r in Model.Rows)
+        @{ VenueRowModel? previousRow = null; }
+        @foreach (var r in V2RowOrder.Sort(Model.Rows))
         {
             Model.Stress.TryGetValue(r.Row.InstrumentId, out var stress);
-
-            var sorts = string.Join(" ", V2Cuts.All.Select(c =>
-                $"data-sort-{c.Key}=\"{V2Cuts.Now(r, c, stress)?.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}\""));
+            var opensBlock = V2RowOrder.StartsBlock(previousRow, r);
+            previousRow = r;
 
             Model.Books.TryGetValue(r.Row.InstrumentId, out var book);
             var strip = StripModel.Build(r);
@@ -90,14 +90,15 @@
                own data-group, so a slot is [data-instrument] + [data-group] + which half of a
                paired cell — no index into anything, which is the mechanism the rows have already
                come apart on once. *@
-            <div class="v2-row" data-instrument="@r.Row.InstrumentId" @Html.Raw(sorts)>
+            @* A rule where one quote's block ends: every price on the row ranks only inside its quote. *@
+            <div class="v2-row@(opensBlock ? " v2-row--quote" : "")" data-instrument="@r.Row.InstrumentId">
                 @* B2: the listing cell opens the instrument's identity/limits/status/spec — the
                    same on-click-once-then-toggle mechanism A1–A4 use (studio-disclose.js), which
                    this page now also loads. *@
                 <span class="v2-listing a-venue" role="button" tabindex="0" aria-expanded="false"
                       data-disclose-url="@Url.Action("InstrumentDetail", "PairsV2", new { instrumentId = r.Row.InstrumentId })"
                       data-disclose-target="instrument-@r.Row.InstrumentId">
-                    <span class="v2-plat">@r.Row.ExchangeName <em>@r.Row.SegmentKind</em></span>
+                    <span class="v2-plat">@r.Row.ExchangeName · <b class="v2-quote">@r.Row.QuoteAsset</b> <em>@r.Row.SegmentKind</em></span>
                     <span class="v2-symbol">
                         @r.Row.Symbol
                         @* Prompt 2.1, W-1 / Prompt 3, N-3: "×1", not "1 : 1" — the MULTIPLIER

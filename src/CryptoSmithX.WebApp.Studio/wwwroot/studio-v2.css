@@ -302,6 +302,10 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:400;text-transform
    listing column would sit un-tinted beside a row that has visibly changed colour. */
 .v2-row:hover .v2-listing{background:var(--surface-sunken)}
 .v2-plat{font:400 var(--fs-meta)/1.2 var(--font-mono);color:var(--text-heading)}
+/* The quote the row's prices are in, named beside the venue as band 1's rows were in v1 — and a
+   heavier rule where one quote's block ends, since MAX and MIN rank only inside it. */
+.v2-plat .v2-quote{font-weight:600}
+.v2-row--quote{border-top:2px solid var(--border-strong)}
 .v2-plat em,.v2-symbol em{font-style:normal;font:500 8.5px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin-left:5px}
 .v2-symbol{font:400 var(--fs-data)/1.2 var(--font-mono);color:var(--text-data);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* ── Свежесть строки ─────────────────────────────────────────────────────────
