@@ -28,34 +28,46 @@ public sealed class OkxClient
     private static readonly HttpClient Shared = VenueHttp.Shared;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    private const string InstType = "SWAP";
+    /// <summary>Perpetual swaps — one of the two surfaces this client serves, and the default.</summary>
+    public const string Swap = "SWAP";
+
+    /// <summary>
+    /// The spot surface.
+    ///
+    /// The instrument, ticker, candle, book and trade routes all take the type as a parameter, so
+    /// one client covers both. <c>mark-price</c>, <c>open-interest</c>, <c>funding-rate</c> and
+    /// <c>liquidation-orders</c> do not exist for it, and the spot adapter never calls them.
+    /// </summary>
+    public const string Spot = "SPOT";
 
     private readonly HttpClient _http;
     private readonly string _baseUrl;
+    private readonly string _instType;
 
-    public OkxClient(string baseUrl)
-        : this(Shared, baseUrl)
+    public OkxClient(string baseUrl, string instType = Swap)
+        : this(Shared, baseUrl, instType)
     {
     }
 
     /// <summary>For tests: an <see cref="HttpClient"/> over a stub handler.</summary>
-    public OkxClient(HttpClient http, string baseUrl)
+    public OkxClient(HttpClient http, string baseUrl, string instType = Swap)
     {
         _http = http;
         _baseUrl = baseUrl.TrimEnd('/');
+        _instType = instType;
     }
 
     internal Task<IReadOnlyList<OkxInstrument>> GetInstrumentsAsync(CancellationToken ct) =>
-        GetAsync<OkxInstrument>($"{_baseUrl}/api/v5/public/instruments?instType={InstType}", ct);
+        GetAsync<OkxInstrument>($"{_baseUrl}/api/v5/public/instruments?instType={_instType}", ct);
 
     internal Task<IReadOnlyList<OkxTicker>> GetTickersAsync(CancellationToken ct) =>
-        GetAsync<OkxTicker>($"{_baseUrl}/api/v5/market/tickers?instType={InstType}", ct);
+        GetAsync<OkxTicker>($"{_baseUrl}/api/v5/market/tickers?instType={_instType}", ct);
 
     internal Task<IReadOnlyList<OkxMarkPrice>> GetMarkPricesAsync(CancellationToken ct) =>
-        GetAsync<OkxMarkPrice>($"{_baseUrl}/api/v5/public/mark-price?instType={InstType}", ct);
+        GetAsync<OkxMarkPrice>($"{_baseUrl}/api/v5/public/mark-price?instType={_instType}", ct);
 
     internal Task<IReadOnlyList<OkxOpenInterest>> GetOpenInterestAsync(CancellationToken ct) =>
-        GetAsync<OkxOpenInterest>($"{_baseUrl}/api/v5/public/open-interest?instType={InstType}", ct);
+        GetAsync<OkxOpenInterest>($"{_baseUrl}/api/v5/public/open-interest?instType={_instType}", ct);
 
     /// <summary><c>instId=ANY</c> is the venue's own wildcard for the whole segment — 658 rows in one
     /// call, against the per-instId route whose limiter is the one measured above.</summary>
@@ -111,7 +123,7 @@ public sealed class OkxClient
     /// nested under a group per instrument.</summary>
     internal Task<IReadOnlyList<OkxLiquidationGroup>> GetLiquidationsAsync(string uly, CancellationToken ct) =>
         GetAsync<OkxLiquidationGroup>(
-            $"{_baseUrl}/api/v5/public/liquidation-orders?instType={InstType}&state=filled"
+            $"{_baseUrl}/api/v5/public/liquidation-orders?instType={_instType}&state=filled"
             + $"&uly={Uri.EscapeDataString(uly)}&limit=100", ct);
 
     /// <summary>

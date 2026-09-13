@@ -26,7 +26,16 @@ internal sealed record OkxTicker(
     [property: JsonPropertyName("bidSz")] string? BidSz,
     [property: JsonPropertyName("askPx")] string? AskPx,
     [property: JsonPropertyName("askSz")] string? AskSz,
+    /// <summary>SWAP: contracts. SPOT: the base asset.</summary>
     [property: JsonPropertyName("vol24h")] string? Vol24h,
+    /// <summary>
+    /// <b>The same name, two different measurements, decided by instType.</b> On SWAP this is the
+    /// same volume as <see cref="Vol24h"/> expressed in the BASE asset — measured, 2 237 332
+    /// contracts against 22 373 BTC at a contract size of 0.01. On SPOT it is the QUOTE volume, the
+    /// turnover itself — 2 045 BTC against 157 946 208 USDT at a price of 76 624.
+    ///
+    /// Read the swap way on a spot row and the turnover is multiplied by the price a second time.
+    /// </summary>
     [property: JsonPropertyName("volCcy24h")] string? VolCcy24h,
     [property: JsonPropertyName("ts")] string? Ts);
 
@@ -38,6 +47,10 @@ internal sealed record OkxTicker(
 internal sealed record OkxInstrument(
     [property: JsonPropertyName("instId")] string InstId,
     [property: JsonPropertyName("instFamily")] string? InstFamily,
+    /// <summary>SPOT's base and quote. Empty on a swap, where the pair is carried by
+    /// <c>instFamily</c> and the settlement by <c>settleCcy</c> instead.</summary>
+    [property: JsonPropertyName("baseCcy")] string? BaseCcy,
+    [property: JsonPropertyName("quoteCcy")] string? QuoteCcy,
     [property: JsonPropertyName("ctType")] string? CtType,
     [property: JsonPropertyName("ctVal")] string? CtVal,
     [property: JsonPropertyName("ctValCcy")] string? CtValCcy,
