@@ -1,0 +1,57 @@
+{
+ "status": "ok",
+ "response": {
+  "trades": [
+   {
+    "tradeId": "2099109694030241793",
+    "symbol": "BTC-USDT",
+    "side": "buy",
+    "price": "76770",
+    "quantity": "0.00114",
+    "timestamp": 1789301725286,
+    "isMaker": false
+   },
+   {
+    "tradeId": "2099109604414742528",
+    "symbol": "BTC-USDT",
+    "side": "buy",
+    "price": "76766",
+    "quantity": "0.00131",
+    "timestamp": 1789301703920,
+    "isMaker": false
+   },
+   {
+    "tradeId": "2099109536936779776",
+    "symbol": "BTC-USDT",
+    "side": "buy",
+    "price": "76766",
+    "quantity": "0.001",
+    "timestamp": 1789301687832,
+    "isMaker": false
+   },
+   {
+    "tradeId": "2099109469165215744",
+    "symbol": "BTC-USDT",
+    "side": "buy",
+    "price": "76775",
+    "quantity": "0.00213",
+    "timestamp": 1789301671674,
+    "isMaker": false
+   },
+   {
+    "tradeId": "2099109468984860672",
+    "symbol": "BTC-USDT",
+    "side": "sell",
+    "price": "76768",
+    "quantity": "0.001",
+    "timestamp": 1789301671631,
+    "isMaker": false
+   }
+  ]
+ },
+ "ipRateLimit": {
+  "requestsCap": 10000,
+  "remainingTokens": 9800
+ },
+ "timestamp": 1789301729671
+}

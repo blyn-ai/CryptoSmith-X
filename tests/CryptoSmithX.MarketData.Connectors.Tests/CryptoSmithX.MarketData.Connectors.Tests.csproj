@@ -17,6 +17,7 @@
     <None Include="Fixtures\kraken-ws\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\weex\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\dydx\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\synthetix\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\hyperliquid\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\binance\*.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- binance-ws holds captured wire frames, not only .json: the depth diff run is line-delimited

@@ -1,0 +1,78 @@
+{
+ "status": "ok",
+ "response": [
+  {
+   "symbol": "BTC-USDT",
+   "description": "Bitcoin",
+   "baseAsset": "BTC",
+   "quoteAsset": "USDT",
+   "settleAsset": "USDT",
+   "isOpen": true,
+   "isCloseOnly": false,
+   "priceExponent": 0,
+   "quantityExponent": 5,
+   "priceIncrement": "1",
+   "minOrderSize": "0.001",
+   "orderSizeIncrement": "0.00001",
+   "contractSize": 1,
+   "maxMarketOrderSize": "100",
+   "maxLimitOrderSize": "1000",
+   "minOrderPrice": "0",
+   "limitOrderPriceCapRatio": "0.05",
+   "limitOrderPriceFloorRatio": "0.05",
+   "marketOrderPriceCapRatio": "0.05",
+   "marketOrderPriceFloorRatio": "0.05",
+   "liquidationClearanceFee": "0.005",
+   "minNotionalValue": "0",
+   "maintenanceMarginTiers": [
+    {
+     "minPositionSize": "0",
+     "maxPositionSize": "100000",
+     "maxLeverage": 25,
+     "initialMarginRequirement": "0.04",
+     "maintenanceMarginRequirement": "0.02",
+     "maintenanceDeductionValue": "0"
+    }
+   ]
+  },
+  {
+   "symbol": "ETH-USDT",
+   "description": "Ethereum",
+   "baseAsset": "ETH",
+   "quoteAsset": "USDT",
+   "settleAsset": "USDT",
+   "isOpen": true,
+   "isCloseOnly": false,
+   "priceExponent": 1,
+   "quantityExponent": 4,
+   "priceIncrement": "0.1",
+   "minOrderSize": "0.01",
+   "orderSizeIncrement": "0.0001",
+   "contractSize": 1,
+   "maxMarketOrderSize": "1000",
+   "maxLimitOrderSize": "1000",
+   "minOrderPrice": "0",
+   "limitOrderPriceCapRatio": "0.05",
+   "limitOrderPriceFloorRatio": "0.05",
+   "marketOrderPriceCapRatio": "0.05",
+   "marketOrderPriceFloorRatio": "0.05",
+   "liquidationClearanceFee": "0.005",
+   "minNotionalValue": "0",
+   "maintenanceMarginTiers": [
+    {
+     "minPositionSize": "0",
+     "maxPositionSize": "100000",
+     "maxLeverage": 25,
+     "initialMarginRequirement": "0.04",
+     "maintenanceMarginRequirement": "0.02",
+     "maintenanceDeductionValue": "0"
+    }
+   ]
+  }
+ ],
+ "ipRateLimit": {
+  "requestsCap": 10000,
+  "remainingTokens": 9950
+ },
+ "timestamp": 1789301725199
+}

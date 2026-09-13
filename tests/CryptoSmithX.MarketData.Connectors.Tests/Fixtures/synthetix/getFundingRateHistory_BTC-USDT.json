@@ -1,0 +1,28 @@
+{
+ "status": "ok",
+ "response": {
+  "symbol": "BTC-USDT",
+  "fundingRates": [
+   {
+    "fundingRate": "0.00001229",
+    "fundingTime": 1789300800000,
+    "appliedAt": 1789300800009
+   },
+   {
+    "fundingRate": "0.00001245",
+    "fundingTime": 1789297200000,
+    "appliedAt": 1789297200012
+   },
+   {
+    "fundingRate": "0.00001247",
+    "fundingTime": 1789293600000,
+    "appliedAt": 1789293600008
+   }
+  ]
+ },
+ "ipRateLimit": {
+  "requestsCap": 10000,
+  "remainingTokens": 9000
+ },
+ "timestamp": 1789301732064
+}

@@ -1,0 +1,72 @@
+{
+ "status": "ok",
+ "response": {
+  "BTC-USDT": {
+   "symbol": "BTC-USDT",
+   "bestBid": "76755",
+   "bestAsk": "76785",
+   "markPrice": "76763",
+   "indexPrice": "76794",
+   "lastPrice": "76766",
+   "prevDayPrice": "77310",
+   "volume24h": "4.29913",
+   "quoteVolume24h": "331780.87751",
+   "fundingRate": "0.0000124476766622999",
+   "openInterest": "0.45942",
+   "timestamp": 1789301726158,
+   "periodStats": {
+    "1h": {
+     "referencePrice": "76566",
+     "volume": "0.22799",
+     "quoteVolume": "17480.33314"
+    },
+    "24h": {
+     "referencePrice": "77310",
+     "volume": "4.29913",
+     "quoteVolume": "331780.87751"
+    },
+    "7d": {
+     "referencePrice": "79896",
+     "volume": "43.18692",
+     "quoteVolume": "3377911.23728"
+    }
+   }
+  },
+  "ETH-USDT": {
+   "symbol": "ETH-USDT",
+   "bestBid": "2480.3",
+   "bestAsk": "2481.5",
+   "markPrice": "2480.7",
+   "indexPrice": "2481.9",
+   "lastPrice": "2480.9",
+   "prevDayPrice": "2534.6",
+   "volume24h": "418.8402",
+   "quoteVolume24h": "1041073.71408",
+   "fundingRate": "0.0000124367285969201",
+   "openInterest": "55.1534",
+   "timestamp": 1789301726158,
+   "periodStats": {
+    "1h": {
+     "referencePrice": "2471.9",
+     "volume": "1.8282",
+     "quoteVolume": "4527.60417"
+    },
+    "24h": {
+     "referencePrice": "2534.6",
+     "volume": "418.8402",
+     "quoteVolume": "1041073.71408"
+    },
+    "7d": {
+     "referencePrice": "2500.2",
+     "volume": "2745.7955",
+     "quoteVolume": "6944302.41703"
+    }
+   }
+  }
+ },
+ "ipRateLimit": {
+  "requestsCap": 10000,
+  "remainingTokens": 9800
+ },
+ "timestamp": 1789301726326
+}

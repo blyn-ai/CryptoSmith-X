@@ -1,0 +1,47 @@
+{
+ "status": "ok",
+ "response": {
+  "symbol": "BTC-USDT",
+  "interval": "1m",
+  "candles": [
+   {
+    "openTime": 1789301700000,
+    "closeTime": 1789301760000,
+    "openPrice": "76766",
+    "highPrice": "76770",
+    "lowPrice": "76766",
+    "closePrice": "76770",
+    "volume": "0.00245",
+    "quoteVolume": "188.08126",
+    "tradeCount": 2
+   },
+   {
+    "openTime": 1789301640000,
+    "closeTime": 1789301700000,
+    "openPrice": "76766",
+    "highPrice": "76775",
+    "lowPrice": "76766",
+    "closePrice": "76766",
+    "volume": "0.00526",
+    "quoteVolume": "403.81033",
+    "tradeCount": 4
+   },
+   {
+    "openTime": 1789301580000,
+    "closeTime": 1789301640000,
+    "openPrice": "76776",
+    "highPrice": "76776",
+    "lowPrice": "76767",
+    "closePrice": "76767",
+    "volume": "0.002",
+    "quoteVolume": "153.543",
+    "tradeCount": 2
+   }
+  ]
+ },
+ "ipRateLimit": {
+  "requestsCap": 10000,
+  "remainingTokens": 9800
+ },
+ "timestamp": 1789301730936
+}
