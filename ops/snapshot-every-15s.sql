@@ -11,7 +11,13 @@
 -- Synthetix 7 книг — 28 запросов/мин из 1 000; у GMX кривая считается из кадра снапшота. Глубину остальных площадок не трогает:
 -- там интервал (300–600 с) выставлен по замеренному бюджету веса, а не по привычке.
 --
--- Сегменты с пустым interval_s идут живым потоком — их не трогает.
+-- Сегменты с пустым interval_s идут живым потоком — их не трогает. Кроме Avantis: его «поток» — сокет
+-- каталога на data.avantisfi.com, а снапшот без своего интервала крутится с датасетным умолчанием в 1 с
+-- и, пока сокет не подключён, каждую секунду ходит в REST /v2/trading того же хоста. Замерено
+-- 2026-09-13: после перезапуска хаба (деплой) хост ответил 429, сокет не мог переподключиться (429 на
+-- рукопожатии, 54 обрыва за 90 минут на проде), а снапшот падал 7 раз подряд за полминуты — петля,
+-- которая сама себя держит, на обоих контурах. 15 с — тот же потолок возраста цены, и в худшем случае
+-- 4 запроса в минуту вместо 60.
 --
 --   prod   ssh -F .local/ssh-config csx-datahub-jump \
 --              'sudo -n -u postgres psql -d marketdata -v ON_ERROR_STOP=1' < ops/snapshot-every-15s.sql
@@ -26,6 +32,11 @@ update segment_dataset sd
  where sg.code = sd.segment_code and sg.status = 'enabled'
    and sd.dataset_code = 'snapshot' and sd.mode = 'collect'
    and sd.interval_s > 15;
+
+update segment_dataset
+   set interval_s = 15, updated_at = now(), updated_by = 'ops/snapshot-every-15s.sql'
+ where segment_code = 'avantis-perp' and dataset_code = 'snapshot' and mode = 'collect'
+   and (interval_s is null or interval_s > 15);
 
 update segment_dataset sd
    set interval_s = 15, updated_at = now(), updated_by = 'ops/snapshot-every-15s.sql'
