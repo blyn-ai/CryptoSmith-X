@@ -188,6 +188,17 @@ public sealed class GmxPerpTests
     }
 
     [Fact]
+    public async Task A_market_the_venues_search_gives_up_on_does_not_fail_the_snapshot()
+    {
+        // arbitrum.gmxapi.io answers a per-market search on a quiet pool with HTTP 500 after ~10.5 s.
+        var gmx = new GmxPerpMarketData(new GmxClient(new HttpClient(new Stub(null, failMarketSearch: true)), "https://arbitrum.gmxapi.test"));
+
+        var tickers = await gmx.GetTickersAsync(CancellationToken.None);
+
+        Assert.Contains(tickers, t => t.ExchangeSymbol == Btc && t.BidPrice is not null);
+    }
+
+    [Fact]
     public async Task Oracle_bars_are_closed_minutes_inside_the_window()
     {
         var bars = await Gmx().GetPriceCandles1mAsync(Btc, "index",
@@ -207,7 +218,7 @@ public sealed class GmxPerpTests
     private static IReadOnlyList<GmxTrade> Trades() =>
         JsonSerializer.Deserialize<GmxTradesPage>(Fixture("trades.json"), new JsonSerializerOptions(JsonSerializerDefaults.Web))!.Trades!;
 
-    private sealed class Stub(List<string>? seen) : HttpMessageHandler
+    private sealed class Stub(List<string>? seen, bool failMarketSearch = false) : HttpMessageHandler
     {
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
@@ -216,6 +227,11 @@ public sealed class GmxPerpTests
             if (request.Method == HttpMethod.Post)
             {
                 var text = await request.Content!.ReadAsStringAsync(ct);
+                if (failMarketSearch && text.Contains("marketsDirections", StringComparison.Ordinal))
+                {
+                    return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                }
+
                 var liquidationsOnly = text.Contains("\"orderType\":7", StringComparison.Ordinal)
                                        && !text.Contains("\"orderType\":2", StringComparison.Ordinal);
                 seen?.Add(request.RequestUri + (liquidationsOnly ? "#liquidations" : "#tape"));

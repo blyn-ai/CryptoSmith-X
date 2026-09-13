@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json;
 using CryptoSmithX.MarketData.Connectors.Market;
+using CryptoSmithX.MarketData.Connectors.Pacing;
 
 namespace CryptoSmithX.MarketData.Connectors.Gmx;
 
@@ -406,7 +407,20 @@ public sealed class GmxPerpMarketData : IExchangeMarketData
         await Parallel.ForEachAsync(due, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = ct }, async (entry, token) =>
         {
             _coldTried[entry.Key] = now;
-            var body = await _client.SearchTradesAsync(GmxClient.PositionOrderTypes, entry.Value.Address, null, 1, null, token);
+            GmxTradesPage body;
+            try
+            {
+                body = await _client.SearchTradesAsync(GmxClient.PositionOrderTypes, entry.Value.Address, null, 1, null, token);
+            }
+            catch (HttpRequestException ex) when (ex is not VenueRateLimitedException)
+            {
+                // The venue's own search gives up on a market with nothing recent: ~10.5 s, then HTTP 500 —
+                // 6 of 122 markets from the test host (LINK [WETH-USDC], QQQ, SPY …), measured 2026-09-13.
+                // That pool's Last trade stays a dash until a later pass or the venue-wide page reaches it;
+                // it must not fail every other pool's snapshot, which is what it did on the first passes.
+                return;
+            }
+
             lock (_tape)
             {
                 Fold(body.Trades ?? []);
