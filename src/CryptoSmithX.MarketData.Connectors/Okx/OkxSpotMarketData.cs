@@ -11,7 +11,7 @@ namespace CryptoSmithX.MarketData.Connectors.Okx;
 /// <b>This surface adds no capacity, and that is measured rather than assumed.</b> www.okx.com
 /// serves SWAP and SPOT alike, and the ceiling is shared: twenty concurrent <c>tickers</c> split
 /// across the two surfaces returned ten successes each. So this segment shares a gate with okx-perp
-/// by design (0054, 0057) — it adds instruments under an existing ceiling and brings none of its
+/// by design (0054, 0058) — it adds instruments under an existing ceiling and brings none of its
 /// own. <b>Whoever finds that ceiling low and reaches to raise it for spot should know it is not
 /// spot's to raise</b>: the number belongs to the host, the perpetual side is already spending it,
 /// and this venue answers "too fast" as a code under an HTTP 200 that the pacing had to be taught
