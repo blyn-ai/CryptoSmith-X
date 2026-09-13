@@ -707,6 +707,7 @@ public sealed class ExchangeWorker : BackgroundService
         // point, from opposite sides.
         "binance-spot" => new BinanceSpotMarketData(new BinanceSpotClient(BaseUrl(config))),
         "bybit-spot" => new BybitSpotMarketData(new BybitClient(BaseUrl(config), BybitClient.Spot)),
+        "okx-spot" => new OkxSpotMarketData(new OkxClient(BaseUrl(config), OkxClient.Spot)),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
