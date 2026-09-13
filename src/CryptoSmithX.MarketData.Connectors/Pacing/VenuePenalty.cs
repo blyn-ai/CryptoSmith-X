@@ -50,21 +50,47 @@ public static class VenueResponseExtensions
 {
     /// <summary>
     /// <see cref="HttpResponseMessage.EnsureSuccessStatusCode"/> plus the one distinction the gate
-    /// cares about: a 429 becomes a <see cref="VenueRateLimitedException"/> carrying the venue's
-    /// <c>Retry-After</c>, in either form the header allows — a delay or an absolute date.
+    /// cares about: a refusal for going too fast becomes a <see cref="VenueRateLimitedException"/>
+    /// carrying the venue's <c>Retry-After</c>, in either form the header allows — a delay or an
+    /// absolute date.
+    ///
+    /// <b>418 is one of those refusals, and learning that cost a ban.</b> Binance answers 429 while
+    /// it is warning you and 418 — "I'm a teapot" — once it has actually banned the address, and the
+    /// second one is the one that matters. Read as an ordinary failure it is invisible to the
+    /// pacing: the gate keeps the pace that earned the ban, every collector on that host fails for
+    /// as long as it lasts, and the bans escalate from minutes to days. Seen on api.binance.com the
+    /// first hour spot was switched on.
+    ///
+    /// A joke status code is a poor place to put a ban, and no other venue here uses it — which is
+    /// exactly why it has to be named rather than left to a general "not a success".
     /// </summary>
     public static HttpResponseMessage EnsureVenueSuccess(this HttpResponseMessage response)
     {
         ArgumentNullException.ThrowIfNull(response);
 
-        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+        if (response.StatusCode is HttpStatusCode.TooManyRequests or Banned)
         {
             throw new VenueRateLimitedException(
-                $"{response.RequestMessage?.RequestUri} answered 429", RetryAfterOf(response));
+                $"{response.RequestMessage?.RequestUri} answered {(int)response.StatusCode}",
+                RetryAfterOf(response) ?? DefaultBanCooldown(response.StatusCode));
         }
 
         return response.EnsureSuccessStatusCode();
     }
+
+    /// <summary>Binance's "you are banned, not merely warned". <see cref="HttpStatusCode"/> has no
+    /// name for it.</summary>
+    private const HttpStatusCode Banned = (HttpStatusCode)418;
+
+    /// <summary>
+    /// How long to stand down when the venue banned us and did not say for how long.
+    ///
+    /// Binance's shortest ban is two minutes and they escalate on repetition, so guessing short is
+    /// the expensive direction to be wrong in. A plain 429 keeps the gate's own default — that is a
+    /// warning, and the gate already knows what to do with one.
+    /// </summary>
+    private static TimeSpan? DefaultBanCooldown(HttpStatusCode status) =>
+        status == Banned ? TimeSpan.FromMinutes(5) : null;
 
     private static TimeSpan? RetryAfterOf(HttpResponseMessage response)
     {

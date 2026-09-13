@@ -1,3 +1,4 @@
+using System.Net;
 using CryptoSmithX.MarketData.Connectors.Pacing;
 using Microsoft.Extensions.Time.Testing;
 
@@ -352,5 +353,55 @@ public sealed class VenueGateTests
     {
         var finished = await Task.WhenAny(lease, Task.Delay(TimeSpan.FromMilliseconds(150)));
         return finished != (Task)lease;
+    }
+
+    [Fact]
+    public void A_418_is_a_ban_and_the_pacing_is_told_so()
+    {
+        // Binance answers 429 while it is warning you and 418 once it has actually banned the
+        // address. Read as an ordinary failure the second one is invisible to the pacing: the gate
+        // keeps the pace that earned the ban, every collector on that host fails for as long as it
+        // lasts, and the bans escalate from minutes to days. This happened on api.binance.com the
+        // first hour spot was switched on.
+        using var banned = new HttpResponseMessage((HttpStatusCode)418)
+        {
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://api.binance.com/api/v3/depth"),
+        };
+
+        var ex = Assert.Throws<VenueRateLimitedException>(() => banned.EnsureVenueSuccess());
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, ex.StatusCode);
+
+        // The venue said nothing about how long. Its shortest ban is two minutes and they escalate,
+        // so the stand-in has to be long enough to be worth having.
+        Assert.NotNull(ex.RetryAfter);
+        Assert.True(ex.RetryAfter >= TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
+    public void A_ban_that_names_its_own_length_is_believed_over_the_stand_in()
+    {
+        using var banned = new HttpResponseMessage((HttpStatusCode)418)
+        {
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://api.binance.com/api/v3/depth"),
+            Headers = { RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromHours(2)) },
+        };
+
+        Assert.Equal(TimeSpan.FromHours(2), Assert.Throws<VenueRateLimitedException>(
+            () => banned.EnsureVenueSuccess()).RetryAfter);
+    }
+
+    [Fact]
+    public void An_ordinary_failure_is_still_an_ordinary_failure()
+    {
+        // Only "too fast" earns a slower pace. A 404 must keep failing loudly rather than being
+        // answered with a back-off that would hide it.
+        using var missing = new HttpResponseMessage(HttpStatusCode.NotFound)
+        {
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://api.binance.com/api/v3/nope"),
+        };
+
+        var ex = Assert.Throws<HttpRequestException>(() => missing.EnsureVenueSuccess());
+        Assert.IsNotType<VenueRateLimitedException>(ex);
     }
 }

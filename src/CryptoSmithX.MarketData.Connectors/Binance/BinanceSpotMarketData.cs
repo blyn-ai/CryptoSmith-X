@@ -41,10 +41,21 @@ public sealed class BinanceSpotMarketData : IExchangeMarketData
     /// stay empty are BTC and ETH, the first rows anyone reads.
     ///
     /// <b>The arithmetic, so that widening the collected set is a decision with a number on it.</b>
-    /// This limit costs weight 250 a symbol against a 6 000-a-minute budget. A sweep of N symbols
-    /// every five minutes spends 50N a minute, so about a hundred symbols is where this cadence
-    /// stops fitting. The venue lists 765 USD-family pairs; collecting all of them at this depth is
-    /// not a thing that fits, and the collected set is an operator's choice per instrument.
+    /// This limit costs weight 249 a symbol, measured off <c>x-mbx-used-weight-1m</c>, against a
+    /// budget of 6 000 a ROLLING MINUTE. The bound is on the SWEEP, not on the cadence: a pass
+    /// issues its requests as fast as the gate lets them go, so N symbols put 250N weight into the
+    /// same few seconds however far apart the passes are. About twenty-four symbols is therefore the
+    /// ceiling, and stretching the interval does not raise it.
+    ///
+    /// Written down after getting it wrong: the first version of this comment divided the weight by
+    /// the interval and concluded a hundred symbols would fit. Fifty-two collected symbols answered
+    /// 429 on the first pass. An average over a window is not a ceiling on a burst inside it.
+    ///
+    /// <b>What this really exposes is that the gate counts REQUESTS and this venue counts WEIGHT.</b>
+    /// One gate ceiling cannot express "twenty of these or twelve hundred of those", so the number
+    /// that keeps this surface inside its budget is the size of the collected set, chosen by an
+    /// operator per instrument, and not a rate anyone can set. The venue lists 765 USD-family pairs;
+    /// collecting all of them at this depth is not a thing that fits.
     /// </summary>
     private const int DepthLimit = 5000;
 
