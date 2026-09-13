@@ -58,6 +58,28 @@ public static class Format
             ? Dash
             : value.Value.ToString("N" + decimals, CultureInfo.InvariantCulture);
 
+    /// <summary>
+    /// A quantity that may be a small fraction of a unit — liquidation volume in base coins, where
+    /// 0.02015 BTC printed through <c>Num(v, 0)</c> read "0" on Nado's BTC row (measured 2026-09-13)
+    /// and "0" is what this page prints for an hour measured and found empty. Whole-unit rounding
+    /// stays from 1 upward, where it loses nothing a reader acts on; below 1, four significant digits.
+    /// </summary>
+    public static string Amount(double? value)
+    {
+        if (value is not { } v || double.IsNaN(v) || double.IsInfinity(v))
+        {
+            return Dash;
+        }
+
+        if (v == 0 || Math.Abs(v) >= 1)
+        {
+            return v.ToString("N0", CultureInfo.InvariantCulture);
+        }
+
+        var decimals = Math.Clamp(3 - (int)Math.Floor(Math.Log10(Math.Abs(v))), 1, 12);
+        return Math.Round(v, decimals).ToString("0." + new string('#', decimals), CultureInfo.InvariantCulture);
+    }
+
     /// <summary>A signed percentage, for funding. The sign is always shown: on a funding rate the
     /// difference between paying and being paid is the sign, and a bare number hides it.</summary>
     public static string SignedPercent(double? fraction, int decimals = 4)

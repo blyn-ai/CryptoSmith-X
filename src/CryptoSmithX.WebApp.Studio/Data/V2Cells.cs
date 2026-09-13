@@ -87,7 +87,7 @@ public static class V2Cells
                 return stress is null
                     ? new V2Head([new V2Part("—", null, false)], [], null, null)
                     : new V2Head(
-                        [new V2Part(Format.Num(stress.Volume, 0))],
+                        [new V2Part(Format.Amount(stress.Volume))],
                         [new V2Part(stress.Unit)],
                         null, null);
 
@@ -122,7 +122,7 @@ public static class V2Cells
     {
         "carry" => Field(r, V2Field.FundingPerDay),
         "trust" => Worst(r),
-        "stress" => stress is null ? V2Cell.None : new V2Cell(stress.Volume, Format.Num(stress.Volume, 0), stress.Unit),
+        "stress" => stress is null ? V2Cell.None : new V2Cell(stress.Volume, Format.Amount(stress.Volume), stress.Unit),
         _ => V2Cell.None,
     };
 
@@ -175,7 +175,7 @@ public static class V2Cells
         // Prompt 2.1, W-1: the UNIT column folds into this cell's own sub-line — the same
         // pattern TURNOVER 24H already uses for its own "USD" sub-line — rather than a column
         // that printed one word for every row on the page.
-        V2Field.LiquidationVolume => stress is null ? V2Cell.None : new V2Cell(stress.Volume, Format.Num(stress.Volume, 0), stress.Unit),
+        V2Field.LiquidationVolume => stress is null ? V2Cell.None : new V2Cell(stress.Volume, Format.Amount(stress.Volume), stress.Unit),
         V2Field.LiquidationUnit => stress is null ? V2Cell.None : Text(stress.Unit),
 
         // Бид и аск ОТДЕЛЬНЫМИ цифрами, а не только парой под спредом: ранг у них считается по
