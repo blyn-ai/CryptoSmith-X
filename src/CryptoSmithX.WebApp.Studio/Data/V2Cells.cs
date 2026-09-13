@@ -152,20 +152,66 @@ public static class V2Cells
             return cell;
         }
 
-        var (badge, title) = f switch
+        var texts = Provenance.For(r.Row.SegmentCode);
+        (string? badge, string? title) = f switch
         {
-            V2Field.Bid or V2Field.Ask or V2Field.Spread =>
-                ("Q10K", "Executable Avantis quote at $10,000 notional per side (POST /risk/v2/spread) — a live price the venue will fill you at, not a resting order."),
-            V2Field.Mark or V2Field.Index =>
-                ("PYTH", "Pyth oracle feed. Avantis marks positions against this same unadjusted price — there is no separate venue mark to publish."),
-            V2Field.BidSize or V2Field.AskSize =>
-                ("CAP", "Directional capacity from the venue's own availableLiquidity — headroom against its own OI ceilings, not resting size at a level."),
-            V2Field.Depth25 or V2Field.BookReach =>
-                ("QUOTE", "Quote-curve depth: the size Avantis still quotes at or under this cost, found by bisecting POST /risk/v2/spread — not levels resting in a book."),
+            V2Field.Bid or V2Field.Ask or V2Field.Spread => texts.Quote,
+            V2Field.Mark or V2Field.Index => texts.Oracle,
+            V2Field.BidSize or V2Field.AskSize => texts.Capacity,
+            V2Field.Depth25 or V2Field.BookReach => texts.Curve,
             _ => (null, null),
         };
 
         return badge is null ? cell : cell with { Badge = badge, BadgeTitle = title };
+    }
+
+    /// <summary>
+    /// What each derived figure's badge says, PER SEGMENT. The rule that a figure gets a badge is the
+    /// market model's; what the badge claims — whose quote engine, which endpoint, at what size, which
+    /// oracle — belongs to one venue, and a tooltip naming Avantis's endpoint on GMX's row would be false
+    /// provenance on the page whose subject is provenance. Letters may repeat across venues; titles never.
+    ///
+    /// A segment with no entry gets titles that name no venue and no endpoint: the badge still says the
+    /// figure is derived, and claims nothing it cannot back.
+    /// </summary>
+    public static class Provenance
+    {
+        public sealed record Texts(
+            (string Badge, string Title) Quote,
+            (string Badge, string Title) Oracle,
+            (string Badge, string Title) Capacity,
+            (string Badge, string Title) Curve);
+
+        public static readonly IReadOnlyDictionary<string, Texts> BySegment = new Dictionary<string, Texts>(StringComparer.Ordinal)
+        {
+            ["avantis-perp"] = new(
+                ("Q10K", "Executable Avantis quote at $10,000 notional per side (POST /risk/v2/spread) — a live price the venue will fill you at, not a resting order."),
+                ("PYTH", "Pyth oracle feed. Avantis marks positions against this same unadjusted price — there is no separate venue mark to publish."),
+                ("CAP", "Directional capacity from the venue's own availableLiquidity — headroom against its own OI ceilings, not resting size at a level."),
+                ("QUOTE", "Quote-curve depth: the size Avantis still quotes at or under this cost, found by bisecting POST /risk/v2/spread — not levels resting in a book.")),
+            ["gmx-perp"] = new(
+                ("Q10K", "GMX market-increase price at $10,000 per side: the oracle's max (buy) or min (sell) moved by the pool's position price impact, evaluated from GET /v1/markets/info with the function GMX publishes in its SDK (getAcceptablePriceInfo) — not a resting order."),
+                ("ORCL", "GMX's own oracle price from GET /v1/markets/tickers — the middle of its min/max, which is what GMX prices positions against. There is no book to mark against."),
+                ("CAP", "How much more the GMX pool takes on this side — capacityLong/capacityShort.availableLiquidity from GET /v1/markets/tickers, in base units at the oracle mid. Not resting size at a level."),
+                ("QUOTE", "Impact-curve depth: the size GMX's published position price impact keeps within this cost of the oracle mid, up to the pool's capacity; reach is the cost of the largest order it takes. Not levels resting in a book.")),
+        };
+
+        private static readonly Texts Unnamed = new(
+            ("Q10K", "Derived from this venue's quote engine at a stated size — a price it would fill, not a resting order."),
+            ("ORCL", "The oracle price this venue prices positions against — there is no book to mark against."),
+            ("CAP", "Directional capacity the venue states — headroom, not resting size at a level."),
+            ("QUOTE", "Quote-curve depth: size the venue quotes within this cost — not levels resting in a book."));
+
+        public static Texts For(string? segmentCode) =>
+            segmentCode is not null && BySegment.TryGetValue(segmentCode, out var t) ? t : Unnamed;
+
+        public static IEnumerable<string> Titles(Texts t) => [t.Quote.Title, t.Oracle.Title, t.Capacity.Title, t.Curve.Title];
+
+        /// <summary>Every title a row that is not Avantis's could print — what the no-borrowed-provenance
+        /// test walks.</summary>
+        public static IEnumerable<(string Segment, string Title)> AllButAvantis() =>
+            BySegment.Where(kv => kv.Key != "avantis-perp").SelectMany(kv => Titles(kv.Value).Select(t => (kv.Key, t)))
+                .Concat(Titles(Unnamed).Select(t => ("(unnamed)", t)));
     }
 
     private static V2Cell FieldValue(VenueRowModel r, V2Field f, StressRow? stress, BookFrame? book) => f switch

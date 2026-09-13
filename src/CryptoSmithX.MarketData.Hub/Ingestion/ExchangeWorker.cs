@@ -10,6 +10,7 @@ using CryptoSmithX.MarketData.Connectors.Gate;
 using CryptoSmithX.MarketData.Connectors.Hyperliquid;
 using CryptoSmithX.MarketData.Connectors.Kraken;
 using CryptoSmithX.MarketData.Connectors.Dydx;
+using CryptoSmithX.MarketData.Connectors.Gmx;
 using CryptoSmithX.MarketData.Connectors.Mexc;
 using CryptoSmithX.MarketData.Connectors.Nado;
 using CryptoSmithX.MarketData.Connectors.Synthetix;
@@ -717,6 +718,8 @@ public sealed class ExchangeWorker : BackgroundService
         "synthetix-perp" => new SynthetixPerpMarketData(new SynthetixClient(BaseUrl(config))),
         // Nado on Ink L2 — its own venue, not Vertex renamed (0062).
         "nado-perp" => new NadoPerpMarketData(new NadoClient(BaseUrl(config))),
+        // GMX v2 on Arbitrum: oracle-priced against a pool, quoted from the venue's own impact function (0063).
+        "gmx-perp" => new GmxPerpMarketData(new GmxClient(BaseUrl(config))),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),

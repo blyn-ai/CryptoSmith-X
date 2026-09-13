@@ -16,7 +16,7 @@ public sealed class ProvenanceBadgeTests
 {
     private static VenueRowModel Vault(double? bid = 1, double? ask = 1, double? bidSize = 1,
         double? askSize = 1, double? depthBid25 = 1, double? depthAsk25 = 1) =>
-        Rows.At(Rows.Venue(1, marketModel: "oracle_vault",
+        Rows.At(Rows.Venue(1, segment: "avantis-perp", marketModel: "oracle_vault",
             bid: bid, ask: ask, bidSize: bidSize, askSize: askSize,
             depthBid25: depthBid25, depthAsk25: depthAsk25));
 
@@ -41,7 +41,7 @@ public sealed class ProvenanceBadgeTests
     [Fact]
     public void A_vault_venues_mark_and_index_are_marked_as_the_oracle_feed()
     {
-        var row = Rows.At(Rows.Venue(1, marketModel: "oracle_vault") with
+        var row = Rows.At(Rows.Venue(1, segment: "avantis-perp", marketModel: "oracle_vault") with
         {
             MarkPrice = 100,
             IndexPrice = 100,
@@ -73,7 +73,7 @@ public sealed class ProvenanceBadgeTests
     {
         // A dash with a badge on it would say "this absence was measured a special way", which is
         // not a fact — an absence is an absence regardless of how it was looked for.
-        var row = Rows.At(Rows.Venue(1, marketModel: "oracle_vault"));
+        var row = Rows.At(Rows.Venue(1, segment: "avantis-perp", marketModel: "oracle_vault"));
 
         Assert.Null(V2Cells.Field(row, V2Field.Bid).Badge);
         Assert.Equal("—", V2Cells.Field(row, V2Field.Bid).Text);
@@ -85,7 +85,7 @@ public sealed class ProvenanceBadgeTests
         // Last, turnover and liquidations come straight off the venue's own public trade tape —
         // not a different kind of figure from a book venue's, so no badge marks them as one.
         var stress = new StressRow(1, 6_638, "USD", DateTime.UnixEpoch);
-        var row = Rows.At(Rows.Venue(1, marketModel: "oracle_vault") with { LastPrice = 100 });
+        var row = Rows.At(Rows.Venue(1, segment: "avantis-perp", marketModel: "oracle_vault") with { LastPrice = 100 });
 
         Assert.Null(V2Cells.Field(row, V2Field.Last).Badge);
         Assert.Null(V2Cells.Field(row, V2Field.LiquidationVolume, stress).Badge);
@@ -100,5 +100,43 @@ public sealed class ProvenanceBadgeTests
 
         Assert.NotNull(cell.BadgeTitle);
         Assert.Contains("/risk/v2/spread", cell.BadgeTitle);
+    }
+
+    [Fact]
+    public void No_badge_outside_avantis_borrows_avantis_provenance()
+    {
+        // The rule is the market model's; the words are one venue's. Before titles went per segment, the
+        // next oracle venue's cells would have named Avantis, its risk endpoint and its Pyth feed.
+        foreach (var (segment, title) in V2Cells.Provenance.AllButAvantis())
+        {
+            foreach (var borrowed in new[] { "Avantis", "avantisfi", "/risk/v2", "Pyth" })
+            {
+                Assert.False(title.Contains(borrowed, StringComparison.OrdinalIgnoreCase),
+                    $"{segment}: \"{title}\" names {borrowed}");
+            }
+        }
+    }
+
+    [Fact]
+    public void A_gmx_row_is_badged_with_gmxs_own_endpoint()
+    {
+        var row = Rows.At(Rows.Venue(1, segment: "gmx-perp", marketModel: "oracle_vault", bid: 100, depthBid25: 5, depthAsk25: 5));
+
+        var bid = V2Cells.Field(row, V2Field.Bid);
+        Assert.Equal("Q10K", bid.Badge);
+        Assert.Contains("/v1/markets/info", bid.BadgeTitle);
+        var depth = V2Cells.Field(row, V2Field.Depth25);
+        Assert.Equal("QUOTE", depth.Badge);
+        Assert.StartsWith("Impact-curve depth", depth.BadgeTitle);
+    }
+
+    [Fact]
+    public void An_oracle_segment_nobody_described_gets_a_badge_that_names_no_venue()
+    {
+        var row = Rows.At(Rows.Venue(1, segment: "someday-perp", marketModel: "oracle_vault", bid: 100));
+
+        var bid = V2Cells.Field(row, V2Field.Bid);
+        Assert.Equal("Q10K", bid.Badge);
+        Assert.DoesNotContain("/", bid.BadgeTitle);
     }
 }
