@@ -65,10 +65,25 @@ internal sealed record BybitInstrument(
 internal sealed record BybitPriceFilter(
     [property: JsonPropertyName("tickSize")] string? TickSize);
 
+/// <summary>
+/// One <c>lotSizeFilter</c>, and the two surfaces do not fill the same fields.
+///
+/// Linear says <c>qtyStep</c> and <c>minNotionalValue</c>; spot says <c>basePrecision</c> and
+/// <c>minOrderAmt</c> for the same two ideas. Both sets live here because there is one route and one
+/// envelope, and each adapter reads the pair its own surface fills — deliberately NOT coalescing the
+/// two, because a value that could have come from either stops saying which surface answered, and
+/// the day one of them starts sending both is the day that matters.
+/// </summary>
 internal sealed record BybitLotFilter(
     [property: JsonPropertyName("qtyStep")] string? QtyStep,
     [property: JsonPropertyName("minOrderQty")] string? MinOrderQty,
-    [property: JsonPropertyName("minNotionalValue")] string? MinNotionalValue);
+    [property: JsonPropertyName("minNotionalValue")] string? MinNotionalValue,
+    /// <summary>SPOT's quantity step. The finest quantity the venue accepts, which is what
+    /// <c>qtyStep</c> means on linear.</summary>
+    [property: JsonPropertyName("basePrecision")] string? BasePrecision,
+    /// <summary>SPOT's minimum order value in the quote asset — <c>minNotionalValue</c> by another
+    /// name.</summary>
+    [property: JsonPropertyName("minOrderAmt")] string? MinOrderAmt);
 
 internal sealed record BybitFundingRow(
     [property: JsonPropertyName("symbol")] string Symbol,

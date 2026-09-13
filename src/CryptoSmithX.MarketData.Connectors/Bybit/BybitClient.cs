@@ -27,25 +27,41 @@ public sealed class BybitClient
     private static readonly HttpClient Shared = VenueHttp.Shared;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    /// <summary>Linear USDT/USDC-settled contracts — the segment this adapter is. Perpetuals and
-    /// dated futures share it, and the dated ones are dropped by contract type in the adapter
-    /// rather than here, because that is a fact about the instrument, not the transport.</summary>
-    private const string Category = "linear";
+    /// <summary>
+    /// Linear USDT/USDC-settled contracts — one of the two surfaces this client serves, and the
+    /// default. Perpetuals and dated futures share it, and the dated ones are dropped by contract
+    /// type in the adapter rather than here, because that is a fact about the instrument, not the
+    /// transport.
+    /// </summary>
+    public const string Linear = "linear";
+
+    /// <summary>
+    /// The spot surface.
+    ///
+    /// Every market route below takes the category as a parameter, so one client covers both — but
+    /// the SHAPES behind those routes differ and that difference belongs to the adapter, not here:
+    /// spot's <c>lotSizeFilter</c> carries <c>basePrecision</c> where linear's carries
+    /// <c>qtyStep</c>, its kline rows have no trade count, and the funding and open-interest routes
+    /// do not exist for it at all. <see cref="BybitSpotMarketData"/> says which of those it reads.
+    /// </summary>
+    public const string Spot = "spot";
 
     private readonly HttpClient _http;
     private readonly string _baseUrl;
+    private readonly string _category;
 
-    public BybitClient(string baseUrl)
-        : this(Shared, baseUrl)
+    public BybitClient(string baseUrl, string category = Linear)
+        : this(Shared, baseUrl, category)
     {
     }
 
     /// <summary>For tests: an <see cref="HttpClient"/> over a stub handler, so the HTTP + JSON +
     /// mapping path is exercised end to end without a network.</summary>
-    public BybitClient(HttpClient http, string baseUrl)
+    public BybitClient(HttpClient http, string baseUrl, string category = Linear)
     {
         _http = http;
         _baseUrl = baseUrl.TrimEnd('/');
+        _category = category;
     }
 
     /// <summary>
@@ -56,19 +72,19 @@ public sealed class BybitClient
     /// </summary>
     internal Task<BybitList<BybitInstrument>> GetInstrumentsAsync(CancellationToken ct) =>
         GetAsync<BybitList<BybitInstrument>>(
-            $"{_baseUrl}/v5/market/instruments-info?category={Category}&limit=1000", ct);
+            $"{_baseUrl}/v5/market/instruments-info?category={_category}&limit=1000", ct);
 
     /// <summary>The whole segment's market in one response — 873 rows, 649 KB, 0.65 s measured. Every
     /// column the snapshot holds for a book venue is on it, so there is nothing to merge.</summary>
     internal Task<BybitList<BybitTicker>> GetTickersAsync(CancellationToken ct) =>
-        GetAsync<BybitList<BybitTicker>>($"{_baseUrl}/v5/market/tickers?category={Category}", ct);
+        GetAsync<BybitList<BybitTicker>>($"{_baseUrl}/v5/market/tickers?category={_category}", ct);
 
     /// <summary>Closed 1-minute bars, newest first, as string arrays
     /// <c>[startMs, open, high, low, close, volumeBase, turnoverQuote]</c>.</summary>
     internal Task<BybitList<string[]>> GetKline1mAsync(
         string symbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
         GetAsync<BybitList<string[]>>(
-            $"{_baseUrl}/v5/market/kline?category={Category}&symbol={Uri.EscapeDataString(symbol)}"
+            $"{_baseUrl}/v5/market/kline?category={_category}&symbol={Uri.EscapeDataString(symbol)}"
             + "&interval=1&limit=1000"
             + $"&start={Ms(from)}&end={Ms(to)}", ct);
 
@@ -77,7 +93,7 @@ public sealed class BybitClient
     internal Task<BybitList<BybitFundingRow>> GetFundingHistoryAsync(
         string symbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
         GetAsync<BybitList<BybitFundingRow>>(
-            $"{_baseUrl}/v5/market/funding/history?category={Category}&symbol={Uri.EscapeDataString(symbol)}"
+            $"{_baseUrl}/v5/market/funding/history?category={_category}&symbol={Uri.EscapeDataString(symbol)}"
             + "&limit=200"
             + $"&startTime={Ms(from)}&endTime={Ms(to)}", ct);
 
@@ -89,7 +105,7 @@ public sealed class BybitClient
     internal Task<BybitList<BybitOpenInterestRow>> GetOpenInterestAsync(
         string symbol, string intervalTime, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
         GetAsync<BybitList<BybitOpenInterestRow>>(
-            $"{_baseUrl}/v5/market/open-interest?category={Category}&symbol={Uri.EscapeDataString(symbol)}"
+            $"{_baseUrl}/v5/market/open-interest?category={_category}&symbol={Uri.EscapeDataString(symbol)}"
             + $"&intervalTime={intervalTime}&limit=200"
             + $"&startTime={Ms(from)}&endTime={Ms(to)}", ct);
 
@@ -107,14 +123,14 @@ public sealed class BybitClient
     /// </summary>
     internal Task<BybitOrderBook> GetOrderBookAsync(string symbol, CancellationToken ct) =>
         GetAsync<BybitOrderBook>(
-            $"{_baseUrl}/v5/market/orderbook?category={Category}&symbol={Uri.EscapeDataString(symbol)}&limit=500", ct);
+            $"{_baseUrl}/v5/market/orderbook?category={_category}&symbol={Uri.EscapeDataString(symbol)}&limit=500", ct);
 
     /// <summary>The public tape, newest first, up to a thousand prints. At the depth sweep's own
     /// cadence that covers every instrument this adapter collects — measured against the busiest of
     /// them, which is the only one where it could fail to.</summary>
     internal Task<BybitList<BybitTrade>> GetRecentTradesAsync(string symbol, CancellationToken ct) =>
         GetAsync<BybitList<BybitTrade>>(
-            $"{_baseUrl}/v5/market/recent-trade?category={Category}&symbol={Uri.EscapeDataString(symbol)}&limit=1000", ct);
+            $"{_baseUrl}/v5/market/recent-trade?category={_category}&symbol={Uri.EscapeDataString(symbol)}&limit=1000", ct);
 
     /// <summary>
     /// The mark or index price as closed 1-minute bars — two separate routes on this venue, and two
@@ -134,7 +150,7 @@ public sealed class BybitClient
         };
 
         return GetAsync<BybitList<string[]>>(
-            $"{_baseUrl}/v5/market/{route}?category={Category}&symbol={Uri.EscapeDataString(symbol)}"
+            $"{_baseUrl}/v5/market/{route}?category={_category}&symbol={Uri.EscapeDataString(symbol)}"
             + $"&interval=1&limit=1000&start={Ms(from)}&end={Ms(to)}", ct);
     }
 
