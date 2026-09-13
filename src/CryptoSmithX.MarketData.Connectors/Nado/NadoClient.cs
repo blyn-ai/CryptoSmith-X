@@ -25,19 +25,34 @@ public sealed class NadoClient
     private static readonly HttpClient Shared = VenueHttp.Shared;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
+    /// <summary>
+    /// The spacing of events queries. The venue weighs one at 2 + limit/10 — 12 for the 100-transaction
+    /// page — against 400 an IP every 10 seconds, while the host gate counts requests, not weight: at the
+    /// gate's 10 a second a first pass walking 22 products ten pages deep spent 2 640 weight in about
+    /// 70 seconds, and 16 of the 22 products came back 429 (measured 2026-09-13). One every 500 ms is 240
+    /// weight per 10 seconds, leaving the rest of the bucket to the book, candles and funding.
+    /// </summary>
+    private static readonly TimeSpan EventsSpacing = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>Process-wide, because the venue's limit is per IP rather than per client.</summary>
+    private static readonly SemaphoreSlim EventsLane = new(1, 1);
+    private static DateTimeOffset _eventsNextAt = DateTimeOffset.MinValue;
+
     private readonly HttpClient _http;
     private readonly string _archive;
     private readonly string _gateway;
+    private readonly TimeSpan _eventsSpacing;
 
     public NadoClient(string archiveBaseUrl)
-        : this(Shared, archiveBaseUrl)
+        : this(Shared, archiveBaseUrl, EventsSpacing)
     {
     }
 
-    /// <summary>For tests: an <see cref="HttpClient"/> over a stub handler.</summary>
-    public NadoClient(HttpClient http, string archiveBaseUrl)
+    /// <summary>For tests: an <see cref="HttpClient"/> over a stub handler, and no events spacing unless given.</summary>
+    public NadoClient(HttpClient http, string archiveBaseUrl, TimeSpan eventsSpacing = default)
     {
         _http = http;
+        _eventsSpacing = eventsSpacing;
         _archive = archiveBaseUrl.TrimEnd('/');
 
         var uri = new Uri(_archive);
@@ -66,10 +81,36 @@ public sealed class NadoClient
         PostAsync<NadoFundingHistory>(new { funding_rate_history = new { product_id = productId, start_time = from.ToUnixTimeSeconds(), limit } }, ct);
 
     /// <summary>Liquidation events on one product, newest first, walking back from <paramref name="maxTime"/>.</summary>
-    internal Task<NadoEvents> GetLiquidationsAsync(int productId, DateTimeOffset? maxTime, int txs, CancellationToken ct) =>
-        maxTime is { } mt
-            ? PostAsync<NadoEvents>(new { events = new { product_ids = new[] { productId }, event_types = new[] { "liquidate_subaccount" }, max_time = mt.ToUnixTimeSeconds(), limit = new { txs } } }, ct)
-            : PostAsync<NadoEvents>(new { events = new { product_ids = new[] { productId }, event_types = new[] { "liquidate_subaccount" }, limit = new { txs } } }, ct);
+    /// <remarks>Paced by <see cref="EventsSpacing"/>: this route weighs six times a book read.</remarks>
+    internal async Task<NadoEvents> GetLiquidationsAsync(int productId, DateTimeOffset? maxTime, int txs, CancellationToken ct)
+    {
+        object body = maxTime is { } mt
+            ? new { events = new { product_ids = new[] { productId }, event_types = new[] { "liquidate_subaccount" }, max_time = mt.ToUnixTimeSeconds(), limit = new { txs } } }
+            : new { events = new { product_ids = new[] { productId }, event_types = new[] { "liquidate_subaccount" }, limit = new { txs } } };
+
+        if (_eventsSpacing <= TimeSpan.Zero)
+        {
+            return await PostAsync<NadoEvents>(body, ct);
+        }
+
+        await EventsLane.WaitAsync(ct);
+        try
+        {
+            var wait = _eventsNextAt - DateTimeOffset.UtcNow;
+            if (wait > TimeSpan.Zero)
+            {
+                await Task.Delay(wait, ct);
+            }
+
+            _eventsNextAt = DateTimeOffset.UtcNow + _eventsSpacing;
+        }
+        finally
+        {
+            EventsLane.Release();
+        }
+
+        return await PostAsync<NadoEvents>(body, ct);
+    }
 
     private async Task<T> GetAsync<T>(string url, CancellationToken ct)
     {

@@ -130,6 +130,27 @@ public sealed class NadoPerpTests
     }
 
     [Fact]
+    public async Task Events_queries_are_spaced_to_their_weight_not_to_the_request_gate()
+    {
+        // An events page weighs 12 where a book read weighs 1. Paced only by the host gate's requests per
+        // second, the first pass's walks spent 2 640 weight in about 70 s against 2 400 a minute, and 16
+        // of 22 products came back 429. Three walks through one spaced client may not start closer than
+        // the spacing allows, whatever concurrency asks for them.
+        var spacing = TimeSpan.FromMilliseconds(150);
+        var nado = new NadoPerpMarketData(new NadoClient(new HttpClient(new Stub(null)), "https://archive.prod.nado.test", spacing));
+        await nado.GetInstrumentsAsync(CancellationToken.None);
+
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => nado.GetLiquidationVolumeAsync(
+            "BTC-PERP_USDT0",
+            DateTimeOffset.FromUnixTimeSeconds(1_789_290_000),
+            DateTimeOffset.FromUnixTimeSeconds(1_789_307_000),
+            CancellationToken.None)));
+
+        Assert.True(clock.Elapsed >= spacing * 2 - TimeSpan.FromMilliseconds(10), $"three spaced queries took {clock.Elapsed}");
+    }
+
+    [Fact]
     public async Task A_bar_is_read_off_x18_integers()
     {
         var nado = await Discovered();
