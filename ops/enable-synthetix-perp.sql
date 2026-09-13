@@ -1,5 +1,5 @@
 -- Включение Synthetix на тесте (plans/prompt-dex-five-venues.md, шаг 5). Инструменты к сбору отбирает
--- discovery по политике 0029 (asset.auto_collect). depth раз в 60 с — это свежесть bid/ask и размеров.
+-- discovery по политике 0029 (asset.auto_collect). depth раз в 15 с — это свежесть bid/ask и размеров.
 --
 --   test   ssh csx-prod 'docker exec -i cryptosmithx-postgres \
 --              psql -U marketdata -d marketdata -v ON_ERROR_STOP=1' < ops/enable-synthetix-perp.sql
@@ -11,8 +11,8 @@ update segment set status = 'enabled', updated_at = now(), updated_by = 'ops/ena
 
 create temporary table wanted (dataset_code text, interval_s int) on commit drop;
 insert into wanted values
-    ('discovery', 900), ('snapshot', 60), ('candles', 60), ('funding', 3600),
-    ('depth', 60), ('trades', 60), ('spec_versions', 3600);
+    ('discovery', 900), ('snapshot', 15), ('candles', 60), ('funding', 3600),
+    ('depth', 15), ('trades', 60), ('spec_versions', 3600);
 
 update segment_dataset sd
    set mode = 'collect', interval_s = w.interval_s, transport = 'rest',

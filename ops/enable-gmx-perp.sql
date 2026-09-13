@@ -1,6 +1,6 @@
 -- Включение GMX на тесте (plans/prompt-dex-five-venues.md, шаг 5). Инструменты к сбору отбирает
 -- discovery по политике 0029 (asset.auto_collect): у BTC и ETH по три пула, все три — инструменты.
--- depth раз в 60 с — это кривая импакта из того же кадра, что и снимок, без запросов на пробу.
+-- depth раз в 15 с — это кривая импакта из того же кадра, что и снимок, без запросов на пробу.
 -- trades раз в 60 с — сброс ленты, которую снимок уже прочитал.
 --
 --   test   ssh csx-prod 'docker exec -i cryptosmithx-postgres \
@@ -13,7 +13,7 @@ update segment set status = 'enabled', updated_at = now(), updated_by = 'ops/ena
 
 create temporary table wanted (dataset_code text, interval_s int) on commit drop;
 insert into wanted values
-    ('discovery', 900), ('snapshot', 60), ('candles_index', 60), ('depth', 60),
+    ('discovery', 900), ('snapshot', 15), ('candles_index', 60), ('depth', 15),
     ('trades', 60), ('liquidations', 900), ('spec_versions', 3600);
 
 update segment_dataset sd

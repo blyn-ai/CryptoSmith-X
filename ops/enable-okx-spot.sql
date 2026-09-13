@@ -33,7 +33,7 @@ update segment
 create temporary table wanted (dataset_code text, interval_s int) on commit drop;
 insert into wanted values
     ('discovery',    900),
-    ('snapshot',      60),
+    ('snapshot',      15),
     ('candles',       60),
     ('depth',        300),
     -- Лента складывается из того же вызова, что и стакан, поэтому отдельных

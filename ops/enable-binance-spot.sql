@@ -37,7 +37,7 @@ update segment
 create temporary table wanted (dataset_code text, interval_s int) on commit drop;
 insert into wanted values
     ('discovery',    900),
-    ('snapshot',      60),
+    ('snapshot',      15),
     ('candles',       60),
     -- 250 весов на символ; десять инструментов раз в пять минут — 500 весов в
     -- минуту из 6000.

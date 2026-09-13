@@ -6,7 +6,7 @@
 -- весь рынок собирается только у Kraken Futures; прод приведён к этому сегодня же. BTC и ETH в
 -- списке, так что приёмка на /studio/v2/BTC и ETH от этого не зависит.
 --
--- depth раз в 60 с, а не 300: с него адаптер берёт bid/ask и размеры топа для снимка, и это их
+-- depth раз в 15 с, а не 300: с него адаптер берёт bid/ask и размеры топа для снимка, и это их
 -- свежесть. ~25 рынков × (книга + лента) = ~50 запросов в минуту при бюджете 8 в секунду.
 --
 --   test   ssh csx-prod 'docker exec -i cryptosmithx-postgres \
@@ -19,8 +19,8 @@ update segment set status = 'enabled', updated_at = now(), updated_by = 'ops/ena
 
 create temporary table wanted (dataset_code text, interval_s int) on commit drop;
 insert into wanted values
-    ('discovery', 900), ('snapshot', 60), ('candles', 60), ('funding', 3600),
-    ('depth', 60), ('trades', 60), ('liquidations', 900), ('open_interest', 3600),
+    ('discovery', 900), ('snapshot', 15), ('candles', 60), ('funding', 3600),
+    ('depth', 15), ('trades', 60), ('liquidations', 900), ('open_interest', 3600),
     ('spec_versions', 3600);
 
 update segment_dataset sd
