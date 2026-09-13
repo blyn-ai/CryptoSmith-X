@@ -22,7 +22,22 @@ public interface IExchangeMarketData
     /// </summary>
     IReadOnlyList<DatasetCapability> Capabilities { get; }
 
-    /// <summary>Linear perpetuals with a USD-family quote. Dated and inverse contracts are skipped.</summary>
+    /// <summary>
+    /// Every instrument that belongs to THIS adapter's segment, and nothing else.
+    ///
+    /// The segment decides what that means and the adapter enforces it — this contract only says
+    /// that the answer is complete for the segment and free of anything outside it. A perpetual
+    /// segment returns linear perpetuals with a USD-family quote and skips dated and inverse
+    /// contracts; a spot segment returns spot pairs and has no such distinction to make. The rule
+    /// used to be written here as if it were universal, which stopped being true the moment a spot
+    /// segment existed, and a reader who trusted it would look for a bug in the right place for the
+    /// wrong reason.
+    ///
+    /// What every adapter owes regardless: quantities in whatever unit the venue quotes them, with
+    /// <see cref="Instrument.ContractMultiplier"/> carrying the conversion, and an instrument this
+    /// venue's own API refuses to serve left out rather than rediscovered by every collector one
+    /// failure at a time.
+    /// </summary>
     Task<IReadOnlyList<Instrument>> GetInstrumentsAsync(CancellationToken ct);
 
     /// <summary>Every instrument in one call where the venue allows it.</summary>

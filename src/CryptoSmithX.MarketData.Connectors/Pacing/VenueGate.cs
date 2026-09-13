@@ -67,13 +67,13 @@ public sealed class VenueGate
 
     private long _penaltyUntilTicks;
 
-    public VenueGate(string venueCode, int requestsPerSecond, int maxConcurrentRequests, TimeProvider clock)
+    public VenueGate(string host, int requestsPerSecond, int maxConcurrentRequests, TimeProvider clock)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(venueCode);
+        ArgumentException.ThrowIfNullOrWhiteSpace(host);
         ArgumentOutOfRangeException.ThrowIfLessThan(requestsPerSecond, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxConcurrentRequests, 1);
 
-        VenueCode = venueCode;
+        Host = host;
         RequestsPerSecond = requestsPerSecond;
         MaxConcurrentRequests = maxConcurrentRequests;
         _clock = clock;
@@ -84,7 +84,9 @@ public sealed class VenueGate
         _availableTokens = _burst;
     }
 
-    public string VenueCode { get; }
+    /// <summary>What this gate is the ceiling FOR — the hostname the requests go to, not the venue
+    /// or the segment. See <see cref="VenueGates"/> for why that is the right unit.</summary>
+    public string Host { get; }
 
     public int RequestsPerSecond { get; }
 

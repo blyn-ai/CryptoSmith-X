@@ -94,7 +94,8 @@ public sealed class DbSettings
                    market_ws_url as "MarketWsUrl",
                    quote_assets as "QuoteAssets",
                    blacklist    as "Blacklist",
-                   status       as "Status"
+                   status       as "Status",
+                   request_budget_per_s as "RequestBudgetPerS"
               from segment
              order by code
             """, cancellationToken: ct))).ToList();
@@ -160,6 +161,16 @@ public sealed record ExchangeConfig
     /// nothing else in this schema needs a second socket, and it stays that way rather than
     /// generalising to "extra WS URLs" for a need only one venue has today.</summary>
     public string? MarketWsUrl { get; init; }
+
+    /// <summary>
+    /// This segment's own request ceiling, or null to take the venue's (0054).
+    ///
+    /// Worth setting exactly where this segment's HOST differs from the host the venue's other
+    /// segments use: fapi.binance.com and api.binance.com carry separate ceilings, while
+    /// www.okx.com serves SWAP and SPOT from one. The gate is keyed on the host, so two segments
+    /// sharing a host share a gate — and if both name a number, the smaller one wins.
+    /// </summary>
+    public int? RequestBudgetPerS { get; init; }
 
     public string[] QuoteAssets { get; init; } = [];
     public string[] Blacklist { get; init; } = [];

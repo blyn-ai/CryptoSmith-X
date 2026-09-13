@@ -260,18 +260,45 @@ public sealed class VenueGateTests
     }
 
     [Fact]
-    public void Two_segments_of_one_venue_get_the_same_gate()
+    public void Two_segments_on_one_host_get_the_same_gate()
     {
         var gates = new VenueGates(new FakeTimeProvider(T0));
 
-        // Both of these are segments of the venue 'kraken' — futures today, spot the day it is added.
-        // They must contend for one budget, because they contend for one IP.
-        var fromFutures = gates.For("kraken", 20, 8);
-        var fromSpot = gates.For("kraken", 20, 8);
-        Assert.Same(fromFutures, fromSpot);
+        // OKX serves SWAP and SPOT from www.okx.com alike, and the ceiling is shared: twenty
+        // concurrent tickers split across the two surfaces returned ten successes each. Two gates
+        // here would be two ceilings pretending to be one.
+        var fromSwap = gates.For("www.okx.com", 20, 8);
+        var fromSpot = gates.For("www.okx.com", 20, 8);
+        Assert.Same(fromSwap, fromSpot);
 
-        Assert.NotSame(fromFutures, gates.For("weex", 20, 8));
-        Assert.Equal("weex", gates.For("weex", 20, 8).VenueCode);
+        Assert.NotSame(fromSwap, gates.For("api-contract.weex.com", 20, 8));
+        Assert.Equal("api-contract.weex.com", gates.For("api-contract.weex.com", 20, 8).Host);
+    }
+
+    [Fact]
+    public void Two_hosts_of_one_venue_get_different_gates()
+    {
+        var gates = new VenueGates(new FakeTimeProvider(T0));
+
+        // What this test used to say was the opposite, and it used Kraken to say it: "both of these
+        // are segments of the venue 'kraken' — futures today, spot the day it is added; they must
+        // contend for one budget, because they contend for one IP." They do not. Kraken serves its
+        // two surfaces from futures.kraken.com and api.kraken.com, two APIs entirely, and Binance
+        // the same way with two ceilings measured at 2 400 and 6 000 weight a minute. Keyed on the
+        // venue, two independent budgets become one and both surfaces are throttled to a ceiling
+        // neither of them has.
+        Assert.NotSame(
+            gates.For("futures.kraken.com", 20, 8),
+            gates.For("api.kraken.com", 20, 8));
+    }
+
+    [Fact]
+    public void A_hostname_is_case_insensitive_and_one_host_is_one_gate()
+    {
+        // A capital in a base_url must not quietly buy a second ceiling.
+        var gates = new VenueGates(new FakeTimeProvider(T0));
+
+        Assert.Same(gates.For("api.binance.com", 20, 8), gates.For("API.Binance.com", 20, 8));
     }
 
     [Fact]

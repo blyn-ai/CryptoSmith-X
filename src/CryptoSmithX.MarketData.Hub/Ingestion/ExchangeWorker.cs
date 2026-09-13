@@ -298,10 +298,18 @@ public sealed class ExchangeWorker : BackgroundService
     }
 
     /// <summary>
-    /// The venue's request ceiling for this segment — keyed on <c>exchange.code</c>, never on the
-    /// segment code: two segments of one venue share one IP budget, which is the entire reason the
-    /// venue level exists (0019). A segment whose venue row is missing is a misconfiguration the
-    /// caller turns into "enabled but cannot be built", not a segment quietly running unpaced.
+    /// The request ceiling for this segment — keyed on the HOST its <c>base_url</c> names, never on
+    /// the venue and never on the segment.
+    ///
+    /// 0019 keyed this on <c>exchange.code</c>, because two segments of one venue share one IP
+    /// budget. For perpetuals that holds. Spot breaks it in both directions at once: Binance serves
+    /// futures and spot from two hosts with two separate ceilings, while OKX and Bybit serve both
+    /// surfaces from one host with one. Keyed on the venue we would throttle Binance's two budgets
+    /// into one; keyed on the segment we would hand OKX two gates where the venue counts one. The
+    /// host is the thing the ceiling actually belongs to. See <see cref="VenueGates"/> and 0054.
+    ///
+    /// A segment whose venue row is missing is a misconfiguration the caller turns into "enabled but
+    /// cannot be built", not a segment quietly running unpaced.
     /// </summary>
     private VenueGate GateFor(ExchangeConfig config, SettingsSnapshot snapshot)
     {
@@ -310,20 +318,82 @@ public sealed class ExchangeWorker : BackgroundService
                 $"Segment '{config.Code}' names venue '{config.ExchangeCode}', which has no exchange row — "
                 + "no request budget can be resolved for it.");
 
-        var gate = _gates.For(venue.Code, venue.RequestBudgetPerS, venue.MaxConcurrentRequests);
-        if (gate.RequestsPerSecond != venue.RequestBudgetPerS || gate.MaxConcurrentRequests != venue.MaxConcurrentRequests)
+        var choice = ChooseGate(config, venue, snapshot.Exchanges);
+        var host = choice.Host;
+        var budget = choice.RequestsPerSecond;
+
+        if (choice.Disputed)
+        {
+            // The SMALLEST, and said out loud. Silently taking either one would apply a ceiling
+            // nobody asked for to the segment that asked for the other.
+            _logger.LogWarning(
+                "Host {Host} is shared by segments naming different request budgets ({Named}); "
+                + "the gate runs at the smallest, {Rps} req/s",
+                host,
+                string.Join(", ", choice.Named.Select(n => $"{n.Segment}={n.Rps}")),
+                budget);
+        }
+
+        var gate = _gates.For(host, budget, venue.MaxConcurrentRequests);
+        if (gate.RequestsPerSecond != budget || gate.MaxConcurrentRequests != venue.MaxConcurrentRequests)
         {
             // The gate was built earlier in this process from different numbers and keeps them; see
             // VenueGates for why. Say so, rather than letting the console show a budget nothing obeys.
             _logger.LogWarning(
-                "Venue {Venue} budget in the database is {Rps} req/s x{Concurrency}, but the live gate runs "
+                "Host {Host} budget in the database is {Rps} req/s x{Concurrency}, but the live gate runs "
                 + "{LiveRps} req/s x{LiveConcurrency}; the change applies on restart",
-                venue.Code, venue.RequestBudgetPerS, venue.MaxConcurrentRequests,
+                host, budget, venue.MaxConcurrentRequests,
                 gate.RequestsPerSecond, gate.MaxConcurrentRequests);
         }
 
         return gate;
     }
+
+    /// <summary>
+    /// Which gate a segment should get, worked out from the catalogue alone — kept internal and
+    /// static so it is testable without a supervisor or a database, like
+    /// <see cref="DesiredCollectors"/>.
+    ///
+    /// The budget is the segment's own where it names one, and the venue's where it does not. When
+    /// several segments share a host and more than one names a number, the SMALLEST is taken:
+    /// they will be handed the same gate, so the ceiling has to be one all of them can live under.
+    /// </summary>
+    internal static GateChoice ChooseGate(
+        ExchangeConfig config, VenueConfig venue, IReadOnlyList<ExchangeConfig> segments)
+    {
+        var host = HostOf(config);
+
+        var named = segments
+            .Where(e => string.Equals(HostOf(e), host, StringComparison.OrdinalIgnoreCase))
+            .Where(e => e.RequestBudgetPerS is > 0)
+            .Select(e => (Segment: e.Code, Rps: e.RequestBudgetPerS!.Value))
+            .OrderBy(e => e.Segment, StringComparer.Ordinal)
+            .ToList();
+
+        return new GateChoice(
+            host,
+            named.Count > 0 ? named.Min(n => n.Rps) : venue.RequestBudgetPerS,
+            named);
+    }
+
+    /// <summary>The host a segment belongs to, the ceiling it gets, and who asked for what.</summary>
+    internal readonly record struct GateChoice(
+        string Host, int RequestsPerSecond, IReadOnlyList<(string Segment, int Rps)> Named)
+    {
+        /// <summary>True when segments sharing this host asked for different ceilings — the case
+        /// that must not be resolved silently.</summary>
+        public bool Disputed => Named.Select(n => n.Rps).Distinct().Count() > 1;
+    }
+
+    /// <summary>
+    /// The host a segment's requests go to.
+    ///
+    /// Falls back to the segment's own code when <c>base_url</c> is empty — the fake segment, and
+    /// any segment seeded into the catalogue before its adapter exists. That fallback shares a gate
+    /// with nothing, which is the truth about a segment that has no host to share.
+    /// </summary>
+    internal static string HostOf(ExchangeConfig config) =>
+        Uri.TryCreate(config.BaseUrl, UriKind.Absolute, out var uri) ? uri.Host : config.Code;
 
     /// <summary>One collector instance per known dataset, wired to this adapter — built once per
     /// exchange start so <see cref="ReconcileCollectors"/> only ever starts/stops the loops around
