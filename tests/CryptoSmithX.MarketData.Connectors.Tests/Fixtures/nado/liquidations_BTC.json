@@ -1,0 +1,414 @@
+{
+ "events": [
+  {
+   "subaccount": "0x4a6952ebfc741870ab79f5f0a3f0795788f826fd64656661756c740000000000",
+   "product_id": 2,
+   "submission_idx": "81055152",
+   "event_type": "liquidate_subaccount",
+   "isolated": false,
+   "isolated_product_id": null,
+   "pre_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "0",
+      "v_quote_balance": "0",
+      "last_cumulative_funding_x18": "1857891885375998156924"
+     }
+    }
+   },
+   "post_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "0",
+      "v_quote_balance": "0",
+      "last_cumulative_funding_x18": "1857891885375998156924"
+     }
+    }
+   },
+   "product": {
+    "perp": {
+     "product_id": 2,
+     "oracle_price_x18": "76534750000000005269363",
+     "risk": {
+      "long_weight_initial_x18": "980000000000000000",
+      "short_weight_initial_x18": "1020000000000000000",
+      "long_weight_maintenance_x18": "990000000000000000",
+      "short_weight_maintenance_x18": "1010000000000000000",
+      "price_x18": "76534750000000005269363"
+     },
+     "state": {
+      "cumulative_funding_long_x18": "1857891885375998156924",
+      "cumulative_funding_short_x18": "1857891885375998156924",
+      "available_settle": "356071471973268922818820",
+      "open_interest": "259680400000000000000"
+     },
+     "book_info": {
+      "size_increment": "50000000000000",
+      "price_increment_x18": "1000000000000000000",
+      "min_size": "100000000000000000000",
+      "collected_fees": "154806802903027568155029"
+     }
+    }
+   },
+   "net_interest_unrealized": "0",
+   "net_interest_cumulative": "0",
+   "net_funding_unrealized": "0",
+   "net_funding_cumulative": "379869690013292772",
+   "net_entry_unrealized": "0",
+   "net_entry_cumulative": "399809957722168547402",
+   "quote_volume_cumulative": "1346090872038182168547402",
+   "cumulative_trade_count": "471"
+  },
+  {
+   "subaccount": "0xc6be262771f5e69c8bbe268aee225436cc7f2b5964656661756c740000000000",
+   "product_id": 2,
+   "submission_idx": "81055152",
+   "event_type": "liquidate_subaccount",
+   "isolated": false,
+   "isolated_product_id": null,
+   "pre_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "0",
+      "v_quote_balance": "0",
+      "last_cumulative_funding_x18": "1857891885375998156924"
+     }
+    }
+   },
+   "post_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "0",
+      "v_quote_balance": "0",
+      "last_cumulative_funding_x18": "1857891885375998156924"
+     }
+    }
+   },
+   "product": {
+    "perp": {
+     "product_id": 2,
+     "oracle_price_x18": "76534750000000005269363",
+     "risk": {
+      "long_weight_initial_x18": "980000000000000000",
+      "short_weight_initial_x18": "1020000000000000000",
+      "long_weight_maintenance_x18": "990000000000000000",
+      "short_weight_maintenance_x18": "1010000000000000000",
+      "price_x18": "76534750000000005269363"
+     },
+     "state": {
+      "cumulative_funding_long_x18": "1857891885375998156924",
+      "cumulative_funding_short_x18": "1857891885375998156924",
+      "available_settle": "356071471973268922818820",
+      "open_interest": "259680400000000000000"
+     },
+     "book_info": {
+      "size_increment": "50000000000000",
+      "price_increment_x18": "1000000000000000000",
+      "min_size": "100000000000000000000",
+      "collected_fees": "154806802903027568155029"
+     }
+    }
+   },
+   "net_interest_unrealized": "0",
+   "net_interest_cumulative": "0",
+   "net_funding_unrealized": "0",
+   "net_funding_cumulative": "0",
+   "net_entry_unrealized": "0",
+   "net_entry_cumulative": "565800548233809704",
+   "quote_volume_cumulative": "2176578386503234006900",
+   "cumulative_trade_count": "10"
+  },
+  {
+   "subaccount": "0x0000000000000000000000000000000000000000000000000000000000000002",
+   "product_id": 2,
+   "submission_idx": "81035379",
+   "event_type": "liquidate_subaccount",
+   "isolated": false,
+   "isolated_product_id": null,
+   "pre_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "0",
+      "v_quote_balance": "2675770957499939935",
+      "last_cumulative_funding_x18": "1856615431493914341059"
+     }
+    }
+   },
+   "post_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "0",
+      "v_quote_balance": "2675770957499939935",
+      "last_cumulative_funding_x18": "1856615431493914341059"
+     }
+    }
+   },
+   "product": {
+    "perp": {
+     "product_id": 2,
+     "oracle_price_x18": "76538050000000009216372",
+     "risk": {
+      "long_weight_initial_x18": "980000000000000000",
+      "short_weight_initial_x18": "1020000000000000000",
+      "long_weight_maintenance_x18": "990000000000000000",
+      "short_weight_maintenance_x18": "1010000000000000000",
+      "price_x18": "76538050000000009216372"
+     },
+     "state": {
+      "cumulative_funding_long_x18": "1856615431493914341059",
+      "cumulative_funding_short_x18": "1856615431493914341059",
+      "available_settle": "357123325303644702922201",
+      "open_interest": "257895600000000000000"
+     },
+     "book_info": {
+      "size_increment": "50000000000000",
+      "price_increment_x18": "1000000000000000000",
+      "min_size": "100000000000000000000",
+      "collected_fees": "154133271234173904166062"
+     }
+    }
+   },
+   "net_interest_unrealized": "0",
+   "net_interest_cumulative": "0",
+   "net_funding_unrealized": "0",
+   "net_funding_cumulative": "-598580185964600",
+   "net_entry_unrealized": "0",
+   "net_entry_cumulative": "-209428544460193691560906",
+   "quote_volume_cumulative": "77135213463152763672994639",
+   "cumulative_trade_count": "14444"
+  },
+  {
+   "subaccount": "0x677cd788991f19060618b9428d77e65b3532da7d64656661756c740000000000",
+   "product_id": 2,
+   "submission_idx": "81035379",
+   "event_type": "liquidate_subaccount",
+   "isolated": false,
+   "isolated_product_id": null,
+   "pre_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "26950000000000000",
+      "v_quote_balance": "-2082991956755925312800",
+      "last_cumulative_funding_x18": "1856615431493914341059"
+     }
+    }
+   },
+   "post_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "26950000000000000",
+      "v_quote_balance": "-2082991956755925312800",
+      "last_cumulative_funding_x18": "1856615431493914341059"
+     }
+    }
+   },
+   "product": {
+    "perp": {
+     "product_id": 2,
+     "oracle_price_x18": "76538050000000009216372",
+     "risk": {
+      "long_weight_initial_x18": "980000000000000000",
+      "short_weight_initial_x18": "1020000000000000000",
+      "long_weight_maintenance_x18": "990000000000000000",
+      "short_weight_maintenance_x18": "1010000000000000000",
+      "price_x18": "76538050000000009216372"
+     },
+     "state": {
+      "cumulative_funding_long_x18": "1856615431493914341059",
+      "cumulative_funding_short_x18": "1856615431493914341059",
+      "available_settle": "357123325303644702922201",
+      "open_interest": "257895600000000000000"
+     },
+     "book_info": {
+      "size_increment": "50000000000000",
+      "price_increment_x18": "1000000000000000000",
+      "min_size": "100000000000000000000",
+      "collected_fees": "154133271234173904166062"
+     }
+    }
+   },
+   "net_interest_unrealized": "0",
+   "net_interest_cumulative": "0",
+   "net_funding_unrealized": "-767214982727855303",
+   "net_funding_cumulative": "404666231228550238",
+   "net_entry_unrealized": "2078800950000000000000",
+   "net_entry_cumulative": "2879912242527582003146",
+   "quote_volume_cumulative": "912558645529294025416145",
+   "cumulative_trade_count": "998"
+  },
+  {
+   "subaccount": "0x0000000000000000000000000000000000000000000000000000000000000002",
+   "product_id": 2,
+   "submission_idx": "81035362",
+   "event_type": "liquidate_subaccount",
+   "isolated": false,
+   "isolated_product_id": null,
+   "pre_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "0",
+      "v_quote_balance": "0",
+      "last_cumulative_funding_x18": "1856615431493914341059"
+     }
+    }
+   },
+   "post_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "6550000000000000",
+      "v_quote_balance": "-498817606362500060065",
+      "last_cumulative_funding_x18": "1856615431493914341059"
+     }
+    }
+   },
+   "product": {
+    "perp": {
+     "product_id": 2,
+     "oracle_price_x18": "76538050000000009216372",
+     "risk": {
+      "long_weight_initial_x18": "980000000000000000",
+      "short_weight_initial_x18": "1020000000000000000",
+      "long_weight_maintenance_x18": "990000000000000000",
+      "short_weight_maintenance_x18": "1010000000000000000",
+      "price_x18": "76538050000000009216372"
+     },
+     "state": {
+      "cumulative_funding_long_x18": "1856615431493914341059",
+      "cumulative_funding_short_x18": "1856615431493914341059",
+      "available_settle": "357123325303644702922201",
+      "open_interest": "258035300000000000000"
+     },
+     "book_info": {
+      "size_increment": "50000000000000",
+      "price_increment_x18": "1000000000000000000",
+      "min_size": "100000000000000000000",
+      "collected_fees": "154132754103710216926798"
+     }
+    }
+   },
+   "net_interest_unrealized": "0",
+   "net_interest_cumulative": "0",
+   "net_funding_unrealized": "0",
+   "net_funding_cumulative": "-598580185964600",
+   "net_entry_unrealized": "500070916931250060216",
+   "net_entry_cumulative": "-208927051082873691560906",
+   "quote_volume_cumulative": "77134711969775443672994639",
+   "cumulative_trade_count": "14443"
+  },
+  {
+   "subaccount": "0x57114555e01a52a6fb5802d63f71bfdb25bde63564656661756c740000000000",
+   "product_id": 2,
+   "submission_idx": "81035362",
+   "event_type": "liquidate_subaccount",
+   "isolated": true,
+   "isolated_product_id": null,
+   "pre_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "13150000000000000",
+      "v_quote_balance": "-1014460478271106311693",
+      "last_cumulative_funding_x18": "1856615431493914341059"
+     }
+    }
+   },
+   "post_balance": {
+    "perp": {
+     "product_id": 2,
+     "balance": {
+      "amount": "6600000000000000",
+      "v_quote_balance": "-515642871908606251628",
+      "last_cumulative_funding_x18": "1856615431493914341059"
+     }
+    }
+   },
+   "product": {
+    "perp": {
+     "product_id": 2,
+     "oracle_price_x18": "76538050000000009216372",
+     "risk": {
+      "long_weight_initial_x18": "980000000000000000",
+      "short_weight_initial_x18": "1020000000000000000",
+      "long_weight_maintenance_x18": "990000000000000000",
+      "short_weight_maintenance_x18": "1010000000000000000",
+      "price_x18": "76538050000000009216372"
+     },
+     "state": {
+      "cumulative_funding_long_x18": "1856615431493914341059",
+      "cumulative_funding_short_x18": "1856615431493914341059",
+      "available_settle": "357123325303644702922201",
+      "open_interest": "258035300000000000000"
+     },
+     "book_info": {
+      "size_increment": "50000000000000",
+      "price_increment_x18": "1000000000000000000",
+      "min_size": "100000000000000000000",
+      "collected_fees": "154132754103710216926798"
+     }
+    }
+   },
+   "net_interest_unrealized": "0",
+   "net_interest_cumulative": "0",
+   "net_funding_unrealized": "-223924086118570934",
+   "net_funding_cumulative": "-532610078606367795",
+   "net_entry_unrealized": "518377200000000000000",
+   "net_entry_cumulative": "670789301818268546688",
+   "quote_volume_cumulative": "8253560775055768403573",
+   "cumulative_trade_count": "1"
+  }
+ ],
+ "txs": [
+  {
+   "tx": {
+    "liquidate_subaccount": {
+     "sender": "0xc6be262771f5e69c8bbe268aee225436cc7f2b5964656661756c740000000000",
+     "liquidatee": "0x4a6952ebfc741870ab79f5f0a3f0795788f826fd64656661756c740000000000",
+     "product_id": 5,
+     "is_encoded_spread": false,
+     "amount": "400528187782927533246",
+     "nonce": 4292
+    }
+   },
+   "submission_idx": "81055152",
+   "timestamp": "1789306008"
+  },
+  {
+   "tx": {
+    "liquidate_subaccount": {
+     "sender": "0x0000000000000000000000000000000000000000000000000000000000000002",
+     "liquidatee": "0x677cd788991f19060618b9428d77e65b3532da7d64656661756c740000000000",
+     "product_id": 4,
+     "is_encoded_spread": false,
+     "amount": "386000000000000000",
+     "nonce": 4292
+    }
+   },
+   "submission_idx": "81035379",
+   "timestamp": "1789297366"
+  },
+  {
+   "tx": {
+    "liquidate_subaccount": {
+     "sender": "0x0000000000000000000000000000000000000000000000000000000000000002",
+     "liquidatee": "0x57114555e01a52a6fb5802d63f71bfdb25bde63500000000000000020069736f",
+     "product_id": 2,
+     "is_encoded_spread": false,
+     "amount": "6550000000000000",
+     "nonce": 4292
+    }
+   },
+   "submission_idx": "81035362",
+   "timestamp": "1789297364"
+  }
+ ]
+}

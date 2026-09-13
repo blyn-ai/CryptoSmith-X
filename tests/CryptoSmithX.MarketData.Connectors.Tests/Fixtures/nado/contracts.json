@@ -1,0 +1,40 @@
+{
+ "ETH-PERP_USDT0": {
+  "product_id": 4,
+  "ticker_id": "ETH-PERP_USDT0",
+  "base_currency": "ETH-PERP",
+  "quote_currency": "USDT0",
+  "last_price": 2467.5,
+  "base_volume": 10966.333,
+  "quote_volume": 27491569.380961042,
+  "product_type": "perpetual",
+  "contract_price": 2468.1699999999996,
+  "contract_price_currency": "USD",
+  "open_interest": 4585.51,
+  "open_interest_usd": 11317818.216699999,
+  "index_price": 2469.32,
+  "mark_price": 2468.7627696155846,
+  "funding_rate": -0.000225343035519014,
+  "next_funding_rate_timestamp": 1789308000,
+  "price_change_percent_24h": -2.698856356662205
+ },
+ "BTC-PERP_USDT0": {
+  "product_id": 2,
+  "ticker_id": "BTC-PERP_USDT0",
+  "base_currency": "BTC-PERP",
+  "quote_currency": "USDT0",
+  "last_price": 76613.0,
+  "base_volume": 1021.63085,
+  "quote_volume": 78739026.9701858,
+  "product_type": "perpetual",
+  "contract_price": 76605.45,
+  "contract_price_currency": "USD",
+  "open_interest": 255.0367,
+  "open_interest_usd": 19537201.170015,
+  "index_price": 76651.35,
+  "mark_price": 76666.78823972249,
+  "funding_rate": 0.00020123950504988,
+  "next_funding_rate_timestamp": 1789308000,
+  "price_change_percent_24h": -0.83417637704152
+ }
+}

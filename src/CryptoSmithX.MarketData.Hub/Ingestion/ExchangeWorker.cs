@@ -11,6 +11,7 @@ using CryptoSmithX.MarketData.Connectors.Hyperliquid;
 using CryptoSmithX.MarketData.Connectors.Kraken;
 using CryptoSmithX.MarketData.Connectors.Dydx;
 using CryptoSmithX.MarketData.Connectors.Mexc;
+using CryptoSmithX.MarketData.Connectors.Nado;
 using CryptoSmithX.MarketData.Connectors.Synthetix;
 using CryptoSmithX.MarketData.Connectors.Okx;
 using CryptoSmithX.MarketData.Connectors.Pacing;
@@ -714,6 +715,8 @@ public sealed class ExchangeWorker : BackgroundService
         "dydx-perp" => new DydxPerpMarketData(new DydxClient(BaseUrl(config))),
         // Synthetix: an order book, not the oracle pool 0057 assumed (0061).
         "synthetix-perp" => new SynthetixPerpMarketData(new SynthetixClient(BaseUrl(config))),
+        // Nado on Ink L2 — its own venue, not Vertex renamed (0062).
+        "nado-perp" => new NadoPerpMarketData(new NadoClient(BaseUrl(config))),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),

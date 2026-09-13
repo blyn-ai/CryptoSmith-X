@@ -1,0 +1,22 @@
+[
+ {
+  "product_id": 2,
+  "ticker_id": "BTC-PERP_USDT0",
+  "trade_id": 81056540,
+  "price": 76624.4936740511,
+  "base_filled": 0.0074,
+  "quote_filled": -567.0212531879782,
+  "timestamp": 1789306388,
+  "trade_type": "buy"
+ },
+ {
+  "product_id": 2,
+  "ticker_id": "BTC-PERP_USDT0",
+  "trade_id": 81056540,
+  "price": 76613.0,
+  "base_filled": -0.0074,
+  "quote_filled": 566.9362,
+  "timestamp": 1789306388,
+  "trade_type": "sell"
+ }
+]

@@ -1,0 +1,19 @@
+{
+ "funding_rates": [
+  {
+   "product_id": 2,
+   "timestamp": "1789297200",
+   "funding_rate_x18": "11903115737938"
+  },
+  {
+   "product_id": 2,
+   "timestamp": "1789300800",
+   "funding_rate_x18": "8260863674880"
+  },
+  {
+   "product_id": 2,
+   "timestamp": "1789304400",
+   "funding_rate_x18": "8372447963973"
+  }
+ ]
+}
