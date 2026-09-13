@@ -702,6 +702,9 @@ public sealed class ExchangeWorker : BackgroundService
         "okx-perp" => new OkxPerpMarketData(new OkxClient(BaseUrl(config))),
         "coinbase-perp" => new CoinbaseIntxPerpMarketData(new CoinbaseIntxClient(BaseUrl(config))),
         "mexc-perp" => new MexcPerpMarketData(new MexcClient(BaseUrl(config))),
+        // Spot. A different HOST from the futures surface and therefore a different budget (0054),
+        // which is the whole reason the gate stopped being keyed on the venue.
+        "binance-spot" => new BinanceSpotMarketData(new BinanceSpotClient(BaseUrl(config))),
         _ => throw new InvalidOperationException(
             $"Exchange '{config.Code}' asks for adapter '{config.Adapter}', which does not exist yet. "
             + "Real adapters are added one per pull request."),
