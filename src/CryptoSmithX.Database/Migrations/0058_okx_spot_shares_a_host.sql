@@ -1,5 +1,5 @@
 -- ============================================================================
--- CryptoSmith X — миграция 0057: у okx-spot появляется адрес, и он тот же, что
+-- CryptoSmith X — миграция 0058: у okx-spot появляется адрес, и он тот же, что
 -- у свопов.
 --
 -- www.okx.com обслуживает и SWAP, и SPOT, и потолок у них ОБЩИЙ: двадцать
@@ -27,5 +27,5 @@
 update segment
    set base_url = 'https://www.okx.com',
        updated_at = now(),
-       updated_by = '0057'
+       updated_by = '0058'
  where code = 'okx-spot';

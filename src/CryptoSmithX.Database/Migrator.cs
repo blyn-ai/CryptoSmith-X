@@ -74,7 +74,48 @@ public static class Migrator
         }
     }
 
-    private static IEnumerable<(int Version, string Name, string Sql)> Load()
+    /// <summary>
+    /// The embedded migrations, in name order, with their numbers.
+    ///
+    /// <b>Two files may not share a number, and this refuses to start rather than picking one.</b>
+    /// What is applied is recorded as an INT, so a second 0057 would find its number already in
+    /// schema_version and be skipped — no error, no log line, and whatever it was meant to change
+    /// simply never happens. That is not hypothetical: two branches landed a 0057 the same
+    /// afternoon, and the one that sorted second was a base_url the segment would have run without.
+    ///
+    /// Refusing at startup is the right severity. A duplicate number is a merge accident with a
+    /// one-character fix, and the alternative is a deployment that looks healthy while carrying a
+    /// change nobody applied.
+    /// </summary>
+    /// <summary>
+    /// The version and file name of every embedded migration, in the order they would be applied.
+    ///
+    /// Public so the rule below can be checked by a test rather than only at startup: a duplicate
+    /// number is a merge accident, and finding it in CI costs a rename while finding it in a deploy
+    /// costs a change nobody notices is missing.
+    /// </summary>
+    public static IReadOnlyList<(int Version, string Name)> EmbeddedVersions() =>
+        Read().Select(m => (m.Version, m.Name)).ToList();
+
+    private static IReadOnlyList<(int Version, string Name, string Sql)> Load()
+    {
+        var loaded = Read().ToList();
+
+        var clash = loaded
+            .GroupBy(m => m.Version)
+            .FirstOrDefault(g => g.Count() > 1);
+
+        if (clash is not null)
+        {
+            throw new InvalidOperationException(
+                $"Two migrations share the version {clash.Key}: {string.Join(", ", clash.Select(m => m.Name))}. "
+                + "Only one of them would ever be applied, and silently — renumber the later one.");
+        }
+
+        return loaded;
+    }
+
+    private static IEnumerable<(int Version, string Name, string Sql)> Read()
     {
         var asm = Assembly.GetExecutingAssembly();
         var names = asm.GetManifestResourceNames()
