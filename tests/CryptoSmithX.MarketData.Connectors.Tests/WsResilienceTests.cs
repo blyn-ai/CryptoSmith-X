@@ -296,7 +296,25 @@ public sealed class WsResilienceTests
         public void Dispose()
         {
             _cts.Cancel();
-            _listener.Close();
+
+            try
+            {
+                _listener.Close();
+            }
+            catch (Exception)
+            {
+                // The managed HttpListener flushes and closes each response stream as it shuts down,
+                // and a client that has already gone leaves it writing to a disposed socket:
+                // ObjectDisposedException on NetworkStream.Write, out of Close(). It is raised on
+                // the `using` at the end of the test, so xUnit attributes it to the test and the
+                // whole run goes red — after every assertion has already passed. Seen on the CI
+                // runner 2026-09-13, on a test that had passed five times in a row locally.
+                //
+                // The accept loop above already swallows the same class of noise for the same
+                // reason and says so. Tearing down a loopback server is not what any of these tests
+                // is about.
+            }
+
             _cts.Dispose();
         }
 
