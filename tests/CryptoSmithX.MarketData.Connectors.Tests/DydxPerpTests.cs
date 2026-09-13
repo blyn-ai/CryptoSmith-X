@@ -161,7 +161,11 @@ public sealed class DydxPerpTests
         var liquidation = trades.Single(t => t.VenueUid == "06461c4b0000000200000002");
 
         Assert.Equal("sell", liquidation.TakerSide);
-        Assert.Equal("liquidated", liquidation.TradeType);
+
+        // In the trade table's own vocabulary (0032). The venue's words — "limit", "liquidated" —
+        // are not in its CHECK, and on the first live pass one such row failed every batch.
+        Assert.Equal("liquidation", liquidation.TradeType);
+        Assert.All(trades, t => Assert.Contains(t.TradeType, new[] { "fill", "liquidation", "termination" }));
         Assert.Equal(0.2613, liquidation.Qty, 6);
     }
 

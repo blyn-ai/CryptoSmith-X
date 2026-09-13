@@ -385,14 +385,32 @@ public sealed class DydxPerpMarketData : IExchangeMarketData
             events.Add(new TradeEvent(
                 exchangeSymbol, at, id, null, price, size,
                 string.Equals(t.Side, "SELL", StringComparison.Ordinal) ? "sell" : "buy",
-                // The venue's own classification of the print, carried through as it came.
-                t.Type is { Length: > 0 } type ? type.ToLowerInvariant() : null));
+                TradeType(t.Type)));
 
             _tape.Saw(exchangeSymbol, price, at);
         }
 
         _tape.Observe(exchangeSymbol, events);
     }
+
+    /// <summary>
+    /// The venue's classification of a print, in the vocabulary the trade table accepts (0032):
+    /// fill, liquidation, partial_liquidation, termination, block.
+    ///
+    /// Carried through as the venue spelled it at first, and the table refused every page: "limit"
+    /// and "liquidated" are not in its CHECK, and one row fails the whole batch. LIMIT is an ordinary
+    /// fill; LIQUIDATED is a liquidation; DELEVERAGED is a position closed against a counterparty when
+    /// the insurance fund cannot absorb a liquidation — the protocol terminating it, which is what
+    /// 'termination' is for. Anything else is left null rather than squeezed into a word that says
+    /// something different.
+    /// </summary>
+    private static string? TradeType(string? venue) => venue switch
+    {
+        "LIMIT" => "fill",
+        "LIQUIDATED" => "liquidation",
+        "DELEVERAGED" => "termination",
+        _ => null,
+    };
 
     private static List<(double Price, double Qty)> Levels(IReadOnlyList<DydxLevel>? raw)
     {
