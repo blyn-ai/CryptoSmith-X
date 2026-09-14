@@ -286,6 +286,20 @@ public sealed class EndpointContractTests : IAsyncLifetime
         Assert.NotEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    /// <summary>The hourly coverage refuses a window it will not serve and a segment that cannot be a
+    /// code, before it opens a connection — the unreachable database above proves the order.</summary>
+    [Theory]
+    [InlineData("/v1/coverage/hours?days=0", "days")]
+    [InlineData("/v1/coverage/hours?days=32", "31")]
+    [InlineData("/v1/coverage/hours?segment=Kraken%20Futures", "segment")]
+    public async Task Coverage_hours_refuses_a_bad_request_before_the_database(string path, string mentions)
+    {
+        var response = await _client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(mentions, await Message(response));
+    }
+
     private static async Task<string> Message(HttpResponseMessage response)
     {
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();

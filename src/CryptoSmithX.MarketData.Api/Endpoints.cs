@@ -21,6 +21,7 @@ public static class Endpoints
         api.MapGet("/candles", Candles);
         api.MapGet("/as-of", AsOf);
         api.MapGet("/coverage", Coverage);
+        api.MapGet("/coverage/hours", CoverageHours.Get);
     }
 
     private static async Task<IResult> Health(Db db, IConfiguration config, CancellationToken ct)
