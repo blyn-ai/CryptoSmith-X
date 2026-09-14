@@ -85,11 +85,20 @@ public static class Endpoints
         var rows = await conn.QueryAsync(new CommandDefinition(
             """
             select e.code, e.name, e.status, e.description,
+                   -- Which company the segment belongs to, and what it trades — so a reader such as
+                   -- blynai.eu can group "Kraken: Futures, Spot" from the API instead of guessing from
+                   -- the shape of a segment code or keeping its own list. Additive: /v1 callers that
+                   -- read the original fields are unaffected.
+                   e.exchange_code as "exchangeCode",
+                   x.name as "exchangeName",
+                   e.kind,
+                   e.market_model as "marketModel",
                    (select count(*) from exchange_instrument i
                      where i.segment_code = e.code and i.status = 'trading') as "tradingInstruments",
                    (select count(*) from exchange_instrument i
                      where i.segment_code = e.code) as "knownInstruments"
               from segment e
+              join exchange x on x.code = e.exchange_code
              order by e.code
             """, cancellationToken: ct));
         return Results.Ok(rows);
