@@ -606,13 +606,21 @@ public static class Endpoints
                    s.depth_bid_50bps  as "depthBid50Bps",
                    s.depth_ask_50bps  as "depthAsk50Bps",
                    s.depth_at         as "depthAt"
-              from market_snapshot s
-              join exchange_instrument i on i.id = s.exchange_instrument_id
+              from exchange_instrument i
+             -- LATERAL with its own limit, not a join sorted afterwards. The join read every
+             -- snapshot of the instrument up to @at and sorted them to keep one: 10,490 rows for
+             -- binance-usdm BTCUSDT, 21-31 s on a cold test host and a 500 at the 30 s command
+             -- timeout. Here each partition is walked backwards on its primary key and stops at
+             -- the first row — 5 buffers, 73 ms, same answer.
+             cross join lateral (
+                   select *
+                     from market_snapshot ms
+                    where ms.exchange_instrument_id = i.id
+                      and ms.received_at <= @at
+                    order by ms.received_at desc
+                    limit 1) s
              where i.segment_code = @exchange
                and i.exchange_symbol = @symbol
-               and s.received_at <= @at
-             order by s.received_at desc
-             limit 1
             """,
             new { exchange, symbol, at = instant.UtcDateTime },
             cancellationToken: ct));
