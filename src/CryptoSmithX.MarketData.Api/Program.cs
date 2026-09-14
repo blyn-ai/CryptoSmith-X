@@ -50,21 +50,13 @@ builder.Services.AddResponseCompression(o =>
 // site kept saying "4 live · 13 planned · 370 instruments" — true when that HTML was written and
 // wrong for every venue enabled since, Avantis included.
 //
-// Named origins rather than "*": this surface is public and read-only, but a wildcard is a
-// statement about every site on the internet, and the sites that actually render it can be named.
-// Localhost is here so the site can be developed against the live API without a proxy.
-//
-// debyko.com (owner, 2026-09-14): the commercial site reads the same surface for its live market
-// module, coverage strip and status section.
+// Any origin (owner, 2026-09-14). The list of named sites was replaced when a design tool's preview
+// — an origin nobody can name in advance — could not read the API it was designing against. This
+// surface is public, read-only, anonymous and answers curl the same way; CORS only ever stopped
+// browsers. What still holds: GET only, no credentials, no custom headers.
 const string SiteOrigins = "site";
 builder.Services.AddCors(o => o.AddPolicy(SiteOrigins, p => p
-    .WithOrigins(
-        "https://blynai.eu",
-        "https://www.blynai.eu",
-        "https://debyko.com",
-        "https://www.debyko.com",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080")
+    .AllowAnyOrigin()
     .WithMethods("GET")
     // No credentials and no custom request headers: a public read needs neither, and asking for
     // them would widen what this policy permits for nothing.
