@@ -51,13 +51,18 @@ builder.Services.AddResponseCompression(o =>
 // wrong for every venue enabled since, Avantis included.
 //
 // Named origins rather than "*": this surface is public and read-only, but a wildcard is a
-// statement about every site on the internet, and the two that actually render it can be named.
+// statement about every site on the internet, and the sites that actually render it can be named.
 // Localhost is here so the site can be developed against the live API without a proxy.
+//
+// debyko.com (owner, 2026-09-14): the commercial site reads the same surface for its live market
+// module, coverage strip and status section.
 const string SiteOrigins = "site";
 builder.Services.AddCors(o => o.AddPolicy(SiteOrigins, p => p
     .WithOrigins(
         "https://blynai.eu",
         "https://www.blynai.eu",
+        "https://debyko.com",
+        "https://www.debyko.com",
         "http://localhost:8080",
         "http://127.0.0.1:8080")
     .WithMethods("GET")
