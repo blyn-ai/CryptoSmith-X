@@ -185,8 +185,7 @@ public static partial class CoverageHours
                    i.exchange_symbol as "Symbol",
                    g.gap_start       as "Start",
                    g.gap_end         as "End",
-                   g.cause           as "Cause",
-                   g.detail          as "Detail"
+                   g.cause           as "Cause"
               from collector_gap g
               join segment s on s.code = g.segment_code and s.status = 'enabled'
               left join exchange_instrument i on i.id = g.exchange_instrument_id
@@ -247,8 +246,10 @@ public static partial class CoverageHours
                 symbol = g.Symbol,
                 start = g.Start,
                 end = g.End,
+                // cause only. detail is the collector's exception text — class names and the
+                // venue URLs we call — which Studio prints to an operator but a public API has
+                // no business handing to anyone who asks.
                 cause = g.Cause,
-                detail = g.Detail,
             }),
             warnings,
         };
@@ -260,5 +261,5 @@ public static partial class CoverageHours
     private sealed record SegmentRow(string Code, string Kind, int InstrumentsCollected, DateTime? FirstHour);
 
     private sealed record GapRow(
-        string Segment, string Collector, string? Symbol, DateTime Start, DateTime? End, string Cause, string? Detail);
+        string Segment, string Collector, string? Symbol, DateTime Start, DateTime? End, string Cause);
 }
