@@ -155,7 +155,7 @@ public static class Endpoints
               join segment s on s.code = i.segment_code
              where (@exchange is null or i.segment_code = @exchange)
                and (@status is null or i.status = @status)
-               and (@symbols is null or i.exchange_symbol = any(@symbols))
+               and (@symbols::text[] is null or i.exchange_symbol = any(@symbols::text[]))
              order by i.segment_code, i.exchange_symbol
             """,
             new { exchange, status, symbols = wanted },
@@ -262,7 +262,7 @@ public static class Endpoints
               from market_snapshot_latest l
               join exchange_instrument i on i.id = l.exchange_instrument_id
              where (@exchange is null or i.segment_code = @exchange)
-               and (@symbols is null or i.exchange_symbol = any(@symbols))
+               and (@symbols::text[] is null or i.exchange_symbol = any(@symbols::text[]))
                and (@status is null or i.status = @status)
                and (@maxAgeSeconds is null
                     or l.received_at >= now() - make_interval(secs => @maxAgeSeconds))
@@ -277,7 +277,7 @@ public static class Endpoints
               from market_snapshot_latest l
               join exchange_instrument i on i.id = l.exchange_instrument_id
              where (@exchange is null or i.segment_code = @exchange)
-               and (@symbols is null or i.exchange_symbol = any(@symbols))
+               and (@symbols::text[] is null or i.exchange_symbol = any(@symbols::text[]))
                and (@status is null or i.status = @status)
             """,
             new { exchange, symbols = wanted, status },
@@ -294,7 +294,7 @@ public static class Endpoints
                   from market_snapshot_latest l
                   join exchange_instrument i on i.id = l.exchange_instrument_id
                  where (@exchange is null or i.segment_code = @exchange)
-                   and (@symbols is null or i.exchange_symbol = any(@symbols))
+                   and (@symbols::text[] is null or i.exchange_symbol = any(@symbols::text[]))
                    and (@status is null or i.status = @status)
                    and l.received_at < now() - make_interval(secs => @maxAgeSeconds)
                 """,
