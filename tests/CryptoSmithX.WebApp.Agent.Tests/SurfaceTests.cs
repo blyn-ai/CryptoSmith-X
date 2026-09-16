@@ -101,6 +101,7 @@ public sealed class SurfaceTests
         Assert.Contains("Rodyti / redaguoti API raktus", markup, StringComparison.Ordinal);
         Assert.Contains("@credential.Title", markup, StringComparison.Ordinal);
         Assert.Contains("Private key", markup, StringComparison.Ordinal);
+        Assert.Contains("ApiSecretHint", markup, StringComparison.Ordinal);
         Assert.Contains("data-kraken-permissions", markup, StringComparison.Ordinal);
         Assert.Contains("krakenContent.hidden", js, StringComparison.Ordinal);
         Assert.Contains("renderPermissions", js, StringComparison.Ordinal);

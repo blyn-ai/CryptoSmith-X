@@ -259,7 +259,7 @@
                     {
                         <div class="kraken-current">
                             <span><span>@apiKeyLabel</span><b>@credential.Credentials.ApiKeyHint</b></span>
-                            <span><span>Private key</span><b>Išsaugotas</b></span>
+                            <span><span>Private key</span><b>@credential.Credentials.ApiSecretHint</b></span>
                             <span><span>Išsaugota</span><time datetime="@credential.Credentials.UpdatedAt?.ToUniversalTime().ToString("O")">@credential.Credentials.UpdatedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</time></span>
                         </div>
                         <div class="kraken-saved-check">

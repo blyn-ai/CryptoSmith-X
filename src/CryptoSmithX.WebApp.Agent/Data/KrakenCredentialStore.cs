@@ -4,8 +4,9 @@ using Dapper;
 namespace CryptoSmithX.WebApp.Agent.Data;
 
 /// <summary>
-/// Kraken credentials assigned to one bot instance. Secrets are only read server-side when the
-/// owner explicitly verifies the saved pair; they are never rendered, logged, or returned by HTTP.
+/// Kraken credentials assigned to one bot instance. The page exposes only the first and last four
+/// characters of either value to its authenticated owner; complete credentials are never rendered,
+/// logged, or returned by HTTP.
 /// </summary>
 public static class KrakenCredentialStore
 {
@@ -21,6 +22,7 @@ public static class KrakenCredentialStore
         var row = await connection.QuerySingleOrDefaultAsync<CredentialRow>(new CommandDefinition(
             """
             select api_key as "ApiKey",
+                   api_secret as "ApiSecret",
                    updated_at as "UpdatedAt"
               from public.bot_instance_api_credentials
              where bot_instance_id = @botInstanceId
@@ -38,6 +40,7 @@ public static class KrakenCredentialStore
         return new KrakenCredentialSummary(
             true,
             MaskApiKey(row.ApiKey),
+            MaskApiKey(row.ApiSecret),
             new DateTimeOffset(updatedAt));
     }
 
@@ -99,15 +102,16 @@ public static class KrakenCredentialStore
     private static string MaskApiKey(string apiKey) =>
         apiKey.Length <= 8 ? apiKey : $"{apiKey[..4]}…{apiKey[^4..]}";
 
-    private sealed record CredentialRow(string ApiKey, DateTime UpdatedAt);
+    private sealed record CredentialRow(string ApiKey, string ApiSecret, DateTime UpdatedAt);
 }
 
 public sealed record KrakenCredentialSummary(
     bool Configured,
     string? ApiKeyHint,
+    string? ApiSecretHint,
     DateTimeOffset? UpdatedAt)
 {
-    public static KrakenCredentialSummary NotConfigured { get; } = new(false, null, null);
+    public static KrakenCredentialSummary NotConfigured { get; } = new(false, null, null, null);
 }
 
 public sealed record StoredKrakenCredentials(string ApiKey, string ApiSecret);
