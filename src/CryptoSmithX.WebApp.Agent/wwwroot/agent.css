@@ -345,7 +345,7 @@ body{min-height:100vh;display:flex;flex-direction:column;
   outline:none;font-family:var(--font-mono);font-size:19px;font-variant-numeric:tabular-nums;color:var(--text-data)}
 .p-params .unit{flex:none;display:inline-flex;align-items:center;max-width:11ch;padding:0 11px;
   border-left:1px solid var(--border-hairline);font-family:var(--font-mono);font-size:12px;line-height:1;
-  letter-spacing:.06em;color:var(--text-faint)}
+  letter-spacing:.06em;color:var(--text-faint);overflow-wrap:anywhere}
 
 /* По ЦЕНТРУ коробки, а не по базовой линии: число 19px и единица 12px с общей базовой линией
    прижимались к верху, и «4 taisyklės» висело в углу серого поля вместо его середины. Число и

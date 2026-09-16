@@ -12,7 +12,7 @@ public static class StrategyParameterCatalog
 {
     public static readonly IReadOnlyList<StrategyParameterDefinition> All =
     [
-        Decimal("markets", "Trading", "MaxActiveInstruments", "Stebimų kriptovaliutų ar akcijų skaičius", "kriptovaliutų ar akcijų", 1m, 100m, 1m, 0,
+        Decimal("markets", "Trading", "MaxActiveInstruments", "Porų ar vnt. skaičius", "porų / vnt.", 1m, 100m, 1m, 0,
             "Kiek aktyviausių kriptovaliutų ar akcijų botas vienu metu tikrina ieškodamas progų.",
             "Daugiau kriptovaliutų ar akcijų = daugiau galimų signalų, bet ir daugiau triukšmo.",
             "Mažiau kriptovaliutų ar akcijų", "Daugiau galimybių",
