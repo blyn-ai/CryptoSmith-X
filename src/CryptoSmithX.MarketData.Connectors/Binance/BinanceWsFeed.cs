@@ -636,7 +636,7 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     /// Either way the result is capped at <see cref="BinanceUsdmProfile.MaxStreamsPerConnection"/>
     /// (one depth stream per symbol, so the cap and the symbol count are the same number here): above
     /// it, the first symbols in order are kept and the rest are logged once, at warning, and left for
-    /// REST's existing fallback. On Binance (cap 1024, ~570 symbols) this never trips.
+    /// REST's existing fallback. Binance's profile has no cap (null), so this never trips there.
     /// </summary>
     internal async Task RefreshSymbolsAsync(CancellationToken ct)
     {
@@ -660,8 +660,8 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         }
 
         var ordered = scoped.OrderBy(s => s, StringComparer.Ordinal).ToArray();
-        var next = ordered.Length > _profile.MaxStreamsPerConnection
-            ? ordered[.._profile.MaxStreamsPerConnection]
+        var next = _profile.MaxStreamsPerConnection is { } cap && ordered.Length > cap
+            ? ordered[..cap]
             : ordered;
 
         if (next.Length < ordered.Length)

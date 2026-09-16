@@ -13,8 +13,8 @@ public enum OpenInterestHistoryMode
     Sampled,
 }
 
-/// <summary>What a WS feed subscribes. Binance's whole listing is affordable under its 1024-stream
-/// cap; Aster's is not under its 200-stream one (441 in-scope symbols vs. the 26-98 this venue
+/// <summary>What a WS feed subscribes. Binance subscribes its whole listing, uncapped; Aster's would
+/// not fit under its 200-stream cap (441 in-scope symbols vs. the 26-98 this venue
 /// actually collects), so its feeds subscribe only what discovery has marked <c>collect = true</c>.
 /// </summary>
 public enum FeedSymbolsMode
@@ -101,12 +101,16 @@ public sealed record BinanceUsdmProfile
     /// <summary>What the WS feeds subscribe. See <see cref="FeedSymbolsMode"/>.</summary>
     public required FeedSymbolsMode FeedSymbols { get; init; }
 
-    /// <summary>The venue's documented streams-per-connection cap. 1024 on Binance (its whole
-    /// listing fits under this today; the guard never trips there). 200 on Aster (blueprint §1.4) —
+    /// <summary>The streams-per-connection cap the feeds enforce, or null for none. <b>Null on
+    /// Binance, deliberately</b>: its docs say 1024, but its market feed has always subscribed
+    /// 3 + 2 × ~566 ≈ 1 135 streams on one connection, and enforcing 1024 there would silently drop the
+    /// ~56 alphabetically-last symbols' trades and WS candles (XRP, XLM, WLD and ZEC among the
+    /// collected ones). Whether Binance really honours more than 1024 is a separate question for a
+    /// separate change; this record must not change Binance's behaviour. 200 on Aster (blueprint §1.4) —
     /// the collected universe of 26 keeps the depth feed at 26 streams and the market feed at
     /// 3 + 2×26 = 55, both comfortably under it, but the guard exists so growing the collected set
     /// past 98 symbols is a warning in the log rather than a silent disconnect loop.</summary>
-    public required int MaxStreamsPerConnection { get; init; }
+    public required int? MaxStreamsPerConnection { get; init; }
 
     /// <summary>Whether <see cref="BinanceUsdmMarketData.GetTickersAsync"/>'s WS branch may be used
     /// at all. True on Binance: <c>!ticker@arr</c> and <c>!markPrice@arr@1s</c> push the WHOLE
@@ -131,7 +135,7 @@ public sealed record BinanceUsdmProfile
         RestDepthLimit = 100,
         OpenInterestHistory = OpenInterestHistoryMode.Analytics,
         FeedSymbols = FeedSymbolsMode.WholeVenue,
-        MaxStreamsPerConnection = 1024,
+        MaxStreamsPerConnection = null,
         TickersFromMarketFeed = true,
     };
 

@@ -47,8 +47,8 @@ public sealed class AsterWsFeedTests
     [Fact]
     public async Task Depth_feed_under_the_binance_profile_never_caps_the_whole_venue()
     {
-        // The regression this guard must not cause: Binance's ~570 in-scope symbols, comfortably
-        // under its own 1024 cap, must come back whole. WholeVenue mode reads from the client
+        // The regression this guard must not cause: Binance's ~570 in-scope symbols must come back
+        // whole — its profile carries no cap. WholeVenue mode reads from the client
         // (GetSymbolsAsync), so this uses a stub handler the way BinanceUsdmMarketDataTests does.
         var clock = new FakeTimeProvider(T0);
         var handler = new SingleSymbolExchangeInfoHandler(count: 570);
@@ -58,6 +58,23 @@ public sealed class AsterWsFeedTests
             staleAfter: TimeSpan.FromSeconds(30), crosscheckInterval: TimeSpan.FromMinutes(5), driftBps: 50);
             // profile omitted: defaults to BinanceUsdmProfile.Binance, exactly as ExchangeWorker's
             // "binance-usdm" arm constructs it today.
+
+        await feed.RefreshSymbolsAsync(CancellationToken.None);
+
+        Assert.Equal(570, feed.SubscribedSymbols.Length);
+    }
+
+    [Fact]
+    public async Task Market_feed_under_the_binance_profile_never_caps_the_whole_venue()
+    {
+        // The regression a 1024 cap would cause: 3 + 2 x 566 = 1 135 streams on Binance's market
+        // feed, which it has always subscribed. With the cap applied, the ~56 alphabetically-last
+        // symbols (XRP, XLM, WLD, ZEC among the collected) would lose WS trades and candles.
+        var clock = new FakeTimeProvider(T0);
+        var handler = new SingleSymbolExchangeInfoHandler(count: 570);
+        var feed = new BinanceMarketWsFeed(
+            "ws://localhost:1/", new BinanceUsdmClient(new HttpClient(handler), "https://fapi.binance.test"),
+            NullLoggerFactory.Instance, clock);
 
         await feed.RefreshSymbolsAsync(CancellationToken.None);
 

@@ -45,7 +45,9 @@ commit;
 -- begin;
 --
 -- update exchange_instrument
---    set collect = true, updated_at = now()
+--    set collect = true, updated_at = now(),
+--        collect_changed_at = now(), collect_changed_by = 'ops/enable-aster-perp.sql',
+--        collect_note = 'Operator decision, plans/aster-venue-blueprint.md §6: the venue token, 90 % of Binance turnover.'
 --  where segment_code = 'aster-perp' and exchange_symbol = 'ASTERUSDT';
 --
 -- select exchange_symbol, collect, status from exchange_instrument

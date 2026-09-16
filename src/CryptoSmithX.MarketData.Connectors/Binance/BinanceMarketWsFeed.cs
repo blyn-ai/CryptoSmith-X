@@ -526,10 +526,12 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
             var ordered = scoped.OrderBy(s => s, StringComparer.Ordinal).ToArray();
 
             // Streams = FixedStreams + 2N (kline_1m and aggTrade, one pair per symbol) — solve for
-            // the largest N that keeps the total at or under the venue's per-connection cap. On
-            // Binance (cap 1024, ~570 symbols → ~1143 streams) this already sits under the cap and
-            // the guard never trips; it exists for Aster's 200-stream limit.
-            var maxSymbols = Math.Max(0, (_profile.MaxStreamsPerConnection - FixedStreams) / 2);
+            // the largest N that keeps the total at or under the venue's per-connection cap. Binance
+            // has no cap in its profile (null) — its ~566 symbols need ~1 135 streams and always have
+            // — so the guard only ever applies to Aster's 200-stream limit.
+            var maxSymbols = _profile.MaxStreamsPerConnection is { } cap
+                ? Math.Max(0, (cap - FixedStreams) / 2)
+                : int.MaxValue;
             var next = ordered.Length > maxSymbols ? ordered[..maxSymbols] : ordered;
 
             if (next.Length < ordered.Length)

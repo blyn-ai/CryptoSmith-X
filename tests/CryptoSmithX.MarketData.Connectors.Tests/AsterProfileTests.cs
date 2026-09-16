@@ -34,7 +34,7 @@ public sealed class AsterProfileTests
         Assert.Equal(100, p.RestDepthLimit);                 // BinanceUsdmClient.DepthLimit, the old constant
         Assert.Equal(OpenInterestHistoryMode.Analytics, p.OpenInterestHistory);
         Assert.Equal(FeedSymbolsMode.WholeVenue, p.FeedSymbols);
-        Assert.Equal(1024, p.MaxStreamsPerConnection);
+        Assert.Null(p.MaxStreamsPerConnection);
         Assert.True(p.TickersFromMarketFeed);
         Assert.Null(p.KnownExcludedSymbolTypes);
 
