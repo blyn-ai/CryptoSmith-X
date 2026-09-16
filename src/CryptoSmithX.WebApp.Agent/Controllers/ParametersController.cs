@@ -18,11 +18,19 @@ namespace CryptoSmithX.WebApp.Agent.Controllers;
 public sealed class ParametersController : Controller
 {
     private readonly BotDb _bot;
+    private readonly KrakenFuturesCredentialValidator _krakenValidator;
+    private readonly KrakenSpotCredentialValidator _krakenSpotValidator;
     private readonly ILogger<ParametersController> _log;
 
-    public ParametersController(BotDb bot, ILogger<ParametersController> log)
+    public ParametersController(
+        BotDb bot,
+        KrakenFuturesCredentialValidator krakenValidator,
+        KrakenSpotCredentialValidator krakenSpotValidator,
+        ILogger<ParametersController> log)
     {
         _bot = bot;
+        _krakenValidator = krakenValidator;
+        _krakenSpotValidator = krakenSpotValidator;
         _log = log;
     }
 
@@ -158,6 +166,113 @@ public sealed class ParametersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ValidateKrakenCredentials(KrakenCredentialRequest request, CancellationToken ct)
+    {
+        try
+        {
+            await using var connection = await _bot.OpenAsync(ct);
+            var owner = await BotInstanceOwnerStore.FindActiveAsync(
+                connection,
+                User.Identity?.Name ?? string.Empty,
+                ct);
+            if (owner is null)
+            {
+                return Unauthorized();
+            }
+
+            var result = await ValidateKrakenCredentialsAsync(request, ct);
+            return Json(new { valid = result.IsValid, message = result.Message });
+        }
+        catch (NpgsqlException e)
+        {
+            _log.LogError(e, "the bot database is unreachable while validating a Kraken credential");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { valid = false, message = "Boto duomenų bazė nepasiekiama." });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveKrakenCredentials(KrakenCredentialRequest request, CancellationToken ct)
+    {
+        try
+        {
+            await using var connection = await _bot.OpenAsync(ct);
+            var owner = await BotInstanceOwnerStore.FindActiveAsync(
+                connection,
+                User.Identity?.Name ?? string.Empty,
+                ct);
+            if (owner is null)
+            {
+                return View("NoBot");
+            }
+
+            var validation = await ValidateKrakenCredentialsAsync(request, ct);
+            if (!validation.IsValid)
+            {
+                TempData["KrakenCredentialError"] = validation.Message;
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!KrakenCredentialStore.IsSupportedScope(request.Scope))
+            {
+                TempData["KrakenCredentialError"] = "Nepalaikoma Kraken paskyros rūšis.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            await KrakenCredentialStore.SaveAsync(
+                connection,
+                owner.BotInstanceId,
+                request.Scope!,
+                request.ApiKey!.Trim(),
+                request.ApiSecret!.Trim(),
+                ct);
+            TempData["KrakenCredentialNotice"] = $"{ScopeTitle(request.Scope)} raktas išsaugotas. Botas naudos jį per kitą savo atnaujinimą.";
+        }
+        catch (NpgsqlException e)
+        {
+            _log.LogError(e, "the bot database refused a Kraken credential write");
+            TempData["KrakenCredentialError"] = "Boto duomenų bazė nepasiekiama.";
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokeKrakenCredentials(string? scope, CancellationToken ct)
+    {
+        try
+        {
+            await using var connection = await _bot.OpenAsync(ct);
+            var owner = await BotInstanceOwnerStore.FindActiveAsync(
+                connection,
+                User.Identity?.Name ?? string.Empty,
+                ct);
+            if (owner is null)
+            {
+                return View("NoBot");
+            }
+
+            if (!KrakenCredentialStore.IsSupportedScope(scope))
+            {
+                TempData["KrakenCredentialError"] = "Nepalaikoma Kraken paskyros rūšis.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            await KrakenCredentialStore.RemoveAsync(connection, owner.BotInstanceId, scope!, ct);
+            TempData["KrakenCredentialNotice"] = $"Boto prieiga prie {ScopeTitle(scope)} atšaukta.";
+        }
+        catch (NpgsqlException e)
+        {
+            _log.LogError(e, "the bot database refused a Kraken credential removal");
+            TempData["KrakenCredentialError"] = "Boto duomenų bazė nepasiekiama.";
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     private async Task<ParametersViewModel?> BuildAsync(
         NpgsqlConnection connection,
         BotInstanceOwner owner,
@@ -206,6 +321,18 @@ public sealed class ParametersController : Controller
                 errors?.GetValueOrDefault(definition.Id)))
             .ToList();
         var history = await StrategyProfileStore.LoadHistoryAsync(connection, strategy.ProfileId, 8, ct);
+        // Npgsql permits one active command per connection. These are cheap point reads, so keep
+        // them sequential rather than hiding a second connection behind a cosmetic parallelism.
+        var futuresCredentials = await KrakenCredentialStore.LoadSummaryAsync(
+            connection,
+            owner.BotInstanceId,
+            KrakenCredentialStore.FuturesScope,
+            ct);
+        var spotCredentials = await KrakenCredentialStore.LoadSummaryAsync(
+            connection,
+            owner.BotInstanceId,
+            KrakenCredentialStore.SpotScope,
+            ct);
 
         return new ParametersViewModel
         {
@@ -222,8 +349,29 @@ public sealed class ParametersController : Controller
             Errors = errors ?? new Dictionary<string, string>(StringComparer.Ordinal),
             JustSaved = justSaved || TempData["JustSaved"] is true,
             SaveConflict = TempData["SaveConflict"] is true,
+            KrakenCredentials =
+            [
+                new(KrakenCredentialStore.FuturesScope, "Kraken Futures", futuresCredentials),
+                new(KrakenCredentialStore.SpotScope, "Kraken Spot", spotCredentials),
+            ],
+            KrakenCredentialNotice = TempData["KrakenCredentialNotice"] as string,
+            KrakenCredentialError = TempData["KrakenCredentialError"] as string,
         };
     }
+
+    private Task<KrakenCredentialValidation> ValidateKrakenCredentialsAsync(
+        KrakenCredentialRequest request,
+        CancellationToken ct) =>
+        request.Scope switch
+        {
+            KrakenCredentialStore.FuturesScope => _krakenValidator.ValidateAsync(request.ApiKey, request.ApiSecret, ct),
+            KrakenCredentialStore.SpotScope => _krakenSpotValidator.ValidateAsync(request.ApiKey, request.ApiSecret, ct),
+            _ => Task.FromResult(KrakenCredentialValidation.Invalid("Nepalaikoma Kraken paskyros rūšis.")),
+        };
+
+    private static string ScopeTitle(string? scope) => scope == KrakenCredentialStore.SpotScope
+        ? "Kraken Spot"
+        : "Kraken Futures";
 
     /// <summary>
     /// The same four rules the fields carry, checked again on the server. Null means the field was

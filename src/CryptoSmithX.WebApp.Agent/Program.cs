@@ -66,6 +66,19 @@ builder.Services.AddHttpClient("trading-bot", (sp, http) =>
     http.Timeout = TimeSpan.FromSeconds(10);
 });
 
+// A submitted credential is checked against Kraken before it ever reaches the bot database.
+// These clients call read-only balance/account endpoints only; neither has order methods.
+builder.Services.AddHttpClient<KrakenFuturesCredentialValidator>(http =>
+{
+    http.BaseAddress = new Uri("https://futures.kraken.com");
+    http.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient<KrakenSpotCredentialValidator>(http =>
+{
+    http.BaseAddress = new Uri("https://api.kraken.com");
+    http.Timeout = TimeSpan.FromSeconds(10);
+});
+
 // Cookie auth, the same shape as the admin console's, because it is the same account table.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(o =>

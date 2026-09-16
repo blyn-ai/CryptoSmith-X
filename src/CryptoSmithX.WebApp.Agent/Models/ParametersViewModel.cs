@@ -37,7 +37,18 @@ public sealed class ParametersViewModel
 
     public bool SaveConflict { get; init; }
 
+    public required IReadOnlyList<KrakenCredentialScopeViewModel> KrakenCredentials { get; init; }
+
+    public string? KrakenCredentialNotice { get; init; }
+
+    public string? KrakenCredentialError { get; init; }
+
 }
+
+public sealed record KrakenCredentialScopeViewModel(
+    string Scope,
+    string Title,
+    KrakenCredentialSummary Credentials);
 
 /// <param name="Value">NULL when this profile does not carry the key — the screen prints a dash and
 /// locks the field. See <see cref="Data.StrategyParameterCatalog.Read"/> for why that is a state

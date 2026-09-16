@@ -269,4 +269,87 @@
     // проверку полей — и однажды это выстрелит.
     if (typeof form.requestSubmit === 'function') { form.requestSubmit(); } else { form.submit(); }
   });
+
+  // ── 7. Kraken Futures keys ───────────────────────────────────────────────
+  // Validation is a small server POST, not a browser-to-Kraken request. The secret stays in this
+  // form only until the reader changes a field or submits it; it is never rendered back by Razor.
+  Array.prototype.forEach.call(document.querySelectorAll('[data-kraken-credentials]'), function (krakenForm) {
+    var krakenStatus = krakenForm.querySelector('[data-kraken-status]');
+    var krakenValidate = krakenForm.querySelector('[data-kraken-validate]');
+    var krakenSave = krakenForm.querySelector('[data-kraken-save]');
+    var krakenInputs = krakenForm.querySelectorAll('[data-kraken-input]');
+    var credentialsValid = false;
+
+    function setKrakenStatus(message, state) {
+      if (!krakenStatus) { return; }
+      krakenStatus.textContent = message;
+      krakenStatus.dataset.state = state || '';
+    }
+
+    function setKrakenSaveEnabled(enabled) {
+      if (krakenSave) { krakenSave.disabled = !enabled; }
+    }
+
+    setKrakenSaveEnabled(false);
+    Array.prototype.forEach.call(krakenInputs, function (input) {
+      input.addEventListener('input', function () {
+        credentialsValid = false;
+        setKrakenSaveEnabled(false);
+        setKrakenStatus('Įvesti raktai pakeisti. Patikrink juos prieš išsaugodamas.', '');
+      });
+    });
+
+    if (krakenValidate) {
+      krakenValidate.addEventListener('click', async function () {
+        if (typeof krakenForm.reportValidity === 'function' && !krakenForm.reportValidity()) { return; }
+        krakenValidate.disabled = true;
+        setKrakenStatus('Tikrinama…', 'checking');
+        try {
+          var response = await fetch(krakenForm.dataset.validateUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: new URLSearchParams(new FormData(krakenForm))
+          });
+          var result = await response.json();
+          credentialsValid = response.ok && result.valid === true;
+          setKrakenSaveEnabled(credentialsValid);
+          setKrakenStatus(credentialsValid
+            ? 'Kraken prieiga patvirtinta. Raktą galima išsaugoti.'
+            : (result.message || 'Kraken nepatvirtino rakto.'), credentialsValid ? 'valid' : 'invalid');
+        } catch (_) {
+          credentialsValid = false;
+          setKrakenSaveEnabled(false);
+          setKrakenStatus('Nepavyko patikrinti Kraken rakto. Pabandyk dar kartą.', 'invalid');
+        } finally {
+          krakenValidate.disabled = false;
+        }
+      });
+    }
+
+    krakenForm.addEventListener('submit', function (e) {
+      if (credentialsValid) { return; }
+      // Server validation remains authoritative; this only prevents an accidental click in JS mode.
+      e.preventDefault();
+      setKrakenStatus('Prieš išsaugodamas patikrink įvestą raktų porą.', 'invalid');
+    });
+
+    var reveal = krakenForm.querySelector('[data-kraken-reveal]');
+    var secretInput = krakenForm.querySelector('[name="apiSecret"]');
+    if (reveal && secretInput) {
+      reveal.addEventListener('click', function () {
+        var visible = secretInput.type === 'text';
+        secretInput.type = visible ? 'password' : 'text';
+        reveal.textContent = visible ? 'Rodyti' : 'Slėpti';
+      });
+    }
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-kraken-revoke]'), function (revoke) {
+    revoke.addEventListener('submit', function (e) {
+      if (!window.confirm('Botas nebegalės naudoti šio Kraken rakto. Ar tęsti?')) {
+        e.preventDefault();
+      }
+    });
+  });
 })();
