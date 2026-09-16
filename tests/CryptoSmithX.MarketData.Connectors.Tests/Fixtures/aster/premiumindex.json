@@ -1,0 +1,72 @@
+[
+  {
+    "symbol": "TSLAUSDT",
+    "markPrice": "361.22000000",
+    "indexPrice": "361.10633050",
+    "estimatedSettlePrice": "361.32609590",
+    "lastFundingRate": "0",
+    "interestRate": "0",
+    "nextFundingTime": 1789603200000,
+    "time": 1789582693000
+  },
+  {
+    "symbol": "1000SHIBUSDT",
+    "markPrice": "0.00480377",
+    "indexPrice": "0.00480986",
+    "estimatedSettlePrice": "0.00478871",
+    "lastFundingRate": "-0.00004221",
+    "interestRate": "0.00010000",
+    "nextFundingTime": 1789603200000,
+    "time": 1789582693000
+  },
+  {
+    "symbol": "TONUSDT",
+    "markPrice": "1.62787983",
+    "indexPrice": "1.62787983",
+    "estimatedSettlePrice": "0",
+    "lastFundingRate": "0.00005000",
+    "interestRate": "0.00010000",
+    "nextFundingTime": 1789588800000,
+    "time": 1789582693000
+  },
+  {
+    "symbol": "XAUUSD1",
+    "markPrice": "4318.06000000",
+    "indexPrice": "4316.59982869",
+    "estimatedSettlePrice": "4343.86651790",
+    "lastFundingRate": "0.00001927",
+    "interestRate": "0",
+    "nextFundingTime": 1789588800000,
+    "time": 1789582693000
+  },
+  {
+    "symbol": "BTCUSD1",
+    "markPrice": "75876.30000000",
+    "indexPrice": "75903.57538663",
+    "estimatedSettlePrice": "75702.98059578",
+    "lastFundingRate": "0.00010000",
+    "interestRate": "0.00010000",
+    "nextFundingTime": 1789603200000,
+    "time": 1789582693000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "markPrice": "75873.70000000",
+    "indexPrice": "75904.85434783",
+    "estimatedSettlePrice": "75702.53662720",
+    "lastFundingRate": "0.00008602",
+    "interestRate": "0.00010000",
+    "nextFundingTime": 1789603200000,
+    "time": 1789582693000
+  },
+  {
+    "symbol": "ASTERUSDT",
+    "markPrice": "0.68388023",
+    "indexPrice": "0.68382667",
+    "estimatedSettlePrice": "0.68085701",
+    "lastFundingRate": "0.00011579",
+    "interestRate": "0",
+    "nextFundingTime": 1789588800000,
+    "time": 1789582693000
+  }
+]
