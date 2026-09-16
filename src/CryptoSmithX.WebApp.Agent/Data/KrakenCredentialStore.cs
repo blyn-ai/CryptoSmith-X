@@ -97,7 +97,7 @@ public static class KrakenCredentialStore
         scope is FuturesScope or SpotScope;
 
     private static string MaskApiKey(string apiKey) =>
-        apiKey.Length <= 4 ? "••••" : $"…{apiKey[^4..]}";
+        apiKey.Length <= 8 ? apiKey : $"{apiKey[..4]}…{apiKey[^4..]}";
 
     private sealed record CredentialRow(string ApiKey, DateTime UpdatedAt);
 }

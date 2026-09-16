@@ -316,7 +316,7 @@
           setKrakenSaveEnabled(credentialsValid);
           setKrakenStatus(credentialsValid
             ? 'Kraken prieiga patvirtinta. Raktą galima išsaugoti.'
-            : (result.message || 'Kraken nepatvirtino rakto.'), credentialsValid ? 'valid' : 'invalid');
+            : ('Nepavyko: ' + (result.message || 'Kraken nepatvirtino rakto.')), credentialsValid ? 'valid' : 'invalid');
         } catch (_) {
           credentialsValid = false;
           setKrakenSaveEnabled(false);
@@ -378,7 +378,7 @@
         var valid = response.ok && result.valid === true;
         setSavedStatus(valid
           ? 'Kraken prieiga patvirtinta.'
-          : (result.message || 'Kraken nepatvirtino rakto.'), valid ? 'valid' : 'invalid');
+          : ('Nepavyko: ' + (result.message || 'Kraken nepatvirtino rakto.')), valid ? 'valid' : 'invalid');
       } catch (_) {
         setSavedStatus('Nepavyko patikrinti Kraken rakto. Pabandyk dar kartą.', 'invalid');
       } finally {

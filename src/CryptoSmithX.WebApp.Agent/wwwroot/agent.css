@@ -465,8 +465,12 @@ body{min-height:100vh;display:flex;flex-direction:column;
 .p-params .kraken-field input:focus{border-color:var(--brand);box-shadow:var(--focus-ring)}
 .p-params .kraken-validation{margin:0;font-family:var(--font-mono);font-size:11px;line-height:1.55;color:var(--text-muted)}
 .p-params .kraken-validation[data-state="checking"]{color:var(--state-hold-ink)}
-.p-params .kraken-validation[data-state="valid"]{color:var(--brand-text)}
-.p-params .kraken-validation[data-state="invalid"]{color:var(--money-down)}
+.p-params .kraken-validation[data-state="valid"]{color:var(--money-up-ink)}
+.p-params .kraken-validation[data-state="invalid"]{color:var(--brand-text)}
+.p-params .kraken-validation[data-state="valid"]::before,.p-params .kraken-validation[data-state="invalid"]::before{
+  display:inline-block;width:1.35em;font-size:14px;font-weight:700;line-height:1;vertical-align:-1px}
+.p-params .kraken-validation[data-state="valid"]::before{content:"✓"}
+.p-params .kraken-validation[data-state="invalid"]::before{content:"×"}
 .p-params .kraken-actions{display:flex;gap:9px;flex-wrap:wrap}
 .p-params .kraken-actions .btn-primary{flex:1 1 220px}
 .p-params .kraken-actions .btn-primary[disabled]{background:var(--text-muted);border-color:var(--text-muted);cursor:not-allowed}

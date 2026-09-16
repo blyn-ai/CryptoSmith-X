@@ -80,6 +80,19 @@ public sealed class SurfaceTests
     }
 
     [Fact]
+    public void Kraken_key_validation_has_distinct_success_and_failure_states()
+    {
+        var css = Read("agent.css");
+        var js = Read("parameters.js");
+
+        Assert.Contains("[data-state=\"valid\"]::before{content:\"✓\"}", css, StringComparison.Ordinal);
+        Assert.Contains("[data-state=\"invalid\"]::before{content:\"×\"}", css, StringComparison.Ordinal);
+        Assert.Contains("color:var(--money-up-ink)", css, StringComparison.Ordinal);
+        Assert.Contains("color:var(--brand-text)", css, StringComparison.Ordinal);
+        Assert.Contains("'Nepavyko: '", js, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_save_mechanism_is_the_one_the_server_expects()
     {
         // The design changed how this screen looks. These are the parts that must not move with it:
