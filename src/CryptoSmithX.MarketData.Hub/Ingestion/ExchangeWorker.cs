@@ -690,7 +690,14 @@ public sealed class ExchangeWorker : BackgroundService
         "kraken-futures" => BuildKraken(config, ct),
         "weex-futures" => BuildWeex(config, gate, ct),
         "hyperliquid" => BuildHyperliquid(config, gate, ct),
-        "binance-usdm" => BuildBinance(config, gate, ct),
+        "binance-usdm" => BuildBinance(config, gate, ct, BinanceUsdmProfile.Binance),
+        // Aster (asterdex): the wire protocol is a byte-for-byte Binance USDⓈ-M clone, verified live
+        // (plans/aster-venue-blueprint.md). The semantics are not — 133 equity/ETF/commodity/FX
+        // perpetuals wearing the same contractType, a 200- not 1024-stream cap, a change-only ticker
+        // array, no open-interest history — so it reuses these classes through a profile rather than
+        // a config-only base_url swap or a forked adapter. BinanceUsdmProfile.Binance above reproduces
+        // every constant that stood here before this profile existed.
+        "aster-perp" => BuildBinance(config, gate, ct, BinanceUsdmProfile.Aster),
         "avantis-perp" => BuildAvantis(config, ct),
         // The three REST-first venues from plans/exchange-roadmap.md rows 5, 6 and 8. Each closes
         // the whole snapshot in ONE bulk call, so none of them needs a feed to be useful — the
@@ -841,10 +848,10 @@ public sealed class ExchangeWorker : BackgroundService
     // the feed starts here and dies with this exchange's token, exactly like Kraken's and WEEX's;
     // without one the adapter is pure REST. WS honesty knobs are read live from settings at build
     // time.
-    private IExchangeMarketData BuildBinance(ExchangeConfig config, VenueGate gate, CancellationToken ct)
+    private IExchangeMarketData BuildBinance(ExchangeConfig config, VenueGate gate, CancellationToken ct, BinanceUsdmProfile profile)
     {
         var baseUrl = config.BaseUrl ?? throw new InvalidOperationException($"Exchange '{config.Code}' has no base_url");
-        var client = new BinanceUsdmClient(baseUrl);
+        var client = new BinanceUsdmClient(baseUrl, profile.ApiPrefix, profile.RestDepthLimit);
 
         var openInterest = new BinanceOpenInterestFeed(client, gate, CollectedSymbols(config.Code), _loggers, _clock);
         openInterest.Start(ct);
@@ -855,7 +862,8 @@ public sealed class ExchangeWorker : BackgroundService
             var settings = _settings.Latest;
             ws = new BinanceWsFeed(
                 config.WsUrl, client, gate, _loggers, _clock,
-                settings.WsStaleAfter, settings.WsCrosscheckInterval, settings.WsCrosscheckDriftBps);
+                settings.WsStaleAfter, settings.WsCrosscheckInterval, settings.WsCrosscheckDriftBps,
+                profile, CollectedSymbols(config.Code));
             ws.Start(ct);
         }
 
@@ -866,12 +874,12 @@ public sealed class ExchangeWorker : BackgroundService
         BinanceMarketWsFeed? marketFeed = null;
         if (!string.IsNullOrWhiteSpace(config.MarketWsUrl))
         {
-            marketFeed = new BinanceMarketWsFeed(config.MarketWsUrl, client, _loggers, _clock);
+            marketFeed = new BinanceMarketWsFeed(config.MarketWsUrl, client, _loggers, _clock, profile, CollectedSymbols(config.Code));
             marketFeed.Start(ct);
         }
 
         return new BinanceUsdmMarketData(
-            client, openInterest, ws, marketFeed, _clock, _loggers.CreateLogger("Binance.Usdm"));
+            client, openInterest, ws, marketFeed, _clock, _loggers.CreateLogger(profile.LogName), profile);
     }
 
     /// <summary>Await tasks, swallowing the cancellation that a normal stop raises.</summary>
