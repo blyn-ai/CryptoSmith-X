@@ -66,6 +66,20 @@ public sealed class SurfaceTests
     }
 
     [Fact]
+    public void Kraken_key_actions_use_page_controls_instead_of_browser_dialogs()
+    {
+        var markup = Read("Index.cshtml");
+        var js = Read("parameters.js");
+
+        Assert.Contains("data-kraken-check-saved", markup, StringComparison.Ordinal);
+        Assert.Contains("id=\"kraken-revoke-confirm\"", markup, StringComparison.Ordinal);
+        Assert.Contains("revokeDialog.showModal", js, StringComparison.Ordinal);
+        Assert.DoesNotContain("window.confirm", js, StringComparison.Ordinal);
+        Assert.DoesNotContain("window.alert", js, StringComparison.Ordinal);
+        Assert.DoesNotContain("window.prompt", js, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_save_mechanism_is_the_one_the_server_expects()
     {
         // The design changed how this screen looks. These are the parts that must not move with it:

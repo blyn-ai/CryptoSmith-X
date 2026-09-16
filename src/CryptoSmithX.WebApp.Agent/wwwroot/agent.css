@@ -446,6 +446,8 @@ body{min-height:100vh;display:flex;flex-direction:column;
   text-transform:uppercase;color:var(--text-muted)}
 .p-params .kraken-current b,.p-params .kraken-current time{font-family:var(--font-mono);font-size:13px;font-weight:400;
   color:var(--text-data);font-variant-numeric:tabular-nums}
+.p-params .kraken-saved-check{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.p-params .kraken-saved-check .kraken-validation{flex:1 1 260px}
 .p-params .kraken-change{border-top:1px solid var(--border-hairline)}
 .p-params .kraken-change summary{display:flex;align-items:center;min-height:var(--tap-min);padding:0;cursor:pointer;
   font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:var(--track-label);text-transform:uppercase;

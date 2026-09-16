@@ -270,7 +270,7 @@
     if (typeof form.requestSubmit === 'function') { form.requestSubmit(); } else { form.submit(); }
   });
 
-  // ── 7. Kraken Futures keys ───────────────────────────────────────────────
+  // ── 7. Kraken keys ───────────────────────────────────────────────────────
   // Validation is a small server POST, not a browser-to-Kraken request. The secret stays in this
   // form only until the reader changes a field or submits it; it is never rendered back by Razor.
   Array.prototype.forEach.call(document.querySelectorAll('[data-kraken-credentials]'), function (krakenForm) {
@@ -345,11 +345,75 @@
     }
   });
 
-  Array.prototype.forEach.call(document.querySelectorAll('[data-kraken-revoke]'), function (revoke) {
-    revoke.addEventListener('submit', function (e) {
-      if (!window.confirm('Botas nebegalės naudoti šio Kraken rakto. Ar tęsti?')) {
-        e.preventDefault();
+  Array.prototype.forEach.call(document.querySelectorAll('[data-kraken-check-saved]'), function (check) {
+    var card = check.closest('.kraken-card');
+    var savedStatus = card ? card.querySelector('[data-kraken-saved-status]') : null;
+    var token = card ? card.querySelector('[name="__RequestVerificationToken"]') : null;
+
+    function setSavedStatus(message, state) {
+      if (!savedStatus) { return; }
+      savedStatus.textContent = message;
+      savedStatus.dataset.state = state || '';
+    }
+
+    check.addEventListener('click', async function () {
+      if (!token || !check.dataset.validateSavedUrl || !check.dataset.scope) {
+        setSavedStatus('Nepavyko paruošti rakto patikrinimo.', 'invalid');
+        return;
+      }
+
+      check.disabled = true;
+      setSavedStatus('Tikrinama…', 'checking');
+      try {
+        var body = new URLSearchParams();
+        body.set('scope', check.dataset.scope);
+        body.set(token.name, token.value);
+        var response = await fetch(check.dataset.validateSavedUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+          body: body
+        });
+        var result = await response.json();
+        var valid = response.ok && result.valid === true;
+        setSavedStatus(valid
+          ? 'Kraken prieiga patvirtinta.'
+          : (result.message || 'Kraken nepatvirtino rakto.'), valid ? 'valid' : 'invalid');
+      } catch (_) {
+        setSavedStatus('Nepavyko patikrinti Kraken rakto. Pabandyk dar kartą.', 'invalid');
+      } finally {
+        check.disabled = false;
       }
     });
   });
+
+  var revokeDialog = document.getElementById('kraken-revoke-confirm');
+  var revokeScope = revokeDialog ? revokeDialog.querySelector('[data-kraken-revoke-scope]') : null;
+  var approvedRevoke = null;
+  var pendingRevoke = null;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-kraken-revoke]'), function (revoke) {
+    revoke.addEventListener('submit', function (e) {
+      if (approvedRevoke === revoke) {
+        approvedRevoke = null;
+        return;
+      }
+      e.preventDefault();
+      if (!revokeDialog || typeof revokeDialog.showModal !== 'function') { return; }
+      pendingRevoke = revoke;
+      if (revokeScope) { revokeScope.textContent = revoke.dataset.krakenScope || 'Kraken'; }
+      revokeDialog.showModal();
+    });
+  });
+
+  if (revokeDialog) {
+    revokeDialog.addEventListener('close', function () {
+      if (revokeDialog.returnValue !== 'remove' || !pendingRevoke) {
+        pendingRevoke = null;
+        return;
+      }
+      approvedRevoke = pendingRevoke;
+      pendingRevoke = null;
+      if (typeof approvedRevoke.requestSubmit === 'function') { approvedRevoke.requestSubmit(); } else { approvedRevoke.submit(); }
+    });
+  }
 })();

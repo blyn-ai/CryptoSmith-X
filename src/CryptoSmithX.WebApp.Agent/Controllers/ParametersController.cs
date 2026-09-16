@@ -194,6 +194,48 @@ public sealed class ParametersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ValidateSavedKrakenCredentials(string? scope, CancellationToken ct)
+    {
+        try
+        {
+            if (!KrakenCredentialStore.IsSupportedScope(scope))
+            {
+                return BadRequest(new { valid = false, message = "Nepalaikoma Kraken paskyros rūšis." });
+            }
+
+            await using var connection = await _bot.OpenAsync(ct);
+            var owner = await BotInstanceOwnerStore.FindActiveAsync(
+                connection,
+                User.Identity?.Name ?? string.Empty,
+                ct);
+            if (owner is null)
+            {
+                return Unauthorized();
+            }
+
+            var credentials = await KrakenCredentialStore.LoadAsync(connection, owner.BotInstanceId, scope!, ct);
+            if (credentials is null)
+            {
+                return Json(new { valid = false, message = "Nėra išsaugotų raktų, kuriuos būtų galima patikrinti." });
+            }
+
+            var result = await ValidateKrakenCredentialsAsync(new KrakenCredentialRequest
+            {
+                Scope = scope,
+                ApiKey = credentials.ApiKey,
+                ApiSecret = credentials.ApiSecret,
+            }, ct);
+            return Json(new { valid = result.IsValid, message = result.Message });
+        }
+        catch (NpgsqlException e)
+        {
+            _log.LogError(e, "the bot database is unreachable while validating a saved Kraken credential");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { valid = false, message = "Boto duomenų bazė nepasiekiama." });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveKrakenCredentials(KrakenCredentialRequest request, CancellationToken ct)
     {
         try
@@ -262,7 +304,7 @@ public sealed class ParametersController : Controller
             }
 
             await KrakenCredentialStore.RemoveAsync(connection, owner.BotInstanceId, scope!, ct);
-            TempData["KrakenCredentialNotice"] = $"Boto prieiga prie {ScopeTitle(scope)} atšaukta.";
+            TempData["KrakenCredentialNotice"] = $"{ScopeTitle(scope)} raktų pora pašalinta iš boto duomenų bazės.";
         }
         catch (NpgsqlException e)
         {

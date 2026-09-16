@@ -257,6 +257,10 @@
                         <span><span>Rakto pabaiga</span><b>@credential.Credentials.ApiKeyHint</b></span>
                         <span><span>Išsaugota</span><time datetime="@credential.Credentials.UpdatedAt?.ToUniversalTime().ToString("O")">@credential.Credentials.UpdatedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</time></span>
                     </div>
+                    <div class="kraken-saved-check">
+                        <button type="button" class="btn-quiet" data-kraken-check-saved data-scope="@credential.Scope" data-validate-saved-url="@Url.Action("ValidateSavedKrakenCredentials", "Parameters")">Patikrinti ryšį</button>
+                        <p class="kraken-validation" role="status" aria-live="polite" data-kraken-saved-status>Patikrina dabar išsaugotus raktus. Raktai nebus rodomi.</p>
+                    </div>
                 }
 
                 <details class="kraken-change" open="@(credential.Credentials.Configured ? null : "open")">
@@ -282,7 +286,7 @@
 
                         @if (credential.Credentials.Configured)
                         {
-                            <form method="post" asp-action="RevokeKrakenCredentials" class="kraken-revoke" data-kraken-revoke>
+                            <form method="post" asp-action="RevokeKrakenCredentials" class="kraken-revoke" data-kraken-revoke data-kraken-scope="@credential.Title">
                                 <input type="hidden" name="scope" value="@credential.Scope">
                                 <p>Pašalina šią raktų porą iš boto duomenų bazės.</p>
                                 <button type="submit" class="btn-danger">Pašalinti raktus iš boto</button>
@@ -330,6 +334,23 @@
             <p class="field-example">Pakeitimai bus taikomi naujoms pozicijoms. Jau atidarytos pozicijos nesikeis.</p>
             <div class="dialog-actions">
                 <button type="submit" value="save" class="btn-primary">Išsaugoti</button>
+                <button type="submit" value="cancel" class="btn-quiet">Atšaukti</button>
+            </div>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="kraken-revoke-confirm" class="overlay" aria-labelledby="kraken-revoke-title">
+    <form method="dialog" class="panel">
+        <div class="panel-head">
+            <span class="panel-title" id="kraken-revoke-title">Pašalinti Kraken raktus</span>
+            <button type="submit" value="cancel" class="panel-close" aria-label="Uždaryti">✕</button>
+        </div>
+        <div class="panel-body tight">
+            <p class="sheet-intro">Pašalinsi <strong data-kraken-revoke-scope></strong> raktų porą iš boto duomenų bazės.</p>
+            <p class="field-example">Šio veiksmo negalima atšaukti šiame ekrane. Norėdamas vėl prijungti Kraken paskyrą, įvesk ir patikrink naują raktų porą.</p>
+            <div class="dialog-actions">
+                <button type="submit" value="remove" class="btn-danger">Pašalinti raktus</button>
                 <button type="submit" value="cancel" class="btn-quiet">Atšaukti</button>
             </div>
         </div>

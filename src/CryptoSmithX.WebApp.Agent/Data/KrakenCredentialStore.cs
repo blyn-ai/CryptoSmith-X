@@ -4,9 +4,8 @@ using Dapper;
 namespace CryptoSmithX.WebApp.Agent.Data;
 
 /// <summary>
-/// The Kraken Futures credentials assigned to one bot instance. Secrets are intentionally never
-/// selected by the Agent after a write: the page only needs to know whether a key exists and when
-/// it changed.
+/// Kraken credentials assigned to one bot instance. Secrets are only read server-side when the
+/// owner explicitly verifies the saved pair; they are never rendered, logged, or returned by HTTP.
 /// </summary>
 public static class KrakenCredentialStore
 {
@@ -41,6 +40,22 @@ public static class KrakenCredentialStore
             MaskApiKey(row.ApiKey),
             new DateTimeOffset(updatedAt));
     }
+
+    public static Task<StoredKrakenCredentials?> LoadAsync(
+        DbConnection connection,
+        string botInstanceId,
+        string scope,
+        CancellationToken cancellationToken) =>
+        connection.QuerySingleOrDefaultAsync<StoredKrakenCredentials>(new CommandDefinition(
+            """
+            select api_key as "ApiKey",
+                   api_secret as "ApiSecret"
+              from public.bot_instance_api_credentials
+             where bot_instance_id = @botInstanceId
+               and api_scope = @scope
+            """,
+            new { botInstanceId, scope },
+            cancellationToken: cancellationToken));
 
     public static Task SaveAsync(
         DbConnection connection,
@@ -94,3 +109,5 @@ public sealed record KrakenCredentialSummary(
 {
     public static KrakenCredentialSummary NotConfigured { get; } = new(false, null, null);
 }
+
+public sealed record StoredKrakenCredentials(string ApiKey, string ApiSecret);
