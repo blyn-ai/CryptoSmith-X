@@ -65,13 +65,36 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
     private readonly ILogger _log;
 
     private volatile string[] _symbols = [];
+
+    /// <summary>What <see cref="RefreshSymbolsAsync"/> most recently decided to subscribe, after the
+    /// stream-cap guard — for a test to read back without a socket, the same reason
+    /// <see cref="BinanceWsFeed.SubscribedSymbols"/> exists.</summary>
+    internal string[] SubscribedSymbols => _symbols;
+
     // O(1) membership for the per-frame filter below — Array.IndexOf over ~665 symbols, run for
     // every one of ~744 array entries on every markPrice push (roughly once a second), would be
     // the kind of cost that never shows up in a code review and always shows up in a profiler.
     private volatile HashSet<string> _known = new(StringComparer.Ordinal);
     private long _framesThisConnection;
+    private readonly BinanceUsdmProfile _profile;
+    private readonly Func<CancellationToken, Task<string[]>>? _collectedSymbolsAsync;
 
-    public BinanceMarketWsFeed(string wsUrl, BinanceUsdmClient client, ILoggerFactory loggers, TimeProvider clock)
+    /// <summary>The two array streams every connect subscribes regardless of symbol count
+    /// (<c>!ticker@arr</c>, <c>!markPrice@arr@1s</c>) plus <c>!forceOrder@arr</c> — three whole-venue
+    /// broadcasts the venue cannot be asked to narrow. Every symbol then adds two more, per-symbol
+    /// streams (<c>@kline_1m</c>, <c>@aggTrade</c>), so total streams = 3 + 2N — the arithmetic
+    /// <see cref="RefreshSymbolsAsync"/>'s stream-cap guard solves for N against.</summary>
+    private const int FixedStreams = 3;
+
+    /// <param name="profile">Which symbol source and stream cap this feed obeys — see
+    /// <see cref="BinanceUsdmProfile.FeedSymbols"/> and <see cref="BinanceUsdmProfile.MaxStreamsPerConnection"/>.
+    /// Defaults to <see cref="BinanceUsdmProfile.Binance"/>.</param>
+    /// <param name="collectedSymbolsAsync">What WE collect on this segment — read only under
+    /// <see cref="FeedSymbolsMode.Collected"/>.</param>
+    public BinanceMarketWsFeed(
+        string wsUrl, BinanceUsdmClient client, ILoggerFactory loggers, TimeProvider clock,
+        BinanceUsdmProfile? profile = null,
+        Func<CancellationToken, Task<string[]>>? collectedSymbolsAsync = null)
     {
         _client = client;
         _clock = clock;
@@ -79,6 +102,8 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
         _conn = new WsConnection(wsUrl, loggers.CreateLogger("Binance.Market.Conn"), clock);
         _ticker = new MarketCache<(double, double, double?)>(clock);
         _markPrice = new MarketCache<(double, double, double, DateTimeOffset?, DateTimeOffset?)>(clock);
+        _profile = profile ?? BinanceUsdmProfile.Binance;
+        _collectedSymbolsAsync = collectedSymbolsAsync;
     }
 
     public void Start(CancellationToken ct) => _ = RunAsync(ct);
@@ -477,16 +502,49 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
             && double.TryParse(el.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
-    private async Task RefreshSymbolsAsync(CancellationToken ct)
+    internal async Task RefreshSymbolsAsync(CancellationToken ct)
     {
         try
         {
-            var symbols = await _client.GetSymbolsAsync(ct);
-            var next = symbols
-                .Where(s => BinanceMarkets.IsInScope(s) && s.Status == "TRADING")
-                .Select(s => s.Symbol)
-                .OrderBy(s => s, StringComparer.Ordinal)
-                .ToArray();
+            string[] scoped;
+            if (_profile.FeedSymbols == FeedSymbolsMode.Collected)
+            {
+                // Aster: what WE collect, already filtered to collect = true and status = 'trading' —
+                // see BinanceWsFeed.RefreshSymbolsAsync for the fuller argument, which applies here
+                // identically. No venue call at all in this branch.
+                scoped = _collectedSymbolsAsync is not null ? await _collectedSymbolsAsync(ct) : [];
+            }
+            else
+            {
+                var symbols = await _client.GetSymbolsAsync(ct);
+                scoped = symbols
+                    .Where(s => _profile.IsInScope(s) && s.Status == "TRADING")
+                    .Select(s => s.Symbol)
+                    .ToArray();
+            }
+
+            var ordered = scoped.OrderBy(s => s, StringComparer.Ordinal).ToArray();
+
+            // Streams = FixedStreams + 2N (kline_1m and aggTrade, one pair per symbol) — solve for
+            // the largest N that keeps the total at or under the venue's per-connection cap. Binance
+            // has no cap in its profile (null) — its ~566 symbols need ~1 135 streams and always have
+            // — so the guard only ever applies to Aster's 200-stream limit.
+            var maxSymbols = _profile.MaxStreamsPerConnection is { } cap
+                ? Math.Max(0, (cap - FixedStreams) / 2)
+                : int.MaxValue;
+            var next = ordered.Length > maxSymbols ? ordered[..maxSymbols] : ordered;
+
+            if (next.Length < ordered.Length)
+            {
+                var excluded = ordered[next.Length..];
+                _log.LogWarning(
+                    "Binance market feed: {Wanted} symbols would need {Streams} streams against this "
+                    + "venue's {Cap}-stream-per-connection cap; subscribing kline_1m and aggTrade for "
+                    + "the first {Kept} in symbol order and leaving out {Count}: {Excluded}. Their "
+                    + "trades are not collected and their candles come from the existing REST fallback.",
+                    ordered.Length, FixedStreams + 2 * ordered.Length, _profile.MaxStreamsPerConnection,
+                    next.Length, excluded.Length, string.Join(',', excluded));
+            }
 
             var prev = _symbols;
             _symbols = next;

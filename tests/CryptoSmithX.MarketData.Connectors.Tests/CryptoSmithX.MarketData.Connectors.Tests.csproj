@@ -32,5 +32,13 @@
     <None Include="Fixtures\weex-ws\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\weex-ws\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\weex-ws\*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- aster holds one non-JSON capture too: openinteresthist_404.html, the CloudFront-served HTML
+         body /futures/data/openInterestHist answers on this venue (blueprint §1.1/§4.2) — the shape
+         the OI-history "return [] instead of calling this at all" behaviour exists because of. -->
+    <None Include="Fixtures\aster\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\aster\*.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\aster-ws\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\aster-ws\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\aster-ws\*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

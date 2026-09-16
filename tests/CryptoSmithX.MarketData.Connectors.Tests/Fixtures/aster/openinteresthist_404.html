@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        border: 0;
+      }
+
+      .p-8 {
+        padding: 8px;
+      }
+
+      .bg-0b0d12 {
+        background-color: #0b0d12;
+      }
+
+      .minH-100p {
+        min-height: 100%;
+      }
+
+      .absolute {
+        position: absolute;
+      }
+
+      .w-100p {
+        width: 100%;
+      }
+
+      .bottom-0 {
+        bottom: 0px;
+      }
+
+      .top-0 {
+        top: 0px;
+      }
+
+      .column-toCenterX {
+        align-items: center;
+      }
+
+      .flexDirection-column {
+        flex-direction: column;
+      }
+
+      .flex {
+        display: flex;
+      }
+
+      .top-50p {
+        top: 50%;
+      }
+
+      .left-50p {
+        left: 50%;
+      }
+
+      .transform-translateX--50p-translateY--70p {
+        transform: translateX(-50%) translateY(-70%);
+      }
+
+      .w-180 {
+        width: 180px;
+      }
+
+      @media (min-width: 640px) {
+        .w-180--sm.r-sm {
+          width: 180px;
+        }
+      }
+
+      @media (min-width: 768px) {
+        .w-200--md.r-sm.r-md {
+          width: 200px;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .w-360--lg.r-sm.r-md.r-lg {
+          width: 360px;
+        }
+      }
+
+      @media (min-width: 1280px) {
+        .w-360--xl.r-sm.r-md.r-lg.r-xl {
+          width: 360px;
+        }
+      }
+
+      .mb-36 {
+        margin-bottom: 36px;
+      }
+
+      @media (min-width: 640px) {
+        .mb-36--sm.r-sm {
+          margin-bottom: 36px;
+        }
+      }
+
+      @media (min-width: 768px) {
+        .mb-42--md.r-sm.r-md {
+          margin-bottom: 42px;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .mb-42--lg.r-sm.r-md.r-lg {
+          margin-bottom: 42px;
+        }
+      }
+
+      @media (min-width: 1280px) {
+        .mb-42--xl.r-sm.r-md.r-lg.r-xl {
+          margin-bottom: 42px;
+        }
+      }
+
+      .alignItems-center {
+        align-items: center;
+      }
+
+      .justifyContent-center {
+        justify-content: center;
+      }
+
+      .leading-24px {
+        line-height: 24px;
+      }
+
+      .leadingNone {
+        line-height: 1;
+      }
+
+      .spaceX-0 > *:not(:last-child) {
+        margin-right: 0px;
+      }
+
+      @media (min-width: 640px) {
+        .spaceX-0--sm > *:not(:last-child).r-sm {
+          margin-right: 0px;
+        }
+      }
+
+      @media (min-width: 768px) {
+        .spaceX-16--md > *:not(:last-child).r-sm.r-md {
+          margin-right: 16px;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .spaceX-16--lg > *:not(:last-child).r-sm.r-md.r-lg {
+          margin-right: 16px;
+        }
+      }
+
+      @media (min-width: 1280px) {
+        .spaceX-16--xl > *:not(:last-child).r-sm.r-md.r-lg.r-xl {
+          margin-right: 16px;
+        }
+      }
+
+      @media (min-width: 640px) {
+        .flexDirection-column--sm.r-sm {
+          flex-direction: column;
+        }
+      }
+
+      @media (min-width: 768px) {
+        .flexDirection-row--md.r-sm.r-md {
+          flex-direction: row;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .flexDirection-row--lg.r-sm.r-md.r-lg {
+          flex-direction: row;
+        }
+      }
+
+      @media (min-width: 1280px) {
+        .flexDirection-row--xl.r-sm.r-md.r-lg.r-xl {
+          flex-direction: row;
+        }
+      }
+
+      .text-16 {
+        font-size: 16px;
+      }
+
+      @media (min-width: 640px) {
+        .text-16--sm.r-sm {
+          font-size: 16px;
+        }
+      }
+
+      @media (min-width: 768px) {
+        .text-20--md.r-sm.r-md {
+          font-size: 20px;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .text-24--lg.r-sm.r-md.r-lg {
+          font-size: 24px;
+        }
+      }
+
+      .color-B2B4C6 {
+        color: #b2b4c6;
+      }
+
+      .textCenter {
+        text-align: center;
+      }
+
+      .text-14 {
+        font-size: 14px;
+      }
+
+      .leading-20px {
+        line-height: 20px;
+      }
+
+      .color-7E9AFF {
+        color: #7e9aff;
+      }
+
+      .underline {
+        text-decoration: underline;
+      }
+
+      .mt-16 {
+        margin-top: 16px;
+      }
+
+      @media (min-width: 640px) {
+        .mt-16--sm.r-sm {
+          margin-top: 16px;
+        }
+      }
+
+      @media (min-width: 768px) {
+        .mt-0--md.r-sm.r-md {
+          margin-top: 0px;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .mt-0--lg.r-sm.r-md.r-lg {
+          margin-top: 0px;
+        }
+      }
+
+      @media (min-width: 1280px) {
+        .mt-0--xl.r-sm.r-md.r-lg.r-xl {
+          margin-top: 0px;
+        }
+      }
+
+      .letterSpacing-016px {
+        letter-spacing: 0.16px;
+      }
+    </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+  </head>
+
+  <body>
+    <div id="__next">
+      <div
+        class="
+          p-8
+          bg-0b0d12
+          minH-100p
+          absolute
+          w-100p
+          bottom-0
+          top-0
+          column-toCenterX
+          flexDirection-column
+          flex
+        "
+      >
+        <div
+          class="
+            column-toCenterX
+            absolute
+            top-50p
+            left-50p
+            w-100p
+            flexDirection-column
+            flex
+            transform-translateX--50p-translateY--70p
+          "
+        >
+          <img
+            src="https://static.apollox.com/cloud-futures/static/images/http-code/400-light.svg"
+            class="
+              w-180 w-180--sm
+              w-200--md
+              w-360--lg w-360--xl
+              mb-36 mb-36--sm
+              mb-42--md mb-42--lg mb-42--xl
+              r-sm r-md r-lg r-xl r-2xl
+            "
+          />
+          <div
+            class="
+              alignItems-center
+              justifyContent-center
+              flex
+              leadingNone
+              spaceX-0 spaceX-0--sm
+              spaceX-16--md spaceX-16--lg spaceX-16--xl
+              flexDirection-column flexDirection-column--sm
+              flexDirection-row--md flexDirection-row--lg flexDirection-row--xl
+              r-sm r-md r-lg r-xl r-2xl
+            "
+          >
+            <div
+              class="
+                text-16 text-16--sm
+                text-20--md
+                text-24--lg
+                color-B2B4C6
+                textCenter
+                r-sm r-md r-lg r-xl r-2xl
+              "
+            >
+              Sorry! The page you’re looking for cannot be found.
+            </div>
+            <a
+              href="/"
+              class="
+                text-14
+                leading-20px
+                color-7E9AFF
+                underline
+                textCenter
+                mt-16 mt-16--sm
+                mt-0--md mt-0--lg mt-0--xl
+                letterSpacing-016px
+                r-sm r-md r-lg r-xl r-2xl
+              "
+              >Go to Homepage</a
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

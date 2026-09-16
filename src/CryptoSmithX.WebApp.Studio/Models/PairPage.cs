@@ -176,6 +176,11 @@ public sealed record VenueRowModel(
     /// </summary>
     public IReadOnlyList<double?> Liquidations { get; init; } = [];
 
+    /// <summary>The caveat this row's liquidation figures carry, from
+    /// <see cref="LiquidationVoice.Note"/> — null on every venue whose <c>history_depth</c>
+    /// capability names no known sampling quirk, which today is everything except Aster.</summary>
+    public string? LiquidationsNote { get; init; }
+
     /// <summary>The three calls' own configured cadence, for the late threshold's cadence floor
     /// (<see cref="Data.Freshness.PastWindow"/>) — unknown by default, the same reading a row with
     /// no stated cadence already gets everywhere else on this page.</summary>

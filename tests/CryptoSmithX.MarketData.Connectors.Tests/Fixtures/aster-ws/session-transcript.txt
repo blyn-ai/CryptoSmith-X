@@ -1,0 +1,11 @@
+SUBSCRIBE btcusdt@depth@100ms -> {"id":1,"result":null}
+buffered 58 frames before the REST snapshot
+REST /depth?symbol=BTCUSDT&limit=1000 -> lastUpdateId=547193409094 bids=1000 asks=1000
+captured 139 depthUpdate frames, u range 547193221973..547193632418
+first frame with u >= lastUpdateId is index 61 of 139
+wrote depth-deltas.jsonl with 60 frames (indices 53..112); 8 of them predate the snapshot
+pu-chain violations across the captured run: 0
+SUBSCRIBE market streams -> {"id":2,"result":null}
+!ticker@arr frame: 6 entries
+!markPrice@arr@1s frame: 746 entries
+!forceOrder@arr frame: {"stream":"!forceOrder@arr","data":{"e":"forceOrder","E":1789582891339,"o":{"s":"MAXUSDT","S":"BUY","o":"LIMIT","f":"IOC","q":"484572","p":"0.0052956","ap":"0.0052956","X":"FILLED","l":"484572","z":"484572","T":1789582891300}}}

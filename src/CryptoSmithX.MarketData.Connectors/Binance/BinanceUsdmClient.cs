@@ -34,10 +34,10 @@ namespace CryptoSmithX.MarketData.Connectors.Binance;
 public sealed class BinanceUsdmClient
 {
     /// <summary>
-    /// The depth the per-symbol REST book asks for, and a measured compromise rather than a taste.
-    /// <see cref="Kraken.DepthMath"/> nulls any band the book does not reach past, so the only limit
-    /// worth paying for is one that bounds the 10/25/50 bps bands. Measured live today, distance from
-    /// mid to the deepest returned level:
+    /// The depth the per-symbol REST book asks for on BINANCE, and a measured compromise rather than
+    /// a taste. <see cref="Kraken.DepthMath"/> nulls any band the book does not reach past, so the
+    /// only limit worth paying for is one that bounds the 10/25/50 bps bands. Measured live today,
+    /// distance from mid to the deepest returned level:
     ///
     ///     limit=50  (weight 2)   BTC 0.7 bps   ETH  2.0 bps   DOGE   55 bps   IOTA  117 bps
     ///     limit=100 (weight 5)   BTC 1.4 bps   ETH  4.0 bps   DOGE  111 bps   IOTA  262 bps
@@ -50,8 +50,20 @@ public sealed class BinanceUsdmClient
     /// trade worth making on a metered budget. BTC's and ETH's deep bands are honestly null over
     /// REST; the WebSocket book, which maintains every level the venue publishes rather than a
     /// window of them, is what fills them in.
+    ///
+    /// This is Binance's own historic constant, kept as the default so every existing call site that
+    /// does not name a profile keeps this exact value — see <see cref="RestDepthLimit"/>, which is
+    /// what <see cref="BinanceUsdmMarketData.GetOrderBookAsync"/> actually reads, and
+    /// <see cref="BinanceUsdmProfile"/> for why a second venue needs a different number: on Aster
+    /// this same measurement redone live found limit=100 leaves BTC's 25 and 50 bps bands null, and
+    /// 500 is the cheapest limit that bounds all three there.
     /// </summary>
     public const int DepthLimit = 100;
+
+    /// <summary>The REST order-book window THIS client actually asks for, from
+    /// <see cref="BinanceUsdmProfile.RestDepthLimit"/> — <see cref="DepthLimit"/> by default, so a
+    /// caller that builds a client without naming one gets Binance's unchanged behaviour.</summary>
+    public int RestDepthLimit { get; }
 
     /// <summary>
     /// The depth a WebSocket book is SEEDED from, where the arithmetic is different and so is the
@@ -85,18 +97,25 @@ public sealed class BinanceUsdmClient
 
     private readonly HttpClient _http;
     private readonly string _baseUrl;
+    private readonly string _apiPrefix;
 
-    public BinanceUsdmClient(string baseUrl)
-        : this(Shared, baseUrl)
+    /// <param name="apiPrefix">The path prefix every endpoint below is built under —
+    /// <see cref="BinanceUsdmProfile.ApiPrefix"/>. Defaults to Binance's own <c>/fapi/v1</c>,
+    /// unchanged, so a caller that does not name one keeps today's URLs.</param>
+    /// <param name="restDepthLimit">See <see cref="RestDepthLimit"/>.</param>
+    public BinanceUsdmClient(string baseUrl, string apiPrefix = "/fapi/v1", int restDepthLimit = DepthLimit)
+        : this(Shared, baseUrl, apiPrefix, restDepthLimit)
     {
     }
 
     /// <summary>For tests: an <see cref="HttpClient"/> over a stub handler, so the HTTP + JSON +
     /// mapping path is exercised end-to-end without a network.</summary>
-    public BinanceUsdmClient(HttpClient http, string baseUrl)
+    public BinanceUsdmClient(HttpClient http, string baseUrl, string apiPrefix = "/fapi/v1", int restDepthLimit = DepthLimit)
     {
         _http = http;
         _baseUrl = baseUrl.TrimEnd('/');
+        _apiPrefix = apiPrefix;
+        RestDepthLimit = restDepthLimit;
     }
 
     /// <summary>Every listing, with each one's raw JSON captured for <c>raw_json</c> — read off the
@@ -104,7 +123,7 @@ public sealed class BinanceUsdmClient
     /// said and not what we understood of it.</summary>
     internal async Task<IReadOnlyList<BinanceSymbol>> GetSymbolsAsync(CancellationToken ct)
     {
-        using var response = await _http.GetAsync($"{_baseUrl}/fapi/v1/exchangeInfo", ct);
+        using var response = await _http.GetAsync($"{_baseUrl}{_apiPrefix}/exchangeInfo", ct);
         response.EnsureVenueSuccess();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
@@ -125,25 +144,25 @@ public sealed class BinanceUsdmClient
 
     /// <summary>Funding terms for the symbols whose terms deviate from the venue default. Weight 0.</summary>
     internal Task<IReadOnlyList<BinanceFundingInfo>> GetFundingInfoAsync(CancellationToken ct) =>
-        GetAsync<IReadOnlyList<BinanceFundingInfo>>($"{_baseUrl}/fapi/v1/fundingInfo", ct);
+        GetAsync<IReadOnlyList<BinanceFundingInfo>>($"{_baseUrl}{_apiPrefix}/fundingInfo", ct);
 
     /// <summary>The whole venue's top of book in one call. Weight 5.</summary>
     internal Task<IReadOnlyList<BinanceBookTicker>> GetBookTickersAsync(CancellationToken ct) =>
-        GetAsync<IReadOnlyList<BinanceBookTicker>>($"{_baseUrl}/fapi/v1/ticker/bookTicker", ct);
+        GetAsync<IReadOnlyList<BinanceBookTicker>>($"{_baseUrl}{_apiPrefix}/ticker/bookTicker", ct);
 
     /// <summary>The whole venue's mark price, index price and current funding rate. Weight 10.</summary>
     internal Task<IReadOnlyList<BinancePremiumIndex>> GetPremiumIndexAsync(CancellationToken ct) =>
-        GetAsync<IReadOnlyList<BinancePremiumIndex>>($"{_baseUrl}/fapi/v1/premiumIndex", ct);
+        GetAsync<IReadOnlyList<BinancePremiumIndex>>($"{_baseUrl}{_apiPrefix}/premiumIndex", ct);
 
     /// <summary>The whole venue's 24 h statistics. Weight 40 — the single most expensive call the
     /// adapter makes, and the only batched source of turnover.</summary>
     internal Task<IReadOnlyList<BinanceTicker24h>> GetTicker24hAsync(CancellationToken ct) =>
-        GetAsync<IReadOnlyList<BinanceTicker24h>>($"{_baseUrl}/fapi/v1/ticker/24hr", ct);
+        GetAsync<IReadOnlyList<BinanceTicker24h>>($"{_baseUrl}{_apiPrefix}/ticker/24hr", ct);
 
     /// <summary>Open interest for one symbol. Weight 1, and there is no batched form: omitting
     /// <c>symbol</c> answers HTTP 400 <c>-1102</c>, verified live.</summary>
     internal Task<BinanceOpenInterest> GetOpenInterestAsync(string symbol, CancellationToken ct) =>
-        GetAsync<BinanceOpenInterest>($"{_baseUrl}/fapi/v1/openInterest?symbol={symbol}", ct);
+        GetAsync<BinanceOpenInterest>($"{_baseUrl}{_apiPrefix}/openInterest?symbol={symbol}", ct);
 
     /// <summary>Closed 1-minute bars in [from, to]. Each row is a heterogeneous array — the open time
     /// is an unquoted integer, the prices are quoted strings, the trade count is an unquoted integer —
@@ -151,7 +170,7 @@ public sealed class BinanceUsdmClient
     internal Task<IReadOnlyList<JsonElement[]>> GetKlines1mAsync(
         string symbol, long fromMs, long toMs, CancellationToken ct) =>
         GetAsync<IReadOnlyList<JsonElement[]>>(
-            $"{_baseUrl}/fapi/v1/klines?symbol={symbol}&interval=1m&startTime={fromMs}&endTime={toMs}&limit={KlineLimit}",
+            $"{_baseUrl}{_apiPrefix}/klines?symbol={symbol}&interval=1m&startTime={fromMs}&endTime={toMs}&limit={KlineLimit}",
             ct);
 
     /// <summary>Open-interest history, the venue's own 5-minute aggregate. Lives under
@@ -175,7 +194,7 @@ public sealed class BinanceUsdmClient
             ? ("indexPriceKlines", "pair")
             : ("markPriceKlines", "symbol");
         return GetAsync<IReadOnlyList<JsonElement[]>>(
-            $"{_baseUrl}/fapi/v1/{path}?{key}={symbol}&interval=1m&startTime={fromMs}&endTime={toMs}&limit={KlineLimit}",
+            $"{_baseUrl}{_apiPrefix}/{path}?{key}={symbol}&interval=1m&startTime={fromMs}&endTime={toMs}&limit={KlineLimit}",
             ct);
     }
 
@@ -183,14 +202,14 @@ public sealed class BinanceUsdmClient
     internal Task<IReadOnlyList<BinanceFundingRateRow>> GetFundingHistoryAsync(
         string symbol, long fromMs, long toMs, CancellationToken ct) =>
         GetAsync<IReadOnlyList<BinanceFundingRateRow>>(
-            $"{_baseUrl}/fapi/v1/fundingRate?symbol={symbol}&startTime={fromMs}&endTime={toMs}&limit=1000", ct);
+            $"{_baseUrl}{_apiPrefix}/fundingRate?symbol={symbol}&startTime={fromMs}&endTime={toMs}&limit=1000", ct);
 
     /// <summary>The order book for one symbol. <paramref name="limit"/> is the caller's because the
     /// two callers want different things from it — see <see cref="DepthLimit"/> and
     /// <see cref="SeedDepthLimit"/>.</summary>
     internal Task<BinanceDepth> GetDepthAsync(string symbol, int limit, CancellationToken ct) =>
         GetAsync<BinanceDepth>(
-            string.Create(CultureInfo.InvariantCulture, $"{_baseUrl}/fapi/v1/depth?symbol={symbol}&limit={limit}"), ct);
+            string.Create(CultureInfo.InvariantCulture, $"{_baseUrl}{_apiPrefix}/depth?symbol={symbol}&limit={limit}"), ct);
 
     private async Task<T> GetAsync<T>(string url, CancellationToken ct)
     {

@@ -456,6 +456,32 @@ public static class V2Store
                     .Select(w => byHour.TryGetValue((id, w), out var v) ? v : (double?)null)
                     .ToList());
     }
+
+    /// <summary>
+    /// The <c>history_depth</c> capability value on this segment's <c>liquidations</c> row — a
+    /// token, not a sentence (<see cref="Models.LiquidationVoice"/> is what turns it into one). Null
+    /// where the capability was never filled, which the caller reads as "no caveat is known", not as
+    /// an error: most segments simply have no row here at all yet (0065's own migration header notes
+    /// the same gap for every segment created after 0014).
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<string, string?>> LiquidationCapabilityAsync(
+        DbConnection conn, IReadOnlyList<string> segments, CancellationToken ct)
+    {
+        if (segments.Count == 0)
+        {
+            return new Dictionary<string, string?>();
+        }
+
+        var rows = await conn.QueryAsync<LiquidationCapability>(new CommandDefinition(
+            """
+            select segment_code as "SegmentCode", value as "HistoryDepth"
+              from segment_dataset_capability
+             where segment_code = any(@segments) and dataset_code = 'liquidations' and capability_key = 'history_depth'
+            """,
+            new { segments = segments.ToArray() }, cancellationToken: ct));
+
+        return rows.ToDictionary(r => r.SegmentCode, r => r.HistoryDepth);
+    }
 }
 
 /// <summary>
@@ -541,3 +567,5 @@ public sealed record StressRow(int InstrumentId, double Volume, string Unit, Dat
 public sealed record LiquidationHour(int InstrumentId, DateTime Hour, double Volume);
 
 public sealed record DatasetMode(string SegmentCode, string DatasetCode, string Mode);
+
+public sealed record LiquidationCapability(string SegmentCode, string? HistoryDepth);

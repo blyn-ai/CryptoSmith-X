@@ -50,6 +50,7 @@ public static class PairPageLoader
                 var gaps = await V2Store.GapsAsync(conn, ids, segments, token);
                 var stress = await V2Store.StressAsync(conn, ids, token);
                 var liquidations = await V2Store.LiquidationsAsync(conn, ids, at, token);
+                var liquidationCapability = await V2Store.LiquidationCapabilityAsync(conn, segments, token);
                 var modes = await V2Store.DatasetModesAsync(conn, segments, token);
                 var peak = await V2Store.TapePeakAsync(conn, ids, token);
                 // What a market with no book has instead of one. Empty for every
@@ -59,7 +60,8 @@ public static class PairPageLoader
                 var vaultStates = await V2Store.VaultStatesAsync(conn, segments, token);
 
                 return new PairData(
-                    comparison, candles, metrics, books, tape, coverage, gaps, stress, liquidations, modes, peak, vaultPairs, vaultStates);
+                    comparison, candles, metrics, books, tape, coverage, gaps, stress, liquidations,
+                    liquidationCapability, modes, peak, vaultPairs, vaultStates);
             },
             ct);
 
@@ -91,6 +93,8 @@ public static class PairPageLoader
                 data.Metrics.TryGetValue(v.Row.InstrumentId, out var m) ? m : MetricHourSeries.Empty)
             {
                 Liquidations = data.Liquidations.TryGetValue(v.Row.InstrumentId, out var l) ? l : [],
+                LiquidationsNote = LiquidationVoice.Note(
+                    data.LiquidationCapability.TryGetValue(v.Row.SegmentCode, out var hd) ? hd : null),
                 Cadence = v.Cadence,
             })
             .ToList();
@@ -147,6 +151,7 @@ public static class PairPageLoader
         IReadOnlyList<GapRow> Gaps,
         IReadOnlyDictionary<int, StressRow> Stress,
         IReadOnlyDictionary<int, IReadOnlyList<double?>> Liquidations,
+        IReadOnlyDictionary<string, string?> LiquidationCapability,
         IReadOnlyDictionary<(string Segment, string Dataset), string> Modes,
         int TapePeak,
         IReadOnlyDictionary<int, VaultPairRow> VaultPairs,

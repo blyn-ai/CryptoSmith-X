@@ -24,6 +24,7 @@ public static class Names
         "kraken-futures" => "Kraken futures",
         "kraken-spot" => "Kraken spot",
         "hyperliquid" => "Hyperliquid",
+        "aster-perp" => "Aster",
         "okx-swap" => "OKX swap",
         "coinbase-spot" => "Coinbase spot",
         _ => Tidy(code),

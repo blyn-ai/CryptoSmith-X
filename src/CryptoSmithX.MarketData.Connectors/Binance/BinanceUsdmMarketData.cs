@@ -40,11 +40,18 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
     private readonly IBinanceMarketFeed? _marketFeed;
     private readonly TimeProvider _clock;
     private readonly ILogger _log;
+    private readonly BinanceUsdmProfile _profile;
 
     /// <summary>Contract types seen and skipped, so the warning below fires once per value rather than
     /// once per symbol per pass. Not a correctness device — purely noise control on a log line whose
     /// job is to be noticed exactly once.</summary>
     private readonly HashSet<string> _reportedContractTypes = new(StringComparer.Ordinal);
+
+    /// <summary>The Aster equivalent of <see cref="_reportedContractTypes"/>, for
+    /// <see cref="BinanceSymbol.SymbolType"/> — see <see cref="ReportUnknownSymbolType"/>. Empty and
+    /// unused under the Binance profile: <see cref="BinanceUsdmProfile.KnownExcludedSymbolTypes"/> is
+    /// null there, so the check that would populate this set never runs.</summary>
+    private readonly HashSet<string> _reportedSymbolTypes = new(StringComparer.Ordinal);
 
     public BinanceUsdmMarketData(
         BinanceUsdmClient client,
@@ -52,7 +59,8 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
         IBinanceLiveFeed? ws = null,
         IBinanceMarketFeed? marketFeed = null,
         TimeProvider? clock = null,
-        ILogger? log = null)
+        ILogger? log = null,
+        BinanceUsdmProfile? profile = null)
     {
         _client = client;
         _openInterest = openInterest;
@@ -60,32 +68,41 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
         _marketFeed = marketFeed;
         _clock = clock ?? TimeProvider.System;
         _log = log ?? NullLogger.Instance;
+        _profile = profile ?? BinanceUsdmProfile.Binance;
+
+        // Depth is WS-first with a REST fallback whenever _ws is wired; snapshot is WS-first (mark,
+        // index, funding, last price, turnover) with a REST fallback whenever _marketFeed is wired —
+        // bid/ask stay REST regardless, since neither socket carries a book on this venue's second
+        // connection (see IBinanceMarketFeed). Both are declared regardless of whether the feed happens
+        // to be null right now: that is a config fact (ws_url / market-stream URL set or not), not a
+        // per-request coin flip. Candles are WS-first the same way. Open interest and discovery stay
+        // 'rest' — no channel on either socket carries them.
+        //
+        // 'snapshot' is the one line the profile changes: 'rest,ws' on Binance, whose market feed's
+        // array streams push mark/index/funding/last/turnover for the whole batched venue every
+        // second. On Aster the same streams push only symbols whose statistics changed this second
+        // (blueprint §1.4), so TickersFromMarketFeed is false there and GetTickersAsync's WS branch
+        // is never taken — 'rest' only, honestly.
+        Capabilities =
+        [
+            new("discovery", "rest"),
+            new("snapshot", _profile.TickersFromMarketFeed ? "rest,ws" : "rest"),
+            new("depth", "rest,ws"),
+            new("candles", "rest,ws"),
+            new("funding", "rest"),
+            new("trades", "ws"),
+            new("book", "ws"),
+            new("open_interest", "rest"),
+            new("liquidations", "ws"),
+            new("candles_mark", "rest"),
+            new("candles_index", "rest"),
+            new("spec_versions", "rest"),
+        ];
     }
 
-    public string SegmentCode => "binance-usdm";
+    public string SegmentCode => _profile.SegmentCode;
 
-    // Depth is WS-first with a REST fallback whenever _ws is wired; snapshot is WS-first (mark,
-    // index, funding, last price, turnover) with a REST fallback whenever _marketFeed is wired —
-    // bid/ask stay REST regardless, since neither socket carries a book on this venue's second
-    // connection (see IBinanceMarketFeed). Both are declared regardless of whether the feed happens
-    // to be null right now: that is a config fact (ws_url / market-stream URL set or not), not a
-    // per-request coin flip. Candles are WS-first the same way. Open interest and discovery stay
-    // 'rest' — no channel on either socket carries them.
-    public IReadOnlyList<DatasetCapability> Capabilities { get; } =
-    [
-        new("discovery", "rest"),
-        new("snapshot", "rest,ws"),
-        new("depth", "rest,ws"),
-        new("candles", "rest,ws"),
-        new("funding", "rest"),
-        new("trades", "ws"),
-        new("book", "ws"),
-        new("open_interest", "rest"),
-        new("liquidations", "ws"),
-        new("candles_mark", "rest"),
-        new("candles_index", "rest"),
-        new("spec_versions", "rest"),
-    ];
+    public IReadOnlyList<DatasetCapability> Capabilities { get; }
 
     public IReadOnlyList<TradeEvent> DrainTrades() => _marketFeed?.DrainTrades() ?? [];
 
@@ -151,6 +168,16 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
     public async Task<IReadOnlyList<OpenInterestBucket>> GetOpenInterestHistoryAsync(
         string exchangeSymbol, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
+        // Aster's equivalent of this path (/futures/data/openInterestHist) is a 404 HTML page,
+        // verified live — this is not a fallback for a failed call, it is the documented "no
+        // history" answer, and the profile says so before any request is made. Returning [] here is
+        // exactly what OpenInterestHistoryCollector's sampled branch already knows how to bucket
+        // itself from the live snapshot, as it does for WEEX.
+        if (_profile.OpenInterestHistory == OpenInterestHistoryMode.Sampled)
+        {
+            return [];
+        }
+
         var wanted = (int)Math.Ceiling((to - from).TotalSeconds / OpenInterestBucketSeconds) + 1;
         var rows = await _client.GetOpenInterestHistAsync(
             exchangeSymbol, "5m", Math.Clamp(wanted, 1, 500), ct);
@@ -226,9 +253,24 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
                 continue;
             }
 
-            if (!BinanceMarkets.IsInScope(s))
+            if (!_profile.IsInScope(s))
             {
-                continue;   // in-scope contract type, out-of-scope quote — see BinanceMarkets.UsdFamily
+                // Binance's KnownExcludedSymbolTypes is null, so this never runs there and every
+                // Binance symbol takes exactly the path it did before the profile existed. On Aster,
+                // reported only when symbolType is what actually excluded the symbol (contract type
+                // and quote already passed BinanceMarkets.IsInScope) — a USD1/U-quoted symbol is
+                // already, silently, out for its quote, and must not also be counted as an unknown
+                // symbolType just because it happens to carry one. symbolType 1 (the documented RWA
+                // set, §1.2) is excluded quietly — known and deliberate — and anything else,
+                // including the field going missing, is reported once, the same way an unrecognised
+                // contractType is above.
+                if (_profile.KnownExcludedSymbolTypes is { } known && BinanceMarkets.IsInScope(s)
+                    && (s.SymbolType is not { } st || !known.Contains(st)))
+                {
+                    ReportUnknownSymbolType(s);
+                }
+
+                continue;   // in-scope contract type, out-of-scope quote or symbolType
             }
 
             var price = Filter(s, "PRICE_FILTER");
@@ -277,7 +319,14 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
         // WS first, whole-batch — same ternary Kraken's ticker cache uses. When healthy this
         // replaces BOTH remaining REST calls (premiumIndex weight 10, ticker/24hr weight 40): the
         // pass costs 5 weight instead of 55.
-        if (_marketFeed is not null && _marketFeed.TryGetFreshContexts(out var contexts))
+        //
+        // Gated on the profile, not just on the feed being wired: Aster's !ticker@arr and
+        // !markPrice@arr@1s push only symbols whose statistics changed this second (blueprint §1.4,
+        // an average of 7 a frame against ~26 collected), so a market feed that is technically
+        // healthy would still silently drop quiet instruments from every batch it answers. The
+        // market feed still runs on Aster — for trades, liquidations and WS candles — it is only
+        // this ticker path that TickersFromMarketFeed keeps on REST.
+        if (_profile.TickersFromMarketFeed && _marketFeed is not null && _marketFeed.TryGetFreshContexts(out var contexts))
         {
             var booksBySymbol = books.ToDictionary(b => b.Symbol, StringComparer.Ordinal);
             var wsList = new List<Ticker>(contexts.Count);
@@ -477,7 +526,7 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
             return live;
         }
 
-        var response = await _client.GetDepthAsync(exchangeSymbol, BinanceUsdmClient.DepthLimit, ct);
+        var response = await _client.GetDepthAsync(exchangeSymbol, _client.RestDepthLimit, ct);
         var bids = (response.Bids ?? []).ConvertAll(l => (Parse(l[0]), Parse(l[1])));
         var asks = (response.Asks ?? []).ConvertAll(l => (Parse(l[0]), Parse(l[1])));
 
@@ -513,6 +562,29 @@ public sealed class BinanceUsdmMarketData : IExchangeMarketData
             "Binance USDⓈ-M lists contractType '{ContractType}' (e.g. {Symbol}), which this adapter does "
             + "not carry; skipped. Add it to BinanceMarkets.CarriedContractTypes if it belongs in scope.",
             s.ContractType, s.Symbol);
+    }
+
+    /// <summary>The <c>symbolType</c> equivalent of <see cref="ReportUnknownContractType"/> — only
+    /// reachable under a profile that declares <see cref="BinanceUsdmProfile.KnownExcludedSymbolTypes"/>,
+    /// which today means Aster only. Value 1 (the documented RWA set) never reaches here; this is for
+    /// a value nobody has classified yet, or the field going missing on a symbol that would otherwise
+    /// be in scope.</summary>
+    private void ReportUnknownSymbolType(BinanceSymbol s)
+    {
+        var key = s.SymbolType?.ToString(CultureInfo.InvariantCulture) ?? "(missing)";
+        lock (_reportedSymbolTypes)
+        {
+            if (!_reportedSymbolTypes.Add(key))
+            {
+                return;
+            }
+        }
+
+        _log.LogInformation(
+            "{Segment} lists symbolType '{SymbolType}' (e.g. {Symbol}), which this adapter does not "
+            + "recognise; skipped. Add it to the profile's KnownExcludedSymbolTypes if it belongs in "
+            + "scope, or extend IsInScope if it should be carried.",
+            _profile.SegmentCode, key, s.Symbol);
     }
 
     /// <summary>Binance does not give the trading increments their own fields — they live inside the

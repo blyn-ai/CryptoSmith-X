@@ -1,0 +1,56 @@
+[
+  {
+    "symbol": "BTCUSDT",
+    "bidPrice": "75870.5",
+    "bidQty": "0.161",
+    "askPrice": "75877.1",
+    "askQty": "0.355",
+    "time": 1789582693150,
+    "lastUpdateId": 547188560153
+  },
+  {
+    "symbol": "1000SHIBUSDT",
+    "bidPrice": "0.004802",
+    "bidQty": "62474",
+    "askPrice": "0.004809",
+    "askQty": "950366",
+    "time": 1789582693150,
+    "lastUpdateId": 547188559288
+  },
+  {
+    "symbol": "TSLAUSDT",
+    "bidPrice": "361.330000",
+    "bidQty": "0.21",
+    "askPrice": "361.360000",
+    "askQty": "3.07",
+    "time": 1789582693150,
+    "lastUpdateId": 547188559767
+  },
+  {
+    "symbol": "ASTERUSDT",
+    "bidPrice": "0.68410",
+    "bidQty": "3448.29",
+    "askPrice": "0.68420",
+    "askQty": "3716.64",
+    "time": 1789582693150,
+    "lastUpdateId": 547188560158
+  },
+  {
+    "symbol": "BTCUSD1",
+    "bidPrice": "75858.60",
+    "bidQty": "0.020",
+    "askPrice": "75875.40",
+    "askQty": "0.099",
+    "time": 1789582693150,
+    "lastUpdateId": 547188559552
+  },
+  {
+    "symbol": "XAUUSD1",
+    "bidPrice": "4320.0000",
+    "bidQty": "43.447",
+    "askPrice": "4320.0100",
+    "askQty": "0.232",
+    "time": 1789582693150,
+    "lastUpdateId": 547188560057
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "symbol": "TSLAUSDT",
+    "interestRate": "0",
+    "time": 1789582679000,
+    "fundingIntervalHours": 8,
+    "fundingFeeCap": 0.02,
+    "fundingFeeFloor": -0.02
+  },
+  {
+    "symbol": "1000SHIBUSDT",
+    "interestRate": "0.00010000",
+    "time": 1789582679000,
+    "fundingIntervalHours": 8,
+    "fundingFeeCap": 0.004875,
+    "fundingFeeFloor": -0.004875
+  },
+  {
+    "symbol": "TONUSDT",
+    "interestRate": "0.00010000",
+    "time": 1789582679000,
+    "fundingIntervalHours": 4,
+    "fundingFeeCap": 0.02,
+    "fundingFeeFloor": -0.02
+  },
+  {
+    "symbol": "XAUUSD1",
+    "interestRate": "0",
+    "time": 1789582679000,
+    "fundingIntervalHours": 4,
+    "fundingFeeCap": 0.005,
+    "fundingFeeFloor": -0.005
+  },
+  {
+    "symbol": "BTCUSD1",
+    "interestRate": "0.00010000",
+    "time": 1789582679000,
+    "fundingIntervalHours": 8,
+    "fundingFeeCap": 0.00375,
+    "fundingFeeFloor": -0.00375
+  },
+  {
+    "symbol": "BTCUSDT",
+    "interestRate": "0.00010000",
+    "time": 1789582679000,
+    "fundingIntervalHours": 8,
+    "fundingFeeCap": 0.003,
+    "fundingFeeFloor": -0.003
+  },
+  {
+    "symbol": "ASTERUSDT",
+    "interestRate": "0",
+    "time": 1789582679000,
+    "fundingIntervalHours": 4,
+    "fundingFeeCap": 0.02,
+    "fundingFeeFloor": -0.02
+  }
+]
