@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace CryptoSmithX.WebApp.Agent.Data;
 
-/// <summary>Checks a Kraken Spot key through Balance, which cannot place or alter any order.</summary>
+/// <summary>Checks a Kraken Spot key through GetApiKeyInfo, which cannot place or alter any order.</summary>
 public sealed class KrakenSpotCredentialValidator(HttpClient httpClient)
 {
     public async Task<KrakenCredentialValidation> ValidateAsync(
@@ -29,7 +29,7 @@ public sealed class KrakenSpotCredentialValidator(HttpClient httpClient)
             return KrakenCredentialValidation.Invalid("Privatus API raktas nėra tinkamo Kraken formato.");
         }
 
-        const string path = "/0/private/Balance";
+        const string path = "/0/private/GetApiKeyInfo";
         var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture);
         var postData = $"nonce={Uri.EscapeDataString(nonce)}";
         var signature = Sign(path, nonce, postData, secret);
@@ -53,9 +53,44 @@ public sealed class KrakenSpotCredentialValidator(HttpClient httpClient)
             var hasErrors = payload.RootElement.TryGetProperty("error", out var errors)
                 && errors.ValueKind == JsonValueKind.Array
                 && errors.GetArrayLength() > 0;
-            return hasErrors
-                ? KrakenCredentialValidation.Invalid("Kraken nepatvirtino rakto. Patikrink raktus ir jų teises.")
-                : KrakenCredentialValidation.Valid;
+            if (hasErrors || !payload.RootElement.TryGetProperty("result", out var result))
+            {
+                return KrakenCredentialValidation.Invalid("Kraken nepatvirtino rakto. Patikrink raktus ir jų teises.");
+            }
+
+            var granted = result.TryGetProperty("permissions", out var permissions)
+                && permissions.ValueKind == JsonValueKind.Array
+                ? permissions.EnumerateArray()
+                    .Where(item => item.ValueKind == JsonValueKind.String)
+                    .Select(item => item.GetString()!)
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .ToHashSet(StringComparer.Ordinal)
+                : new HashSet<string>(StringComparer.Ordinal);
+
+            return KrakenCredentialValidation.ValidWith(new KrakenPermissionReport(
+            [
+                new KrakenPermissionGroup("Funds permissions",
+                [
+                    SpotPermission("Query", "query-funds", granted),
+                    SpotPermission("Deposit", "add-funds", granted),
+                    SpotPermission("Withdraw", "withdraw-funds", granted),
+                    SpotPermission("Add withdrawal addresses", "add-withdraw-address", granted),
+                    SpotPermission("Sensitive", "sensitive", granted, reportedByKraken: false),
+                    SpotPermission("Earn", "earn-funds", granted),
+                ]),
+                new KrakenPermissionGroup("Orders and trades",
+                [
+                    SpotPermission("Query open orders & trades", "query-open-trades", granted),
+                    SpotPermission("Query closed orders & trades", "query-closed-trades", granted),
+                    SpotPermission("Create & modify orders", "modify-trades", granted),
+                    SpotPermission("Cancel & close orders", "close-trades", granted),
+                ]),
+                new KrakenPermissionGroup("Data",
+                [
+                    SpotPermission("Query ledger entries", "query-ledger", granted),
+                    SpotPermission("Export data", "export-data", granted),
+                ]),
+            ]));
         }
         catch (HttpRequestException)
         {
@@ -81,4 +116,15 @@ public sealed class KrakenSpotCredentialValidator(HttpClient httpClient)
         using var hmac = new HMACSHA512(secret);
         return Convert.ToBase64String(hmac.ComputeHash(payload));
     }
+
+    private static KrakenPermission SpotPermission(
+        string label,
+        string code,
+        ISet<string> granted,
+        bool reportedByKraken = true) =>
+        reportedByKraken
+            ? new KrakenPermission(label, granted.Contains(code)
+                ? new KrakenPermissionAccess("Allowed", "allowed")
+                : new KrakenPermissionAccess("Not allowed", "denied"))
+            : new KrakenPermission(label, new KrakenPermissionAccess("Not reported", "unknown"));
 }

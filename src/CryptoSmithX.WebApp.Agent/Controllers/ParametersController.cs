@@ -183,7 +183,7 @@ public sealed class ParametersController : Controller
             }
 
             var result = await ValidateKrakenCredentialsAsync(request, ct);
-            return Json(new { valid = result.IsValid, message = result.Message });
+            return Json(new { valid = result.IsValid, message = result.Message, permissions = result.Permissions });
         }
         catch (NpgsqlException e)
         {
@@ -225,7 +225,7 @@ public sealed class ParametersController : Controller
                 ApiKey = credentials.ApiKey,
                 ApiSecret = credentials.ApiSecret,
             }, ct);
-            return Json(new { valid = result.IsValid, message = result.Message });
+            return Json(new { valid = result.IsValid, message = result.Message, permissions = result.Permissions });
         }
         catch (NpgsqlException e)
         {
@@ -393,8 +393,8 @@ public sealed class ParametersController : Controller
             SaveConflict = TempData["SaveConflict"] is true,
             KrakenCredentials =
             [
-                new(KrakenCredentialStore.FuturesScope, "Kraken Futures", futuresCredentials),
-                new(KrakenCredentialStore.SpotScope, "Kraken Spot", spotCredentials),
+                new(KrakenCredentialStore.SpotScope, "Spot trading API", spotCredentials),
+                new(KrakenCredentialStore.FuturesScope, "Futures trading API", futuresCredentials),
             ],
             KrakenCredentialNotice = TempData["KrakenCredentialNotice"] as string,
             KrakenCredentialError = TempData["KrakenCredentialError"] as string,

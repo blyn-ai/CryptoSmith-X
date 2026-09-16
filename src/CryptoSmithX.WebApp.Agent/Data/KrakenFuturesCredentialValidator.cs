@@ -55,9 +55,15 @@ public sealed class KrakenFuturesCredentialValidator(HttpClient httpClient)
             using var payload = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             var succeeded = payload.RootElement.TryGetProperty("result", out var result)
                 && string.Equals(result.GetString(), "success", StringComparison.OrdinalIgnoreCase);
-            return succeeded
+            if (!succeeded)
+            {
+                return KrakenCredentialValidation.Invalid("Kraken nepatvirtino rakto. Patikrink raktus ir jų teises.");
+            }
+
+            var permissions = await TryLoadPermissionsAsync(apiKey.Trim(), secret, cancellationToken);
+            return permissions is null
                 ? KrakenCredentialValidation.Valid
-                : KrakenCredentialValidation.Invalid("Kraken nepatvirtino rakto. Patikrink raktus ir jų teises.");
+                : KrakenCredentialValidation.ValidWith(permissions);
         }
         catch (HttpRequestException)
         {
@@ -80,11 +86,91 @@ public sealed class KrakenFuturesCredentialValidator(HttpClient httpClient)
         using var hmac = new HMACSHA512(secret);
         return Convert.ToBase64String(hmac.ComputeHash(hash));
     }
+
+    private async Task<KrakenPermissionReport?> TryLoadPermissionsAsync(
+        string apiKey,
+        byte[] secret,
+        CancellationToken cancellationToken)
+    {
+        const string requestPath = "/api/auth/v1/api-keys/v3/check";
+        const string signingPath = "/api-keys/v3/check";
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestPath);
+        request.Headers.Add("APIKey", apiKey);
+        request.Headers.Add("Authent", Sign(signingPath, string.Empty, secret));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        try
+        {
+            using var response = await httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var payload = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            if (!payload.RootElement.TryGetProperty("permissions", out var permissions)
+                || permissions.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            return new KrakenPermissionReport(
+            [
+                new KrakenPermissionGroup("General API",
+                [
+                    new KrakenPermission("General API", FormatFuturesAccess(permissions, "general")),
+                ]),
+                new KrakenPermissionGroup("Withdrawal API",
+                [
+                    new KrakenPermission("Withdrawal API", FormatFuturesAccess(permissions, "transfer")),
+                ]),
+            ]);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static KrakenPermissionAccess FormatFuturesAccess(JsonElement permissions, string name)
+    {
+        var raw = permissions.TryGetProperty(name, out var value) ? value.GetString() : null;
+        return raw switch
+        {
+            "FULL_ACCESS" => new KrakenPermissionAccess("Full access", "allowed"),
+            "READ_ONLY" => new KrakenPermissionAccess("Read only", "limited"),
+            "NO_ACCESS" => new KrakenPermissionAccess("No access", "denied"),
+            _ => new KrakenPermissionAccess("Not reported", "unknown"),
+        };
+    }
 }
 
-public sealed record KrakenCredentialValidation(bool IsValid, string? Message)
+public sealed record KrakenCredentialValidation(
+    bool IsValid,
+    string? Message,
+    KrakenPermissionReport? Permissions = null)
 {
     public static KrakenCredentialValidation Valid { get; } = new(true, null);
 
+    public static KrakenCredentialValidation ValidWith(KrakenPermissionReport permissions) => new(true, null, permissions);
+
     public static KrakenCredentialValidation Invalid(string message) => new(false, message);
 }
+
+public sealed record KrakenPermissionReport(IReadOnlyList<KrakenPermissionGroup> Groups);
+
+public sealed record KrakenPermissionGroup(string Title, IReadOnlyList<KrakenPermission> Permissions);
+
+public sealed record KrakenPermission(string Label, KrakenPermissionAccess Access);
+
+public sealed record KrakenPermissionAccess(string Label, string State);

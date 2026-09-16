@@ -118,6 +118,17 @@
     });
   }
 
+  var krakenToggle = document.querySelector('[data-kraken-toggle]');
+  var krakenContent = document.querySelector('[data-kraken-content]');
+  if (krakenToggle && krakenContent) {
+    krakenToggle.addEventListener('click', function () {
+      var open = krakenContent.hidden;
+      krakenContent.hidden = !open;
+      krakenToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      krakenToggle.textContent = open ? 'Slėpti API raktus' : 'Rodyti / redaguoti API raktus';
+    });
+  }
+
   // ── 5. Лист-подсказка ────────────────────────────────────────────────────
   var sheet = document.getElementById('sheet');
   if (sheet) {
@@ -348,12 +359,48 @@
   Array.prototype.forEach.call(document.querySelectorAll('[data-kraken-check-saved]'), function (check) {
     var card = check.closest('.kraken-card');
     var savedStatus = card ? card.querySelector('[data-kraken-saved-status]') : null;
+    var permissions = card ? card.querySelector('[data-kraken-permissions]') : null;
+    var permissionGroups = card ? card.querySelector('[data-kraken-permission-groups]') : null;
     var token = card ? card.querySelector('[name="__RequestVerificationToken"]') : null;
 
     function setSavedStatus(message, state) {
       if (!savedStatus) { return; }
       savedStatus.textContent = message;
       savedStatus.dataset.state = state || '';
+    }
+
+    function renderPermissions(report) {
+      if (!permissions || !permissionGroups) { return; }
+      permissionGroups.textContent = '';
+      var groups = report && Array.isArray(report.groups) ? report.groups : [];
+      if (groups.length === 0) {
+        permissions.hidden = true;
+        return;
+      }
+
+      groups.forEach(function (group) {
+        var wrapper = document.createElement('section');
+        wrapper.className = 'kraken-permission-group';
+        var title = document.createElement('span');
+        title.textContent = group.title || '';
+        var list = document.createElement('ul');
+        list.className = 'kraken-permission-list';
+        (group.permissions || []).forEach(function (permission) {
+          var item = document.createElement('li');
+          item.className = 'kraken-permission ' + ((permission.access && permission.access.state) || 'unknown');
+          var label = document.createElement('span');
+          label.textContent = permission.label || '';
+          var access = document.createElement('span');
+          access.textContent = (permission.access && permission.access.label) || 'Not reported';
+          item.appendChild(label);
+          item.appendChild(access);
+          list.appendChild(item);
+        });
+        wrapper.appendChild(title);
+        wrapper.appendChild(list);
+        permissionGroups.appendChild(wrapper);
+      });
+      permissions.hidden = false;
     }
 
     check.addEventListener('click', async function () {
@@ -376,6 +423,7 @@
         });
         var result = await response.json();
         var valid = response.ok && result.valid === true;
+        renderPermissions(valid ? result.permissions : null);
         setSavedStatus(valid
           ? 'Kraken prieiga patvirtinta.'
           : ('Nepavyko: ' + (result.message || 'Kraken nepatvirtino rakto.')), valid ? 'valid' : 'invalid');

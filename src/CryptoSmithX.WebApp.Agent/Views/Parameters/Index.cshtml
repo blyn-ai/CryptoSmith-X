@@ -218,84 +218,94 @@
 
 <section class="modeler-section kraken-section" aria-labelledby="kraken-credentials-title">
     <div class="section-heading"><span>5</span><h2 id="kraken-credentials-title">Kraken API raktai</h2><span>Redaguojama</span></div>
-    <p class="section-note">Kiekvienai Kraken paskyrai reikia dviejų reikšmių: API Key ir Private Key. Futures naudojamas prekybai. Spot naudojamas balansui, indėliams ir pervedimams.</p>
+    <button type="button" class="internals-toggle" data-kraken-toggle aria-expanded="false">Rodyti / redaguoti API raktus</button>
 
-    @if (Model.KrakenCredentialNotice is { } credentialNotice)
-    {
-        <p class="landed" role="status">@credentialNotice</p>
-    }
-    @if (Model.KrakenCredentialError is { } credentialError)
-    {
-        <p class="refused" role="alert">@credentialError</p>
-    }
+    <div class="kraken-content" hidden data-kraken-content>
+        <p class="section-note">Kiekvienai Kraken paskyrai reikia dviejų reikšmių. Spot raktai naudojami balansui, indėliams ir pervedimams. Futures raktai naudojami prekybai.</p>
 
-    <div class="kraken-grid">
-        @foreach (var credential in Model.KrakenCredentials)
+        @if (Model.KrakenCredentialNotice is { } credentialNotice)
         {
-            <div class="kraken-card">
-                <div class="kraken-card-head">
-                    <span>
-                        <span class="kraken-kind">@(credential.Title == "Kraken Futures" ? "Prekyba" : "Balansas ir pervedimai")</span>
-                        <span class="kraken-title">@credential.Title</span>
-                        <span class="kraken-description">@(credential.Scope == "kraken_futures"
-                            ? "Botas atidaro ir uždaro Futures pozicijas."
-                            : "Botas mato likutį ir perkelia lėšas tarp Kraken sąskaitų.")</span>
-                    </span>
-                    @if (credential.Credentials.Configured)
-                    {
-                        <span class="kraken-state good">Prijungta</span>
-                    }
-                    else
-                    {
-                        <span class="kraken-state">Neprijungta</span>
-                    }
-                </div>
+            <p class="landed" role="status">@credentialNotice</p>
+        }
+        @if (Model.KrakenCredentialError is { } credentialError)
+        {
+            <p class="refused" role="alert">@credentialError</p>
+        }
 
-                @if (credential.Credentials.Configured)
-                {
-                    <div class="kraken-current">
-                        <span><span>Rakto pabaiga</span><b>@credential.Credentials.ApiKeyHint</b></span>
-                        <span><span>Išsaugota</span><time datetime="@credential.Credentials.UpdatedAt?.ToUniversalTime().ToString("O")">@credential.Credentials.UpdatedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</time></span>
-                    </div>
-                    <div class="kraken-saved-check">
-                        <button type="button" class="btn-quiet" data-kraken-check-saved data-scope="@credential.Scope" data-validate-saved-url="@Url.Action("ValidateSavedKrakenCredentials", "Parameters")">Patikrinti ryšį</button>
-                        <p class="kraken-validation" role="status" aria-live="polite" data-kraken-saved-status>Patikrina dabar išsaugotus raktus. Raktai nebus rodomi.</p>
-                    </div>
-                }
-
-                <details class="kraken-change" open="@(credential.Credentials.Configured ? null : "open")">
-                    <summary>@(credential.Credentials.Configured ? "Keisti raktus" : "Prijungti raktus")</summary>
-                    <div class="kraken-change-body">
-                        <p>Įvesk naują porą tik tada, kai nori pakeisti dabar išsaugotą raktą.</p>
-                        <form method="post" asp-action="SaveKrakenCredentials" data-kraken-credentials data-validate-url="@Url.Action("ValidateKrakenCredentials", "Parameters")">
-                            <input type="hidden" name="scope" value="@credential.Scope">
-                            <label class="kraken-field">
-                                <span class="label">Naujas API Key</span>
-                                <input type="text" name="apiKey" autocomplete="off" spellcheck="false" required data-kraken-input>
-                            </label>
-                            <label class="kraken-field">
-                                <span class="labelrow"><span class="label">Naujas Private Key</span><button type="button" class="link-btn" data-kraken-reveal>Rodyti</button></span>
-                                <input type="password" name="apiSecret" autocomplete="new-password" spellcheck="false" required data-kraken-input>
-                            </label>
-                            <p class="kraken-validation" role="status" aria-live="polite" data-kraken-status>Patikrink naują raktų porą prieš išsaugodamas.</p>
-                            <div class="kraken-actions">
-                                <button type="button" class="btn-quiet" data-kraken-validate>Patikrinti</button>
-                                <button type="submit" class="btn-primary" data-kraken-save>Išsaugoti naujus raktus</button>
-                            </div>
-                        </form>
-
+        <div class="kraken-grid">
+            @foreach (var credential in Model.KrakenCredentials)
+            {
+                var isSpot = credential.Scope == "kraken_spot";
+                var apiKeyLabel = isSpot ? "API key" : "Public key";
+                <div class="kraken-card">
+                    <div class="kraken-card-head">
+                        <span>
+                            <span class="kraken-title">@credential.Title</span>
+                            <span class="kraken-description">@(isSpot
+                                ? "Balansas, indėliai ir pervedimai."
+                                : "Futures pozicijų atidarymas ir uždarymas.")</span>
+                        </span>
                         @if (credential.Credentials.Configured)
                         {
-                            <form method="post" asp-action="RevokeKrakenCredentials" class="kraken-revoke" data-kraken-revoke data-kraken-scope="@credential.Title">
-                                <input type="hidden" name="scope" value="@credential.Scope">
-                                <p>Pašalina šią raktų porą iš boto duomenų bazės.</p>
-                                <button type="submit" class="btn-danger">Pašalinti raktus iš boto</button>
-                            </form>
+                            <span class="kraken-state good">Prijungta</span>
+                        }
+                        else
+                        {
+                            <span class="kraken-state">Neprijungta</span>
                         }
                     </div>
-                </details>
-            </div>
-        }
+
+                    @if (credential.Credentials.Configured)
+                    {
+                        <div class="kraken-current">
+                            <span><span>@apiKeyLabel</span><b>@credential.Credentials.ApiKeyHint</b></span>
+                            <span><span>Private key</span><b>Išsaugotas</b></span>
+                            <span><span>Išsaugota</span><time datetime="@credential.Credentials.UpdatedAt?.ToUniversalTime().ToString("O")">@credential.Credentials.UpdatedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</time></span>
+                        </div>
+                        <div class="kraken-saved-check">
+                            <button type="button" class="btn-quiet" data-kraken-check-saved data-scope="@credential.Scope" data-validate-saved-url="@Url.Action("ValidateSavedKrakenCredentials", "Parameters")">Patikrinti ryšį</button>
+                            <p class="kraken-validation" role="status" aria-live="polite" data-kraken-saved-status>Patikrina dabar išsaugotus raktus ir jų teises.</p>
+                        </div>
+                        <div class="kraken-permissions" hidden data-kraken-permissions>
+                            <span class="kraken-permissions-title">Rakto teisės</span>
+                            <div data-kraken-permission-groups></div>
+                        </div>
+                    }
+
+                    <details class="kraken-change" open="@(credential.Credentials.Configured ? null : "open")">
+                        <summary>@(credential.Credentials.Configured ? "Redaguoti šią raktų porą" : "Prijungti raktų porą")</summary>
+                        <div class="kraken-change-body">
+                            <p>Įvesk naują porą tik tada, kai nori pakeisti dabar išsaugotus raktus.</p>
+                            <form method="post" asp-action="SaveKrakenCredentials" data-kraken-credentials data-validate-url="@Url.Action("ValidateKrakenCredentials", "Parameters")">
+                                <input type="hidden" name="scope" value="@credential.Scope">
+                                <label class="kraken-field">
+                                    <span class="label">@apiKeyLabel</span>
+                                    <input type="text" name="apiKey" autocomplete="off" spellcheck="false" required data-kraken-input>
+                                </label>
+                                <label class="kraken-field">
+                                    <span class="labelrow"><span class="label">Private key</span><button type="button" class="link-btn" data-kraken-reveal>Rodyti</button></span>
+                                    <input type="password" name="apiSecret" autocomplete="new-password" spellcheck="false" required data-kraken-input>
+                                </label>
+                                <p class="kraken-validation" role="status" aria-live="polite" data-kraken-status>Patikrink naują raktų porą prieš išsaugodamas.</p>
+                                <div class="kraken-actions">
+                                    <button type="button" class="btn-quiet" data-kraken-validate>Patikrinti</button>
+                                    <button type="submit" class="btn-primary" data-kraken-save>Išsaugoti naujus raktus</button>
+                                </div>
+                            </form>
+
+                            @if (credential.Credentials.Configured)
+                            {
+                                <form method="post" asp-action="RevokeKrakenCredentials" class="kraken-revoke" data-kraken-revoke data-kraken-scope="@credential.Title">
+                                    <input type="hidden" name="scope" value="@credential.Scope">
+                                    <p>Pašalina šią raktų porą iš boto duomenų bazės.</p>
+                                    <button type="submit" class="btn-danger">Pašalinti raktus iš boto</button>
+                                </form>
+                            }
+                        </div>
+                    </details>
+                </div>
+            }
+        </div>
     </div>
 </section>
 

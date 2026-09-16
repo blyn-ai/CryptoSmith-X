@@ -93,6 +93,20 @@ public sealed class SurfaceTests
     }
 
     [Fact]
+    public void Kraken_keys_are_collapsible_and_keep_the_same_names_when_viewed_or_edited()
+    {
+        var markup = Read("Index.cshtml");
+        var js = Read("parameters.js");
+
+        Assert.Contains("Rodyti / redaguoti API raktus", markup, StringComparison.Ordinal);
+        Assert.Contains("@credential.Title", markup, StringComparison.Ordinal);
+        Assert.Contains("Private key", markup, StringComparison.Ordinal);
+        Assert.Contains("data-kraken-permissions", markup, StringComparison.Ordinal);
+        Assert.Contains("krakenContent.hidden", js, StringComparison.Ordinal);
+        Assert.Contains("renderPermissions", js, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_save_mechanism_is_the_one_the_server_expects()
     {
         // The design changed how this screen looks. These are the parts that must not move with it:

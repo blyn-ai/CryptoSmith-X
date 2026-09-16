@@ -7,33 +7,40 @@ namespace CryptoSmithX.WebApp.Agent.Tests;
 public sealed class KrakenCredentialValidatorTests
 {
     [Fact]
-    public async Task Futures_validator_accepts_a_successful_accounts_response()
+    public async Task Futures_validator_returns_the_access_levels_of_a_valid_key()
     {
-        var handler = new RecordingHandler("""{"result":"success","accounts":{}}""");
+        var handler = new RecordingHandler(
+            """{"result":"success","accounts":{}}""",
+            """{"permissions":{"general":"FULL_ACCESS","transfer":"NO_ACCESS"}}""");
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://futures.kraken.com") };
         var validator = new KrakenFuturesCredentialValidator(http);
 
         var result = await validator.ValidateAsync("public-key", Secret(), CancellationToken.None);
 
         Assert.True(result.IsValid);
-        Assert.Equal("/derivatives/api/v3/accounts", handler.Path);
+        Assert.Equal(["/derivatives/api/v3/accounts", "/api/auth/v1/api-keys/v3/check"], handler.Paths);
         Assert.Equal("public-key", handler.ApiKey);
         Assert.NotNull(handler.Authentication);
+        Assert.Equal("Full access", result.Permissions!.Groups[0].Permissions[0].Access.Label);
+        Assert.Equal("No access", result.Permissions.Groups[1].Permissions[0].Access.Label);
     }
 
     [Fact]
-    public async Task Spot_validator_accepts_a_response_without_errors()
+    public async Task Spot_validator_returns_the_individual_permissions_of_a_valid_key()
     {
-        var handler = new RecordingHandler("""{"error":[],"result":{}}""");
+        var handler = new RecordingHandler("""{"error":[],"result":{"permissions":["query-funds","withdraw-funds","modify-trades"]}}""");
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://api.kraken.com") };
         var validator = new KrakenSpotCredentialValidator(http);
 
         var result = await validator.ValidateAsync("public-key", Secret(), CancellationToken.None);
 
         Assert.True(result.IsValid);
-        Assert.Equal("/0/private/Balance", handler.Path);
+        Assert.Equal(["/0/private/GetApiKeyInfo"], handler.Paths);
         Assert.Equal("public-key", handler.ApiKey);
         Assert.NotNull(handler.Authentication);
+        Assert.Equal("Allowed", result.Permissions!.Groups[0].Permissions[0].Access.Label);
+        Assert.Equal("Not allowed", result.Permissions.Groups[1].Permissions[0].Access.Label);
+        Assert.Equal("Allowed", result.Permissions.Groups[1].Permissions[2].Access.Label);
     }
 
     [Fact]
@@ -46,14 +53,16 @@ public sealed class KrakenCredentialValidatorTests
         var result = await validator.ValidateAsync("public-key", "not base64!", CancellationToken.None);
 
         Assert.False(result.IsValid);
-        Assert.Null(handler.Path);
+        Assert.Empty(handler.Paths);
     }
 
     private static string Secret() => Convert.ToBase64String(Encoding.UTF8.GetBytes("test-secret"));
 
-    private sealed class RecordingHandler(string body) : HttpMessageHandler
+    private sealed class RecordingHandler(params string[] bodies) : HttpMessageHandler
     {
-        public string? Path { get; private set; }
+        private int _responseIndex;
+
+        public List<string> Paths { get; } = [];
 
         public string? ApiKey { get; private set; }
 
@@ -61,7 +70,7 @@ public sealed class KrakenCredentialValidatorTests
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            Path = request.RequestUri?.AbsolutePath;
+            Paths.Add(request.RequestUri?.AbsolutePath ?? string.Empty);
             ApiKey = request.Headers.TryGetValues("APIKey", out var futuresKey)
                 ? futuresKey.Single()
                 : request.Headers.TryGetValues("API-Key", out var spotKey)
@@ -74,7 +83,7 @@ public sealed class KrakenCredentialValidatorTests
                     : null;
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+                Content = new StringContent(bodies[Math.Min(_responseIndex++, bodies.Length - 1)], Encoding.UTF8, "application/json"),
             });
         }
     }
