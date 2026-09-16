@@ -10,7 +10,7 @@ namespace CryptoSmithX.WebApp.Agent.Tests;
 /// toggle set the attribute on a <c>.csx-grid</c>, which is <c>display:grid</c>, so pressing it
 /// changed the word on the button and nothing else. Nothing errors; the page simply ignores you.
 ///
-/// <b>A stylesheet with no version.</b> Cloudflare caches this domain's static files, so a page can
+    /// <b>A static file with no content version.</b> Cloudflare caches this domain's static files, so a page can
 /// ship new markup and last hour's CSS — measured on the live page as cf-cache-status HIT, age 3213,
 /// 179 lines served where the file has 489: no card borders, a browser-default slider, captions
 /// glued together. The version in the address is what makes a deploy arrive.
@@ -52,17 +52,16 @@ public sealed class SurfaceTests
     }
 
     [Fact]
-    public void Every_static_file_the_page_links_carries_a_version()
+    public void Every_static_file_the_page_links_uses_content_versioning()
     {
-        // The design system's own sheet is versioned by its own deploy; ours are not, and ours are
-        // the ones that change with every edit to this screen.
-        foreach (var (file, pattern) in new[]
+        foreach (var (file, attribute, asset) in new[]
         {
-            ("_Layout.cshtml", @"agent\.css\?v=\d+"),
-            ("Index.cshtml", @"parameters\.js\?v=\d+"),
+            ("_Layout.cshtml", "href", "~/ds/styles.css"),
+            ("_Layout.cshtml", "href", "~/agent.css"),
+            ("Index.cshtml", "src", "~/parameters.js"),
         })
         {
-            Assert.Matches(pattern, Read(file));
+            Assert.Contains($"{attribute}=\"{asset}\" asp-append-version=\"true\"", Read(file), StringComparison.Ordinal);
         }
     }
 

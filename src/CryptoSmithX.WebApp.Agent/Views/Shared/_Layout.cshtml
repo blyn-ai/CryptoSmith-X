@@ -11,13 +11,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@ViewData["Title"] · CryptoSmith X</title>
     <link rel="icon" href="~/ds/mark.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="~/ds/styles.css">
-    @* ?v= — НЕ УКРАШЕНИЕ. Cloudflare кеширует статику этого домена, и без версии в адресе
-       браузер получает старый файл: разметка страницы параметров уехала новая, а стилей к ней
-       не пришло вовсе — cf-cache-status: HIT, age 3213, 179 строк вместо 489. Ровно та же
-       ловушка, что уже ловила studio-v2.css и studio-live.js в соседнем приложении.
-       Поднимать при каждой правке файла. *@
-    <link rel="stylesheet" href="~/agent.css?v=7">
+    @* The token styles are loaded by @import inside this stylesheet. If a token file changes,
+       change styles.css too so this content hash also invalidates the imported asset cache. *@
+    <link rel="stylesheet" href="~/ds/styles.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/agent.css" asp-append-version="true">
 </head>
 <body class="@ViewData["PageClass"]">
 @RenderBody()
