@@ -247,7 +247,7 @@ public sealed class HubStream : IDisposable
                 {
                 }
 
-                connection.Dispose();
+                Release(connection);
                 continue;
             }
 
@@ -268,7 +268,7 @@ public sealed class HubStream : IDisposable
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                connection.Dispose();
+                Release(connection);
                 break;
             }
             catch (OperationCanceledException)
@@ -284,7 +284,7 @@ public sealed class HubStream : IDisposable
             }
             finally
             {
-                connection.Dispose();
+                Release(connection);
             }
 
             if (reopening)
@@ -304,6 +304,25 @@ public sealed class HubStream : IDisposable
 
             backoff = backoff >= _maxBackoff ? _maxBackoff : Doubled(backoff);
         }
+    }
+
+    /// <summary>
+    /// Clears <see cref="_connection"/> under the lock BEFORE disposing it. The debounce timer's
+    /// <see cref="ApplyUnion"/> cancels whatever <see cref="_connection"/> holds; a token disposed
+    /// while still referenced there made that Cancel throw ObjectDisposedException on a timer thread,
+    /// which nothing catches and which took the Studio process down (CRYPTOSMITH-X-T, 2026-09-10).
+    /// </summary>
+    private void Release(CancellationTokenSource connection)
+    {
+        lock (_gate)
+        {
+            if (ReferenceEquals(_connection, connection))
+            {
+                _connection = null;
+            }
+        }
+
+        connection.Dispose();
     }
 
     private TimeSpan Doubled(TimeSpan backoff)
