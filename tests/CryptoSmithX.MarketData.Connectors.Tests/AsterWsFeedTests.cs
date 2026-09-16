@@ -65,6 +65,45 @@ public sealed class AsterWsFeedTests
     }
 
     [Fact]
+    public async Task Depth_feed_waits_for_a_collected_set_before_connecting()
+    {
+        // Aster's first enable: the feed started before discovery had marked anything collected,
+        // opened a socket with nothing to subscribe, and the idle watchdog cycled it eight times.
+        // Now it polls the collected set and only takes the symbols once there are some.
+        var clock = new FakeTimeProvider(T0);
+        var calls = 0;
+        string[] answer = [];
+        using var cts = new CancellationTokenSource();
+        var feed = new BinanceWsFeed(
+            "ws://localhost:1/", new BinanceUsdmClient("http://localhost:1/"),
+            new VenueGate("ASTER-TEST", 5, 4, clock), NullLoggerFactory.Instance, clock,
+            staleAfter: TimeSpan.FromSeconds(30), crosscheckInterval: TimeSpan.FromMinutes(5), driftBps: 50,
+            profile: BinanceUsdmProfile.Aster,
+            collectedSymbolsAsync: _ => { Interlocked.Increment(ref calls); return Task.FromResult(answer); });
+
+        feed.Start(cts.Token);
+        await WaitUntil(() => calls >= 1);
+        Assert.Empty(feed.SubscribedSymbols);
+
+        answer = ["BTCUSDT", "ETHUSDT"];
+        clock.Advance(TimeSpan.FromSeconds(31));
+        await WaitUntil(() => feed.SubscribedSymbols.Length == 2);
+
+        Assert.Equal(["BTCUSDT", "ETHUSDT"], feed.SubscribedSymbols);
+        await cts.CancelAsync();
+    }
+
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        for (var i = 0; i < 200 && !condition(); i++)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.True(condition());
+    }
+
+    [Fact]
     public async Task Market_feed_under_the_binance_profile_never_caps_the_whole_venue()
     {
         // The regression a 1024 cap would cause: 3 + 2 x 566 = 1 135 streams on Binance's market

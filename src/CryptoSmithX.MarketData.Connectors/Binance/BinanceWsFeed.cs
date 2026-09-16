@@ -104,6 +104,9 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     private readonly TimeSpan _crosscheckInterval;
     private readonly int _driftBps;
     private readonly BinanceUsdmProfile _profile;
+
+    /// <summary><see cref="BinanceUsdmProfile.FeedName"/> — the venue every log line of this feed names.</summary>
+    private readonly string _venue;
     private readonly Func<CancellationToken, Task<string[]>>? _collectedSymbolsAsync;
 
     /// <summary>Symbols we intend to be subscribed to. Binance has one symbol spelling, so unlike
@@ -156,14 +159,15 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         _client = client;
         _gate = gate;
         _clock = clock;
-        _log = loggers.CreateLogger("Binance.Ws");
-        _conn = new WsConnection(wsUrl, loggers.CreateLogger("Binance.Ws.Conn"), clock);
+        _profile = profile ?? BinanceUsdmProfile.Binance;
+        _venue = _profile.FeedName;
+        _log = loggers.CreateLogger(_venue + ".Ws");
+        _conn = new WsConnection(wsUrl, loggers.CreateLogger(_venue + ".Ws.Conn"), clock);
         _connections = new ConnectionLog(clock);
         _books = new BinanceBookBuilder();
         _staleAfter = staleAfter;
         _crosscheckInterval = crosscheckInterval;
         _driftBps = driftBps;
-        _profile = profile ?? BinanceUsdmProfile.Binance;
         _collectedSymbolsAsync = collectedSymbolsAsync;
     }
 
@@ -225,8 +229,10 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _log.LogWarning(ex, "Binance WS: initial symbol fetch failed; starting empty, will refresh");
+            _log.LogWarning(ex, "{Venue} WS: initial symbol fetch failed; starting empty, will refresh", _venue);
         }
+
+        await WaitForCollectedSymbolsAsync(ct);
 
         await Task.WhenAll(
             _conn.RunAsync(OnOpenAsync, OnMessage, ct),
@@ -244,6 +250,45 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     /// BEFORE the resubscribe that will reseed them — which is also what puts every symbol back in
     /// front of the seed loop, since "dirty" is the only thing that loop looks at.
     /// </summary>
+    /// <summary>
+    /// Under <see cref="FeedSymbolsMode.Collected"/> the feed does not connect until there is
+    /// something to subscribe. On a venue's first enable, discovery has not yet marked anything
+    /// collected when the feed starts; a socket opened then subscribes nothing, the idle watchdog
+    /// aborts it every 30 s, and the five-minute subscription refresh is what finally ends the loop —
+    /// eight reconnects that read as a failing stream (Aster's first enable, 2026-09-16). Waiting
+    /// here costs one database read every <see cref="EmptyCollectedRetry"/> and nothing on the wire.
+    /// Whole-venue feeds (Binance) never wait: their set comes from the venue's own listing.
+    /// </summary>
+    private async Task WaitForCollectedSymbolsAsync(CancellationToken ct)
+    {
+        if (_profile.FeedSymbols != FeedSymbolsMode.Collected || _symbols.Length > 0)
+        {
+            return;
+        }
+
+        _log.LogInformation("{Venue} WS: nothing is collected on this segment yet; not connecting until something is", _venue);
+        while (_symbols.Length == 0)
+        {
+            await Task.Delay(EmptyCollectedRetry, _clock, ct);
+            try
+            {
+                // Asked directly first, so the wait does not print a "0 of 0" report every 30 s;
+                // the full refresh (report, cap guard) runs once there is a set to act on.
+                var found = _collectedSymbolsAsync is not null ? await _collectedSymbolsAsync(ct) : [];
+                if (found.Length > 0)
+                {
+                    await RefreshSymbolsAsync(ct);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogDebug(ex, "{Venue} WS: collected-symbol read failed; will retry", _venue);
+            }
+        }
+    }
+
+    private static readonly TimeSpan EmptyCollectedRetry = TimeSpan.FromSeconds(30);
+
     private async Task OnOpenAsync(CancellationToken ct)
     {
         _books.MarkAllDirty();
@@ -257,7 +302,7 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
 
         var symbols = _symbols;
         _log.LogInformation(
-            "Binance WS: connection #{Epoch} subscribing {Count} symbols to {Stream}",
+            "{Venue} WS: connection #{Epoch} subscribing {Count} symbols to {Stream}", _venue,
             epoch, symbols.Length, DepthStreamSuffix);
         await SubscribeAsync("SUBSCRIBE", symbols, ct);
 
@@ -323,12 +368,12 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
             var delivered = known ? run.Frames.ToString(CultureInfo.InvariantCulture) : "—";
 
             _log.LogWarning(
-                "Binance WS: connection #{Epoch} was replaced after {Lifetime} and did not live long enough "
+                "{Venue} WS: connection #{Epoch} was replaced after {Lifetime} and did not live long enough "
                 + "to be judged silent; it delivered {Frames} frames, and there have been {Connects} connects "
                 + "in the last hour. This is NOT the misrouted-stream signature and ws_url is not the suspect "
                 + "— a misrouted stream stays open and quiet, it does not close. Depth for the affected "
                 + "symbols is on REST, and at this reconnect rate it will stay there: every connect marks all "
-                + "books dirty and a full reseed takes ~19 minutes.",
+                + "books dirty and a full reseed takes ~19 minutes.", _venue,
                 epoch, lifetime, delivered, _connections.CountOpenedWithin(TimeSpan.FromHours(1)));
             return;
         }
@@ -339,11 +384,11 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         }
 
         _log.LogError(
-            "Binance WS: connection #{Epoch} subscribed {Count} symbols to {Stream}, is STILL OPEN, and has "
+            "{Venue} WS: connection #{Epoch} subscribed {Count} symbols to {Stream}, is STILL OPEN, and has "
             + "received NOTHING in {Seconds}s. The handshake and the subscribe ack both succeed on a "
             + "misrouted stream — this venue splits its public socket across /public, /market and /private, "
             + "and a stream on the wrong path is acknowledged and then silent forever. Check that the "
-            + "segment's ws_url is the /public endpoint. Depth stays on REST until frames arrive.",
+            + "segment's ws_url is the /public endpoint. Depth stays on REST until frames arrive.", _venue,
             epoch, subscribed, DepthStreamSuffix, StartupLiveness.TotalSeconds);
     }
 
@@ -449,8 +494,8 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         if (!TryLevels(frame.Bids, out var bids) || !TryLevels(frame.Asks, out var asks))
         {
             _log.LogWarning(
-                "Binance WS: unreadable level in a depthUpdate for {Symbol}; book marked dirty and reseeded "
-                + "rather than half-applied", frame.Symbol);
+                "{Venue} WS: unreadable level in a depthUpdate for {Symbol}; book marked dirty and reseeded "
+                + "rather than half-applied", _venue, frame.Symbol);
             _books.MarkDirty(frame.Symbol);
             return;
         }
@@ -469,7 +514,7 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
             // that hides the thing worth seeing, which is the RATE. The refresh loop reports the
             // count. The book is already dirty, which is all the seed loop needs.
             Interlocked.Increment(ref _gapsSinceLastReport);
-            _log.LogDebug("Binance WS: sequence break on {Symbol}; book dirty, will reseed", frame.Symbol);
+            _log.LogDebug("{Venue} WS: sequence break on {Symbol}; book dirty, will reseed", _venue, frame.Symbol);
         }
     }
 
@@ -536,7 +581,7 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
                         _gate.Penalize();
                     }
 
-                    _log.LogDebug(ex, "Binance WS: seeding {Symbol} failed; will retry", symbol);
+                    _log.LogDebug(ex, "{Venue} WS: seeding {Symbol} failed; will retry", _venue, symbol);
                 }
 
                 try
@@ -615,8 +660,8 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         if (drifted > 0 || outgrown > 0)
         {
             _log.LogInformation(
-                "Binance WS cross-check: {Drifted} books drifted past {Bps} bps, {Outgrown} outgrew the window "
-                + "their snapshot covered; both reseeding", drifted, _driftBps, outgrown);
+                "{Venue} WS cross-check: {Drifted} books drifted past {Bps} bps, {Outgrown} outgrew the window "
+                + "their snapshot covered; both reseeding", _venue, drifted, _driftBps, outgrown);
         }
     }
 
@@ -668,9 +713,9 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         {
             var excluded = ordered[next.Length..];
             _log.LogWarning(
-                "Binance WS: {Wanted} symbols exceed this venue's {Cap}-stream-per-connection cap; "
+                "{Venue} WS: {Wanted} symbols exceed this venue's {Cap}-stream-per-connection cap; "
                 + "subscribing the first {Kept} in symbol order and leaving out {Count}: {Excluded}. "
-                + "Their depth comes from the existing REST fallback instead.",
+                + "Their depth comes from the existing REST fallback instead.", _venue,
                 ordered.Length, _profile.MaxStreamsPerConnection, next.Length, excluded.Length,
                 string.Join(',', excluded));
         }
@@ -684,9 +729,9 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         // make it not.
         var reconnects = _connections.CountOpenedWithin(TimeSpan.FromHours(1));
         _log.LogInformation(
-            "Binance WS: {Fresh} of {Total} books live, {Seeds} seeded and {Gaps} sequence breaks since the "
+            "{Venue} WS: {Fresh} of {Total} books live, {Seeds} seeded and {Gaps} sequence breaks since the "
             + "last report; {Unparseable} frames would not parse and {Unbindable} would not bind; "
-            + "{Connects} connects in the last hour",
+            + "{Connects} connects in the last hour", _venue,
             _books.FreshCount(_staleAfter, _clock.GetUtcNow()), next.Length,
             Interlocked.Exchange(ref _seedsSinceLastReport, 0),
             Interlocked.Exchange(ref _gapsSinceLastReport, 0),
@@ -702,11 +747,11 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         if (reconnects > ReconnectsPerHourAlarm)
         {
             _log.LogError(
-                "Binance WS: {Connects} connects in the last hour, against about one a day for a healthy "
+                "{Venue} WS: {Connects} connects in the last hour, against about one a day for a healthy "
                 + "stream. The socket is being CLOSED ON US repeatedly, which is the opposite of the silent "
                 + "misrouted stream — ws_url is not the suspect. Every connect marks all {Total} books dirty "
                 + "and a full reseed at one snapshot per {Pace}s takes ~{Minutes} minutes, so at this rate "
-                + "the books never finish seeding and depth is served entirely from REST.",
+                + "the books never finish seeding and depth is served entirely from REST.", _venue,
                 reconnects, next.Length, SeedPace.TotalSeconds,
                 Math.Round(next.Length * SeedPace.TotalSeconds / 60.0));
         }
@@ -872,7 +917,7 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
                     _gate.Penalize();
                 }
 
-                _log.LogWarning(ex, "Binance WS {What} pass failed", what);
+                _log.LogWarning(ex, "{Venue} WS {What} pass failed", _venue, what);
             }
         }
     }

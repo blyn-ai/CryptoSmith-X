@@ -54,6 +54,11 @@ public sealed record BinanceUsdmProfile
     /// so its log lines are never mistaken for Binance's in a shared process.</summary>
     public required string LogName { get; init; }
 
+    /// <summary>The venue's name as the two WS feeds print it and as their logger categories start
+    /// ("Binance.Ws", "Aster.Ws"), so an alert about one venue's socket never reads as another's.
+    /// "Binance" reproduces the categories and wording those feeds always had.</summary>
+    public required string FeedName { get; init; }
+
     /// <summary>The REST path prefix every endpoint is built under. Both venues answer identically
     /// under <c>/fapi/v1</c> today (verified live, blueprint §1.5); the field exists so a future move
     /// to Aster's "recommended" <c>/fapi/v3</c> — which answers every market-data path this adapter
@@ -129,6 +134,7 @@ public sealed record BinanceUsdmProfile
     {
         SegmentCode = "binance-usdm",
         LogName = "Binance.Usdm",
+        FeedName = "Binance",
         ApiPrefix = "/fapi/v1",
         IsInScope = BinanceMarkets.IsInScope,
         KnownExcludedSymbolTypes = null,
@@ -144,6 +150,7 @@ public sealed record BinanceUsdmProfile
     {
         SegmentCode = "aster-perp",
         LogName = "Aster.Perp",
+        FeedName = "Aster",
         ApiPrefix = "/fapi/v1",
         IsInScope = s => BinanceMarkets.IsInScope(s) && s.SymbolType == 0,
         KnownExcludedSymbolTypes = [1],

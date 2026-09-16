@@ -30,6 +30,7 @@ public sealed class AsterProfileTests
 
         Assert.Equal("binance-usdm", p.SegmentCode);
         Assert.Equal("Binance.Usdm", p.LogName);
+        Assert.Equal("Binance", p.FeedName);
         Assert.Equal("/fapi/v1", p.ApiPrefix);
         Assert.Equal(100, p.RestDepthLimit);                 // BinanceUsdmClient.DepthLimit, the old constant
         Assert.Equal(OpenInterestHistoryMode.Analytics, p.OpenInterestHistory);
@@ -51,6 +52,7 @@ public sealed class AsterProfileTests
         var p = BinanceUsdmProfile.Aster;
         Assert.Equal("aster-perp", p.SegmentCode);
         Assert.Equal("Aster.Perp", p.LogName);
+        Assert.Equal("Aster", p.FeedName);
         Assert.Equal("/fapi/v1", p.ApiPrefix);          // same path generation as Binance — blueprint §1.5
         Assert.Equal(500, p.RestDepthLimit);
         Assert.Equal(OpenInterestHistoryMode.Sampled, p.OpenInterestHistory);

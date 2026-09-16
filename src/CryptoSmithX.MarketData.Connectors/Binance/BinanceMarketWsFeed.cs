@@ -77,6 +77,9 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
     private volatile HashSet<string> _known = new(StringComparer.Ordinal);
     private long _framesThisConnection;
     private readonly BinanceUsdmProfile _profile;
+
+    /// <summary><see cref="BinanceUsdmProfile.FeedName"/> — the venue every log line of this feed names.</summary>
+    private readonly string _venue;
     private readonly Func<CancellationToken, Task<string[]>>? _collectedSymbolsAsync;
 
     /// <summary>The two array streams every connect subscribes regardless of symbol count
@@ -98,11 +101,12 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
     {
         _client = client;
         _clock = clock;
-        _log = loggers.CreateLogger("Binance.Market");
-        _conn = new WsConnection(wsUrl, loggers.CreateLogger("Binance.Market.Conn"), clock);
+        _profile = profile ?? BinanceUsdmProfile.Binance;
+        _venue = _profile.FeedName;
+        _log = loggers.CreateLogger(_venue + ".Market");
+        _conn = new WsConnection(wsUrl, loggers.CreateLogger(_venue + ".Market.Conn"), clock);
         _ticker = new MarketCache<(double, double, double?)>(clock);
         _markPrice = new MarketCache<(double, double, double, DateTimeOffset?, DateTimeOffset?)>(clock);
-        _profile = profile ?? BinanceUsdmProfile.Binance;
         _collectedSymbolsAsync = collectedSymbolsAsync;
     }
 
@@ -183,13 +187,54 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _log.LogWarning(ex, "Binance market feed: initial symbol fetch failed; starting empty, will refresh");
+            _log.LogWarning(ex, "{Venue} market feed: initial symbol fetch failed; starting empty, will refresh", _venue);
         }
+
+        await WaitForCollectedSymbolsAsync(ct);
 
         await Task.WhenAll(
             _conn.RunAsync(OnOpenAsync, OnMessage, ct),
             LoopAsync(RefreshSymbolsAsync, SubscriptionRefresh, "subscription refresh", ct));
     }
+
+    /// <summary>
+    /// Under <see cref="FeedSymbolsMode.Collected"/> the feed does not connect until there is
+    /// something to subscribe. On a venue's first enable, discovery has not yet marked anything
+    /// collected when the feed starts; a socket opened then subscribes nothing, the idle watchdog
+    /// aborts it every 30 s, and the five-minute subscription refresh is what finally ends the loop —
+    /// eight reconnects that read as a failing stream (Aster's first enable, 2026-09-16). Waiting
+    /// here costs one database read every <see cref="EmptyCollectedRetry"/> and nothing on the wire.
+    /// Whole-venue feeds (Binance) never wait: their set comes from the venue's own listing.
+    /// </summary>
+    private async Task WaitForCollectedSymbolsAsync(CancellationToken ct)
+    {
+        if (_profile.FeedSymbols != FeedSymbolsMode.Collected || _symbols.Length > 0)
+        {
+            return;
+        }
+
+        _log.LogInformation("{Venue} market feed: nothing is collected on this segment yet; not connecting until something is", _venue);
+        while (_symbols.Length == 0)
+        {
+            await Task.Delay(EmptyCollectedRetry, _clock, ct);
+            try
+            {
+                // Asked directly first, so the wait does not print a "0 of 0" report every 30 s;
+                // the full refresh (report, cap guard) runs once there is a set to act on.
+                var found = _collectedSymbolsAsync is not null ? await _collectedSymbolsAsync(ct) : [];
+                if (found.Length > 0)
+                {
+                    await RefreshSymbolsAsync(ct);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogDebug(ex, "{Venue} market feed: collected-symbol read failed; will retry", _venue);
+            }
+        }
+    }
+
+    private static readonly TimeSpan EmptyCollectedRetry = TimeSpan.FromSeconds(30);
 
     private async Task OnOpenAsync(CancellationToken ct)
     {
@@ -197,7 +242,7 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
 
         var symbols = _symbols;
         _log.LogInformation(
-            "Binance market feed: subscribing !ticker@arr, !markPrice@arr@1s and {Count} kline_1m streams",
+            "{Venue} market feed: subscribing !ticker@arr, !markPrice@arr@1s and {Count} kline_1m streams", _venue,
             symbols.Length);
 
         // The two array streams cover the whole venue in one subscribe each — no per-symbol
@@ -234,10 +279,10 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
         }
 
         _log.LogError(
-            "Binance market feed: subscribed {Count} kline streams plus the two array streams, is STILL "
+            "{Venue} market feed: subscribed {Count} kline streams plus the two array streams, is STILL "
             + "OPEN, and has received NOTHING in {Seconds}s. The subscribe ack succeeds on a misrouted "
             + "stream on this venue — check that this segment's market-stream URL is /market/stream, not "
-            + "/public/stream. Ticker and candles stay on REST until frames arrive.",
+            + "/public/stream. Ticker and candles stay on REST until frames arrive.", _venue,
             subscribed, StartupLiveness.TotalSeconds);
     }
 
@@ -538,10 +583,10 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
             {
                 var excluded = ordered[next.Length..];
                 _log.LogWarning(
-                    "Binance market feed: {Wanted} symbols would need {Streams} streams against this "
+                    "{Venue} market feed: {Wanted} symbols would need {Streams} streams against this "
                     + "venue's {Cap}-stream-per-connection cap; subscribing kline_1m and aggTrade for "
                     + "the first {Kept} in symbol order and leaving out {Count}: {Excluded}. Their "
-                    + "trades are not collected and their candles come from the existing REST fallback.",
+                    + "trades are not collected and their candles come from the existing REST fallback.", _venue,
                     ordered.Length, FixedStreams + 2 * ordered.Length, _profile.MaxStreamsPerConnection,
                     next.Length, excluded.Length, string.Join(',', excluded));
             }
@@ -575,7 +620,7 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _log.LogWarning(ex, "Binance market feed: refreshing the symbol list failed; keeping the previous set");
+            _log.LogWarning(ex, "{Venue} market feed: refreshing the symbol list failed; keeping the previous set", _venue);
         }
     }
 
@@ -634,7 +679,7 @@ public sealed class BinanceMarketWsFeed : IBinanceMarketFeed
             }
             catch (Exception ex)
             {
-                _log.LogWarning(ex, "Binance market feed {What} pass failed", what);
+                _log.LogWarning(ex, "{Venue} market feed {What} pass failed", _venue, what);
             }
         }
     }
