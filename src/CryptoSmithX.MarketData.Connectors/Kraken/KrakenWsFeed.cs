@@ -35,14 +35,19 @@ public sealed class KrakenWsFeed : IKrakenLiveFeed
     private readonly ConcurrentDictionary<string, DateTimeOffset> _lastResync = new(StringComparer.Ordinal);
 
     private volatile string[] _symbols = [];
+
+    /// <summary>What the Hub collects on this segment, or null to follow the venue's whole listing.</summary>
+    private readonly Func<CancellationToken, Task<string[]>>? _collectedSymbolsAsync;
     private CancellationToken _ct;
 
     public KrakenWsFeed(
         string wsUrl, KrakenFuturesClient client, ILoggerFactory loggers, TimeProvider clock,
-        TimeSpan staleAfter, TimeSpan crosscheckInterval, int driftBps)
+        TimeSpan staleAfter, TimeSpan crosscheckInterval, int driftBps,
+        Func<CancellationToken, Task<string[]>>? collectedSymbolsAsync = null)
     {
         _client = client;
         _clock = clock;
+        _collectedSymbolsAsync = collectedSymbolsAsync;
         _log = loggers.CreateLogger("Kraken.Ws");
         _conn = new WsConnection(wsUrl, loggers.CreateLogger("Kraken.Ws.Conn"), clock);
         _tickers = new MarketCache<Ticker>(clock);
@@ -111,11 +116,41 @@ public sealed class KrakenWsFeed : IKrakenLiveFeed
             _log.LogWarning(ex, "Kraken WS: initial instrument fetch failed; starting empty, will refresh");
         }
 
+        await WaitForCollectedSymbolsAsync(ct);
+
         await Task.WhenAll(
             _conn.RunAsync(OnOpenAsync, OnMessage, ct),
             LoopAsync(RefreshSymbolsAsync, SubscriptionRefresh, "subscription refresh", ct),
             LoopAsync(CrosscheckAsync, _crosscheckInterval, "cross-check", ct));
     }
+
+    /// <summary>
+    /// With a collected-symbol source, the feed does not connect until something is collected: a
+    /// socket with nothing subscribed is cycled by the idle watchdog every 30 s (Aster's first enable,
+    /// 2026-09-16). One database read per <see cref="EmptyCollectedRetry"/>, nothing on the wire.
+    /// </summary>
+    private async Task WaitForCollectedSymbolsAsync(CancellationToken ct)
+    {
+        if (_collectedSymbolsAsync is null || _symbols.Length > 0)
+        {
+            return;
+        }
+
+        while (_symbols.Length == 0)
+        {
+            await Task.Delay(EmptyCollectedRetry, _clock, ct);
+            try
+            {
+                await RefreshSymbolsAsync(ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogDebug(ex, "Kraken WS: symbol refresh failed while waiting for a collected set; will retry");
+            }
+        }
+    }
+
+    private static readonly TimeSpan EmptyCollectedRetry = TimeSpan.FromSeconds(30);
 
     private async Task OnOpenAsync(CancellationToken ct)
     {
@@ -355,6 +390,15 @@ public sealed class KrakenWsFeed : IKrakenLiveFeed
             .Select(i => i.Symbol)
             .OrderBy(s => s, StringComparer.Ordinal)
             .ToArray();
+
+        // Only what this segment collects, when the Hub says what that is. The venue lists ~275 perpetuals;
+        // subscribing all of them fed nothing but CPU (collectors and snapshots read collected
+        // instruments only) and, on the 3-core test VPS, was a large share of its load (2026-09-17).
+        if (_collectedSymbolsAsync is not null)
+        {
+            var collected = new HashSet<string>(await _collectedSymbolsAsync(ct), StringComparer.Ordinal);
+            next = next.Where(collected.Contains).ToArray();
+        }
 
         var prev = _symbols;
         _symbols = next;

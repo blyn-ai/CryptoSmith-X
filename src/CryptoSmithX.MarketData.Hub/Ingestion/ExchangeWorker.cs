@@ -775,7 +775,8 @@ public sealed class ExchangeWorker : BackgroundService
             var settings = _settings.Latest;
             ws = new KrakenWsFeed(
                 config.WsUrl, client, _loggers, _clock,
-                settings.WsStaleAfter, settings.WsCrosscheckInterval, settings.WsCrosscheckDriftBps);
+                settings.WsStaleAfter, settings.WsCrosscheckInterval, settings.WsCrosscheckDriftBps,
+                CollectedSymbols(config.Code));
             ws.Start(ct);
         }
 
@@ -828,7 +829,8 @@ public sealed class ExchangeWorker : BackgroundService
             var settings = _settings.Latest;
             ws = new HyperliquidWsFeed(
                 config.WsUrl, client, _loggers, _clock,
-                settings.WsStaleAfter, settings.WsCrosscheckInterval, settings.WsCrosscheckDriftBps);
+                settings.WsStaleAfter, settings.WsCrosscheckInterval, settings.WsCrosscheckDriftBps,
+                CollectedSymbols(config.Code));
             ws.Start(ct);
         }
 
