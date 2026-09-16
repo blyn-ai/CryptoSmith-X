@@ -14,7 +14,12 @@
   'use strict';
 
   var API = 'https://blynai.meetluko.eu';
-  var BOTS = [{ id: 'futures-live', letter: 'D' }, { id: 'futures-lukas-live', letter: 'L' }];
+  var BOTS = [
+    { id: 'futures-live', letter: 'D', name: 'Byko', title: 'Instance BYKO' },
+    { id: 'futures-lukas-live', letter: 'L', name: 'Luko', title: 'Instance LUKAS' },
+    { id: 'futures-pukis-live', letter: 'P', name: 'Puko', title: 'Instance PUKO' }
+  ];
+  function botByLetter(letter) { return BOTS.filter(function (b) { return b.letter === letter; })[0]; }
   var CYCLE = 120;
   var EQUITY_OF = 'futures-lukas-live';
   var REFRESH = 2, DASH_REFRESH = 6, WINDOW = 30;
@@ -264,7 +269,7 @@
     var positions = (open || []).map(function (p) {
       var v = typeof p.unrealizedPnlPercent === 'number' ? p.unrealizedPnlPercent : null;
       return {
-        who: p.who, whoTitle: p.who === 'L' ? 'Instance LUKAS' : 'Instance BYKO',
+        who: p.who, whoTitle: (botByLetter(p.who) || {}).title || '',
         pair: p.pair || '—', side: (p.side || '').toUpperCase() || '—',
         pnl: v === null ? '—' : Math.abs(v).toFixed(2) + '%',
         arrow: v === null || v === 0 ? '' : v < 0 ? '↓' : '↑',
@@ -320,11 +325,13 @@
       positionCount: open ? String(open.length) : '—',
       equity: dayNow === null ? '—' : num(dayNow, 2), equityUnit: unit,
       dayOpen: working === null ? '—' : num(working, 2),
-      tenant: lead ? (lead.b.letter === 'L' ? 'Luko' : 'Byko') : '—',
+      tenant: lead ? lead.b.name : '—',
       pickLukas: function () { set({ instance: 'futures-lukas-live' }); },
       pickDenisas: function () { set({ instance: 'futures-live' }); },
+      pickPukis: function () { set({ instance: 'futures-pukis-live' }); },
       lukasInk: who === 'futures-lukas-live' ? 'var(--accent)' : 'var(--text-faint)',
       denisasInk: who === 'futures-live' ? 'var(--accent)' : 'var(--text-faint)',
+      pukisInk: who === 'futures-pukis-live' ? 'var(--accent)' : 'var(--text-faint)',
       gapArrow: sign(gap), gapAbs: money(gap),
       realisedArrow: sign(realised), realisedAbs: money(realised),
       unrealisedArrow: sign(unrealised), unrealisedAbs: money(unrealised),
