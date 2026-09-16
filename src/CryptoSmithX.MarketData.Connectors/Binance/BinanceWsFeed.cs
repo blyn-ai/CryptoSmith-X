@@ -103,10 +103,18 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     private readonly TimeSpan _staleAfter;
     private readonly TimeSpan _crosscheckInterval;
     private readonly int _driftBps;
+    private readonly BinanceUsdmProfile _profile;
+    private readonly Func<CancellationToken, Task<string[]>>? _collectedSymbolsAsync;
 
     /// <summary>Symbols we intend to be subscribed to. Binance has one symbol spelling, so unlike
     /// WEEX there is no map to keep — only a case fold, in <see cref="BinanceMarkets.ToStream"/>.</summary>
     private volatile string[] _symbols = [];
+
+    /// <summary>What <see cref="RefreshSymbolsAsync"/> most recently decided to subscribe, after the
+    /// stream-cap guard — internal, like <see cref="OnMessage"/>, so a test can call
+    /// <see cref="RefreshSymbolsAsync"/> directly (no socket needed: it returns before subscribing
+    /// when <c>_conn</c> is not connected) and read back what the cap actually kept.</summary>
+    internal string[] SubscribedSymbols => _symbols;
 
     /// <summary>Which connection is which. See <see cref="ConnectionLog"/> — the short version is that
     /// every delayed check in this file used to read a counter a reconnect had already zeroed for a
@@ -132,9 +140,18 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     private long _unparseableSinceLastReport;
     private long _unbindableSinceLastReport;
 
+    /// <param name="profile">Which symbol source and stream cap this feed obeys — see
+    /// <see cref="BinanceUsdmProfile.FeedSymbols"/> and <see cref="BinanceUsdmProfile.MaxStreamsPerConnection"/>.
+    /// Defaults to <see cref="BinanceUsdmProfile.Binance"/>, so a caller that does not name one keeps
+    /// today's whole-venue subscribe.</param>
+    /// <param name="collectedSymbolsAsync">What WE collect on this segment — read only when
+    /// <paramref name="profile"/> says <see cref="FeedSymbolsMode.Collected"/>; null is fine under
+    /// <see cref="FeedSymbolsMode.WholeVenue"/>, which never calls it.</param>
     public BinanceWsFeed(
         string wsUrl, BinanceUsdmClient client, VenueGate gate, ILoggerFactory loggers, TimeProvider clock,
-        TimeSpan staleAfter, TimeSpan crosscheckInterval, int driftBps)
+        TimeSpan staleAfter, TimeSpan crosscheckInterval, int driftBps,
+        BinanceUsdmProfile? profile = null,
+        Func<CancellationToken, Task<string[]>>? collectedSymbolsAsync = null)
     {
         _client = client;
         _gate = gate;
@@ -146,6 +163,8 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
         _staleAfter = staleAfter;
         _crosscheckInterval = crosscheckInterval;
         _driftBps = driftBps;
+        _profile = profile ?? BinanceUsdmProfile.Binance;
+        _collectedSymbolsAsync = collectedSymbolsAsync;
     }
 
     /// <summary>Launches the feed in the background, tied to <paramref name="ct"/>.</summary>
@@ -602,25 +621,59 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     }
 
     /// <summary>
-    /// Rebuilds the symbol set from the venue's own listing (weight 1) using the SAME scope rule
-    /// discovery applies, so the socket never carries a channel discovery has already written off,
-    /// and diffs the subscriptions. Also the feed's periodic report: what it says out loud is the
-    /// RATE of gaps and seeds, because on ~570 symbols the individual events are noise and the rate
-    /// is the signal.
+    /// Rebuilds the symbol set and diffs the subscriptions. Also the feed's periodic report: what it
+    /// says out loud is the RATE of gaps and seeds, because on ~570 symbols the individual events are
+    /// noise and the rate is the signal.
+    ///
+    /// Two sources, per <see cref="BinanceUsdmProfile.FeedSymbols"/>. <see cref="FeedSymbolsMode.WholeVenue"/>
+    /// (Binance, unchanged) rebuilds from the venue's own listing (weight 1) using the same scope
+    /// rule discovery applies, so the socket never carries a channel discovery has already written
+    /// off. <see cref="FeedSymbolsMode.Collected"/> (Aster) skips the venue call entirely and asks
+    /// what WE collect — <see cref="_collectedSymbolsAsync"/>, already filtered to
+    /// <c>collect = true and status = 'trading'</c> — because subscribing all 441 in-scope symbols
+    /// would exceed this venue's 200-stream cap by more than double (blueprint §1.4/§4.2).
+    ///
+    /// Either way the result is capped at <see cref="BinanceUsdmProfile.MaxStreamsPerConnection"/>
+    /// (one depth stream per symbol, so the cap and the symbol count are the same number here): above
+    /// it, the first symbols in order are kept and the rest are logged once, at warning, and left for
+    /// REST's existing fallback. On Binance (cap 1024, ~570 symbols) this never trips.
     /// </summary>
-    private async Task RefreshSymbolsAsync(CancellationToken ct)
+    internal async Task RefreshSymbolsAsync(CancellationToken ct)
     {
-        IReadOnlyList<BinanceSymbol> symbols;
-        using (await _gate.AcquireAsync(ct))
+        string[] scoped;
+        if (_profile.FeedSymbols == FeedSymbolsMode.Collected)
         {
-            symbols = await _client.GetSymbolsAsync(ct);
+            scoped = _collectedSymbolsAsync is not null ? await _collectedSymbolsAsync(ct) : [];
+        }
+        else
+        {
+            IReadOnlyList<BinanceSymbol> symbols;
+            using (await _gate.AcquireAsync(ct))
+            {
+                symbols = await _client.GetSymbolsAsync(ct);
+            }
+
+            scoped = symbols
+                .Where(s => _profile.IsInScope(s) && s.Status == "TRADING")
+                .Select(s => s.Symbol)
+                .ToArray();
         }
 
-        var next = symbols
-            .Where(s => BinanceMarkets.IsInScope(s) && s.Status == "TRADING")
-            .Select(s => s.Symbol)
-            .OrderBy(s => s, StringComparer.Ordinal)
-            .ToArray();
+        var ordered = scoped.OrderBy(s => s, StringComparer.Ordinal).ToArray();
+        var next = ordered.Length > _profile.MaxStreamsPerConnection
+            ? ordered[.._profile.MaxStreamsPerConnection]
+            : ordered;
+
+        if (next.Length < ordered.Length)
+        {
+            var excluded = ordered[next.Length..];
+            _log.LogWarning(
+                "Binance WS: {Wanted} symbols exceed this venue's {Cap}-stream-per-connection cap; "
+                + "subscribing the first {Kept} in symbol order and leaving out {Count}: {Excluded}. "
+                + "Their depth comes from the existing REST fallback instead.",
+                ordered.Length, _profile.MaxStreamsPerConnection, next.Length, excluded.Length,
+                string.Join(',', excluded));
+        }
 
         var prev = _symbols;
         _symbols = next;
