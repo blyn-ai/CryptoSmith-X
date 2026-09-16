@@ -221,7 +221,16 @@ public static class V2Cells
         // Prompt 2.1, W-1: the UNIT column folds into this cell's own sub-line — the same
         // pattern TURNOVER 24H already uses for its own "USD" sub-line — rather than a column
         // that printed one word for every row on the page.
-        V2Field.LiquidationVolume => stress is null ? V2Cell.None : new V2Cell(stress.Volume, Format.Amount(stress.Volume), stress.Unit),
+        // The "SAMPLE" badge is the same mechanism the vault-backed provenance badges above use
+        // (cell.Badge/BadgeTitle) — never a bare volume where the venue's own liquidation feed is
+        // a lower bound rather than a tape (plans/aster-venue-blueprint.md §3). r.LiquidationsNote
+        // is read from the segment's own history_depth capability (LiquidationVoice), not hardcoded
+        // to a segment code, so a second venue with the same documented quirk (Binance, named there
+        // as a follow-up) picks up the same badge the moment its own capability row is filled.
+        V2Field.LiquidationVolume => stress is null
+            ? V2Cell.None
+            : new V2Cell(stress.Volume, Format.Amount(stress.Volume), stress.Unit)
+                { Badge = r.LiquidationsNote is null ? null : "SAMPLE", BadgeTitle = r.LiquidationsNote },
         V2Field.LiquidationUnit => stress is null ? V2Cell.None : Text(stress.Unit),
 
         // Бид и аск ОТДЕЛЬНЫМИ цифрами, а не только парой под спредом: ранг у них считается по
