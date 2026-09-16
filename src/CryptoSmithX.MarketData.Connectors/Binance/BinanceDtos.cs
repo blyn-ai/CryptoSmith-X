@@ -67,6 +67,14 @@ internal sealed record BinanceSymbol
     /// feeds <c>listed_at</c> directly rather than through a null guard that has never fired.</summary>
     public long OnboardDate { get; init; }
 
+    /// <summary>Null on Binance, which does not publish this field at all. On Aster it is the only
+    /// marker between a crypto perpetual and an equity/ETF/commodity/FX one wearing the same
+    /// <c>contractType = PERPETUAL</c>: <c>0</c> is crypto, <c>1</c> is the RWA set — see
+    /// <see cref="BinanceUsdmProfile.Aster"/>. Read, never written: this DTO is shared by both
+    /// venues, so the field exists once rather than being duplicated on an Aster-only subclass.
+    /// </summary>
+    public int? SymbolType { get; init; }
+
     public List<BinanceFilter> Filters { get; init; } = [];
 
     /// <summary>The venue's own payload for this symbol, captured verbatim for <c>raw_json</c> — set
