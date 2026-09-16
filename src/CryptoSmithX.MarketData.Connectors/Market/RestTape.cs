@@ -41,6 +41,28 @@ public sealed class RestTape
     /// the wrong unit, lands in a future no partition covers either.</summary>
     private static readonly TimeSpan Ahead = TimeSpan.FromHours(1);
 
+    /// <summary>
+    /// "Now" for the window guard, frozen by a test that replays a captured response. The guard is
+    /// measured against the wall clock, so a fixture ages out of it two days after it was taken:
+    /// seven tape tests went red on 2026-09-16 with nothing changed but the date. AsyncLocal, so
+    /// tests running in parallel each keep their own instant and production never sees one.
+    /// </summary>
+    private static readonly AsyncLocal<DateTimeOffset?> FrozenNow = new();
+
+    /// <summary>Test hook: every <see cref="Observe"/> in this async flow measures its window from
+    /// <paramref name="at"/> until the returned scope is disposed.</summary>
+    internal static IDisposable FreezeClock(DateTimeOffset at)
+    {
+        var previous = FrozenNow.Value;
+        FrozenNow.Value = at;
+        return new Restore(previous);
+    }
+
+    private sealed class Restore(DateTimeOffset? previous) : IDisposable
+    {
+        public void Dispose() => FrozenNow.Value = previous;
+    }
+
     private readonly ConcurrentDictionary<string, SymbolSeen> _seen = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<TradeEvent> _pending = new();
 
@@ -53,7 +75,7 @@ public sealed class RestTape
     public void Observe(string exchangeSymbol, IEnumerable<TradeEvent> trades)
     {
         var seen = _seen.GetOrAdd(exchangeSymbol, _ => new SymbolSeen());
-        var now = DateTimeOffset.UtcNow;
+        var now = FrozenNow.Value ?? DateTimeOffset.UtcNow;
 
         foreach (var trade in trades)
         {

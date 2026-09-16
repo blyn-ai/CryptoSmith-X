@@ -117,6 +117,7 @@ public sealed class SynthetixPerpTests
     [Fact]
     public async Task The_tape_side_is_the_takers_and_carries_no_invented_type()
     {
+        using var clock = FixtureClock.Freeze();
         var snx = Snx();
         await snx.GetOrderBookAsync("BTC-USDT", CancellationToken.None);
 

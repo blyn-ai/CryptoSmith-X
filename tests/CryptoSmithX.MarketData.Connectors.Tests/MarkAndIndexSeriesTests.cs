@@ -467,6 +467,7 @@ public sealed class MarkAndIndexSeriesTests
     [Fact]
     public async Task Gates_create_time_ms_is_seconds_and_its_prints_are_not_stamped_in_1970()
     {
+        using var clock = FixtureClock.Freeze();
         // The field is NAMED create_time_ms and holds 1789244984.294 — the same value as create_time
         // beside it, which is seconds carrying a millisecond fraction. Read as its name promises,
         // every print on this venue lands on 1970-01-21, outside the range the store keeps
@@ -663,6 +664,7 @@ public sealed class MarkAndIndexSeriesTests
     [Fact]
     public async Task Mexc_reads_the_side_and_the_timestamp_as_the_two_fields_they_are()
     {
+        using var clock = FixtureClock.Freeze();
         // "T" is the side and "t" is the timestamp — one capital apart, and the web defaults this
         // codebase reads every other venue with treat them as ONE property. System.Text.Json does
         // not pick a winner: it refuses the type at the first response, which took the book and the

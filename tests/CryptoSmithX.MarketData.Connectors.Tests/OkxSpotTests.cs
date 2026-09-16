@@ -191,6 +191,7 @@ public sealed class OkxSpotTests
     [Fact]
     public async Task The_side_is_the_takers_own_in_lower_case()
     {
+        using var clock = FixtureClock.Freeze();
         var spot = Spot(("/api/v5/market/books-full", Book), ("/api/v5/market/trades", Trades));
         await spot.GetOrderBookAsync("BTC-USDT", CancellationToken.None);
 

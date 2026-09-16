@@ -175,6 +175,7 @@ public sealed class BybitSpotTests
     [Fact]
     public async Task The_side_is_the_takers_own_and_needs_no_inverting()
     {
+        using var clock = FixtureClock.Freeze();
         // Bybit states the aggressor directly where Binance encodes the resting party in a maker
         // flag. Two venues, two conventions, and the same column.
         var spot = Spot(("/v5/market/orderbook", Book), ("/v5/market/recent-trade", Trades));

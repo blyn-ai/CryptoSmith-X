@@ -234,6 +234,7 @@ public sealed class BinanceSpotTests
     [Fact]
     public async Task The_maker_flag_names_the_resting_side_and_is_read_that_way()
     {
+        using var clock = FixtureClock.Freeze();
         // 'm' is TRUE when the BUYER was the maker, which means the TAKER SOLD. Read as "was a buy",
         // every print on the venue changes sides — and nothing downstream could tell, because both
         // answers are a valid side.

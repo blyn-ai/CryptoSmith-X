@@ -154,6 +154,7 @@ public sealed class DydxPerpTests
     [Fact]
     public async Task The_side_on_the_tape_is_the_takers_and_the_venues_classification_is_kept()
     {
+        using var clock = FixtureClock.Freeze();
         var dydx = Dydx();
         await dydx.GetOrderBookAsync("BTC-USD", CancellationToken.None);
 
