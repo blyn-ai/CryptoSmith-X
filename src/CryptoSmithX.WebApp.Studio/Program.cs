@@ -19,7 +19,9 @@ if (!string.IsNullOrWhiteSpace(sentryDsn))
     builder.WebHost.UseSentry(o =>
     {
         o.Dsn = sentryDsn;
-        o.Environment = builder.Environment.EnvironmentName;
+        // Sentry:Environment wins when set: the test VPS runs as ASP.NET "Production" too, and its
+        // events must not read as production ones.
+        o.Environment = builder.Configuration["Sentry:Environment"] ?? builder.Environment.EnvironmentName;
         o.TracesSampleRate = 0;
     });
 }

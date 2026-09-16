@@ -54,6 +54,7 @@ services:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
       # Sentry errors (component=hub); DSN lives only in /opt/cryptosmithx/.env.
       Sentry__Dsn: ${SENTRY_DSN:-}
+      Sentry__Environment: test
     restart: unless-stopped
 
   # The read-only /v1 surface, so the test contour answers the same four public addresses the
@@ -76,6 +77,7 @@ services:
       # and every converge on the test host died with "unknown anchor 'db'".
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
       Sentry__Dsn: ${SENTRY_DSN:-}
+      Sentry__Environment: test
     ports:
       # 7780, NOT 8080, and only on this host: 10.8.0.1:8080 was already taken here by an
       # unrelated container (freq-research) two weeks before this service existed. The port was
@@ -103,6 +105,7 @@ services:
       Csx__Site: test
       # Sentry errors (component=webapp-admin).
       Sentry__Dsn: ${SENTRY_DSN:-}
+      Sentry__Environment: test
       DataProtection__KeysDirectory: /keys
     volumes:
       - /opt/cryptosmithx/webapp-keys:/keys
@@ -140,6 +143,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       # Sentry errors (component=studio).
       Sentry__Dsn: ${SENTRY_DSN:-}
+      Sentry__Environment: test
     ports:
       # VPN fallback entrance, as for the webapp-admin. The public entrance is traefik on
       # cryptosmithx.blynai.eu, whose dynamic config lives in /opt/traefik/dynamic/ and is
@@ -192,6 +196,7 @@ services:
       TradingBot__BaseUrl: ${TRADING_BOT_BASE_URL:-https://blynai.meetluko.eu}
       ASPNETCORE_ENVIRONMENT: Production
       Sentry__Dsn: ${SENTRY_DSN:-}
+      Sentry__Environment: test
       DataProtection__KeysDirectory: /keys
     networks:
       - default
