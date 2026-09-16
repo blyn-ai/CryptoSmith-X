@@ -458,6 +458,8 @@ body{min-height:100vh;display:flex;flex-direction:column;
 .p-params .kraken-permission-list{display:flex;flex-direction:column;gap:5px;margin:0;padding:0;list-style:none}
 .p-params .kraken-permission{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-family:var(--font-mono);
   font-size:11px;line-height:1.45;color:var(--text-body)}
+.p-params .kraken-permission + .kraken-permission{padding-top:5px;border-top:1px dashed var(--border-hairline)}
+.p-params .kraken-permission-group + .kraken-permission-group{padding-top:10px;border-top:1px dashed var(--border-hairline)}
 .p-params .kraken-permission > span:first-child{min-width:0}
 .p-params .kraken-permission > span:last-child{flex:none;white-space:nowrap;color:var(--text-muted)}
 .p-params .kraken-permission.allowed > span:last-child{color:var(--money-up-ink)}

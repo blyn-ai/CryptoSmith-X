@@ -62,7 +62,10 @@ public sealed class KrakenFuturesCredentialValidator(HttpClient httpClient)
 
             var permissions = await TryLoadPermissionsAsync(apiKey.Trim(), secret, cancellationToken);
             return permissions is null
-                ? KrakenCredentialValidation.Valid
+                ? new KrakenCredentialValidation(
+                    true,
+                    "Kraken prieiga patvirtinta, bet Futures raktų teisių Kraken negrąžino.",
+                    UnreportedPermissions())
                 : KrakenCredentialValidation.ValidWith(permissions);
         }
         catch (HttpRequestException)
@@ -96,8 +99,10 @@ public sealed class KrakenFuturesCredentialValidator(HttpClient httpClient)
         const string signingPath = "/api-keys/v3/check";
 
         using var request = new HttpRequestMessage(HttpMethod.Get, requestPath);
+        var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture);
         request.Headers.Add("APIKey", apiKey);
-        request.Headers.Add("Authent", Sign(signingPath, string.Empty, secret));
+        request.Headers.Add("Nonce", nonce);
+        request.Headers.Add("Authent", Sign(signingPath, nonce, secret));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         try
@@ -153,6 +158,15 @@ public sealed class KrakenFuturesCredentialValidator(HttpClient httpClient)
             _ => new KrakenPermissionAccess("Not reported", "unknown"),
         };
     }
+
+    private static KrakenPermissionReport UnreportedPermissions() => new(
+    [
+        new KrakenPermissionGroup("Futures permissions",
+        [
+            new KrakenPermission("General API", new KrakenPermissionAccess("Not reported", "unknown")),
+            new KrakenPermission("Withdrawal API", new KrakenPermissionAccess("Not reported", "unknown")),
+        ]),
+    ]);
 }
 
 public sealed record KrakenCredentialValidation(

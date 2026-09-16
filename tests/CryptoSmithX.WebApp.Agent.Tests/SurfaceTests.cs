@@ -97,6 +97,7 @@ public sealed class SurfaceTests
     {
         var markup = Read("Index.cshtml");
         var js = Read("parameters.js");
+        var css = Read("agent.css");
 
         Assert.Contains("Rodyti / redaguoti API raktus", markup, StringComparison.Ordinal);
         Assert.Contains("@credential.Title", markup, StringComparison.Ordinal);
@@ -105,6 +106,7 @@ public sealed class SurfaceTests
         Assert.Contains("data-kraken-permissions", markup, StringComparison.Ordinal);
         Assert.Contains("krakenContent.hidden", js, StringComparison.Ordinal);
         Assert.Contains("renderPermissions", js, StringComparison.Ordinal);
+        Assert.Contains("border-top:1px dashed", css, StringComparison.Ordinal);
     }
 
     [Fact]
