@@ -34,7 +34,7 @@ public sealed class AsterProfileTests
         Assert.Equal("/fapi/v1", p.ApiPrefix);
         Assert.Equal(100, p.RestDepthLimit);                 // BinanceUsdmClient.DepthLimit, the old constant
         Assert.Equal(OpenInterestHistoryMode.Analytics, p.OpenInterestHistory);
-        Assert.Equal(FeedSymbolsMode.WholeVenue, p.FeedSymbols);
+        Assert.Equal(FeedSymbolsMode.Collected, p.FeedSymbols);
         Assert.Null(p.MaxStreamsPerConnection);
         Assert.True(p.TickersFromMarketFeed);
         Assert.Null(p.KnownExcludedSymbolTypes);

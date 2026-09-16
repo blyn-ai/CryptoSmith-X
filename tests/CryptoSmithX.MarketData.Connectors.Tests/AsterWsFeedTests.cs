@@ -55,9 +55,10 @@ public sealed class AsterWsFeedTests
         var feed = new BinanceWsFeed(
             "ws://localhost:1/", new BinanceUsdmClient(new HttpClient(handler), "https://fapi.binance.test"),
             new VenueGate("BINANCE-TEST", 5, 4, clock), NullLoggerFactory.Instance, clock,
-            staleAfter: TimeSpan.FromSeconds(30), crosscheckInterval: TimeSpan.FromMinutes(5), driftBps: 50);
-            // profile omitted: defaults to BinanceUsdmProfile.Binance, exactly as ExchangeWorker's
-            // "binance-usdm" arm constructs it today.
+            staleAfter: TimeSpan.FromSeconds(30), crosscheckInterval: TimeSpan.FromMinutes(5), driftBps: 50,
+            // Whole-venue on purpose: the uncapped path a large listing takes. Binance itself
+            // subscribes its collected set since 2026-09-17; the no-cap property still matters for it.
+            profile: BinanceUsdmProfile.Binance with { FeedSymbols = FeedSymbolsMode.WholeVenue });
 
         await feed.RefreshSymbolsAsync(CancellationToken.None);
 
@@ -113,7 +114,8 @@ public sealed class AsterWsFeedTests
         var handler = new SingleSymbolExchangeInfoHandler(count: 570);
         var feed = new BinanceMarketWsFeed(
             "ws://localhost:1/", new BinanceUsdmClient(new HttpClient(handler), "https://fapi.binance.test"),
-            NullLoggerFactory.Instance, clock);
+            NullLoggerFactory.Instance, clock,
+            profile: BinanceUsdmProfile.Binance with { FeedSymbols = FeedSymbolsMode.WholeVenue });
 
         await feed.RefreshSymbolsAsync(CancellationToken.None);
 

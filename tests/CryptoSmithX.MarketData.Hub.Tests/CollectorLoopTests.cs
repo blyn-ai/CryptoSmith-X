@@ -102,12 +102,18 @@ public sealed class CollectorLoopTests
             NullLogger.Instance, clock);
 
         var run = loop.RunAsync(cts.Token);
-        for (var i = 0; i < 8 && !run.IsCompleted; i++)
+
+        // Advance until the loop finishes rather than a fixed eight times: under a loaded test host
+        // the loop can reach its delay after an advance has already fired, and a fixed count then
+        // leaves it waiting forever (seen as a hang in a full-solution run, 2026-09-17).
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (!run.IsCompleted && DateTime.UtcNow < deadline)
         {
             clock.Advance(Interval);
-            await Task.Yield();
+            await Task.Delay(1);
         }
 
+        Assert.True(run.IsCompleted, "the loop did not finish within 10 s of advancing the clock");
         await run;
         Assert.True(bodyCalls >= 3, $"the loop stopped after {bodyCalls} iterations");
     }

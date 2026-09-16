@@ -671,9 +671,9 @@ public sealed class BinanceWsFeed : IBinanceLiveFeed
     /// noise and the rate is the signal.
     ///
     /// Two sources, per <see cref="BinanceUsdmProfile.FeedSymbols"/>. <see cref="FeedSymbolsMode.WholeVenue"/>
-    /// (Binance, unchanged) rebuilds from the venue's own listing (weight 1) using the same scope
+    /// rebuilds from the venue's own listing (weight 1) using the same scope
     /// rule discovery applies, so the socket never carries a channel discovery has already written
-    /// off. <see cref="FeedSymbolsMode.Collected"/> (Aster) skips the venue call entirely and asks
+    /// off. <see cref="FeedSymbolsMode.Collected"/> (Binance and Aster) skips the venue call entirely and asks
     /// what WE collect — <see cref="_collectedSymbolsAsync"/>, already filtered to
     /// <c>collect = true and status = 'trading'</c> — because subscribing all 441 in-scope symbols
     /// would exceed this venue's 200-stream cap by more than double (blueprint §1.4/§4.2).

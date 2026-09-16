@@ -13,9 +13,11 @@ public enum OpenInterestHistoryMode
     Sampled,
 }
 
-/// <summary>What a WS feed subscribes. Binance subscribes its whole listing, uncapped; Aster's would
-/// not fit under its 200-stream cap (441 in-scope symbols vs. the 26-98 this venue
-/// actually collects), so its feeds subscribe only what discovery has marked <c>collect = true</c>.
+/// <summary>What a WS feed subscribes. Both venues subscribe only what discovery has marked
+/// <c>collect = true</c>: a stream nothing stores is pure cost. Binance subscribed its whole listing
+/// until 2026-09-17 — ~566 depth and ~1 135 market streams for 44 collected symbols — and on the
+/// 3-core test VPS that was the load Binance answered by closing the socket ~50 times an hour.
+/// <see cref="WholeVenue"/> stays for a venue that needs its whole listing on the wire.
 /// </summary>
 public enum FeedSymbolsMode
 {
@@ -127,8 +129,9 @@ public sealed record BinanceUsdmProfile
     /// is REST-only.</summary>
     public required bool TickersFromMarketFeed { get; init; }
 
-    /// <summary>Binance USDⓈ-M, unchanged. Every field here reproduces a constant the classes already
-    /// had; see <c>BinanceUsdmProfileTests.Binance_profile_reproduces_every_constant_it_replaced</c>.
+    /// <summary>Binance USDⓈ-M. Every field reproduces a constant the classes had before the profile
+    /// existed, except <see cref="FeedSymbols"/>: Collected since 2026-09-17 (see
+    /// <see cref="FeedSymbolsMode"/>). Pinned in <c>AsterProfileTests</c>.
     /// </summary>
     public static readonly BinanceUsdmProfile Binance = new()
     {
@@ -140,7 +143,7 @@ public sealed record BinanceUsdmProfile
         KnownExcludedSymbolTypes = null,
         RestDepthLimit = 100,
         OpenInterestHistory = OpenInterestHistoryMode.Analytics,
-        FeedSymbols = FeedSymbolsMode.WholeVenue,
+        FeedSymbols = FeedSymbolsMode.Collected,
         MaxStreamsPerConnection = null,
         TickersFromMarketFeed = true,
     };
