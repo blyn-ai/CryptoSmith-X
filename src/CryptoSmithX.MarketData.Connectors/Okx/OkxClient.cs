@@ -96,11 +96,13 @@ public sealed class OkxClient
             + $"&limit=100&before={Ms(from)}&after={Ms(to)}", ct);
 
     /// <summary>
-    /// The book, 400 levels a side.
+    /// The book, up to five thousand levels a side.
     ///
-    /// Practically free for us, and measured: 200 requests to the SAME instId all returned 200 in
-    /// 2.49 s, because this route's limit rule is keyed by UserID and we have no user. It is the one
-    /// OKX route the endpoint × instId ceiling does not apply to.
+    /// NOT free. An earlier note here said this route's limit was keyed by user and so did not apply
+    /// to us; production said otherwise — about one depth pass in five answered 50011. Measured from
+    /// one IP on 2026-09-17, this route alone: bursts of 5, 8 and 10 all 200; 12, 15 and 20 at once
+    /// refused 2, 5 and 10; 5 a second for 10 s all 200, 6 a second refused 10 of 60. The ceiling is
+    /// ten per two seconds per IP, and the venue gate is sized for it (0067).
     /// </summary>
     /// <remarks>
     /// <c>books-full</c> rather than <c>books</c>, and five thousand levels rather than four hundred.
@@ -108,8 +110,8 @@ public sealed class OkxClient
     /// bps bands are all unbounded and all three columns stay empty on the venue's most traded
     /// instrument. Five thousand reach 89 bps on the bid and 96 on the ask, which bounds every band.
     ///
-    /// Not paid for in refusals: twenty-five of these in parallel returned 25x200 in 1.79 s,
-    /// measured, and the depth sweep issues one per collected symbol every five minutes.
+    /// The depth sweep issues one per collected symbol every five minutes, followed by the tape
+    /// (<see cref="GetTradesAsync"/>) under the same gate lease.
     /// </remarks>
     internal Task<IReadOnlyList<OkxBook>> GetBookAsync(string instId, CancellationToken ct) =>
         GetAsync<OkxBook>(
