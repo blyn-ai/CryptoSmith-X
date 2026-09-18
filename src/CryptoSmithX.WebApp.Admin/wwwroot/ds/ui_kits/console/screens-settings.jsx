@@ -17,7 +17,7 @@ window.CSXSettings = function CSXSettings() {
       <Card title="Profile">
         <div style={{ display: 'grid', gap: 16 }}>
           <Input label="Display name" defaultValue="d.bykovas" />
-          <Input label="Email" defaultValue="denisas@blynai.eu" />
+          <Input label="Email" defaultValue="hello@blynai.eu" />
           <div style={{ display: 'flex', gap: 28 }}>
             <Switch checked={twofa} onChange={setTwofa} label="Two-factor auth" />
             <Switch checked={notif} onChange={setNotif} label="Fill notifications" />

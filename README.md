@@ -6,7 +6,7 @@ Algorithmic crypto-trading software. A product of MB „BlynAI“ — https://bl
 |---|---|
 | Site | https://blynai.eu |
 | Live journal | https://blynai.meetluko.eu |
-| Contact | info@blynai.eu |
+| Contact | hello@blynai.eu |
 
 CryptoSmith-X is a rewrite of [trading-bot](https://github.com/bykovas/trading-bot).
 The system it replaces is a set of .NET services — an API, a web UI, spot, futures
@@ -87,4 +87,4 @@ and does not control their account or their funds.
 MB „BlynAI“ is a mažoji bendrija in the Republic of Lithuania. The company number is
 pending registration and will be stated on the site once the company is entered in
 the Register of Legal Entities. The members are Lukas Peciukonis and Denisas Bykovas,
-50 % each. The manager is Lukas Peciukonis. Contact: info@blynai.eu.
+50 % each. The manager is Lukas Peciukonis. Contact: hello@blynai.eu.

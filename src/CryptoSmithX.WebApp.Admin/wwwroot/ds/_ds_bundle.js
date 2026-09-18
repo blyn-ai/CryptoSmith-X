@@ -1429,7 +1429,7 @@ window.CSXSettings = function CSXSettings() {
     defaultValue: "d.bykovas"
   }), /*#__PURE__*/React.createElement(Input, {
     label: "Email",
-    defaultValue: "denisas@blynai.eu"
+    defaultValue: "hello@blynai.eu"
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
