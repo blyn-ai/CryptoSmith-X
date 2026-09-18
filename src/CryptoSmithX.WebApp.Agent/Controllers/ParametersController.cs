@@ -9,10 +9,11 @@ namespace CryptoSmithX.WebApp.Agent.Controllers;
 /// <summary>
 /// Trading parameters — where a sign-in lands, and the one screen that writes anything.
 ///
-/// It edits the four runtime overrides of ONE bot instance: the one belonging to the signed-in
-/// account. The instance is derived from the session on every request and is never read from the
-/// form, so there is no field to tamper with and no way to address someone else's bot — a request
-/// carrying another instance id would simply have nowhere to put it.
+/// It edits ONE bot instance — the one belonging to the signed-in account: its four runtime
+/// overrides and strategy revision, and its futures universe preferences. The instance is derived
+/// from the session on every request and is never read from the form, so there is no field to
+/// tamper with and no way to address someone else's bot — a request carrying another instance id
+/// would simply have nowhere to put it.
 /// </summary>
 [Authorize]
 public sealed class ParametersController : Controller
@@ -81,12 +82,6 @@ public sealed class ParametersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(ParametersSaveRequest request, CancellationToken ct)
     {
-        var posted = new PostedProfile(
-            request.PositionMarginUsd,
-            request.Leverage,
-            request.MaxOpenPositions,
-            request.MaxOpenPositionsPerGroup);
-
         try
         {
             await using var conn = await _bot.OpenAsync(ct);
@@ -105,15 +100,11 @@ public sealed class ParametersController : Controller
                 return View("NoStrategyProfile");
             }
 
-            var errors = Validate(request, strategy);
-            if (request.StrategyProfileId != strategy.ProfileId || request.StrategyRevision != strategy.Revision)
+            var universe = await UniversePreferenceStore.LoadAsync(conn, owner, ct);
+            var plan = ParametersSavePlan.Build(request, strategy, universeDecidesMarkets: universe is not null);
+            if (plan.Errors.Count > 0)
             {
-                errors["strategy"] = "Strategija pasikeitė, kol buvo atidarytas šis puslapis. Prieš išsaugant peržiūrėk dabartinę reviziją.";
-            }
-
-            if (errors.Count > 0)
-            {
-                var model = await BuildAsync(conn, owner, strategy, errors, justSaved: false, request, ct);
+                var model = await BuildAsync(conn, owner, strategy, plan.Errors, justSaved: false, request, ct);
                 return model is null ? View("RuntimeLimitsUnavailable") : View(nameof(Index), model);
             }
 
@@ -122,22 +113,16 @@ public sealed class ParametersController : Controller
                 request.Leverage!.Value,
                 request.MaxOpenPositions!.Value,
                 request.MaxOpenPositionsPerGroup!.Value);
-            // Resolved ONCE. It used to be rebuilt inside the predicate, so the whole profile was
-            // cloned and merged for every parameter in the catalogue.
-            var resolved = StrategyProfileStore.ResolveValues(strategy);
-            var values = StrategyParameterCatalog.All
-                .Where(definition => StrategyParameterCatalog.IsPresent(definition, resolved)
-                    && StrategyParameterCatalog.IsEnabled(definition, resolved)
-                    && request.Parameters.TryGetValue(definition.Id, out var posted) && posted is not null)
-                .ToDictionary(
-                    definition => definition.Id,
-                    definition => request.Parameters[definition.Id]!.Value,
-                    StringComparer.Ordinal);
             await StrategyProfileStore.SaveAsync(
                 conn,
                 owner.BotInstanceId,
                 strategy,
-                new StrategyProfileSave(profile, values, request.ChangeNote, User.Identity?.Name ?? string.Empty),
+                new StrategyProfileSave(
+                    profile,
+                    plan.Parameters,
+                    request.ChangeNote,
+                    User.Identity?.Name ?? string.Empty,
+                    plan.ModeToWrite),
                 ct);
         }
         catch (StrategyProfileConflictException e)
@@ -164,6 +149,82 @@ public sealed class ParametersController : Controller
         // than the form's.
         TempData["JustSaved"] = true;
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>
+    /// The Universe form: how many futures pairs the bot picks by itself, and which it always adds
+    /// or never opens. The row written is the signed-in account's bot, resolved here — the form
+    /// carries no bot id — and only an existing row is updated.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveUniverse(UniverseSaveRequest request, CancellationToken ct)
+    {
+        try
+        {
+            await using var conn = await _bot.OpenAsync(ct);
+            var owner = await BotInstanceOwnerStore.FindActiveAsync(
+                conn,
+                User.Identity?.Name ?? string.Empty,
+                ct);
+            if (owner is null)
+            {
+                return View("NoBot");
+            }
+
+            var strategy = await StrategyProfileStore.LoadActiveAsync(conn, owner.BotInstanceId, ct);
+            if (strategy is null)
+            {
+                return View("NoStrategyProfile");
+            }
+
+            var current = await UniversePreferenceStore.LoadAsync(conn, owner, ct);
+            if (current is null)
+            {
+                // The page offers no form without a row, so there is nothing this post may update.
+                TempData["UniverseConflict"] = true;
+                return RedirectToAction(nameof(Index), null, "universe");
+            }
+
+            var futuresPairs = await UniversePreferenceStore.LoadFuturesPairsAsync(conn, ct);
+            var validation = UniversePairList.Validate(
+                request.AutoInstrumentCount,
+                request.ForceIncludePairs,
+                request.ForceExcludePairs,
+                futuresPairs);
+            var errors = new Dictionary<string, string>(validation.Errors, StringComparer.Ordinal);
+            if (request.UniverseVersion != current.UpdatedAt.Ticks)
+            {
+                errors["universe"] = "Poros pasikeitė, kol buvo atidarytas šis puslapis. Peržiūrėk ir išsaugok dar kartą.";
+            }
+
+            if (errors.Count > 0)
+            {
+                var model = await BuildAsync(conn, owner, strategy, errors: null, justSaved: false, posted: null, ct, request, errors);
+                return model is null ? View("RuntimeLimitsUnavailable") : View(nameof(Index), model);
+            }
+
+            var saved = await UniversePreferenceStore.SaveAsync(
+                conn,
+                owner,
+                validation.Selection!,
+                current.UpdatedAt,
+                User.Identity?.Name ?? string.Empty,
+                ct);
+            TempData[saved ? "UniverseSaved" : "UniverseConflict"] = true;
+        }
+        catch (NpgsqlException e)
+        {
+            _log.LogError(e, "the bot database refused the universe write");
+            return View("BotUnreachable");
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            _log.LogError(e, "the universe save could not be completed for {Username}", User.Identity?.Name);
+            return View("ProfileUnreadable");
+        }
+
+        return RedirectToAction(nameof(Index), null, "universe");
     }
 
     [HttpPost]
@@ -322,7 +383,9 @@ public sealed class ParametersController : Controller
         IReadOnlyDictionary<string, string>? errors,
         bool justSaved,
         ParametersSaveRequest? posted,
-        CancellationToken ct)
+        CancellationToken ct,
+        UniverseSaveRequest? postedUniverse = null,
+        IReadOnlyDictionary<string, string>? universeErrors = null)
     {
         var overrides = await TradeProfileStore.LoadAsync(connection, owner.BotInstanceId, ct);
         if (overrides.Count != TradeProfileKeys.All.Length)
@@ -355,13 +418,16 @@ public sealed class ParametersController : Controller
 
         var values = StrategyProfileStore.ResolveValues(strategy);
         var runtimeLimits = BuildRuntimeLimits(profile, errors);
-        var parameters = StrategyParameterCatalog.All
-            .Select(definition => new StrategyParameterViewModel(
-                definition,
-                posted?.Parameters.GetValueOrDefault(definition.Id) ?? StrategyParameterCatalog.Read(definition, values),
-                StrategyParameterCatalog.IsEnabled(definition, values),
-                errors?.GetValueOrDefault(definition.Id)))
-            .ToList();
+        var universe = await UniversePreferenceStore.LoadAsync(connection, owner, ct);
+        var futuresPairs = await UniversePreferenceStore.LoadFuturesPairsAsync(connection, ct);
+
+        var exitMode = StrategyParameterViews.ExitMode(values, posted);
+        var parameters = StrategyParameterViews.Build(
+            values,
+            exitMode.AtrMode,
+            posted,
+            errors,
+            universe?.AutoInstrumentCount);
         var history = await StrategyProfileStore.LoadHistoryAsync(connection, strategy.ProfileId, 8, ct);
         // Npgsql permits one active command per connection. These are cheap point reads, so keep
         // them sequential rather than hiding a second connection behind a cosmetic parallelism.
@@ -387,6 +453,8 @@ public sealed class ParametersController : Controller
             LastWritten = lastWritten,
             RuntimeLimits = runtimeLimits,
             StrategyParameters = parameters,
+            ExitMode = exitMode,
+            Universe = BuildUniverse(universe, futuresPairs.Count, postedUniverse, universeErrors),
             RevisionHistory = history,
             Errors = errors ?? new Dictionary<string, string>(StringComparer.Ordinal),
             JustSaved = justSaved || TempData["JustSaved"] is true,
@@ -415,83 +483,31 @@ public sealed class ParametersController : Controller
         ? "Kraken Spot"
         : "Kraken Futures";
 
-    /// <summary>
-    /// The same four rules the fields carry, checked again on the server. Null means the field was
-    /// not a number at all — an empty box, or letters — and is refused rather than read as zero.
-    /// </summary>
-    private static Dictionary<string, string> Validate(ParametersSaveRequest request, ActiveStrategyProfile strategy)
+    private UniverseViewModel BuildUniverse(
+        UniversePreferences? row,
+        int registryPairCount,
+        UniverseSaveRequest? posted,
+        IReadOnlyDictionary<string, string>? errors)
     {
-        var p = new PostedProfile(
-            request.PositionMarginUsd,
-            request.Leverage,
-            request.MaxOpenPositions,
-            request.MaxOpenPositionsPerGroup);
-        var errors = new Dictionary<string, string>(StringComparer.Ordinal);
+        var include = row is null ? string.Empty : UniversePairList.Format(row.ForceIncludePairs);
+        var exclude = row is null ? string.Empty : UniversePairList.Format(row.ForceExcludePairs);
 
-        // ZERO IS ALLOWED, and it is the one value here that means something other than a size:
-        // no margin is no position to open. It used to be refused as a typo, which left an owner
-        // wanting to stop new entries with nothing on this screen to do it with. The bot's own
-        // table has no CHECK against it (bot_config_overrides, verified on the test host), so the
-        // value stores; what the screen owes the reader is to say loudly what it now means.
-        if (p.PositionMarginUsd is not { } margin || margin < 0)
-        {
-            errors[TradeProfileKeys.PositionMarginUsd] = "Įvesk nulį arba teigiamą skaičių";
-        }
-
-        if (p.Leverage is not { } lev || lev < 1 || lev > 10)
-        {
-            errors[TradeProfileKeys.Leverage] = "Leistina reikšmė nuo 1 iki 10";
-        }
-
-        if (p.MaxOpenPositions is not { } max || max < 1 || max > 20)
-        {
-            errors[TradeProfileKeys.MaxOpenPositions] = "Įvesk sveiką skaičių nuo 1 iki 20";
-        }
-
-        if (p.MaxOpenPositionsPerGroup is not { } group || group < 1 || group > 20)
-        {
-            errors[TradeProfileKeys.MaxOpenPositionsPerGroup] = "Įvesk sveiką skaičių nuo 1 iki 20";
-        }
-        else if (p.MaxOpenPositions is { } total && group > total)
-        {
-            // Only when the total itself is valid: two complaints about one mistake is one too many.
-            errors[TradeProfileKeys.MaxOpenPositionsPerGroup] = "Negali viršyti bendro pozicijų limito";
-        }
-
-        if (request.ChangeNote?.Length > 1_000)
-        {
-            errors["changeNote"] = "Strategijos pastaba negali būti ilgesnė nei 1000 simbolių";
-        }
-
-        var values = StrategyProfileStore.ResolveValues(strategy);
-        foreach (var definition in StrategyParameterCatalog.All)
-        {
-            // A key this profile does not carry has no input on the page, so it is not missing from
-            // the post — it was never askable. Complaining "enter a number" about a field nobody was
-            // shown is the form blaming the reader for the profile's shape.
-            if (!StrategyParameterCatalog.IsPresent(definition, values)
-                || !StrategyParameterCatalog.IsEnabled(definition, values))
-            {
-                continue;
-            }
-
-            if (!request.Parameters.TryGetValue(definition.Id, out var value) || value is null)
-            {
-                errors[definition.Id] = "Įvesk skaičių";
-                continue;
-            }
-
-            try
-            {
-                StrategyParameterCatalog.Write(definition, values, value.Value);
-            }
-            catch (ArgumentException)
-            {
-                errors[definition.Id] = "Reikšmė nepatenka į leidžiamą ribą";
-            }
-        }
-
-        return errors;
+        // A refused save keeps what was typed, as the strategy form does.
+        return new UniverseViewModel(
+            Configured: row is not null,
+            AutoInstrumentCount: posted?.AutoInstrumentCount ?? row?.AutoInstrumentCount ?? 0,
+            ForceIncludeText: posted is null ? include : posted.ForceIncludePairs ?? string.Empty,
+            ForceExcludeText: posted is null ? exclude : posted.ForceExcludePairs ?? string.Empty,
+            SavedAutoInstrumentCount: row?.AutoInstrumentCount ?? 0,
+            SavedForceIncludeCount: row?.ForceIncludePairs.Length ?? 0,
+            SavedForceExcludeCount: row?.ForceExcludePairs.Length ?? 0,
+            RegistryPairCount: registryPairCount,
+            Version: row?.UpdatedAt.Ticks ?? 0,
+            UpdatedAt: row?.UpdatedAt,
+            UpdatedBy: row?.UpdatedBy,
+            Errors: errors ?? new Dictionary<string, string>(StringComparer.Ordinal),
+            JustSaved: TempData["UniverseSaved"] is true,
+            Conflict: TempData["UniverseConflict"] is true);
     }
 
     private static IReadOnlyList<RuntimeLimitViewModel> BuildRuntimeLimits(
@@ -576,6 +592,4 @@ public sealed class ParametersController : Controller
             errors?.GetValueOrDefault(TradeProfileKeys.MaxOpenPositionsPerGroup)),
     ];
 
-    private sealed record PostedProfile(
-        decimal? PositionMarginUsd, decimal? Leverage, int? MaxOpenPositions, int? MaxOpenPositionsPerGroup);
 }

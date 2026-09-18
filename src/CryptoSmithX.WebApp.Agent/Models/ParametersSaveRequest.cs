@@ -18,6 +18,10 @@ public sealed class ParametersSaveRequest
 
     public int? MaxOpenPositionsPerGroup { get; init; }
 
+    /// <summary>The exit mode chosen on the page: false is fixed percentages, true is ATR trailing.
+    /// NULL keeps the mode the active revision already has.</summary>
+    public bool? AtrTrailingRegimeEnabled { get; init; }
+
     public Dictionary<string, decimal?> Parameters { get; init; } = new(StringComparer.Ordinal);
 
     public string? ChangeNote { get; init; }

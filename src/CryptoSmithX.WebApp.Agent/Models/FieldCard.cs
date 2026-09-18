@@ -37,7 +37,12 @@ public sealed record FieldCard(
     /// <summary>The profile does not carry this key. Not the same as a locked field: a locked field
     /// holds a figure the profile computed, and this one holds nothing at all — so it prints a dash
     /// and says so, rather than a number nobody measured.</summary>
-    bool Missing = false)
+    bool Missing = false,
+    /// <summary>Rendered but switched off: the input is disabled, so it neither posts nor blocks the
+    /// form's validation. The exit mode not on screen keeps its cards this way.</summary>
+    bool Inactive = false,
+    /// <summary>What the locked value's corner says, when it is not a figure the profile computed.</summary>
+    string? LockedNote = null)
 {
     /// <summary>The value as the input prints it — the same string the server would validate, so a
     /// reader comparing the field with the sheet sees one number and not two roundings of it.

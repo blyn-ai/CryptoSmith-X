@@ -1,4 +1,5 @@
 @using System.Globalization
+@using CryptoSmithX.WebApp.Agent.Data
 @using CryptoSmithX.WebApp.Agent.Models
 @model ParametersViewModel
 @{
@@ -6,6 +7,7 @@
     ViewData["PageClass"] = "p-params";
 
     string? Err(string key) => Model.Errors.TryGetValue(key, out var message) ? message : null;
+    string? UniverseErr(string key) => Model.Universe.Errors.TryGetValue(key, out var message) ? message : null;
     StrategyParameterViewModel Parameter(string id) => Model.StrategyParameters.Single(p => p.Definition.Id == id);
 
     // Метка у сверта — из макета, и считается из самого значения: до 5× сбалансировано,
@@ -30,23 +32,50 @@
         // twenty, one of which is unaccounted for.
         var missing = p.Value is null;
 
+        // Decided elsewhere — the markets count, when the Universe row sets it. Shown locked, with
+        // the figure the worker actually runs and the section that decides it.
+        var decidedElsewhere = p.LockReason is not null;
+
         return new FieldCard(
             missing ? null : $"Parameters[{d.Id}]",
             d.Label, d.Unit, p.Value ?? 0m, d.Minimum, d.Maximum, d.Step, d.DecimalPlaces,
             d.LowerCaption, d.HigherCaption, d.Description, d.Example,
             d.DetailIntro, d.LowerImpact, d.HigherImpact, d.Technical,
-            Editable: p.IsEnabled && !missing, Tag: null,
+            Editable: !missing && !decidedElsewhere, Tag: null,
             Hint: missing
                 ? "Šio nustatymo šiame strategijos profilyje nėra — boto worker jo neskaito."
-                : p.IsEnabled ? null : "Išjungta šio profilio ATR trailing režimu.",
+                : p.LockReason,
             Error: p.Error,
-            Missing: missing);
+            Missing: missing,
+            // The exit mode not on screen: its cards are drawn, hidden with their group and with
+            // disabled inputs, so they neither post nor block the form — and their stored values
+            // stay in the profile untouched.
+            Inactive: !p.IsEnabled,
+            LockedNote: decidedElsewhere ? "Valdo „Prekybos poros“" : null);
     }
 
     var tradeParameters = new[] { "markets", "volume", "longScore", "shortScore", "spread", "btcDrop", "btcBars" }
         .Select(id => FromParameter(Parameter(id))).ToList();
-    var exitParameters = new[] { "stop", "trail", "maxHold", "cooldown" }
+    var fixedExitParameters = new[] { "fixedStop", "fixedTakeProfit", "fixedTrail" }
         .Select(id => FromParameter(Parameter(id))).ToList();
+    var atrExitParameters = new[] { "stop", "trail", "atrTrail" }
+        .Select(id => FromParameter(Parameter(id))).ToList();
+    var exitParameters = new[] { "maxHold", "cooldown" }
+        .Select(id => FromParameter(Parameter(id))).ToList();
+    var atrMode = Model.ExitMode.AtrMode;
+
+    var universe = Model.Universe;
+    var autoInstrumentCard = new FieldCard(
+        UniverseFields.AutoInstrumentCount, "Automatiškai renkamų porų skaičius", "porų",
+        universe.AutoInstrumentCount, UniversePairList.MinimumAutoInstrumentCount, UniversePairList.MaximumAutoInstrumentCount, 1m, 0,
+        "Tik pasirinktos poros", "Platesnė atranka",
+        "Kiek aktyviausių futures porų botas kas ciklą atsirenka pats. 0 — automatinės atrankos nėra: lieka tik visada įtrauktos poros ir jau atidarytos pozicijos.",
+        $"Dabar: {universe.SavedAutoInstrumentCount} automatiškai + {universe.SavedForceIncludeCount} visada įtrauktų · {universe.SavedForceExcludeCount} neįtrauktų.",
+        "Botas kas ciklą surikiuoja registro futures poras pagal aktyvumą ir paima nurodytą skaičių. Visada įtrauktos poros pridedamos papildomai.",
+        "Mažiau porų — ramesnis srautas, mažiau signalų.",
+        "Daugiau porų — daugiau progų, bet ir daugiau triukšmo.",
+        "Saugoma kaip bot_universe_preferences.auto_instrument_count. Worker šį skaičių taiko po strategijos profilio, todėl jis pakeičia profilio Trading.MaxActiveInstruments.",
+        Editable: true, Tag: null, Hint: null, Error: UniverseErr(UniverseFields.AutoInstrumentCount));
 
     var exposure = Model.Profile.PositionMarginUsd * Model.Profile.Leverage * Model.Profile.MaxOpenPositions;
     var elevatedRisk = exposure >= 10_000m || Model.Profile.Leverage >= 8m;
@@ -80,7 +109,7 @@
 <div class="modeler-heading">
     <h1>Strategijos nustatymai</h1>
     <span class="profile-line"><span>@Model.PublicAlias</span><span>@Model.BotInstanceId</span></span>
-    <p>Viršuje — pinigai ir ekspozicija · žemiau — kaip agresyviai botas elgiasi · apačioje — išėjimo taisyklės.</p>
+    <p>Viršuje — pinigai ir ekspozicija · žemiau — kaip agresyviai botas elgiasi ir išėjimo taisyklės · po jų — kuriomis poromis prekiaujama.</p>
 </div>
 
 @* PAUZĖ. Nulinė marža reiškia, kad naujų pozicijų atidaryti nėra iš ko, ir tai vienintelė šio
@@ -159,6 +188,45 @@
 
 <section class="modeler-section">
     <div class="section-heading"><span>3</span><h2>Rizika ir išėjimas</h2><span>Redaguojama</span></div>
+    @* Режим выхода — один переключатель профиля, Exits.AtrTrailingRegimeEnabled. Поля другого
+       режима остаются в документе: скрыты вместе с группой и выключены, поэтому не уходят с
+       формой, а их значения в профиле не трогаются. Без скриптов сервер отвечает на выбор
+       режима, показывая нужную группу. *@
+    <div class="field csx-wide exit-mode" role="radiogroup" aria-labelledby="exit-mode-label"
+         data-exit-mode data-saved-mode="@(Model.ExitMode.SavedAtrMode ? "true" : "false")">
+        <div class="field-head"><span class="label" id="exit-mode-label">Išėjimo režimas</span></div>
+        <div class="exit-mode-options">
+            <label class="exit-mode-option">
+                <input type="radio" name="atrTrailingRegimeEnabled" value="false"
+                       checked="@(atrMode ? null : "checked")" disabled="@(Model.ExitMode.Editable ? null : "disabled")">
+                <span>Fiksuoti procentai</span>
+            </label>
+            <label class="exit-mode-option">
+                <input type="radio" name="atrTrailingRegimeEnabled" value="true"
+                       checked="@(atrMode ? "checked" : null)" disabled="@(Model.ExitMode.Editable ? null : "disabled")">
+                <span>ATR trailing</span>
+            </label>
+        </div>
+        <p class="field-description" data-exit-note="fixed" hidden="@(atrMode ? "hidden" : null)">Stop loss, take profit ir trailing — fiksuoti procentai nuo įėjimo kainos. Pasiekus take profit ribą įsijungia trailing stop, todėl pozicija nebūtinai uždaroma tiksliai ties take profit: ji uždaroma, kai kaina atsitraukia trailing atstumu.</p>
+        <p class="field-description" data-exit-note="atr" hidden="@(atrMode ? null : "hidden")">Stop loss ir trailing matuojami ATR — rinkos svyravimu. Fiksuoto take profit šiame režime nėra: pelną saugo tik trailing stop, kuris įsijungia pasiekus aktyvacijos ribą R vienetais.</p>
+        <p class="field-example">Kito režimo reikšmės lieka profilyje nepakeistos — grįžus prie jo, jos vėl galios.</p>
+        @if (!Model.ExitMode.Editable)
+        {
+            <span class="hint">Šiame profilyje režimo jungiklio nėra — worker naudoja fiksuotus procentus.</span>
+        }
+    </div>
+    <div class="csx-grid" data-exit-group="fixed" hidden="@(atrMode ? "hidden" : null)">
+        @foreach (var card in fixedExitParameters)
+        {
+            <partial name="_Field" model="card" />
+        }
+    </div>
+    <div class="csx-grid" data-exit-group="atr" hidden="@(atrMode ? null : "hidden")">
+        @foreach (var card in atrExitParameters)
+        {
+            <partial name="_Field" model="card" />
+        }
+    </div>
     <div class="csx-grid">
         @foreach (var card in exitParameters)
         {
@@ -188,8 +256,76 @@
 </div>
 </form>
 
+@* Вселенная пар — отдельная форма: она пишет не ревизию профиля, а строку
+   bot_universe_preferences, и у неё своя кнопка. Бота форма не называет — сервер берёт его из
+   входа. Без строки в базе формы нет: создать её значило бы молча заменить списки, которые
+   worker сейчас берёт из своей конфигурации. *@
+<section class="modeler-section universe-section" id="universe" aria-labelledby="universe-title">
+    <div class="section-heading"><span>4</span><h2 id="universe-title">Prekybos poros</h2><span>@(universe.Configured ? "Redaguojama" : "Tik peržiūrai")</span></div>
+    <p class="section-note">Tik futures. Porų sąrašas bendras visiems botams — @universe.RegistryPairCount aktyvių futures porų biržos registre. Čia nustatai tik tai, kuo šis botas nuo jo skiriasi.</p>
+    @if (universe.JustSaved)
+    {
+        <p class="landed" role="status">Poros išsaugotos. Worker jas pritaikys per kitą savo ciklą. Jau atidarytos pozicijos nesikeis.</p>
+    }
+    @if (universe.Conflict)
+    {
+        <p class="refused" role="alert">Poros pasikeitė, kol buvo atidarytas šis puslapis. Žemiau rodomos dabartinės — peržiūrėk ir išsaugok dar kartą.</p>
+    }
+    @if (UniverseErr("universe") is { } universeError)
+    {
+        <p class="refused" role="alert">@universeError</p>
+    }
+
+    @if (!universe.Configured)
+    {
+        <p class="empty">Šiam botui porų nustatymų boto duomenų bazėje nėra — worker naudoja savo diegimo konfigūraciją, o šis ekranas jos nekeičia.</p>
+    }
+    else
+    {
+        <form method="post" asp-action="SaveUniverse" class="universe-form" data-universe-form>
+            <input type="hidden" name="universeVersion" value="@universe.Version">
+            <div class="csx-grid">
+                <div class="csx-wide"><partial name="_Field" model="autoInstrumentCard" /></div>
+                <div class="field @(UniverseErr(UniverseFields.ForceIncludePairs) is null ? null : "bad")">
+                    <div class="field-head">
+                        <label class="label" for="universe-include">Visada įtraukti</label>
+                        <span class="tag">@universe.SavedForceIncludeCount porų</span>
+                    </div>
+                    <textarea id="universe-include" name="@UniverseFields.ForceIncludePairs" rows="6" spellcheck="false" autocomplete="off" autocapitalize="characters">@universe.ForceIncludeText</textarea>
+                    @if (UniverseErr(UniverseFields.ForceIncludePairs) is { } includeError)
+                    {
+                        <span class="bad-msg">@includeError</span>
+                    }
+                    <p class="field-description">Šios poros pridedamos papildomai prie automatiškai atrinktų — į automatinį skaičių jos neįskaičiuojamos.</p>
+                    <p class="field-example">Poras atskirk kableliu, kabliataškiu arba nauja eilute, pvz. XBT/USD, ETH/USD. Didžiosios raidės ir pasikartojimai sutvarkomi automatiškai.</p>
+                </div>
+                <div class="field @(UniverseErr(UniverseFields.ForceExcludePairs) is null ? null : "bad")">
+                    <div class="field-head">
+                        <label class="label" for="universe-exclude">Niekada neatidaryti</label>
+                        <span class="tag">@universe.SavedForceExcludeCount porų</span>
+                    </div>
+                    <textarea id="universe-exclude" name="@UniverseFields.ForceExcludePairs" rows="6" spellcheck="false" autocomplete="off" autocapitalize="characters">@universe.ForceExcludeText</textarea>
+                    @if (UniverseErr(UniverseFields.ForceExcludePairs) is { } excludeError)
+                    {
+                        <span class="bad-msg">@excludeError</span>
+                    }
+                    <p class="field-description">Šiose porose naujos pozicijos nebeatidaromos. Jau atidarytos pozicijos jose lieka ir valdomos iki galo.</p>
+                    <p class="field-example">Pora negali būti ir visada įtraukta, ir neįtraukta.</p>
+                </div>
+            </div>
+            <div class="universe-actions">
+                <button type="submit" class="btn-primary">Išsaugoti poras</button>
+                @if (universe.UpdatedAt is { } universeUpdatedAt)
+                {
+                    <p>Paskutinį kartą keista <time datetime="@universeUpdatedAt.ToUniversalTime().ToString("O")">@universeUpdatedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm") UTC</time>@(universe.UpdatedBy is { Length: > 0 } by ? " · " + by : null)</p>
+                }
+            </div>
+        </form>
+    }
+</section>
+
 <section class="modeler-section">
-    <div class="section-heading"><span>4</span><h2>Strategijos vidiniai parametrai</h2><span>Tik peržiūrai</span></div>
+    <div class="section-heading"><span>5</span><h2>Strategijos vidiniai parametrai</h2><span>Tik peržiūrai</span></div>
     <button type="button" class="internals-toggle" data-internals-toggle aria-expanded="false">Rodyti vidinius parametrus</button>
     <div class="csx-grid" hidden data-internals>
         @foreach (var (label, value, description) in new[]
@@ -217,7 +353,7 @@
 </section>
 
 <section class="modeler-section kraken-section" aria-labelledby="kraken-credentials-title">
-    <div class="section-heading"><span>5</span><h2 id="kraken-credentials-title">Kraken API raktai</h2><span>Redaguojama</span></div>
+    <div class="section-heading"><span>6</span><h2 id="kraken-credentials-title">Kraken API raktai</h2><span>Redaguojama</span></div>
     <button type="button" class="internals-toggle" data-kraken-toggle aria-expanded="false">Rodyti / redaguoti API raktus</button>
 
     <div class="kraken-content" hidden data-kraken-content>
@@ -335,6 +471,7 @@
                 <span class="sheet-row"><span>Svertas</span><span data-for="leverage"></span></span>
                 <span class="sheet-row"><span>Daugiausia atvirų pozicijų</span><span data-for="maxOpenPositions"></span></span>
                 <span class="sheet-row"><span>Daugiausia vienoje grupėje</span><span data-for="maxOpenPositionsPerGroup"></span></span>
+                <span class="sheet-row"><span>Išėjimo režimas</span><span data-for-mode></span></span>
             </div>
             <label class="dialog-field">
                 <span class="dialog-eyebrow">Pastabos</span>

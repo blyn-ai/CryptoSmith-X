@@ -26,6 +26,10 @@ public sealed class ParametersViewModel
 
     public required IReadOnlyList<StrategyParameterViewModel> StrategyParameters { get; init; }
 
+    public required ExitModeViewModel ExitMode { get; init; }
+
+    public required UniverseViewModel Universe { get; init; }
+
     public required IReadOnlyList<StrategyProfileRevision> RevisionHistory { get; init; }
 
     /// <summary>Field name → message. Empty when nothing was refused.</summary>
@@ -53,11 +57,43 @@ public sealed record KrakenCredentialScopeViewModel(
 /// <param name="Value">NULL when this profile does not carry the key — the screen prints a dash and
 /// locks the field. See <see cref="Data.StrategyParameterCatalog.Read"/> for why that is a state
 /// rather than an error.</param>
+/// <param name="IsEnabled">The parameter belongs to the exit mode on screen. A parameter of the other
+/// mode is still rendered, hidden and disabled, so switching modes on the page needs no reload.</param>
+/// <param name="LockReason">Set when something else decides this value, so the page shows it without
+/// an input and says what decides it instead.</param>
 public sealed record StrategyParameterViewModel(
     StrategyParameterDefinition Definition,
     decimal? Value,
     bool IsEnabled,
-    string? Error);
+    string? Error,
+    string? LockReason = null);
+
+/// <param name="AtrMode">The mode on screen: the saved one, or the one a refused save asked for.</param>
+/// <param name="SavedAtrMode">The mode the active revision runs.</param>
+/// <param name="Editable">False when the profile does not carry the switch; the worker then runs its
+/// default, fixed percentages, and the page will not add the key.</param>
+public sealed record ExitModeViewModel(
+    bool AtrMode,
+    bool SavedAtrMode,
+    bool Editable);
+
+/// <summary>The Universe section. <see cref="Configured"/> is false when the bot has no row, and
+/// the section then says so instead of offering a form.</summary>
+public sealed record UniverseViewModel(
+    bool Configured,
+    int AutoInstrumentCount,
+    string ForceIncludeText,
+    string ForceExcludeText,
+    int SavedAutoInstrumentCount,
+    int SavedForceIncludeCount,
+    int SavedForceExcludeCount,
+    int RegistryPairCount,
+    long Version,
+    DateTime? UpdatedAt,
+    string? UpdatedBy,
+    IReadOnlyDictionary<string, string> Errors,
+    bool JustSaved,
+    bool Conflict);
 
 public sealed record RuntimeLimitViewModel(
     string Key,

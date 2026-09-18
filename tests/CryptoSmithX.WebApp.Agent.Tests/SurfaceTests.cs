@@ -215,4 +215,43 @@ public sealed class SurfaceTests
         mobile = mobile[..mobile.IndexOf('}', mobile.IndexOf("lockup", StringComparison.Ordinal))];
         Assert.DoesNotContain("font-size", mobile, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void The_exit_mode_not_on_screen_is_hidden_disabled_and_explained()
+    {
+        var page = Read("Index.cshtml");
+        var field = Read("_Field.cshtml");
+        var js = Read("parameters.js");
+
+        // One switch, posted under the name the request binds.
+        Assert.Contains("name=\"atrTrailingRegimeEnabled\" value=\"false\"", page, StringComparison.Ordinal);
+        Assert.Contains("name=\"atrTrailingRegimeEnabled\" value=\"true\"", page, StringComparison.Ordinal);
+
+        // The group of the other mode is hidden by the server and its inputs are disabled, so they
+        // neither post nor block validation — before any script runs.
+        Assert.Contains("data-exit-group=\"fixed\" hidden=\"@(atrMode ? \"hidden\" : null)\"", page, StringComparison.Ordinal);
+        Assert.Contains("data-exit-group=\"atr\" hidden=\"@(atrMode ? null : \"hidden\")\"", page, StringComparison.Ordinal);
+        Assert.Contains("Inactive: !p.IsEnabled", page, StringComparison.Ordinal);
+        Assert.Contains("disabled=\"@(Model.Inactive ? \"disabled\" : null)\"", field, StringComparison.Ordinal);
+        Assert.Contains("input.disabled = !active", js, StringComparison.Ordinal);
+
+        // What each mode means, in the reader's language.
+        Assert.Contains("pozicija nebūtinai uždaroma tiksliai ties take profit", page, StringComparison.Ordinal);
+        Assert.Contains("Fiksuoto take profit šiame režime nėra", page, StringComparison.Ordinal);
+        Assert.Contains("Kito režimo reikšmės lieka profilyje nepakeistos", page, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_universe_form_names_no_bot_and_says_what_its_lists_do()
+    {
+        var page = Read("Index.cshtml");
+        var form = page[page.IndexOf("asp-action=\"SaveUniverse\"", StringComparison.Ordinal)..];
+        form = form[..form.IndexOf("</form>", StringComparison.Ordinal)];
+
+        Assert.Contains("name=\"universeVersion\"", form, StringComparison.Ordinal);
+        Assert.DoesNotContain("botInstance", form, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pridedamos papildomai prie automatiškai atrinktų", form, StringComparison.Ordinal);
+        Assert.Contains("Jau atidarytos pozicijos jose lieka ir valdomos iki galo", form, StringComparison.Ordinal);
+        Assert.Contains("Tik futures.", page, StringComparison.Ordinal);
+    }
 }

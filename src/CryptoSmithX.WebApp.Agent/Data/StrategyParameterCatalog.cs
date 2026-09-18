@@ -10,9 +10,13 @@ namespace CryptoSmithX.WebApp.Agent.Data;
 /// </summary>
 public static class StrategyParameterCatalog
 {
+    /// <summary>How many pairs the worker picks by itself — decided by the Universe row when the
+    /// bot has one, since the worker applies that row after the profile.</summary>
+    public const string MarketsId = "markets";
+
     public static readonly IReadOnlyList<StrategyParameterDefinition> All =
     [
-        Decimal("markets", "Trading", "MaxActiveInstruments", "Porų ar vnt. skaičius", "porų / vnt.", 1m, 100m, 1m, 0,
+        Decimal(MarketsId, "Trading", "MaxActiveInstruments", "Porų ar vnt. skaičius", "porų / vnt.", 1m, 100m, 1m, 0,
             "Kiek aktyviausių kriptovaliutų ar akcijų botas vienu metu tikrina ieškodamas progų.",
             "Daugiau kriptovaliutų ar akcijų = daugiau galimų signalų, bet ir daugiau triukšmo.",
             "Mažiau kriptovaliutų ar akcijų", "Daugiau galimybių",
@@ -69,6 +73,33 @@ public static class StrategyParameterCatalog
             "Reaguojama tik į labai staigius judesius.",
             "Įvertinamas ilgesnis, lėtesnis kritimas.",
             "Efektyvus laikas = žvakės ilgis × žvakių skaičius. Žvakės ilgis ateina iš strategijos profilio metaduomenų."),
+        Decimal("fixedStop", "TpSl", "StopLossPercent", "Stop loss", "%", 0.25m, 10m, 0.05m, 2,
+            "Kiek procentų kaina gali nueiti prieš poziciją, kol botas ją uždaro nuostoliu.",
+            "Pvz. 2 %: LONG įėjus ties 100, stop loss — ties 98.",
+            "Greitesnis stop", "Daugiau erdvės kainai",
+            "Fiksuotas stop loss atstumas procentais nuo įėjimo kainos. Jis nesikeičia pagal rinkos svyravimą.",
+            "Nuostoliai mažesni, bet dažniau išmuš atsitiktinis svyravimas.",
+            "Rečiau išmuš, bet vienas nesėkmingas sandoris kainuos daugiau.",
+            "Saugoma kaip TpSl.StopLossPercent. ATR režimu nenaudojama, bet reikšmė lieka profilyje nepakeista.",
+            mode: StrategyExitMode.Fixed),
+        Decimal("fixedTakeProfit", "TpSl", "TakeProfitPercent", "Take profit riba", "%", 0.25m, 20m, 0.05m, 2,
+            "Pelno riba procentais. Ją pasiekus įsijungia trailing stop — pozicija nebūtinai uždaroma tiksliai ties šia riba.",
+            "Pvz. 4 %: LONG įėjus ties 100, ties 104 įsijungia trailing stop, o uždaroma, kai kaina atsitraukia trailing atstumu.",
+            "Anksčiau saugoti", "Daugiau erdvės pelnui",
+            "Šiame režime take profit — ne uždarymo taškas, o riba, nuo kurios botas pradeda saugoti pelną fiksuotų procentų trailing stop.",
+            "Trailing įsijungia anksčiau — pelnas saugomas greičiau, bet judesys spėja nueiti mažiau.",
+            "Trailing įsijungia vėliau — daugiau vietos augti, bet dalis pozicijų ribos taip ir nepasiekia.",
+            "Saugoma kaip TpSl.TakeProfitPercent. Pasiekus ribą stop perkeliamas paskui kainą TpSl.TrailingStopPercent atstumu; atgal jis nejuda.",
+            mode: StrategyExitMode.Fixed),
+        Decimal("fixedTrail", "TpSl", "TrailingStopPercent", "Trailing atstumas", "%", 0.05m, 5m, 0.05m, 2,
+            "Kiek procentų kaina gali atsitraukti nuo geriausio taško, kai trailing stop jau įjungtas.",
+            "Pvz. 0,75 %: pasiekus take profit, pozicija uždaroma kainai atsitraukus 0,75 % nuo piko.",
+            "Arčiau kainos", "Daugiau erdvės",
+            "Trailing stop seka kainą fiksuotu procentų atstumu nuo geriausio pasiekto taško. Jis įsijungia tik pasiekus take profit ribą.",
+            "Pelnas užfiksuojamas greičiau, bet mažas svyravimas gali uždaryti poziciją per anksti.",
+            "Pozicijai duodama daugiau vietos augti, bet dalis pelno gali grįžti atgal.",
+            "Saugoma kaip TpSl.TrailingStopPercent. ATR režimu vietoje jos naudojamas ATR atstumas, o ši reikšmė lieka profilyje nepakeista.",
+            mode: StrategyExitMode.Fixed),
         Decimal("stop", "Exits", "StopAtrMult", "Stop loss", "× ATR", 0.50m, 3m, 0.05m, 2,
             "Kiek vietos kainai leidžiama judėti prieš uždarant nuostolingą poziciją. Matuojama rinkos svyravimo dydžiu, ATR, ne fiksuotu procentu.",
             "Daugiau erdvės = rečiau išmuša maži svyravimai, bet galimas didesnis nuostolis.",
@@ -76,7 +107,8 @@ public static class StrategyParameterCatalog
             "Stop loss atstumas matuojamas ATR — vidutiniu tos kriptovaliutos ar akcijos svyravimu. Ramioje rinkoje stop arčiau, neramioje — toliau.",
             "Nuostoliai mažesni, bet dažniau išmuš atsitiktinis svyravimas.",
             "Rečiau išmuš, bet vienas nesėkmingas sandoris kainuos daugiau.",
-            "Galutinis atstumas ribojamas procentine grindų ir lubų reikšme, kad labai ramioje ar išsišokusioje rinkoje stop netaptų beprasmis."),
+            "Galutinis atstumas ribojamas procentine grindų ir lubų reikšme, kad labai ramioje ar išsišokusioje rinkoje stop netaptų beprasmis.",
+            mode: StrategyExitMode.Atr),
         Decimal("trail", "Exits", "TrailingActivationRMultiple", "Trailing apsaugos pradžia", "R", 0.30m, 3m, 0.10m, 1,
             "Nuo šio pelno botas pradeda saugoti jau uždirbtą rezultatą. Matuojama pradinės rizikos dalimis, R.",
             "1R yra atstumas nuo įėjimo iki stop loss. Kol riba nepasiekta, trailing dar neveikia.",
@@ -85,7 +117,16 @@ public static class StrategyParameterCatalog
             "Rezultatas saugomas anksčiau, bet sandoris dažniau uždaromas nespėjęs išaugti.",
             "Sandoriui duodama daugiau erdvės, bet dalis pelno gali grįžti atgal.",
             "Pasiekus aktyvacijos ribą stop perkeliamas paskui kainą fiksuotu ATR atstumu; atgal jis niekada nejuda.",
-            StrategyValueTransform.Identity, "Exits.AtrTrailingRegimeEnabled"),
+            mode: StrategyExitMode.Atr),
+        Decimal("atrTrail", "Exits", "TrailingAtrMultiple", "Trailing atstumas", "× ATR", 0.25m, 5m, 0.05m, 2,
+            "Kiek ATR vienetų kaina gali atsitraukti nuo geriausio taško, kai trailing jau įjungtas.",
+            "Pvz. 1,5 × ATR: neramioje rinkoje atstumas didesnis, ramioje — mažesnis.",
+            "Arčiau kainos", "Daugiau erdvės",
+            "ATR režimu trailing atstumas matuojamas rinkos svyravimu, ne fiksuotu procentu.",
+            "Pelnas užfiksuojamas greičiau, bet mažas svyravimas gali uždaryti poziciją per anksti.",
+            "Pozicijai duodama daugiau vietos augti, bet dalis pelno gali grįžti atgal.",
+            "Saugoma kaip Exits.TrailingAtrMultiple. Trailing įsijungia pasiekus aktyvacijos ribą R vienetais; fiksuoto take profit šiame režime nėra.",
+            mode: StrategyExitMode.Atr),
         Decimal("maxHold", "Exits", "MaxHoldMinutes", "Maksimali sandorio trukmė", "min.", 15m, 1_440m, 15m, 0,
             "Kiek ilgiausiai botas gali laikyti poziciją.",
             "Pasibaigus laikui pozicija gali būti uždaryta net nepasiekus TP ar SL.",
@@ -109,16 +150,50 @@ public static class StrategyParameterCatalog
         All.SingleOrDefault(parameter => string.Equals(parameter.Id, id, StringComparison.Ordinal))
         ?? throw new KeyNotFoundException($"Unknown strategy parameter '{id}'.");
 
-    public static bool IsEnabled(StrategyParameterDefinition definition, JsonObject values)
+    /// <summary>The profile key that selects the exit mode: false is fixed percentages (the worker's
+    /// default), true is ATR trailing with no fixed take profit.</summary>
+    public const string ExitModeSection = "Exits";
+
+    public const string ExitModeProperty = "AtrTrailingRegimeEnabled";
+
+    /// <summary>
+    /// The exit mode this profile states, or NULL when it does not carry the switch at all. A
+    /// profile without it runs the worker's default, fixed percentages; <see cref="WriteExitMode"/>
+    /// refuses to add the key, for the same reason <see cref="Write"/> refuses any other.
+    /// </summary>
+    public static bool? ReadAtrMode(JsonObject values) =>
+        values[ExitModeSection]?[ExitModeProperty]?.GetValue<bool>();
+
+    /// <summary>The mode the worker actually runs: the stated one, or fixed when none is stated.</summary>
+    public static bool EffectiveAtrMode(JsonObject values) => ReadAtrMode(values) ?? false;
+
+    /// <summary>Whether a parameter belongs to the given exit mode. Mode-free parameters always do.</summary>
+    public static bool IsActiveIn(StrategyParameterDefinition definition, bool atrMode) => definition.Mode switch
     {
-        if (definition.EnabledWhenPath is null)
+        StrategyExitMode.Always => true,
+        StrategyExitMode.Fixed => !atrMode,
+        StrategyExitMode.Atr => atrMode,
+        _ => throw new ArgumentOutOfRangeException(nameof(definition), definition.Mode, null),
+    };
+
+    /// <summary>Whether the profile, as it stands, lets this parameter be edited: the parameter
+    /// belongs to the exit mode the profile runs. The other mode's values stay stored, untouched.</summary>
+    public static bool IsEnabled(StrategyParameterDefinition definition, JsonObject values) =>
+        IsActiveIn(definition, EffectiveAtrMode(values));
+
+    /// <summary>
+    /// Switches the exit mode. Only the switch changes: the inactive mode's values stay in the
+    /// profile exactly as they were, so switching back restores them rather than resetting them.
+    /// </summary>
+    public static void WriteExitMode(JsonObject values, bool atrMode)
+    {
+        if (ReadAtrMode(values) is null || values[ExitModeSection] is not JsonObject section)
         {
-            return true;
+            throw new InvalidOperationException(
+                $"Strategy profile does not carry '{ExitModeSection}.{ExitModeProperty}'.");
         }
 
-        var parts = definition.EnabledWhenPath.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return parts.Length == 2
-            && values[parts[0]]?[parts[1]]?.GetValue<bool>() == true;
+        section[ExitModeProperty] = atrMode;
     }
 
     /// <summary>
@@ -203,8 +278,8 @@ public static class StrategyParameterCatalog
         string higherImpact,
         string technical,
         StrategyValueTransform transform = StrategyValueTransform.Identity,
-        string? enabledWhenPath = null) =>
-        new(id, section, property, label, unit, minimum, maximum, step, decimalPlaces, description, example, lowerCaption, higherCaption, detailIntro, lowerImpact, higherImpact, technical, transform, enabledWhenPath);
+        StrategyExitMode mode = StrategyExitMode.Always) =>
+        new(id, section, property, label, unit, minimum, maximum, step, decimalPlaces, description, example, lowerCaption, higherCaption, detailIntro, lowerImpact, higherImpact, technical, transform, mode);
 }
 
 public sealed record StrategyParameterDefinition(
@@ -226,9 +301,21 @@ public sealed record StrategyParameterDefinition(
     string HigherImpact,
     string Technical,
     StrategyValueTransform Transform,
-    string? EnabledWhenPath)
+    StrategyExitMode Mode)
 {
     public string Format(decimal value) => value.ToString($"F{DecimalPlaces}", CultureInfo.InvariantCulture);
+}
+
+/// <summary>Which exit mode a parameter belongs to. <see cref="Always"/> parameters apply in both.</summary>
+public enum StrategyExitMode
+{
+    Always,
+
+    /// <summary>Fixed percentages: <c>Exits.AtrTrailingRegimeEnabled = false</c>.</summary>
+    Fixed,
+
+    /// <summary>ATR trailing, no fixed take profit: <c>Exits.AtrTrailingRegimeEnabled = true</c>.</summary>
+    Atr,
 }
 
 public enum StrategyValueTransform

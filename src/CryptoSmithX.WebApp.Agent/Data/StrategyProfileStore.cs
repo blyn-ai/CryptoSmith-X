@@ -136,12 +136,22 @@ public static class StrategyProfileStore
     /// are intentionally folded into it: the new revision is the exact strategy
     /// the owner reviewed, and its assignment starts without a hidden second
     /// layer that could mask a saved field.
+    ///
+    /// The exit mode is switched FIRST, so the parameters are checked against the mode being
+    /// saved rather than the one being left. Only that mode's parameters can be written; the other
+    /// mode's values are carried over from the active revision unchanged. NULL keeps the mode.
     /// </summary>
     public static JsonObject BuildNextRevisionValues(
         ActiveStrategyProfile active,
-        IReadOnlyDictionary<string, decimal> parameters)
+        IReadOnlyDictionary<string, decimal> parameters,
+        bool? atrTrailingRegimeEnabled = null)
     {
         var values = ResolveValues(active);
+        if (atrTrailingRegimeEnabled is { } atrMode)
+        {
+            StrategyParameterCatalog.WriteExitMode(values, atrMode);
+        }
+
         foreach (var parameter in parameters)
         {
             StrategyParameterCatalog.Write(StrategyParameterCatalog.Get(parameter.Key), values, parameter.Value);
@@ -189,7 +199,7 @@ public static class StrategyProfileStore
             new { profileId = expected.ProfileId },
             transaction,
             cancellationToken: cancellationToken));
-        var values = BuildNextRevisionValues(expected, save.Parameters);
+        var values = BuildNextRevisionValues(expected, save.Parameters, save.AtrTrailingRegimeEnabled);
         var changeNote = NormalizeNote(save.ChangeNote);
 
         await connection.ExecuteAsync(new CommandDefinition(
@@ -294,11 +304,13 @@ public sealed record StrategyProfileRevision(
     string? ChangeNote,
     DateTime CreatedAt);
 
+/// <param name="AtrTrailingRegimeEnabled">The exit mode to save, or NULL to keep the active one.</param>
 public sealed record StrategyProfileSave(
     TradeProfile RuntimeLimits,
     IReadOnlyDictionary<string, decimal> Parameters,
     string? ChangeNote,
-    string ChangedBy);
+    string ChangedBy,
+    bool? AtrTrailingRegimeEnabled = null);
 
 public sealed class StrategyProfileConflictException(
     string botInstanceId,

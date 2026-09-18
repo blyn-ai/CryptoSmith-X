@@ -19,22 +19,38 @@
   var dialog = document.getElementById('confirm');
   var paused = document.querySelector('[data-paused]');
   var margin = form.querySelector('[name="positionMarginUsd"]');
+  var exitMode = form.querySelector('[data-exit-mode]');
 
   // ── 1. Состояние ─────────────────────────────────────────────────────────
   var idle = status ? (status.dataset.idle || 'Išsaugota') : '';
 
+  // Карточка сама говорит, что её число ушло от сохранённого. Общая для обеих форм страницы:
+  // стратегии и пар.
+  function markCard(input) {
+    var moved = input.value !== input.dataset.saved;
+    var card = input.closest('[data-field]');
+    if (card) {
+      card.classList.toggle('changed', moved);
+      var line = card.querySelector('[data-changed]');
+      if (line) { line.hidden = !moved; }
+    }
+    return moved;
+  }
+
+  function checkedMode() {
+    var checked = form.querySelector('[name="atrTrailingRegimeEnabled"]:checked');
+    return checked ? checked.value : null;
+  }
+
   function dirty() {
     var changed = false;
+    // Выключенные поля — режим, которого нет на экране. Они не уходят с формой, и их значение не
+    // «изменение»: считать их значило бы звать «Neišsaugoti pakeitimai» то, что не сохранится.
     Array.prototype.forEach.call(form.querySelectorAll('[data-number]'), function (input) {
-      var moved = input.value !== input.dataset.saved;
-      var card = input.closest('[data-field]');
-      if (card) {
-        card.classList.toggle('changed', moved);
-        var line = card.querySelector('[data-changed]');
-        if (line) { line.hidden = !moved; }
-      }
-      if (moved) { changed = true; }
+      if (input.disabled) { return; }
+      if (markCard(input)) { changed = true; }
     });
+    if (exitMode && checkedMode() !== null && checkedMode() !== exitMode.dataset.savedMode) { changed = true; }
 
     if (unsaved) { unsaved.hidden = !changed; }
     if (status) {
@@ -59,7 +75,8 @@
   window.addEventListener('pageshow', dirty);
 
   // ── 2. Ползунок и число — одно значение ──────────────────────────────────
-  Array.prototype.forEach.call(form.querySelectorAll('[data-field]'), function (card) {
+  // По всему документу, а не только в форме стратегии: у формы пар та же карточка.
+  Array.prototype.forEach.call(document.querySelectorAll('[data-field]'), function (card) {
     var number = card.querySelector('[data-number]');
     var range = card.querySelector('[data-range]');
     var revert = card.querySelector('[data-revert]');
@@ -82,6 +99,35 @@
     }
   });
 
+  var universeForm = document.querySelector('[data-universe-form]');
+  if (universeForm) {
+    universeForm.addEventListener('input', function (e) {
+      if (e.target && e.target.matches && e.target.matches('[data-number]')) { markCard(e.target); }
+    });
+  }
+
+  // ── 2a. Режим выхода ─────────────────────────────────────────────────────
+  // Одна группа полей видна и включена, другая скрыта и выключена: выключенное поле не уходит с
+  // формой и не мешает её проверке, а значение другого режима остаётся в профиле нетронутым.
+  function applyExitMode(mode) {
+    Array.prototype.forEach.call(form.querySelectorAll('[data-exit-group]'), function (group) {
+      var active = (group.dataset.exitGroup === 'atr') === (mode === 'true');
+      group.hidden = !active;
+      Array.prototype.forEach.call(group.querySelectorAll('input'), function (input) { input.disabled = !active; });
+    });
+    Array.prototype.forEach.call(form.querySelectorAll('[data-exit-note]'), function (note) {
+      note.hidden = (note.dataset.exitNote === 'atr') !== (mode === 'true');
+    });
+  }
+
+  if (exitMode) {
+    exitMode.addEventListener('change', function () {
+      var mode = checkedMode();
+      if (mode !== null) { applyExitMode(mode); }
+      dirty();
+    });
+  }
+
   // ── 3. Сброс всех значений к сохранённым ─────────────────────────────────
   var askReset = document.querySelector('[data-reset-ask]');
   var confirmReset = document.querySelector('[data-reset-confirm]');
@@ -95,6 +141,10 @@
       askReset.hidden = false;
     });
     confirmReset.querySelector('[data-reset-do]').addEventListener('click', function () {
+      if (exitMode) {
+        var saved = form.querySelector('[name="atrTrailingRegimeEnabled"][value="' + exitMode.dataset.savedMode + '"]');
+        if (saved && !saved.disabled) { saved.checked = true; applyExitMode(exitMode.dataset.savedMode); }
+      }
       Array.prototype.forEach.call(form.querySelectorAll('[data-number]'), function (input) {
         input.value = input.dataset.saved;
         var range = input.closest('[data-field]').querySelector('[data-range]');
@@ -268,6 +318,12 @@
       var field = form.elements[cell.getAttribute('data-for')];
       cell.textContent = field ? field.value : '—';
     });
+    var modeCell = dialog.querySelector('[data-for-mode]');
+    if (modeCell) {
+      var checked = form.querySelector('[name="atrTrailingRegimeEnabled"]:checked');
+      var label = checked ? checked.closest('label') : null;
+      modeCell.textContent = label ? label.textContent.trim() : '—';
+    }
     dialog.showModal();
   });
 

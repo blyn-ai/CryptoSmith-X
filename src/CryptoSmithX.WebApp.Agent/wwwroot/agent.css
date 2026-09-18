@@ -495,6 +495,27 @@ body{min-height:100vh;display:flex;flex-direction:column;
   border-top:1px solid var(--border-hairline)}
 .p-params .kraken-revoke p{margin:0;font-family:var(--font-mono);font-size:10.5px;line-height:1.55;color:var(--text-muted)}
 
+/* ── Режим выхода ─────────────────────────────────────────────────────────── */
+/* Два режима — два сегмента одной рамки, как поле с единицей: не новая кнопка, а тот же ввод.
+   Выбранный сегмент отмечен так же, как изменённая карточка — полосой цвета бренда. */
+.p-params .exit-mode-options{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border-input);
+  background:var(--surface-sunken)}
+.p-params .exit-mode-option{display:flex;align-items:center;gap:9px;min-height:var(--tap-min);padding:0 11px;
+  cursor:pointer;font-family:var(--font-mono);font-size:12px;font-weight:500;line-height:1.2;
+  letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted)}
+.p-params .exit-mode-option + .exit-mode-option{border-left:1px solid var(--border-hairline)}
+.p-params .exit-mode-option input{flex:none;margin:0;accent-color:var(--brand)}
+.p-params .exit-mode-option:has(input:checked){background:var(--tint-brand);box-shadow:inset 3px 0 0 var(--brand);
+  color:var(--brand-text)}
+.p-params .exit-mode-option:has(input:disabled){cursor:not-allowed}
+
+/* ── Пары ─────────────────────────────────────────────────────────────────── */
+.p-params .universe-form{padding:0;display:flex;flex-direction:column;gap:12px}
+.p-params .universe-form textarea{box-sizing:border-box;border-radius:0}
+.p-params .field.bad textarea{border-color:var(--money-down)}
+.p-params .universe-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.p-params .universe-actions p{margin:0;font-family:var(--font-mono);font-size:11px;line-height:1.5;color:var(--text-muted)}
+
 /* ── Липкая панель сохранения ─────────────────────────────────────────────── */
 .p-params .sticky-save{position:sticky;bottom:0;z-index:3;display:flex;flex-direction:column;gap:9px;padding:12px;
   background:var(--surface-card);border:1px solid var(--border-card);border-top:2px solid var(--brand)}
