@@ -8,6 +8,9 @@ name: deploy
 on:
   push:
     branches: [main]
+    # A deploy restarts the hub, and a hub restart is a gap on every venue at once. A change that
+    # is only a document must not cost that.
+    paths-ignore: ['plans/**', 'docs/**', '**.md']
   workflow_dispatch:
 
 # One deploy at a time; a newer push supersedes a queued older one.
