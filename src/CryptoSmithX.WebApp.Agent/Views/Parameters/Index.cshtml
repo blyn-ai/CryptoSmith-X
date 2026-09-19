@@ -5,6 +5,7 @@
 @{
     ViewData["Title"] = "Strategijos nustatymai";
     ViewData["PageClass"] = "p-params";
+    ViewData["ClarityBot"] = Model.PublicAlias;
 
     string? Err(string key) => Model.Errors.TryGetValue(key, out var message) ? message : null;
     string? UniverseErr(string key) => Model.Universe.Errors.TryGetValue(key, out var message) ? message : null;
@@ -352,7 +353,10 @@
     </div>
 </section>
 
-<section class="modeler-section kraken-section" aria-labelledby="kraken-credentials-title">
+@* data-clarity-mask: Clarity always masks what is typed into inputs, but the saved key hints and
+   the permission list are text, and Balanced mode masks only digits and emails in text. The whole
+   section is masked in recordings regardless of the dashboard setting. *@
+<section class="modeler-section kraken-section" aria-labelledby="kraken-credentials-title" data-clarity-mask="True">
     <div class="section-heading"><span>6</span><h2 id="kraken-credentials-title">Kraken API raktai</h2><span>Redaguojama</span></div>
     <button type="button" class="internals-toggle" data-kraken-toggle aria-expanded="false">Rodyti / redaguoti API raktus</button>
 

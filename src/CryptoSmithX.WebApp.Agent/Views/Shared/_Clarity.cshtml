@@ -1,0 +1,45 @@
+@using System.Text.Json
+@inject IConfiguration Configuration
+@*
+    Microsoft Clarity — session recordings and heatmaps of the sign-in and parameters screens.
+
+    Three calls beyond the vendor snippet, each for one thing that otherwise goes wrong:
+
+    consentv2  Since 31 Oct 2025 Clarity gives a visitor from the EEA, UK or Switzerland who sent no
+               consent signal "a unique ID per page view" and no cookies — so one person clicking
+               through the screens becomes one "user" per page. Analytics storage is granted here so
+               _clck/_clsk persist and a person stays one user with real sessions. Ad storage is
+               denied: nothing here is advertising.
+    identify   The signed-in username, on every page (Clarity asks for that). The id is hashed by
+               Clarity before it leaves the browser; the same name as friendly-name is what the
+               dashboard shows instead of the hash. The same id on another device is the same user.
+    set bot    The bot alias on the parameters screen, for filtering recordings by bot.
+
+    No project id configured (Development) means no snippet at all.
+*@
+@{
+    var projectId = Configuration["Clarity:ProjectId"];
+    var username = User.Identity?.IsAuthenticated == true ? User.Identity.Name : null;
+    var page = $"{ViewContext.RouteData.Values["controller"]}/{ViewContext.RouteData.Values["action"]}";
+    var bot = ViewData["ClarityBot"] as string;
+    string Js(string value) => JsonSerializer.Serialize(value);
+}
+@if (!string.IsNullOrWhiteSpace(projectId))
+{
+    <script>
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", @Html.Raw(Js(projectId)));
+        window.clarity('consentv2', { ad_Storage: 'denied', analytics_Storage: 'granted' });
+        @if (username is { Length: > 0 })
+        {
+            @:window.clarity('identify', @Html.Raw(Js(username)), undefined, @Html.Raw(Js(page)), @Html.Raw(Js(username)));
+        }
+        @if (bot is { Length: > 0 })
+        {
+            @:window.clarity('set', 'bot', @Html.Raw(Js(bot)));
+        }
+    </script>
+}

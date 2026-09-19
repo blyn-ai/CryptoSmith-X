@@ -23,6 +23,8 @@
              Link="surface\_Field.cshtml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Agent\Views\Shared\_Layout.cshtml"
              Link="surface\_Layout.cshtml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\CryptoSmithX.WebApp.Agent\Views\Shared\_Clarity.cshtml"
+             Link="surface\_Clarity.cshtml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\CryptoSmithX.WebApp.Agent\wwwroot\parameters.js"
              Link="surface\parameters.js" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

@@ -254,4 +254,33 @@ public sealed class SurfaceTests
         Assert.Contains("Jau atidarytos pozicijos jose lieka ir valdomos iki galo", form, StringComparison.Ordinal);
         Assert.Contains("Tik futures.", page, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Clarity_keeps_one_person_one_user_and_names_them()
+    {
+        var layout = Read("_Layout.cshtml");
+        var clarity = Read("_Clarity.cshtml");
+
+        // On both screens: the sign-in page and everything behind it share the layout.
+        Assert.Contains("<partial name=\"_Clarity\" />", layout, StringComparison.Ordinal);
+        Assert.Contains("Configuration[\"Clarity:ProjectId\"]", clarity, StringComparison.Ordinal);
+
+        // Without a consent signal Clarity gives EEA visitors a new id per page view — one person,
+        // a new "user" on every click. Analytics storage granted, ads denied.
+        Assert.Contains("window.clarity('consentv2', { ad_Storage: 'denied', analytics_Storage: 'granted' });", clarity, StringComparison.Ordinal);
+
+        // The signed-in username as the id (hashed by Clarity) and as the name the dashboard shows,
+        // serialised as a JS string rather than pasted into the script.
+        Assert.Contains("window.clarity('identify', @Html.Raw(Js(username)), undefined, @Html.Raw(Js(page)), @Html.Raw(Js(username)));", clarity, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Serialize(value)", clarity, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Kraken_keys_are_masked_in_session_recordings()
+    {
+        Assert.Contains(
+            "class=\"modeler-section kraken-section\" aria-labelledby=\"kraken-credentials-title\" data-clarity-mask=\"True\"",
+            Read("Index.cshtml"),
+            StringComparison.Ordinal);
+    }
 }
