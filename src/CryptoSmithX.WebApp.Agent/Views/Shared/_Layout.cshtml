@@ -11,9 +11,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@ViewData["Title"] · CryptoSmith X</title>
     <link rel="icon" href="~/ds/mark.svg" type="image/svg+xml">
-    @* The token styles are loaded by @import inside this stylesheet. If a token file changes,
-       change styles.css too so this content hash also invalidates the imported asset cache. *@
-    <link rel="stylesheet" href="~/ds/styles.css" asp-append-version="true">
+    @* The six token files, linked one by one in the order ds/styles.css imports them — not
+       through that file's @import lines. Two reasons:
+       - Clarity replays a recording with each <link> pointed at its own cached copy, and a
+         relative @import inside that copy resolves against Clarity's address, not ours: the
+         parameters recording came back with the layout but without a single token — no fonts,
+         colours, borders or inputs.
+       - Each file now carries its own content hash, so a token change reaches browsers without
+         remembering to touch styles.css. *@
+    <link rel="stylesheet" href="~/ds/tokens/fonts.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/ds/tokens/colors.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/ds/tokens/typography.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/ds/tokens/spacing.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/ds/tokens/effects.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/ds/tokens/base.css" asp-append-version="true">
     <link rel="stylesheet" href="~/agent.css" asp-append-version="true">
     <partial name="_Clarity" />
 </head>

@@ -56,7 +56,12 @@ public sealed class SurfaceTests
     {
         foreach (var (file, attribute, asset) in new[]
         {
-            ("_Layout.cshtml", "href", "~/ds/styles.css"),
+            ("_Layout.cshtml", "href", "~/ds/tokens/fonts.css"),
+            ("_Layout.cshtml", "href", "~/ds/tokens/colors.css"),
+            ("_Layout.cshtml", "href", "~/ds/tokens/typography.css"),
+            ("_Layout.cshtml", "href", "~/ds/tokens/spacing.css"),
+            ("_Layout.cshtml", "href", "~/ds/tokens/effects.css"),
+            ("_Layout.cshtml", "href", "~/ds/tokens/base.css"),
             ("_Layout.cshtml", "href", "~/agent.css"),
             ("Index.cshtml", "src", "~/parameters.js"),
         })
@@ -282,5 +287,15 @@ public sealed class SurfaceTests
             "class=\"modeler-section kraken-section\" aria-labelledby=\"kraken-credentials-title\" data-clarity-mask=\"True\"",
             Read("Index.cshtml"),
             StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_layout_links_no_stylesheet_that_only_works_through_at_import()
+    {
+        // Clarity replays a <link> from its own cached copy, where a relative @import points at
+        // Clarity's host: ds/styles.css is nothing but @import lines, and linking it produced
+        // recordings with the layout and none of the tokens.
+        Assert.DoesNotContain("href=\"~/ds/styles.css\"", Read("_Layout.cshtml"), StringComparison.Ordinal);
+        Assert.DoesNotContain("@import", Read("agent.css"), StringComparison.Ordinal);
     }
 }
