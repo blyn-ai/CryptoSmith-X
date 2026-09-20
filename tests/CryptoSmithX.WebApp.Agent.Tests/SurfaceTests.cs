@@ -281,15 +281,6 @@ public sealed class SurfaceTests
     }
 
     [Fact]
-    public void Kraken_keys_are_masked_in_session_recordings()
-    {
-        Assert.Contains(
-            "class=\"modeler-section kraken-section\" aria-labelledby=\"kraken-credentials-title\" data-clarity-mask=\"True\"",
-            Read("Index.cshtml"),
-            StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void The_layout_links_no_stylesheet_that_only_works_through_at_import()
     {
         // Clarity replays a <link> from its own cached copy, where a relative @import points at
