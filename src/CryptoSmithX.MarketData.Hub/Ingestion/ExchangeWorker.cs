@@ -460,7 +460,7 @@ public sealed class ExchangeWorker : BackgroundService
                 var dropped = await retention.RunAsync(ct);
                 if (dropped > 0)
                 {
-                    _logger.LogInformation("Retention dropped {Count} snapshot partitions", dropped);
+                    _logger.LogInformation("Retention dropped {Count} partitions", dropped);
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -474,7 +474,16 @@ public sealed class ExchangeWorker : BackgroundService
 
             try
             {
-                await Task.Delay(TimeSpan.FromHours(24), _clock, ct);
+                // Daily is the right cadence for a contour that keeps everything: the pass only
+                // creates the ranges ahead of the writers. A contour with a window measured in
+                // hours cannot wait that long — at 48 h and a daily pass, a day's worth of
+                // partitions outlives its window by up to another day, which on the rig that ran
+                // out of disk is exactly the margin that was missing.
+                var window = _settings.Latest.RetentionDeleteAfter;
+                var every = window > TimeSpan.Zero && window < TimeSpan.FromDays(7)
+                    ? TimeSpan.FromHours(1)
+                    : TimeSpan.FromHours(24);
+                await Task.Delay(every, _clock, ct);
             }
             catch (OperationCanceledException)
             {

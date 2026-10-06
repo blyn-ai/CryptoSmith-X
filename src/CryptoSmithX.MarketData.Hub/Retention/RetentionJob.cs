@@ -4,8 +4,22 @@ using Dapper;
 namespace CryptoSmithX.MarketData.Hub.Retention;
 
 /// <summary>
-/// Keeps partitions ahead of the writers and drops snapshot history past the retention window.
-/// Candles are never dropped — they are the only source for long backtests.
+/// Keeps partitions ahead of the writers, and — only where an operator has asked for it — drops the
+/// ones whose whole range has aged out.
+///
+/// <b>Deletion is off unless the contour says otherwise, and that is deliberate.</b> A snapshot
+/// carries spread, book depth and open interest at an instant, and no venue sells those back at any
+/// price: on production the answer stays "keep", which is what <c>retention_delete_after_hours = 0</c>
+/// means and what every contour gets by default. A short-lived contour is the opposite case — the
+/// test rig exists to prove the code runs, not to hold history, and in September it filled its disk
+/// and sat dead for twelve days because nothing here could delete. So the window is a number in the
+/// database, 0 everywhere until a person writes otherwise.
+///
+/// <b>What it drops is partitions, never rows.</b> A DELETE returns nothing to the filesystem, and
+/// VACUUM FULL needs a second copy of the table — which is precisely the space a contour in this
+/// state does not have. Dropping the partition returns the files to the disk immediately, which is
+/// why the window below is only expressible at the granularity the partitions are cut at
+/// (<c>partition_granularity</c>, 0068).
 /// </summary>
 public sealed class RetentionJob
 {
@@ -34,60 +48,52 @@ public sealed class RetentionJob
         var now = _clock.GetUtcNow();
         await using var conn = await _db.OpenAsync(ct);
 
+        // Before anything is considered for dropping: the ranges being written to have to exist.
+        // Order matters on a contour whose window is short — a job that dropped first and created
+        // second would, for the length of one statement, leave the writers with nowhere to put a row.
         await Partitions.EnsureAsync(conn, now, ct);
         await Partitions.EnsureAsync(conn, now.AddMonths(1), ct);
 
-        // Retention for 'snapshot' is dataset-level only, never per-segment: market_snapshot
-        // partitions hold every exchange's rows for a month at once, so dropping one cannot spare a
-        // single exchange even if its segment_dataset.retention_days says otherwise (see the
-        // 0014 migration header). A dataset whose retention is null never rotates — 'snapshot'
-        // always has one, but the null-guard keeps this job honest if that default is ever cleared.
-        var retentionDays = (await _settings.CurrentAsync(ct)).DatasetRetentionDays("snapshot");
-        if (retentionDays is null)
+        var window = (await _settings.CurrentAsync(ct)).RetentionDeleteAfter;
+        if (window <= TimeSpan.Zero)
         {
             return 0;
         }
 
-        // A month is droppable once its last day is older than the window, so a partial month is
-        // never taken away early.
-        var cutoff = now.AddDays(-retentionDays.Value);
-        var names = await conn.QueryAsync<string>(new CommandDefinition(
-            """
-            select c.relname
-              from pg_class c
-              join pg_inherits h on h.inhrelid = c.oid
-              join pg_class p on p.oid = h.inhparent
-             where p.relname = 'market_snapshot'
-               and c.relname ~ '^market_snapshot_[0-9]{4}_[0-9]{2}$'
-            """,
-            cancellationToken: ct));
-
         var dropped = 0;
-        foreach (var name in names)
+        foreach (var parent in Partitions.PartitionedTables)
         {
-            // market_snapshot_YYYY_MM — take the tail rather than counting characters.
-            var parts = name.Split('_');
-            var year = int.Parse(parts[^2], System.Globalization.CultureInfo.InvariantCulture);
-            var month = int.Parse(parts[^1], System.Globalization.CultureInfo.InvariantCulture);
-            var endOfMonth = new DateTimeOffset(year, month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(1);
+            // Only the real children of this parent, read from the catalogue rather than guessed by
+            // name match — a table called market_snapshot_old sitting beside the parent is somebody's
+            // backup, not a partition, and nothing here may touch it.
+            var names = await conn.QueryAsync<string>(new CommandDefinition(
+                """
+                select c.relname
+                  from pg_class c
+                  join pg_inherits h on h.inhrelid = c.oid
+                  join pg_class p on p.oid = h.inhparent
+                 where p.relname = @parent
+                """,
+                new { parent }, cancellationToken: ct));
 
-            if (endOfMonth > cutoff)
+            foreach (var name in names)
             {
-                continue;
-            }
+                if (!PartitionWindow.IsPast(parent, name, now, window))
+                {
+                    continue;
+                }
 
-            // NOT DROPPED. Snapshots carry spread, order-book depth and open interest at a moment,
-            // and no venue will sell those back to us at any price — deleting them destroys the only
-            // copy in existence. The rework brief settles this: nothing is deleted, retention is
-            // decided after thirty days of measured volumes, and the default answer is keep.
-            //
-            // The scan above is left in place deliberately rather than deleted with the drop, because
-            // it is what will drive the export when a partition moves to Parquet on the archive
-            // volume. A move is allowed; this was not a move.
-            _logger.LogInformation(
-                "Snapshot partition {Partition} is past the {Days}-day window and is being KEPT; "
-                + "deletion is disabled until an export path exists",
-                name, retentionDays.Value);
+                // Quoted even though the name came from pg_class and matched a strict shape above:
+                // an identifier reaching DDL by interpolation should not rest on one check alone.
+                await conn.ExecuteAsync(new CommandDefinition(
+                    $"drop table if exists {Quote(name)}", cancellationToken: ct));
+                dropped++;
+
+                _logger.LogInformation(
+                    "Retention dropped partition {Partition}: its range ends before {Cutoff:u}, the "
+                    + "{Hours} h window set by retention_delete_after_hours",
+                    name, now - window, window.TotalHours);
+            }
         }
 
         return dropped;

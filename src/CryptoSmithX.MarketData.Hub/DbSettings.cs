@@ -274,6 +274,18 @@ public sealed class SettingsSnapshot
     public int WsCrosscheckDriftBps => GetInt("ws_crosscheck_drift_bps");
 
     /// <summary>
+    /// How old a partition's whole range must be before <c>RetentionJob</c> drops it.
+    /// <see cref="TimeSpan.Zero"/> means never, which is the default every contour ships with and
+    /// the standing answer on production — see 0068 and the job's own remarks.
+    ///
+    /// Read with a fallback rather than <see cref="Require"/> on purpose: a Hub binary newer than
+    /// its database is a normal state for the few seconds between the migrator finishing and the
+    /// services starting, and the honest reading of a missing row is "nobody asked for deletion".
+    /// </summary>
+    public TimeSpan RetentionDeleteAfter =>
+        TimeSpan.FromHours(Math.Max(0, GetIntOrDefault("retention_delete_after_hours", 0)));
+
+    /// <summary>
     /// The matrix cell for one segment×dataset pair, or null if the pair genuinely has no row —
     /// which should not happen for a real exchange once 0014's backfill has run, but a brand-new
     /// exchange added by hand outside a migration would hit this until its matrix row exists.
@@ -351,6 +363,15 @@ public sealed class SettingsSnapshot
 
     public int GetInt(string key) =>
         int.Parse(Require(key), NumberStyles.Integer, CultureInfo.InvariantCulture);
+
+    /// <summary>A global setting that a database older than this binary may not carry yet. Only for
+    /// values whose absence has an honest default — never for one whose absence should stop the
+    /// service, which is what <see cref="GetInt"/> is for.</summary>
+    public int GetIntOrDefault(string key, int fallback) =>
+        _settings.TryGetValue(key, out var value)
+        && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : fallback;
 
     private string Require(string key) =>
         _settings.TryGetValue(key, out var value)
