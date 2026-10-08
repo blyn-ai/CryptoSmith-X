@@ -250,7 +250,32 @@ body{min-height:100vh;display:flex;flex-direction:column;
    Единственный токен, которого нет в ds: --head-h (высота липкой шапки, нужна
    подшапке, чтобы прилипнуть под неё).
    ════════════════════════════════════════════════════════════════════════════ */
-.p-params{--head-h:52px}
+/* Meetluko palette, scoped to parameters so the shared design tokens remain reusable. */
+.p-params{
+  --head-h:52px;color-scheme:dark;
+  --surface-page:#050505;--surface-card:rgba(17,18,15,.9);--surface-band:#11120f;
+  --surface-sunken:#0d0e0b;--surface-overlay:rgba(0,0,0,.72);
+  --text-heading:#f7e6c1;--text-body:#f6efe1;--text-data:#f6efe1;
+  --text-muted:#a89e8e;--text-faint:#a89e8e;--text-zero:#a89e8e;
+  --text-unmeasured:#a89e8e;--eyebrow:#c8bba6;--text-on-action:#050505;
+  --brand:#f5b84f;--brand-text:#ffd987;--brand-deep:#ffd987;--accent:#f5b84f;
+  --action-primary:#f5b84f;--action-primary-hover:#ffd987;
+  --link:#ffd987;--link-hover:#f7e6c1;
+  --money-up:#41eda0;--money-up-ink:#41eda0;--band-up:#41eda0;--border-up:#41eda0;
+  --money-down:#ff5367;--money-down-ink:#ff5367;--band-down:#ff5367;--border-down:#ff5367;
+  --money-flat:#a89e8e;--tint-up:rgba(65,237,160,.08);--tint-down:rgba(255,83,103,.08);
+  --long:#6faeff;--short:#ff9a79;--state-running:#f5b84f;
+  --state-stale:#f0a63a;--state-blackout:#f0a63a;--state-stopped:#a89e8e;
+  --state-hold-ink:#ffd987;--tint-hold:rgba(240,166,58,.08);--border-hold:#f0a63a;
+  --border-hairline:rgba(246,218,160,.13);--border-card:rgba(246,218,160,.2);
+  --border-input:rgba(246,218,160,.3);--border-strong:#f5b84f;
+  --tint-neutral:rgba(246,239,225,.05);--tint-brand:rgba(245,184,79,.1);
+  --radius-control:8px;--radius-panel:12px;
+  --font-display:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+  --font-heading:var(--font-display);
+  background-image:radial-gradient(ellipse at top,rgba(245,184,79,.08),transparent 58%);
+  background-size:100% 640px;background-repeat:no-repeat;
+}
 
 /* ── Шапка и подшапка ─────────────────────────────────────────────────────── */
 .p-params .head{position:sticky;top:0;z-index:4;flex:none;display:flex;align-items:center;gap:10px;
@@ -625,3 +650,20 @@ body{min-height:100vh;display:flex;flex-direction:column;
 .p-params .landed{background:var(--tint-brand);border-left:3px solid var(--brand);color:var(--brand-text)}
 .p-params .refused{background:var(--tint-hold);border-left:3px solid var(--border-hold);
   color:var(--state-hold-ink)}
+
+/* Meetluko's warm, softly rounded surfaces and restrained gold controls. */
+.p-params .head{background:rgba(13,14,11,.96);border-bottom:1px solid var(--border-card)}
+.p-params .wordmark{font-weight:700}
+.p-params .modeler-heading h1,.p-params .section-heading h2{font-weight:600;text-transform:none}
+.p-params .field,.p-params .risk-panel,.p-params .sticky-save{
+  border-radius:var(--radius-panel);box-shadow:0 12px 32px rgba(0,0,0,.2)}
+.p-params .affix,.p-params .locked,.p-params .saved-item,.p-params .sheet-tech,
+.p-params .sheet-direction,.p-params .dialog-name,.p-params .section-note,
+.p-params .landed,.p-params .refused{border-radius:var(--radius-control)}
+.p-params .logout,.p-params .subbar-load,.p-params .btn-primary,.p-params .btn-quiet,
+.p-params .btn-danger,.p-params .dialog-field textarea{border-radius:var(--radius-control)}
+.p-params .affix:focus-within{border-color:var(--brand);box-shadow:0 0 0 2px var(--tint-brand)}
+.p-params .save,.p-params .btn-primary{font-weight:600;letter-spacing:.04em}
+.p-params .save[disabled]{background:var(--surface-sunken);border-color:var(--border-input);color:var(--text-muted)}
+.p-params .panel{border-radius:var(--radius-panel) var(--radius-panel) 0 0;box-shadow:0 22px 60px rgba(0,0,0,.28)}
+.p-params .overlay,.p-params .overlay::backdrop{background:var(--surface-overlay)}
