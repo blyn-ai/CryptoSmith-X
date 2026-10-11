@@ -52,8 +52,8 @@ services:
         condition: service_completed_successfully
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
-      # Sentry errors (component=hub); DSN lives only in /opt/cryptosmithx/.env.
-      Sentry__Dsn: ${SENTRY_DSN:-}
+      # Sentry disabled: keep the DSN empty even if the host has SENTRY_DSN.
+      Sentry__Dsn: ""
       Sentry__Environment: test
     restart: unless-stopped
 
@@ -76,7 +76,7 @@ services:
       # which does use one — and the paste took `<<: *db` with it, so the whole file stopped parsing
       # and every converge on the test host died with "unknown anchor 'db'".
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=${POSTGRES_PASSWORD}
-      Sentry__Dsn: ${SENTRY_DSN:-}
+      Sentry__Dsn: ""
       Sentry__Environment: test
     ports:
       # 7780, NOT 8080, and only on this host: 10.8.0.1:8080 was already taken here by an
@@ -103,8 +103,8 @@ services:
       # Какая это ПЛОЩАДКА, а не какое окружение ASP.NET. Второе остаётся Production
       # и здесь: тест, работающий в другом режиме фреймворка, тестирует не то.
       Csx__Site: test
-      # Sentry errors (component=webapp-admin).
-      Sentry__Dsn: ${SENTRY_DSN:-}
+      # Sentry disabled.
+      Sentry__Dsn: ""
       Sentry__Environment: test
       DataProtection__KeysDirectory: /keys
     volumes:
@@ -141,8 +141,8 @@ services:
       # webapp-admin included, on the first such deploy after this file lands.
       ConnectionStrings__Database: ${STUDIO_DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=studio_reader;Password=arena_reader;Maximum Pool Size=20}
       ASPNETCORE_ENVIRONMENT: Production
-      # Sentry errors (component=studio).
-      Sentry__Dsn: ${SENTRY_DSN:-}
+      # Sentry disabled.
+      Sentry__Dsn: ""
       Sentry__Environment: test
     ports:
       # VPN fallback entrance, as for the webapp-admin. The public entrance is traefik on
@@ -195,7 +195,7 @@ services:
       ConnectionStrings__TradingBotDatabase: Host=trading-bot-db;Port=5432;Database=tradingbot;Username=tradingbot;Password=${TRADING_BOT_POSTGRES_PASSWORD:?пароль БД бота, из /opt/trading-bot/.env, положить в /opt/cryptosmithx/.env}
       TradingBot__BaseUrl: ${TRADING_BOT_BASE_URL:-https://blynai.meetluko.eu}
       ASPNETCORE_ENVIRONMENT: Production
-      Sentry__Dsn: ${SENTRY_DSN:-}
+      Sentry__Dsn: ""
       Sentry__Environment: test
       DataProtection__KeysDirectory: /keys
     networks:
