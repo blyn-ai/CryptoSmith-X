@@ -47,8 +47,8 @@ services:
         condition: service_completed_successfully
     environment:
       ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=marketdata}
-      # Sentry errors (component=hub). Empty locally → SDK stays disabled.
-      Sentry__Dsn: ${SENTRY_DSN:-}
+      # Sentry disabled: keep the DSN empty even if SENTRY_DSN is set.
+      Sentry__Dsn: ""
     restart: unless-stopped
 
   api:
@@ -62,8 +62,8 @@ services:
         condition: service_completed_successfully
     environment:
       ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=marketdata}
-      # Sentry errors (component=api). Empty locally → SDK stays disabled.
-      Sentry__Dsn: ${SENTRY_DSN:-}
+      # Sentry disabled.
+      Sentry__Dsn: ""
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -79,8 +79,8 @@ services:
         condition: service_completed_successfully
     environment:
       ConnectionStrings__Database: ${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=marketdata;Password=marketdata}
-      # Sentry errors (component=webapp-admin). Empty locally → SDK stays disabled.
-      Sentry__Dsn: ${SENTRY_DSN:-}
+      # Sentry disabled.
+      Sentry__Dsn: ""
       # Development enables local conveniences; sign-in accounts live in the database either way.
       ASPNETCORE_ENVIRONMENT: ${WEBAPP_ENVIRONMENT:-Development}
       # DataProtection keys must survive a restart, or every redeploy logs everyone out.
@@ -115,8 +115,8 @@ services:
       # The role, the grants and the argument are migration 0025; the local default password
       # matches the one that migration sets when it creates the role.
       ConnectionStrings__Database: ${STUDIO_DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=marketdata;Username=studio_reader;Password=arena_reader;Maximum Pool Size=20}
-      # Sentry errors (component=studio). Empty locally → SDK stays disabled.
-      Sentry__Dsn: ${SENTRY_DSN:-}
+      # Sentry disabled.
+      Sentry__Dsn: ""
       ASPNETCORE_ENVIRONMENT: ${STUDIO_ENVIRONMENT:-Development}
     ports:
       # The app serves under /studio (UsePathBase), so the local address is
