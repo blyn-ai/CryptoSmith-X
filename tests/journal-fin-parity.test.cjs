@@ -61,3 +61,18 @@ test('risk scale is fixed at entry plus/minus ten percent with only SL and now t
   assert(!template.includes('{{ p.peakAt }}'));
   assert(!template.includes('{{ p.barRight }}'));
 });
+test('TS range is frozen from initial stop, not the moving peak or current price', () => {
+  const c = component();
+  const p = { pair: 'ETH/USD', side: 'LONG', entryPrice: 100, lastPrice: 104,
+    peakPnlPercent: 4, trailingStopPercent: 1, trailingStopState: 'SIMULATED_OPEN', trailingInitialStopPrice: 102 };
+  const a = c.positionRows({ positions: [p] })[0];
+  const b = c.positionRows({ positions: [{ ...p, lastPrice: 107, peakPnlPercent: 8 }] })[0];
+  assert.equal(a.scaleMin, b.scaleMin);
+  assert(Math.abs(a.scaleMin - 1.49) < 1e-9);
+  assert.equal(a.scaleMax, 10);
+  assert.match(a.scaleLeftLabel, /Pirmas TS/);
+  assert.notEqual(a.stopAt, b.stopAt);
+  assert.notEqual(a.markerAt, b.markerAt);
+  assert.match(c.positionRows({ positions: [{ ...p, lastPrice: 115 }] })[0].nowLabel, /už skalės/);
+  assert.match(c.positionRows({ positions: [{ ...p, trailingInitialStopPrice: null }] })[0].scaleNote, /neužfiksuota/);
+});
