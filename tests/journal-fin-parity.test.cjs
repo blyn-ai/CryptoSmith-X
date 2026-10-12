@@ -33,6 +33,10 @@ test('zero or null TP is not a target; trailing has a profit scale', () => {
   const simulated = c.positionRows({ positions: [{ ...p, peakPnlPercent: 10, trailingStopState: 'SIMULATED_OPEN' }] })[0];
   assert.equal(simulated.trailing, true);
   assert.match(simulated.trailLabel, /109/);
+  assert.match(simulated.barGradient, /linear-gradient/);
+  assert.equal(simulated.hasPeak, true);
+  assert.match(simulated.peakLabel, /Pikas/);
+  assert.equal(trail.hasPeak, false);
 });
 test('unobserved gap is grey and separate from bot result', () => {
   const c = component();
