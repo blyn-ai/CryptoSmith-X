@@ -45,19 +45,18 @@ test('unobserved gap is grey and separate from bot result', () => {
   assert(chart.hits[0].rows.some(x => x.label === 'Stebėjimo spraga'));
   assert(chart.candles.some(x => x.fill === 'var(--text-faint)'));
 });
-test('risk scale is fixed at entry plus/minus ten percent with only SL and now ticks', () => {
+test('ordinary SL/TP uses two solid zones split at entry and one current-price mark', () => {
   const c = component();
-  const p = { pair: 'DOGE/USD', side: 'LONG', entryPrice: 100, lastPrice: 99, stopLossPrice: 98 };
+  const p = { pair: 'DOGE/USD', side: 'LONG', entryPrice: 100, lastPrice: 99, stopLossPrice: 98, takeProfitPrice: 104 };
   const a = c.positionRows({ positions: [p] })[0];
   const b = c.positionRows({ positions: [{ ...p, lastPrice: 104, stopLossPrice: 101 }] })[0];
-  assert.equal(a.scaleMin, b.scaleMin);
-  assert.equal(a.scaleMax, b.scaleMax);
-  assert.equal(a.stopAt, '40.0%');
-  assert.equal(a.markerAt, '45.0%');
-  assert.equal(b.markerAt, '70.0%');
-  const short = c.positionRows({ positions: [{ ...p, side: 'SHORT', lastPrice: 96, stopLossPrice: 102 }] })[0];
-  assert.equal(short.markerAt, '70.0%');
-  assert.equal(short.stopAt, '40.0%');
+  assert.equal(a.ordinary, true);
+  assert.equal(a.ordinaryRedWidth, '33.3%');
+  assert.equal(a.markerAt, '16.7%');
+  assert.equal(b.markerAt, '100.0%');
+  const short = c.positionRows({ positions: [{ ...p, side: 'SHORT', lastPrice: 99, stopLossPrice: 102, takeProfitPrice: 96 }] })[0];
+  assert.equal(short.markerAt, '50.0%');
+  assert.equal(short.ordinaryRedWidth, '33.3%');
   assert(!template.includes('{{ p.peakAt }}'));
   assert(!template.includes('{{ p.barRight }}'));
 });
